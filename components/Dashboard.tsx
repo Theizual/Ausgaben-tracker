@@ -6,6 +6,7 @@ import type { Transaction, Category, ViewMode, CategoryId } from '../types';
 import { format, parseISO, formatCurrency, de, endOfDay, isWithinInterval } from '../utils/dateUtils';
 import { getWeekInterval, getMonthInterval } from '../utils/dateUtils';
 import { iconMap, Plus, Edit, Trash2, BarChart2, ChevronDown, Coins, CalendarDays } from './Icons';
+import { CATEGORY_GROUPS } from '../constants';
 
 type DashboardProps = {
     transactions: Transaction[];
@@ -83,7 +84,7 @@ const Dashboard: FC<DashboardProps> = (props) => {
                 <h1 className="text-3xl font-bold text-white">Übersicht</h1>
             </div>
 
-            <QuickAddForm categories={props.categories} addTransaction={props.addTransaction} />
+            <QuickAddForm addTransaction={props.addTransaction} />
             
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 
@@ -134,7 +135,6 @@ const Dashboard: FC<DashboardProps> = (props) => {
                 <div className="lg:col-span-2 order-2 lg:order-1 h-[640px] lg:h-auto">
                     <TransactionList 
                         transactions={filteredTransactions}
-                        categories={props.categories}
                         categoryMap={props.categoryMap}
                         updateTransaction={props.updateTransaction}
                         deleteTransaction={props.deleteTransaction}
@@ -168,10 +168,10 @@ const ViewTabs: FC<{ viewMode: ViewMode; setViewMode: (mode: ViewMode) => void; 
     );
 };
 
-const QuickAddForm: FC<{ categories: Category[], addTransaction: (t: Omit<Transaction, 'id'>) => void }> = ({ categories, addTransaction }) => {
+const QuickAddForm: FC<{ addTransaction: (t: Omit<Transaction, 'id'>) => void }> = ({ addTransaction }) => {
     const [amount, setAmount] = useState('');
     const [description, setDescription] = useState('');
-    const [categoryId, setCategoryId] = useState(categories[0]?.id || '');
+    const [categoryId, setCategoryId] = useState(CATEGORY_GROUPS[0]?.categories[0]?.id || '');
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -232,7 +232,11 @@ const QuickAddForm: FC<{ categories: Category[], addTransaction: (t: Omit<Transa
                                 className="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-rose-500 appearance-none"
                                 required
                             >
-                                {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                {CATEGORY_GROUPS.map(group => (
+                                    <optgroup key={group.name} label={group.name}>
+                                        {group.categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                    </optgroup>
+                                ))}
                             </select>
                             <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 pointer-events-none" />
                         </div>
@@ -254,11 +258,10 @@ const QuickAddForm: FC<{ categories: Category[], addTransaction: (t: Omit<Transa
 
 const TransactionList: FC<{ 
     transactions: Transaction[]; 
-    categories: Category[];
     categoryMap: Map<string, Category>; 
     updateTransaction: (t: Transaction) => void;
     deleteTransaction: (id: string) => void; 
-}> = ({ transactions, categories, categoryMap, updateTransaction, deleteTransaction }) => {
+}> = ({ transactions, categoryMap, updateTransaction, deleteTransaction }) => {
     const [editingId, setEditingId] = useState<string | null>(null);
     return (
         <motion.div
@@ -275,7 +278,6 @@ const TransactionList: FC<{
                         <TransactionItem 
                             transaction={t}
                             category={categoryMap.get(t.categoryId)}
-                            categories={categories}
                             onUpdate={updateTransaction}
                             onDelete={deleteTransaction}
                             isEditing={editingId === t.id}
@@ -292,12 +294,11 @@ const TransactionList: FC<{
 const TransactionItem: FC<{ 
     transaction: Transaction; 
     category?: Category; 
-    categories: Category[];
     onUpdate: (t: Transaction) => void; 
     onDelete: (id: string) => void; 
     isEditing: boolean; 
     onEditClick: () => void; 
-}> = ({ transaction, category, categories, onUpdate, onDelete, isEditing, onEditClick }) => {
+}> = ({ transaction, category, onUpdate, onDelete, isEditing, onEditClick }) => {
     const [formState, setFormState] = useState(transaction);
     
     React.useEffect(() => {
@@ -386,7 +387,11 @@ const TransactionItem: FC<{
                         onChange={e => setFormState({...formState, categoryId: e.target.value})} 
                         className="w-full bg-slate-600 border border-slate-500 rounded-md px-3 py-2 text-white appearance-none focus:outline-none focus:ring-2 focus:ring-rose-500"
                     >
-                        {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        {CATEGORY_GROUPS.map(group => (
+                            <optgroup key={group.name} label={group.name}>
+                                {group.categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                            </optgroup>
+                        ))}
                     </select>
                     <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 pointer-events-none" />
                  </div>
