@@ -17,11 +17,6 @@ export const CATEGORY_GROUPS: { name: string; categories: Category[] }[] = [
       { id: 'cat_pflege', name: 'Körperpflege / Gesundheit', color: '#0d9488', icon: 'ShowerHead' },
       { id: 'cat_reinigung', name: 'Haushaltspflege / Reinigung', color: '#0ea5e9', icon: 'SprayCan' },
       { id: 'cat_kinder', name: 'Kinderbedarf / Babyartikel', color: '#f472b6', icon: 'Baby' },
-    ],
-  },
-  {
-    name: 'Tiere',
-    categories: [
       { id: 'cat_tier', name: 'Tierbedarf', color: '#a855f7', icon: 'Bone' },
     ],
   },

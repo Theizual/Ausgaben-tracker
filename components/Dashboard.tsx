@@ -17,6 +17,48 @@ type DashboardProps = {
     deleteTransaction: (id: string) => void;
 };
 
+const CategoryButtons: FC<{
+    selectedCategoryId: CategoryId;
+    onSelectCategory: (id: CategoryId) => void;
+}> = ({ selectedCategoryId, onSelectCategory }) => {
+    return (
+        <div className="space-y-4">
+            {CATEGORY_GROUPS.map(group => (
+                <div key={group.name}>
+                    <h4 className="text-sm font-semibold text-slate-400 mb-2">{group.name}</h4>
+                    <div className="flex flex-wrap gap-2">
+                        {group.categories.map(category => {
+                            const Icon = iconMap[category.icon] || iconMap.MoreHorizontal;
+                            const isSelected = selectedCategoryId === category.id;
+                            return (
+                                <button
+                                    key={category.id}
+                                    type="button"
+                                    onClick={() => onSelectCategory(category.id)}
+                                    style={isSelected ? {
+                                        backgroundColor: category.color,
+                                        borderColor: category.color,
+                                    } : {
+                                        borderColor: category.color,
+                                    }}
+                                    className={`flex items-center gap-2 text-sm px-3 py-2 rounded-lg transition-all border
+                                        ${isSelected 
+                                            ? 'text-white font-semibold shadow-md' 
+                                            : 'bg-slate-700/80 text-slate-300 hover:bg-slate-700'
+                                        }`}
+                                >
+                                    <Icon className="h-4 w-4" style={!isSelected ? { color: category.color } : {}} />
+                                    <span>{category.name}</span>
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
+};
+
 const Dashboard: FC<DashboardProps> = (props) => {
     const [viewMode, setViewMode] = useState<ViewMode>('woche');
     
@@ -223,27 +265,15 @@ const QuickAddForm: FC<{ addTransaction: (t: Omit<Transaction, 'id'>) => void }>
                         />
                     </div>
 
-                    <div className="flex flex-col sm:flex-row gap-3">
-                        <div className="relative flex-grow">
-                            <select
-                                id="category"
-                                value={categoryId}
-                                onChange={e => setCategoryId(e.target.value)}
-                                className="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-rose-500 appearance-none"
-                                required
-                            >
-                                {CATEGORY_GROUPS.map(group => (
-                                    <optgroup key={group.name} label={group.name}>
-                                        {group.categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                                    </optgroup>
-                                ))}
-                            </select>
-                            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 pointer-events-none" />
-                        </div>
-                        
+                    <CategoryButtons
+                        selectedCategoryId={categoryId}
+                        onSelectCategory={setCategoryId}
+                    />
+                    
+                    <div className="flex justify-end pt-2">
                         <button
                             type="submit"
-                            className="w-full sm:w-auto flex-shrink-0 flex items-center justify-center gap-2 bg-gradient-to-r from-rose-500 to-red-600 text-white font-semibold px-4 py-2.5 rounded-lg shadow-md hover:opacity-90 transition-opacity"
+                            className="w-full sm:w-auto flex-shrink-0 flex items-center justify-center gap-2 bg-gradient-to-r from-rose-500 to-red-600 text-white font-semibold px-6 py-3 rounded-lg shadow-md hover:opacity-90 transition-opacity"
                             aria-label="Ausgabe hinzufügen"
                         >
                             <Plus className="h-5 w-5" />
@@ -347,7 +377,7 @@ const TransactionItem: FC<{
         };
 
         return (
-            <div className="bg-slate-700/80 p-3 rounded-lg space-y-3 ring-2 ring-rose-500">
+            <div className="bg-slate-700/80 p-4 rounded-lg space-y-4 ring-2 ring-rose-500">
                 <div className="grid grid-cols-2 gap-3">
                     <input 
                         type="number" 
@@ -381,20 +411,10 @@ const TransactionItem: FC<{
                     className="w-full bg-slate-600 border border-slate-500 rounded-md px-3 py-2 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500"
                     placeholder="Beschreibung"
                 />
-                 <div className="relative">
-                    <select 
-                        value={formState.categoryId} 
-                        onChange={e => setFormState({...formState, categoryId: e.target.value})} 
-                        className="w-full bg-slate-600 border border-slate-500 rounded-md px-3 py-2 text-white appearance-none focus:outline-none focus:ring-2 focus:ring-rose-500"
-                    >
-                        {CATEGORY_GROUPS.map(group => (
-                            <optgroup key={group.name} label={group.name}>
-                                {group.categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                            </optgroup>
-                        ))}
-                    </select>
-                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 pointer-events-none" />
-                 </div>
+                 <CategoryButtons 
+                    selectedCategoryId={formState.categoryId}
+                    onSelectCategory={(id) => setFormState({...formState, categoryId: id})}
+                 />
                  <div className="flex justify-end gap-2 pt-2">
                     <button onClick={onEditClick} className="text-slate-400 hover:text-white px-4 py-1.5 rounded-md hover:bg-slate-600/50 transition-colors text-sm">Abbrechen</button>
                     <button onClick={handleSave} className="bg-rose-600 hover:bg-rose-500 text-white text-sm font-semibold px-4 py-1.5 rounded-md transition-colors">Speichern</button>
