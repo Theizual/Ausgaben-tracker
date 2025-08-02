@@ -4,8 +4,8 @@ import type { FC } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import type { Transaction, Category, ViewMode, CategoryId } from '../types';
-import { format, parseISO } from '../utils/dateUtils';
-import { getWeekInterval, getMonthInterval, filterTransactionsByInterval, formatCurrency } from '../utils/dateUtils';
+import { format, parseISO, formatCurrency, de } from '../utils/dateUtils';
+import { getWeekInterval, getMonthInterval, filterTransactionsByInterval } from '../utils/dateUtils';
 import { iconMap, Plus, Edit, Trash2, BarChart2, ChevronDown, Coins } from './Icons';
 
 type DashboardProps = {
@@ -20,14 +20,24 @@ type DashboardProps = {
 const Dashboard: FC<DashboardProps> = (props) => {
     const [viewMode, setViewMode] = useState<ViewMode>('woche');
     
-    const { filteredTransactions, totalExpenses, dailyAverage } = useMemo(() => {
+    const { filteredTransactions, totalExpenses, dailyAverage, subtext } = useMemo(() => {
         const now = new Date();
         const interval = viewMode === 'woche' ? getWeekInterval(now) : getMonthInterval(now);
+        
+        let subtext: string;
+        if (viewMode === 'woche') {
+            const range = `${format(interval.start, 'd. MMM', { locale: de })} - ${format(interval.end, 'd. MMM', { locale: de })}`;
+            subtext = `in dieser Woche (${range})`;
+        } else {
+            const range = format(interval.start, 'MMMM yyyy', { locale: de });
+            subtext = `in diesem Monat (${range})`;
+        }
+
         const filtered = filterTransactionsByInterval(props.transactions, interval);
         const total = filtered.reduce((sum, t) => sum + t.amount, 0);
 
         if (filtered.length === 0) {
-            return { filteredTransactions: filtered, totalExpenses: 0, dailyAverage: 0 };
+            return { filteredTransactions: filtered, totalExpenses: 0, dailyAverage: 0, subtext };
         }
 
         let daysInPeriod: number;
@@ -41,45 +51,43 @@ const Dashboard: FC<DashboardProps> = (props) => {
         
         const average = daysInPeriod > 0 ? total / daysInPeriod : 0;
 
-        return { filteredTransactions: filtered, totalExpenses: total, dailyAverage: average };
+        return { filteredTransactions: filtered, totalExpenses: total, dailyAverage: average, subtext };
     }, [props.transactions, viewMode]);
-
-    const getCategoryById = (id: string): Category | undefined => {
-        return props.categoryMap.get(id);
-    };
 
     return (
         <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <h1 className="text-3xl font-bold text-white">Übersicht</h1>
+                <ViewTabs viewMode={viewMode} setViewMode={setViewMode} />
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="md:col-span-2 space-y-6">
-                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                        <h1 className="text-3xl font-bold text-white">Übersicht</h1>
-                        <ViewTabs viewMode={viewMode} setViewMode={setViewMode} />
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                        <StatCard 
-                            icon={<Coins className="h-6 w-6" />} 
-                            title="Gesamtausgaben"
-                            value={formatCurrency(totalExpenses)}
-                            subtext={viewMode === 'woche' ? 'in dieser Woche' : 'in diesem Monat'}
-                        />
-                        <StatCard 
-                            icon={<BarChart2 className="h-6 w-6" />} 
-                            title="Tagesdurchschnitt"
-                            value={formatCurrency(dailyAverage)}
-                            subtext={viewMode === 'woche' ? 'in dieser Woche' : 'in diesem Monat'}
-                        />
-                    </div>
+                <div className="md:col-span-2">
+                    <QuickAddForm categories={props.categories} addTransaction={props.addTransaction} />
                 </div>
-                <div className="bg-slate-800/50 p-4 rounded-2xl border border-slate-700/50 flex items-center justify-center min-h-[280px] row-start-1 md:row-start-auto md:col-span-1">
-                    <CategoryPieChart transactions={filteredTransactions} getCategoryById={getCategoryById} />
+                <div className="bg-slate-800/50 p-4 rounded-2xl border border-slate-700/50 flex items-center justify-center min-h-[280px] h-full">
+                    <CategoryPieChart transactions={filteredTransactions} categoryMap={props.categoryMap} />
                 </div>
             </div>
 
-            <QuickAddForm categories={props.categories} addTransaction={props.addTransaction} />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <StatCard 
+                    icon={<Coins className="h-6 w-6" />} 
+                    title="Gesamtausgaben"
+                    value={formatCurrency(totalExpenses)}
+                    subtext={subtext}
+                />
+                <StatCard 
+                    icon={<BarChart2 className="h-6 w-6" />} 
+                    title="Tagesdurchschnitt"
+                    value={formatCurrency(dailyAverage)}
+                    subtext={subtext}
+                />
+            </div>
             
             <TransactionList 
                 transactions={filteredTransactions}
+                categories={props.categories}
                 categoryMap={props.categoryMap}
                 updateTransaction={props.updateTransaction}
                 deleteTransaction={props.deleteTransaction}
@@ -141,18 +149,14 @@ const QuickAddForm: FC<{ categories: Category[], addTransaction: (t: Omit<Transa
     };
 
     return (
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-slate-800 p-6 rounded-2xl">
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-slate-800 p-6 rounded-2xl h-full">
             <h3 className="text-xl font-bold text-white mb-6">Ausgabe hinzufügen</h3>
-            <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-                <div className="md:col-span-1">
+            <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+                <div>
                     <label htmlFor="amount" className="block text-sm font-medium text-slate-400 mb-2">Betrag (€)</label>
                     <input id="amount" type="number" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} placeholder="z.B. 12,50" className="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-rose-500" />
                 </div>
-                <div className="md:col-span-1">
-                    <label htmlFor="description" className="block text-sm font-medium text-slate-400 mb-2">Beschreibung</label>
-                    <input id="description" type="text" value={description} onChange={e => setDescription(e.target.value)} placeholder="z.B. Mittagessen" className="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-rose-500" />
-                </div>
-                <div className="md:col-span-1">
+                <div>
                      <label htmlFor="category" className="block text-sm font-medium text-slate-400 mb-2">Kategorie</label>
                      <div className="relative">
                         <select id="category" value={categoryId} onChange={e => setCategoryId(e.target.value)} className="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-rose-500 appearance-none">
@@ -161,7 +165,11 @@ const QuickAddForm: FC<{ categories: Category[], addTransaction: (t: Omit<Transa
                         <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 pointer-events-none" />
                     </div>
                 </div>
-                <div className="md:col-span-3">
+                <div className="md:col-span-2">
+                    <label htmlFor="description" className="block text-sm font-medium text-slate-400 mb-2">Beschreibung</label>
+                    <input id="description" type="text" value={description} onChange={e => setDescription(e.target.value)} placeholder="z.B. Mittagessen" className="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-rose-500" />
+                </div>
+                <div className="md:col-span-2">
                     <button type="submit" className="w-full mt-2 flex items-center justify-center gap-2 bg-gradient-to-r from-rose-500 to-red-600 text-white font-semibold py-3 rounded-lg shadow-md hover:opacity-90 transition-opacity">
                         <Plus className="h-5 w-5" /> Ausgabe hinzufügen
                     </button>
@@ -171,7 +179,13 @@ const QuickAddForm: FC<{ categories: Category[], addTransaction: (t: Omit<Transa
     );
 };
 
-const TransactionList: FC<Omit<DashboardProps, 'addTransaction' | 'transactions' | 'categories'> & { transactions: Transaction[] }> = ({ transactions, categoryMap, updateTransaction, deleteTransaction }) => {
+const TransactionList: FC<{ 
+    transactions: Transaction[]; 
+    categories: Category[];
+    categoryMap: Map<string, Category>; 
+    updateTransaction: (t: Transaction) => void;
+    deleteTransaction: (id: string) => void; 
+}> = ({ transactions, categories, categoryMap, updateTransaction, deleteTransaction }) => {
     const [editingId, setEditingId] = useState<string | null>(null);
     return (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="bg-slate-800 p-6 rounded-2xl">
@@ -183,6 +197,7 @@ const TransactionList: FC<Omit<DashboardProps, 'addTransaction' | 'transactions'
                         <TransactionItem 
                             transaction={t}
                             category={categoryMap.get(t.categoryId)}
+                            categories={categories}
                             onUpdate={updateTransaction}
                             onDelete={deleteTransaction}
                             isEditing={editingId === t.id}
@@ -196,7 +211,15 @@ const TransactionList: FC<Omit<DashboardProps, 'addTransaction' | 'transactions'
     );
 };
 
-const TransactionItem: FC<{ transaction: Transaction; category?: Category; onUpdate: (t: Transaction) => void; onDelete: (id: string) => void; isEditing: boolean; onEditClick: () => void; }> = ({ transaction, category, onUpdate, onDelete, isEditing, onEditClick }) => {
+const TransactionItem: FC<{ 
+    transaction: Transaction; 
+    category?: Category; 
+    categories: Category[];
+    onUpdate: (t: Transaction) => void; 
+    onDelete: (id: string) => void; 
+    isEditing: boolean; 
+    onEditClick: () => void; 
+}> = ({ transaction, category, categories, onUpdate, onDelete, isEditing, onEditClick }) => {
     const [formState, setFormState] = useState(transaction);
     
     const Icon = category ? iconMap[category.icon] || iconMap.MoreHorizontal : iconMap.MoreHorizontal;
@@ -209,12 +232,18 @@ const TransactionItem: FC<{ transaction: Transaction; category?: Category; onUpd
 
     if (isEditing) {
         return (
-            <div className="bg-slate-700 p-3 rounded-lg space-y-2">
-                 <input type="number" value={formState.amount} onChange={e => setFormState({...formState, amount: parseFloat(e.target.value) || 0})} className="w-full bg-slate-600 border border-slate-500 rounded-md px-2 py-1" />
-                 <input type="text" value={formState.description} onChange={e => setFormState({...formState, description: e.target.value})} className="w-full bg-slate-600 border border-slate-500 rounded-md px-2 py-1" />
+            <div className="bg-slate-700 p-3 rounded-lg space-y-3">
+                 <input type="number" step="0.01" value={formState.amount} onChange={e => setFormState({...formState, amount: parseFloat(e.target.value) || 0})} className="w-full bg-slate-600 border border-slate-500 rounded-md px-2 py-1 text-white" />
+                 <input type="text" value={formState.description} onChange={e => setFormState({...formState, description: e.target.value})} className="w-full bg-slate-600 border border-slate-500 rounded-md px-2 py-1 text-white" />
+                 <div className="relative">
+                    <select value={formState.categoryId} onChange={e => setFormState({...formState, categoryId: e.target.value})} className="w-full bg-slate-600 border border-slate-500 rounded-md px-2 py-1 text-white appearance-none">
+                        {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                    <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                 </div>
                  <div className="flex justify-end gap-2 pt-2">
-                    <button onClick={onEditClick} className="text-slate-400 hover:text-white text-xs">Abbrechen</button>
-                    <button onClick={handleSave} className="text-rose-500 hover:text-rose-400 text-xs font-semibold">Speichern</button>
+                    <button onClick={onEditClick} className="text-slate-400 hover:text-white text-xs px-2 py-1">Abbrechen</button>
+                    <button onClick={handleSave} className="bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold px-3 py-1 rounded">Speichern</button>
                  </div>
             </div>
         )
@@ -244,7 +273,7 @@ const TransactionItem: FC<{ transaction: Transaction; category?: Category; onUpd
 // New Pie Chart Component
 interface CategoryPieChartProps {
   transactions: Transaction[];
-  getCategoryById: (id: string) => Category | undefined;
+  categoryMap: Map<string, Category>;
 }
 
 const CustomTooltip = ({ active, payload }: any) => {
@@ -260,9 +289,11 @@ const CustomTooltip = ({ active, payload }: any) => {
     return null;
 };
 
-const MAX_PIE_SLICES = 6; // Top 5 + 1 for "Other"
+const MAX_PIE_SLICES = 5; // Top 5 + 1 for "Other"
 
-const CategoryPieChart: React.FC<CategoryPieChartProps> = ({ transactions, getCategoryById }) => {
+const CategoryPieChart: React.FC<CategoryPieChartProps> = ({ transactions, categoryMap }) => {
+  const getCategoryById = (id: string): Category | undefined => categoryMap.get(id);
+
   const data = useMemo(() => {
     if (!transactions.length) return [];
     
@@ -276,20 +307,39 @@ const CategoryPieChart: React.FC<CategoryPieChartProps> = ({ transactions, getCa
         id: categoryId as CategoryId,
         name: getCategoryById(categoryId)?.name || 'Unbekannt',
         value: total || 0,
-        color: getCategoryById(categoryId)?.color || '#78716c'
+        color: getCategoryById(categoryId)?.color || '#78716c',
+        icon: getCategoryById(categoryId)?.icon
       }))
       .sort((a, b) => b.value - a.value);
 
     if (sortedData.length > MAX_PIE_SLICES) {
-      const topData = sortedData.slice(0, MAX_PIE_SLICES - 1);
-      const otherValue = sortedData.slice(MAX_PIE_SLICES - 1).reduce((acc, curr) => acc + curr.value, 0);
+      const topData = sortedData.slice(0, MAX_PIE_SLICES);
+      const otherValue = sortedData.slice(MAX_PIE_SLICES).reduce((acc, curr) => acc + curr.value, 0);
       return [
           ...topData,
-          { id: 'other', name: 'Sonstige', value: otherValue, color: '#78716c' },
+          { id: 'other', name: 'Sonstige', value: otherValue, color: '#64748b', icon: 'MoreHorizontal' },
       ];
     }
     return sortedData;
-  }, [transactions, getCategoryById]);
+  }, [transactions, categoryMap]);
+
+  const CustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, payload }: any) => {
+    const RADIAN = Math.PI / 180;
+    const radius = innerRadius + (outerRadius - innerRadius) * 0.45;
+    const x = cx + radius * Math.cos(-midAngle * RADIAN);
+    const y = cy + radius * Math.sin(-midAngle * RADIAN);
+    
+    if (!payload.icon) return null;
+
+    const Icon = iconMap[payload.icon];
+    if (!Icon) return null;
+
+    return (
+        <foreignObject x={x - 10} y={y - 10} width={20} height={20} style={{ overflow: 'visible' }}>
+            <Icon className="text-white/90 h-5 w-5" />
+        </foreignObject>
+    );
+  };
 
   if (transactions.length === 0) {
     return (
@@ -301,7 +351,7 @@ const CategoryPieChart: React.FC<CategoryPieChartProps> = ({ transactions, getCa
   }
 
   return (
-    <ResponsiveContainer width="100%" height={280}>
+    <ResponsiveContainer width="100%" height="100%">
       <PieChart>
         <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255, 255, 255, 0.05)'}} />
         <Pie
@@ -309,6 +359,7 @@ const CategoryPieChart: React.FC<CategoryPieChartProps> = ({ transactions, getCa
           cx="50%"
           cy="50%"
           labelLine={false}
+          label={<CustomizedLabel />}
           outerRadius="80%"
           innerRadius="50%"
           fill="#8884d8"
@@ -324,7 +375,19 @@ const CategoryPieChart: React.FC<CategoryPieChartProps> = ({ transactions, getCa
             layout="vertical" 
             verticalAlign="middle" 
             align="right" 
-            wrapperStyle={{ fontSize: '12px', lineHeight: '1.5', color: '#94a3b8' }}
+            wrapperStyle={{ fontSize: '12px', lineHeight: '1.5', paddingLeft: '20px' }}
+            formatter={(value, entry) => {
+                const { payload } = entry;
+                const formattedValue = payload && payload.value != null ? formatCurrency(payload.value) : '';
+                return (
+                    <span className="text-slate-400">
+                        {value}{' '}
+                        <span className="font-semibold text-slate-300">
+                           {formattedValue}
+                        </span>
+                    </span>
+                );
+            }}
         />
       </PieChart>
     </ResponsiveContainer>

@@ -7,7 +7,7 @@ import type { Transaction, Category } from './types';
 import Dashboard from './components/Dashboard';
 import Statistics from './components/Statistics';
 import { formatGermanDate } from './utils/dateUtils';
-import { iconMap, Settings, Cloud, Loader2, X, TrendingDown, LayoutGrid, BarChart2, Sheet } from './components/Icons';
+import { iconMap, Settings, Cloud, Loader2, X, TrendingDown, LayoutGrid, BarChart2, Sheet, LogIn } from './components/Icons';
 
 // Main App Component
 const App: React.FC = () => {
@@ -19,13 +19,14 @@ const App: React.FC = () => {
     const [isSettingsOpen, setSettingsOpen] = useState(false);
     
     // API communication state
-    const [isSyncing, setIsSyncing] = useState(false);
+    const [syncOperation, setSyncOperation] = useState<'upload' | 'download' | null>(null);
+    const isSyncing = syncOperation !== null;
     const [syncError, setSyncError] = useState<string | null>(null);
 
     const categoryMap = useMemo(() => new Map(categories.map(c => [c.id, c])), [categories]);
     
     const downloadFromSheet = useCallback(async () => {
-        setIsSyncing(true);
+        setSyncOperation('download');
         setSyncError(null);
         try {
             const response = await fetch('/api/sheets/read', {
@@ -53,14 +54,14 @@ const App: React.FC = () => {
             setSyncError(errorMessage);
             alert(errorMessage);
         } finally {
-            setIsSyncing(false);
+            setSyncOperation(null);
         }
     }, [setCategories, setTransactions]);
 
     const uploadToSheet = useCallback(async (options: { isAutoSync?: boolean } = {}) => {
         const { isAutoSync = false } = options;
-
-        setIsSyncing(true);
+        
+        if(!isAutoSync) setSyncOperation('upload');
         setSyncError(null);
 
         try {
@@ -90,7 +91,7 @@ const App: React.FC = () => {
                 alert(errorMessage);
             }
         } finally {
-            setIsSyncing(false);
+            if(!isAutoSync) setSyncOperation(null);
         }
     }, [categories, transactions]);
 
@@ -129,8 +130,9 @@ const App: React.FC = () => {
             <div className="max-w-7xl mx-auto">
                 <Header 
                     onSettingsClick={() => setSettingsOpen(true)} 
-                    onSyncClick={() => uploadToSheet()}
-                    isSyncing={isSyncing} 
+                    onUploadClick={() => uploadToSheet()}
+                    onDownloadClick={downloadFromSheet}
+                    syncOperation={syncOperation}
                 />
                 <SyncErrorBanner message={syncError} onClose={() => setSyncError(null)} />
                 <MainTabs activeTab={activeTab} setActiveTab={setActiveTab} />
@@ -163,8 +165,6 @@ const App: React.FC = () => {
                     onClose={() => setSettingsOpen(false)}
                     categories={categories}
                     setCategories={setCategories}
-                    onDownload={downloadFromSheet}
-                    isSyncing={isSyncing}
                     isAutoSyncEnabled={isAutoSyncEnabled}
                     setIsAutoSyncEnabled={setIsAutoSyncEnabled}
                 />
@@ -202,10 +202,12 @@ const SyncErrorBanner: React.FC<{ message: string | null; onClose: () => void }>
 // Header Component
 const Header: React.FC<{ 
     onSettingsClick: () => void; 
-    onSyncClick: () => void; 
-    isSyncing: boolean; 
-}> = ({ onSettingsClick, onSyncClick, isSyncing }) => {
+    onUploadClick: () => void; 
+    onDownloadClick: () => void;
+    syncOperation: 'upload' | 'download' | null;
+}> = ({ onSettingsClick, onUploadClick, onDownloadClick, syncOperation }) => {
     const [currentDate, setCurrentDate] = useState(formatGermanDate(new Date()));
+    const isSyncing = syncOperation !== null;
     
     return (
         <header className="flex justify-between items-center pb-4 border-b border-slate-700">
@@ -218,12 +220,20 @@ const Header: React.FC<{
                     <p className="text-slate-400 text-sm">{currentDate}</p>
                 </div>
                  <button 
-                    onClick={onSyncClick} 
+                    onClick={onDownloadClick} 
+                    disabled={isSyncing} 
+                    className="p-2 rounded-full hover:bg-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" 
+                    title={"Von Google Sheet laden"}
+                >
+                    {syncOperation === 'download' ? <Loader2 className="h-5 w-5 animate-spin" /> : <LogIn className="h-5 w-5" />}
+                </button>
+                 <button 
+                    onClick={onUploadClick} 
                     disabled={isSyncing} 
                     className="p-2 rounded-full hover:bg-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" 
                     title={"In Google Sheet speichern"}
                 >
-                    {isSyncing ? <Loader2 className="h-5 w-5 animate-spin" /> : <Cloud className="h-5 w-5" />}
+                    {syncOperation === 'upload' ? <Loader2 className="h-5 w-5 animate-spin" /> : <Cloud className="h-5 w-5" />}
                 </button>
                 <button onClick={onSettingsClick} className="p-2 rounded-full hover:bg-slate-700 transition-colors">
                     <Settings className="h-5 w-5" />
@@ -288,11 +298,9 @@ const SettingsModal: React.FC<{
     onClose: () => void;
     categories: Category[];
     setCategories: (cats: Category[] | ((prev: Category[]) => Category[])) => void;
-    onDownload: () => void;
-    isSyncing: boolean;
     isAutoSyncEnabled: boolean;
     setIsAutoSyncEnabled: (enabled: boolean) => void;
-}> = ({ isOpen, onClose, categories, setCategories, onDownload, isSyncing, isAutoSyncEnabled, setIsAutoSyncEnabled }) => {
+}> = ({ isOpen, onClose, categories, setCategories, isAutoSyncEnabled, setIsAutoSyncEnabled }) => {
     const [editableCategories, setEditableCategories] = useState(categories);
     
     useEffect(() => {
@@ -345,15 +353,9 @@ const SettingsModal: React.FC<{
                                 <Sheet className="h-5 w-5 text-green-400" /> Google Sheets Sync
                             </h3>
                             <p className="text-sm text-slate-400 mb-6">
-                                Ihre Daten werden mit dem vorkonfigurierten Google Sheet synchronisiert. Laden Sie aktuelle Daten vom Sheet herunter oder aktivieren Sie die automatische Synchronisierung.
-                                Ihre Tabelle muss die Blätter <code className="bg-slate-700 px-1 rounded text-xs">Categories</code> und <code className="bg-slate-700 px-1 rounded text-xs">Transactions</code> enthalten.
+                                Aktivieren Sie die automatische Synchronisierung, um Ihre Daten alle 5 Minuten im Hintergrund zu sichern. Ihre Tabelle muss die Blätter <code className="bg-slate-700 px-1 rounded text-xs">Categories</code> und <code className="bg-slate-700 px-1 rounded text-xs">Transactions</code> enthalten.
                             </p>
                             <div className="space-y-4">
-                                <div className="pt-2">
-                                    <button onClick={onDownload} disabled={isSyncing} className="bg-slate-600 hover:bg-slate-500 text-white font-semibold px-4 py-2 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed" title={'Daten aus Sheet laden'}>
-                                        {isSyncing ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Von Sheet laden'}
-                                    </button>
-                                </div>
                                 <div className="flex items-center justify-between pt-4 mt-4 border-t border-slate-700/50">
                                     <div>
                                         <label htmlFor="auto-sync-toggle" className="block text-sm font-medium text-slate-300">Automatische Synchronisierung</label>
