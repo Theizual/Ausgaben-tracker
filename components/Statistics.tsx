@@ -1,16 +1,16 @@
 
 import React, { useState, useMemo } from 'react';
 import type { FC } from 'react';
-import { motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import type { Transaction, Category } from '../types';
 import {
     format, parseISO, startOfMonth, endOfMonth,
     eachDayOfInterval, getDay, isToday, getDaysInMonth,
-    isSameMonth
+    isSameMonth, isSameDay
 } from '../utils/dateUtils';
 import { de, addMonths, subMonths } from '../utils/dateUtils';
-import { ChevronLeft, ChevronRight } from './Icons';
-import { formatCurrency } from '../utils/dateUtils';
+import { ChevronLeft, ChevronRight, X, iconMap } from './Icons';
+import { formatCurrency, formatGermanDate } from '../utils/dateUtils';
 
 type StatisticsProps = {
     transactions: Transaction[];
@@ -20,6 +20,7 @@ type StatisticsProps = {
 
 const Statistics: FC<StatisticsProps> = (props) => {
     const [currentMonth, setCurrentMonth] = useState(new Date());
+    const [selectedDay, setSelectedDay] = useState<Date | null>(null);
 
     const monthlyTransactions = useMemo(() => {
         const start = startOfMonth(currentMonth);
@@ -28,7 +29,7 @@ const Statistics: FC<StatisticsProps> = (props) => {
             if (!t.date || typeof t.date !== 'string') return false;
             try {
                 const date = parseISO(t.date);
-                if (isNaN(date.getTime())) return false; // Check for Invalid Date
+                if (isNaN(date.getTime())) return false;
                 return date >= start && date <= end;
             } catch {
                 return false;
@@ -36,32 +37,143 @@ const Statistics: FC<StatisticsProps> = (props) => {
         });
     }, [props.transactions, currentMonth]);
 
+    const transactionsForSelectedDay = useMemo(() => {
+        if (!selectedDay) return [];
+        return props.transactions.filter(t => {
+            if (!t.date || typeof t.date !== 'string') return false;
+            try {
+                const date = parseISO(t.date);
+                if (isNaN(date.getTime())) return false;
+                return isSameDay(date, selectedDay);
+            } catch {
+                return false;
+            }
+        });
+    }, [props.transactions, selectedDay]);
+
     return (
         <div className="space-y-6">
-            <CalendarView 
-                transactions={props.transactions} 
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+                <CalendarView
+                    transactions={props.transactions}
+                    currentMonth={currentMonth}
+                    setCurrentMonth={setCurrentMonth}
+                    onDayClick={(day) => setSelectedDay(prev => prev && isSameDay(prev, day) ? null : day)}
+                    selectedDay={selectedDay}
+                />
+                <AnimatePresence>
+                    {selectedDay && transactionsForSelectedDay.length > 0 && (
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -20 }}
+                            transition={{ duration: 0.3 }}
+                        >
+                            <DailyBreakdownView
+                                date={selectedDay}
+                                transactions={transactionsForSelectedDay}
+                                categoryMap={props.categoryMap}
+                                onClose={() => setSelectedDay(null)}
+                            />
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+            </div>
+            <MonthlySummary
+                transactions={monthlyTransactions}
                 currentMonth={currentMonth}
-                setCurrentMonth={setCurrentMonth}
             />
-             <MonthlySummary 
-                transactions={monthlyTransactions} 
-                currentMonth={currentMonth} 
-            />
-            <TopCategories 
-                transactions={monthlyTransactions} 
+            <TopCategories
+                transactions={monthlyTransactions}
                 categoryMap={props.categoryMap}
-                currentMonth={currentMonth} 
+                currentMonth={currentMonth}
             />
         </div>
     );
 };
 
+// Daily Breakdown View
+const DailyBreakdownView: FC<{
+    date: Date;
+    transactions: Transaction[];
+    categoryMap: Map<string, Category>;
+    onClose: () => void;
+}> = ({ date, transactions, categoryMap, onClose }) => {
+    const dailyTotal = useMemo(() => transactions.reduce((sum, t) => sum + t.amount, 0), [transactions]);
+
+    const categoryBreakdown = useMemo(() => {
+        const spending = new Map<string, { amount: number; category: Category }>();
+        transactions.forEach(t => {
+            const category = categoryMap.get(t.categoryId);
+            if (category) {
+                const current = spending.get(t.categoryId) || { amount: 0, category };
+                current.amount += t.amount;
+                spending.set(t.categoryId, current);
+            }
+        });
+        return Array.from(spending.values()).sort((a, b) => b.amount - a.amount);
+    }, [transactions, categoryMap]);
+
+    return (
+        <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 h-full">
+            <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-bold text-white">{formatGermanDate(date)}</h3>
+                <button onClick={onClose} className="p-2 -mr-2 -mt-2 rounded-full hover:bg-slate-700"><X className="h-5 w-5" /></button>
+            </div>
+            <div className="mb-4">
+                <p className="text-sm text-slate-400">Gesamtausgaben an diesem Tag</p>
+                <p className="text-3xl font-bold text-white">{formatCurrency(dailyTotal)}</p>
+            </div>
+            {categoryBreakdown.length > 0 && (
+                 <div className="space-y-4">
+                    <div>
+                        <div className="flex h-3 w-full rounded-full overflow-hidden bg-slate-700 my-2">
+                             {categoryBreakdown.map(({ category, amount }) => (
+                                <motion.div
+                                    key={category.id}
+                                    className="h-full"
+                                    style={{ backgroundColor: category.color }}
+                                    initial={{ width: 0 }}
+                                    animate={{ width: `${(amount / dailyTotal) * 100}%` }}
+                                    transition={{ duration: 0.8, ease: "easeOut" }}
+                                    title={`${category.name}: ${formatCurrency(amount)}`}
+                                />
+                            ))}
+                        </div>
+                    </div>
+                     <div className="space-y-3 max-h-80 overflow-y-auto pr-2 -mr-2">
+                        {transactions.sort((a,b) => b.amount - a.amount).map(t => {
+                             const category = categoryMap.get(t.categoryId);
+                             if (!category) return null;
+                             const Icon = iconMap[category.icon] || iconMap.MoreHorizontal;
+                             return (
+                                <div key={t.id} className="flex items-center gap-3 bg-slate-800/50 p-2 rounded-md">
+                                     <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: category.color }}>
+                                         <Icon className="h-5 w-5 text-white" />
+                                     </div>
+                                     <div className="flex-1 text-sm">
+                                         <p className="font-medium text-white truncate">{t.description}</p>
+                                         <p className="text-xs text-slate-400">{category.name}</p>
+                                     </div>
+                                     <p className="font-semibold text-white text-sm">{formatCurrency(t.amount)}</p>
+                                 </div>
+                             )
+                         })}
+                     </div>
+                 </div>
+            )}
+        </div>
+    );
+}
+
 // Calendar Heatmap
-const CalendarView: FC<{ 
-    transactions: Transaction[], 
-    currentMonth: Date, 
-    setCurrentMonth: (date: Date) => void 
-}> = ({ transactions, currentMonth, setCurrentMonth }) => {
+const CalendarView: FC<{
+    transactions: Transaction[],
+    currentMonth: Date,
+    setCurrentMonth: (date: Date) => void,
+    onDayClick: (date: Date) => void,
+    selectedDay: Date | null
+}> = ({ transactions, currentMonth, setCurrentMonth, onDayClick, selectedDay }) => {
     const daysInMonth = useMemo(() => {
         const start = startOfMonth(currentMonth);
         const end = endOfMonth(currentMonth);
@@ -77,13 +189,11 @@ const CalendarView: FC<{
                 if (isNaN(date.getTime())) return;
                 const day = format(date, 'yyyy-MM-dd');
                 map.set(day, (map.get(day) || 0) + t.amount);
-            } catch (e) {
-                // ignore transaction with bad date
-            }
+            } catch (e) { /* ignore */ }
         });
         return map;
     }, [transactions]);
-    
+
     const maxSpendingInView = useMemo(() => {
         const start = startOfMonth(currentMonth);
         const end = endOfMonth(currentMonth);
@@ -93,14 +203,11 @@ const CalendarView: FC<{
             try {
                 const date = parseISO(t.date);
                 if (isNaN(date.getTime())) return;
-
                 if (date >= start && date <= end) {
                     const day = format(date, 'yyyy-MM-dd');
                     monthlyMap.set(day, (monthlyMap.get(day) || 0) + t.amount);
                 }
-            } catch(e) {
-                // ignore
-            }
+            } catch (e) { /* ignore */ }
         });
         return Math.max(0, ...Array.from(monthlyMap.values()));
     }, [transactions, currentMonth]);
@@ -113,7 +220,7 @@ const CalendarView: FC<{
     };
 
     const firstDayOfMonth = getDay(startOfMonth(currentMonth));
-    const startOffset = (firstDayOfMonth === 0 ? 6 : firstDayOfMonth - 1); // Monday is 1, Sunday is 0 -> needs to be 6 for offset
+    const startOffset = (firstDayOfMonth === 0 ? 6 : firstDayOfMonth - 1);
 
     return (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-slate-800 p-6 rounded-2xl border border-slate-700">
@@ -133,13 +240,14 @@ const CalendarView: FC<{
                     const intensity = getIntensity(day);
                     const spending = getSpendingForDay(day);
                     const dayIsToday = isToday(day);
+                    const isSelected = selectedDay && isSameDay(day, selectedDay);
                     return (
-                        <div key={day.toString()} className="relative group">
+                        <div key={day.toString()} className="relative group" onClick={() => onDayClick(day)}>
                             <div
-                                className={`w-full aspect-square rounded-md transition-all ${dayIsToday ? 'ring-2 ring-rose-500' : ''}`}
+                                className={`w-full aspect-square rounded-md transition-all ${isSelected ? 'ring-2 ring-rose-400' : dayIsToday ? 'ring-2 ring-rose-500' : ''} ${spending > 0 ? 'cursor-pointer hover:scale-105' : 'cursor-default'}`}
                                 style={{ backgroundColor: `rgba(225, 29, 72, ${intensity})` }}
                             />
-                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-xs text-white font-semibold">
+                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-xs text-white font-semibold pointer-events-none">
                                 {format(day, 'd')}
                             </div>
                             {spending > 0 && (
@@ -155,9 +263,10 @@ const CalendarView: FC<{
     );
 };
 
-const MonthlySummary: FC<{transactions: Transaction[], currentMonth: Date}> = ({transactions, currentMonth}) => {
+
+const MonthlySummary: FC<{ transactions: Transaction[], currentMonth: Date }> = ({ transactions, currentMonth }) => {
     const summary = useMemo(() => {
-        if(transactions.length === 0) return { total: 0, average: 0, topDay: { label: 'N/A', value: 0 }};
+        if (transactions.length === 0) return { total: 0, average: 0, topDay: { label: 'N/A', value: 0 } };
 
         const total = transactions.reduce((acc, t) => acc + t.amount, 0);
 
@@ -174,67 +283,75 @@ const MonthlySummary: FC<{transactions: Transaction[], currentMonth: Date}> = ({
                 if (isNaN(date.getTime())) return;
                 const dayKey = format(date, 'yyyy-MM-dd');
                 daily.set(dayKey, (daily.get(dayKey) || 0) + t.amount);
-            } catch(e) { /* ignore */ }
+            } catch (e) { /* ignore */ }
         });
 
         const findMax = (map: Map<string, number>) => {
-            if(map.size === 0) return {label: 'N/A', value: 0};
+            if (map.size === 0) return { label: 'N/A', value: 0 };
             const [label, value] = [...map.entries()].reduce((max, entry) => entry[1] > max[1] ? entry : max);
-            return {label, value};
+            return { label, value };
         };
         const maxDay = findMax(daily);
-        
+
         return {
             total,
             average,
-            topDay: maxDay.label === 'N/A' ? maxDay : {label: format(parseISO(maxDay.label), 'd. MMM yyyy', {locale: de}), value: maxDay.value}
+            topDay: maxDay.label === 'N/A' ? maxDay : { label: format(parseISO(maxDay.label), 'd. MMM yyyy', { locale: de }), value: maxDay.value }
         };
 
     }, [transactions, currentMonth]);
 
     return (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <HighlightCard title="Gesamtausgaben" label={format(currentMonth, 'MMMM yyyy', {locale: de})} value={summary.total} />
-            <HighlightCard title="Tagesdurchschnitt" label={format(currentMonth, 'MMMM yyyy', {locale: de})} value={summary.average} />
+            <HighlightCard title="Gesamtausgaben" label={format(currentMonth, 'MMMM yyyy', { locale: de })} value={summary.total} />
+            <HighlightCard title="Tagesdurchschnitt" label={format(currentMonth, 'MMMM yyyy', { locale: de })} value={summary.average} />
             <HighlightCard title="Höchster Tageswert" label={summary.topDay.label} value={summary.topDay.value} />
         </div>
     );
 };
 
-const HighlightCard: FC<{title: string, label: string, value: number}> = ({title, label, value}) => (
-     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{delay: 0.1}} className="bg-slate-800 p-6 rounded-2xl border border-slate-700">
-         <h3 className="text-slate-400 text-sm font-medium">{title}</h3>
-         <p className="text-2xl font-bold text-white mt-2">
+const HighlightCard: FC<{ title: string, label: string, value: number }> = ({ title, label, value }) => (
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-slate-800 p-6 rounded-2xl border border-slate-700">
+        <h3 className="text-slate-400 text-sm font-medium">{title}</h3>
+        <p className="text-2xl font-bold text-white mt-2">
             {formatCurrency(value)}
-         </p>
-         <p className="text-slate-500 text-xs mt-1">{label}</p>
-     </motion.div>
+        </p>
+        <p className="text-slate-500 text-xs mt-1">{label}</p>
+    </motion.div>
 );
 
 const TopCategories: FC<{ transactions: Transaction[], categoryMap: Map<string, Category>, currentMonth: Date }> = ({ transactions, categoryMap, currentMonth }) => {
     const topCategories = useMemo(() => {
         const spending = new Map<string, number>();
         transactions.forEach(t => {
-            spending.set(t.categoryId, (spending.get(t.categoryId) || 0) + t.amount);
+            if (t.categoryId) { // Ensure categoryId exists
+                spending.set(t.categoryId, (spending.get(t.categoryId) || 0) + t.amount);
+            }
         });
 
-        const sorted = [...spending.entries()].sort((a,b) => b[1] - a[1]).slice(0, 5);
-        const totalSpending = sorted.reduce((sum, [, amount]) => sum + amount, 0);
-        
-        return sorted.map(([id, amount]) => ({
-            category: categoryMap.get(id)!,
-            amount,
-            percentage: totalSpending > 0 ? (amount / totalSpending) * 100 : 0
-        }));
+        const sorted = [...spending.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
+        const totalMonthlySpending = transactions.reduce((sum, t) => sum + t.amount, 0);
+
+        return sorted.map(([id, amount]) => {
+            const category = categoryMap.get(id);
+            // Gracefully handle cases where a category might have been deleted
+            if (!category) return null;
+
+            return {
+                category,
+                amount,
+                percentage: totalMonthlySpending > 0 ? (amount / totalMonthlySpending) * 100 : 0
+            };
+        }).filter((item): item is NonNullable<typeof item> => item !== null); // Filter out nulls and ensure type safety
 
     }, [transactions, categoryMap]);
-    
+
     return (
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{delay: 0.2}} className="bg-slate-800 p-6 rounded-2xl border border-slate-700">
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-slate-800 p-6 rounded-2xl border border-slate-700">
             <h3 className="text-lg font-bold text-white mb-4">Top 5 Kategorien ({format(currentMonth, 'MMMM', { locale: de })})</h3>
             <div className="space-y-4">
-                {topCategories.length > 0 ? topCategories.map(({category, amount, percentage}) => (
-                    category && <div key={category.id}>
+                {topCategories.length > 0 ? topCategories.map(({ category, amount, percentage }) => (
+                    <div key={category.id}>
                         <div className="flex justify-between items-center text-sm mb-1">
                             <span className="font-medium text-slate-300">{category.name}</span>
                             <span className="font-bold text-white">{formatCurrency(amount)}</span>

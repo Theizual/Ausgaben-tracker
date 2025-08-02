@@ -26,10 +26,10 @@ const Dashboard: FC<DashboardProps> = (props) => {
         let subtext: string;
         if (viewMode === 'woche') {
             const range = `${format(interval.start, 'd. MMM', { locale: de })} - ${format(interval.end, 'd. MMM', { locale: de })}`;
-            subtext = `in dieser Woche (${range})`;
+            subtext = `Diese Woche (${range})`;
         } else {
             const range = format(interval.start, 'MMMM yyyy', { locale: de });
-            subtext = `in diesem Monat (${range})`;
+            subtext = `Dieser Monat (${range})`;
         }
 
         const filtered = props.transactions.filter(t => {
@@ -98,32 +98,35 @@ const Dashboard: FC<DashboardProps> = (props) => {
                         </div>
                     </div>
                     
-                    <motion.div 
-                        initial={{ opacity: 0, y: 10 }} 
-                        animate={{ opacity: 1, y: 0 }} 
+                    <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
                         className="bg-slate-800/50 p-6 rounded-2xl border border-slate-700/50"
                     >
-                        {/* Total Expenses */}
-                        <div className="flex items-center justify-between text-slate-400 mb-2">
-                            <p className="font-medium">Gesamtausgaben</p>
-                            <Coins className="h-6 w-6" />
+                        <div className="flex justify-between items-start">
+                             <div className="w-[calc(50%-1rem)]">
+                                <div className="flex items-center text-slate-400 mb-2">
+                                    <Coins className="h-5 w-5 mr-2 flex-shrink-0" />
+                                    <p className="font-medium text-sm">Gesamtausgaben</p>
+                                </div>
+                                <div>
+                                    <p className="text-2xl font-bold text-white truncate" title={formatCurrency(totalExpenses)}>{formatCurrency(totalExpenses)}</p>
+                                </div>
+                            </div>
+                            
+                            <div className="w-px bg-slate-700/50 self-stretch mx-4"></div>
+                            
+                            <div className="w-[calc(50%-1rem)]">
+                                <div className="flex items-center text-slate-400 mb-2">
+                                    <BarChart2 className="h-5 w-5 mr-2 flex-shrink-0" />
+                                    <p className="font-medium text-sm">Tagesdurchschnitt</p>
+                                </div>
+                                <div>
+                                    <p className="text-2xl font-bold text-white truncate" title={formatCurrency(dailyAverage)}>{formatCurrency(dailyAverage)}</p>
+                                </div>
+                            </div>
                         </div>
-                        <div>
-                            <p className="text-2xl font-bold text-white">{formatCurrency(totalExpenses)}</p>
-                            {subtext && <p className="text-sm text-slate-500">{subtext}</p>}
-                        </div>
-
-                        <div className="my-4 border-t border-slate-700/50"></div>
-
-                        {/* Daily Average */}
-                        <div className="flex items-center justify-between text-slate-400 mb-2">
-                            <p className="font-medium">Tagesdurchschnitt</p>
-                            <BarChart2 className="h-6 w-6" />
-                        </div>
-                        <div>
-                            <p className="text-2xl font-bold text-white">{formatCurrency(dailyAverage)}</p>
-                            {subtext && <p className="text-sm text-slate-500">{subtext}</p>}
-                        </div>
+                         {subtext && <p className="text-sm text-slate-500 text-center mt-4 pt-4 border-t border-slate-700/50">{subtext}</p>}
                     </motion.div>
                 </div>
 
