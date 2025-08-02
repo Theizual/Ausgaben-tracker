@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { INITIAL_CATEGORIES } from './constants';
 import useLocalStorage from './hooks/useLocalStorage';
@@ -7,14 +7,8 @@ import type { Transaction, Category } from './types';
 import Dashboard from './components/Dashboard';
 import Statistics from './components/Statistics';
 import { formatGermanDate } from './utils/dateUtils';
+import { extractSheetIdFromUrl } from './utils/sheetUtils';
 import { iconMap, Settings, Cloud, Loader2, X, TrendingDown, LayoutGrid, BarChart2, Sheet } from './components/Icons';
-
-// GAPI types for window object
-declare global {
-    interface Window {
-        gapi: any;
-    }
-}
 
 // Main App Component
 const App: React.FC = () => {
@@ -25,87 +19,36 @@ const App: React.FC = () => {
     const [activeTab, setActiveTab] = useState<'dashboard' | 'statistics'>('dashboard');
     const [isSettingsOpen, setSettingsOpen] = useState(false);
     
-    const [isGapiReady, setIsGapiReady] = useState(false);
+    // API communication state
     const [isSyncing, setIsSyncing] = useState(false);
     const [syncError, setSyncError] = useState<string | null>(null);
 
-    const hasPerformedInitialDownload = useRef(false);
-
     const categoryMap = useMemo(() => new Map(categories.map(c => [c.id, c])), [categories]);
     
-    const sheetConfig = useMemo(() => {
-        try {
-            if (!googleSheetUrl) return null;
-            const url = new URL(googleSheetUrl);
-            const pathParts = url.pathname.split('/');
-            const spreadsheetId = pathParts[pathParts.indexOf('d') + 1];
-            if (!spreadsheetId) return null;
-            return { spreadsheetId };
-        } catch (e) {
-            return null;
-        }
-    }, [googleSheetUrl]);
-
-    useEffect(() => {
-        const initClient = () => {
-            if (!process.env.API_KEY) {
-                const errorMsg = "API Key für Google Sheets nicht konfiguriert. Die Sync-Funktion ist deaktiviert.";
-                console.error(errorMsg);
-                setSyncError(errorMsg);
-                return;
-            }
-
-            window.gapi.client.init({
-                apiKey: process.env.API_KEY,
-                discoveryDocs: ["https://sheets.googleapis.com/$discovery/rest?version=v4"],
-            }).then(() => {
-                setIsGapiReady(true);
-                setSyncError(null);
-            }).catch((error: any) => {
-                console.error("Error initializing GAPI client. Details:", JSON.stringify(error, null, 2));
-                const userMessage = "Google API-Initialisierung fehlgeschlagen: Der API-Schlüssel ist ungültig oder für Google Sheets nicht freigeschaltet. Die Sync-Funktion ist deaktiviert.";
-                setSyncError(userMessage);
-            });
-        };
-
-        const script = document.createElement('script');
-        script.src = 'https://apis.google.com/js/api.js';
-        script.onload = () => window.gapi.load('client', initClient);
-        script.onerror = () => setSyncError("Das Google API Skript konnte nicht geladen werden. Sync ist nicht möglich.");
-        script.async = true;
-        document.body.appendChild(script);
-
-        return () => {
-            const scriptTag = document.querySelector('script[src="https://apis.google.com/js/api.js"]');
-            if (scriptTag && scriptTag.parentNode) {
-                scriptTag.parentNode.removeChild(scriptTag);
-            }
-        };
-    }, []);
+    const sheetId = useMemo(() => extractSheetIdFromUrl(googleSheetUrl), [googleSheetUrl]);
 
     const downloadFromSheet = useCallback(async () => {
-        if (!isGapiReady || !sheetConfig) {
+        if (!sheetId) {
              alert("Bitte zuerst eine gültige Google Sheet URL in den Einstellungen speichern.");
              return;
         }
         setIsSyncing(true);
         setSyncError(null);
         try {
-            const response = await window.gapi.client.sheets.spreadsheets.values.batchGet({
-                spreadsheetId: sheetConfig.spreadsheetId,
-                ranges: ['Categories!A2:D', 'Transactions!A2:E'],
+            const response = await fetch('/api/sheets/read', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sheetId }),
             });
-            const valueRanges = response.result.valueRanges;
-            
-            const categoryValues = valueRanges.find((r: any) => r.range.startsWith('Categories'))?.values || [];
-            const newCategories: Category[] = categoryValues.map((row: string[]) => ({
-                id: row[0], name: row[1], color: row[2], icon: row[3],
-            })).filter((c: Category) => c.id && c.name && c.color && c.icon);
 
-            const transactionValues = valueRanges.find((r: any) => r.range.startsWith('Transactions'))?.values || [];
-            const newTransactions: Transaction[] = transactionValues.map((row: string[]) => ({
-                id: row[0], amount: parseFloat(row[1].replace(',', '.')) || 0, description: row[2], categoryId: row[3], date: row[4],
-            })).filter((t: Transaction) => t.id && t.amount > 0 && t.categoryId && t.date);
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || `Fehler beim Laden (${response.status})`);
+            }
+
+            const data = await response.json();
+            const newCategories: Category[] = data.categories || [];
+            const newTransactions: Transaction[] = data.transactions || [];
 
             if (newCategories.length > 0) setCategories(newCategories);
             if (newTransactions.length > 0) setTransactions(newTransactions);
@@ -114,61 +57,49 @@ const App: React.FC = () => {
 
         } catch (e: any) {
             console.error("Error downloading from sheet:", e);
-            const errorMessage = "Fehler beim Herunterladen der Daten. Überprüfen Sie die URL, die Blattnamen ('Categories', 'Transactions') und die Freigabeeinstellungen.";
+            const errorMessage = e.message || "Unbekannter Fehler beim Herunterladen. Prüfen Sie URL, Blattnamen & Freigabe für den Service Account.";
             setSyncError(errorMessage);
             alert(errorMessage);
         } finally {
             setIsSyncing(false);
         }
-    }, [isGapiReady, sheetConfig, setCategories, setTransactions]);
-
-    useEffect(() => {
-        if (isGapiReady && !syncError && googleSheetUrl && !hasPerformedInitialDownload.current) {
-            hasPerformedInitialDownload.current = true;
-            downloadFromSheet();
-        }
-    }, [isGapiReady, syncError, googleSheetUrl, downloadFromSheet]);
+    }, [sheetId, setCategories, setTransactions]);
 
     const uploadToSheet = useCallback(async () => {
-        if (!isGapiReady || !sheetConfig || syncError) {
-            alert("Die Synchronisierung ist aufgrund eines Konfigurationsproblems nicht möglich. Bitte überprüfen Sie die Einstellungen und die Fehlermeldung.");
+        if (!sheetId) {
+            alert("Keine gültige Sheet-URL konfiguriert.");
             return;
         }
         setIsSyncing(true);
         setSyncError(null);
 
-        const categoryHeader = ['id', 'name', 'color', 'icon'];
-        const transactionHeader = ['id', 'amount', 'description', 'categoryId', 'date'];
-
-        const categoryValues = [categoryHeader, ...categories.map(c => [c.id, c.name, c.color, c.icon])];
-        const transactionValues = [transactionHeader, ...transactions.map(t => [t.id, String(t.amount).replace('.',','), t.description, t.categoryId, t.date])];
-
         try {
-            await window.gapi.client.sheets.spreadsheets.values.batchClear({
-                 spreadsheetId: sheetConfig.spreadsheetId,
-                 resource: { ranges: ['Categories!A1:D', 'Transactions!A1:E'] }
+            const response = await fetch('/api/sheets/write', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    sheetId,
+                    categories,
+                    transactions,
+                }),
             });
-            
-            await window.gapi.client.sheets.spreadsheets.values.batchUpdate({
-                spreadsheetId: sheetConfig.spreadsheetId,
-                resource: {
-                    valueInputOption: 'USER_ENTERED',
-                    data: [
-                        { range: 'Categories!A1', values: categoryValues },
-                        { range: 'Transactions!A1', values: transactionValues }
-                    ]
-                }
-            });
+
+            if (!response.ok) {
+                 const errorData = await response.json();
+                throw new Error(errorData.error || `Fehler beim Speichern (${response.status})`);
+            }
+
+            await response.json();
             alert("Daten erfolgreich in Google Sheet gespeichert!");
         } catch (e: any) {
             console.error("Error uploading to sheet:", e);
-            const errorMessage = "Fehler beim Hochladen der Daten. Überprüfen Sie die URL, die Freigabeeinstellungen und ob die API-Berechtigungen korrekt sind.";
+            const errorMessage = e.message || "Fehler beim Hochladen. Prüfen Sie Ihre Berechtigungen.";
             setSyncError(errorMessage);
             alert(errorMessage);
         } finally {
             setIsSyncing(false);
         }
-    }, [isGapiReady, sheetConfig, categories, transactions, syncError]);
+    }, [sheetId, categories, transactions]);
 
 
     const addTransaction = (transaction: Omit<Transaction, 'id'>) => {
@@ -186,7 +117,12 @@ const App: React.FC = () => {
     return (
         <div className="min-h-screen bg-slate-900 text-slate-200 p-4 sm:p-6 lg:p-8">
             <div className="max-w-7xl mx-auto">
-                <Header onSettingsClick={() => setSettingsOpen(true)} onSyncClick={uploadToSheet} isSyncing={isSyncing} googleSheetUrlConfigured={!!googleSheetUrl} isGapiReady={isGapiReady} syncError={syncError} />
+                <Header 
+                    onSettingsClick={() => setSettingsOpen(true)} 
+                    onSyncClick={uploadToSheet}
+                    isSyncing={isSyncing} 
+                    isSheetConfigured={!!sheetId}
+                />
                 <SyncErrorBanner message={syncError} onClose={() => setSyncError(null)} />
                 <MainTabs activeTab={activeTab} setActiveTab={setActiveTab} />
                 <main className="mt-6">
@@ -222,8 +158,7 @@ const App: React.FC = () => {
                     setGoogleSheetUrl={setGoogleSheetUrl}
                     onDownload={downloadFromSheet}
                     isSyncing={isSyncing}
-                    isGapiReady={isGapiReady}
-                    syncError={syncError}
+                    isSheetConfigured={!!sheetId}
                 />
             </div>
         </div>
@@ -245,7 +180,7 @@ const SyncErrorBanner: React.FC<{ message: string | null; onClose: () => void }>
                  <svg className="fill-current h-6 w-6 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M2.93 17.07A10 10 0 1 1 17.07 2.93 10 10 0 0 1 2.93 17.07zM10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16zm-1-5h2v2h-2v-2zm0-8h2v6h-2V5z"/></svg>
             </div>
             <div>
-                <strong className="font-bold">Sync-Fehler</strong>
+                <strong className="font-bold">Fehler</strong>
                 <span className="block sm:inline ml-2">{message}</span>
             </div>
             <button onClick={onClose} className="absolute top-0 bottom-0 right-0 px-4 py-3" aria-label="Fehlermeldung schließen">
@@ -257,32 +192,32 @@ const SyncErrorBanner: React.FC<{ message: string | null; onClose: () => void }>
 
 
 // Header Component
-const Header: React.FC<{ onSettingsClick: () => void; onSyncClick: () => void; isSyncing: boolean; googleSheetUrlConfigured: boolean; isGapiReady: boolean; syncError: string | null; }> = ({ onSettingsClick, onSyncClick, isSyncing, googleSheetUrlConfigured, isGapiReady, syncError }) => {
+const Header: React.FC<{ 
+    onSettingsClick: () => void; 
+    onSyncClick: () => void; 
+    isSyncing: boolean; 
+    isSheetConfigured: boolean; 
+}> = ({ onSettingsClick, onSyncClick, isSyncing, isSheetConfigured }) => {
     const [currentDate, setCurrentDate] = useState(formatGermanDate(new Date()));
-    const isSyncDisabled = isSyncing || !isGapiReady || !!syncError;
     
-    const getSyncTitle = () => {
-        if (syncError) return `Sync deaktiviert: ${syncError}`;
-        if (!isGapiReady) return "Google API wird initialisiert...";
-        if (isSyncing) return "Synchronisiere...";
-        return "In Google Sheet speichern";
-    };
-
     return (
         <header className="flex justify-between items-center pb-4 border-b border-slate-700">
             <div className="flex items-center gap-3">
                 <TrendingDown className="h-8 w-8 text-rose-500" />
                 <h1 className="text-2xl font-bold text-white">Ausgaben Tracker</h1>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
                 <div className="text-right hidden sm:block">
                     <p className="text-slate-400 text-sm">{currentDate}</p>
                 </div>
-                {googleSheetUrlConfigured && (
-                    <button onClick={onSyncClick} disabled={isSyncDisabled} className="p-2 rounded-full hover:bg-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" title={getSyncTitle()}>
-                        {isSyncing ? <Loader2 className="h-5 w-5 animate-spin" /> : <Cloud className="h-5 w-5" />}
-                    </button>
-                )}
+                 <button 
+                    onClick={onSyncClick} 
+                    disabled={isSyncing || !isSheetConfigured} 
+                    className="p-2 rounded-full hover:bg-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" 
+                    title={!isSheetConfigured ? "Bitte Sheet URL in Einstellungen festlegen" : "In Google Sheet speichern"}
+                >
+                    {isSyncing ? <Loader2 className="h-5 w-5 animate-spin" /> : <Cloud className="h-5 w-5" />}
+                </button>
                 <button onClick={onSettingsClick} className="p-2 rounded-full hover:bg-slate-700 transition-colors">
                     <Settings className="h-5 w-5" />
                 </button>
@@ -326,32 +261,33 @@ const SettingsModal: React.FC<{
     setGoogleSheetUrl: (url: string) => void;
     onDownload: () => void;
     isSyncing: boolean;
-    isGapiReady: boolean;
-    syncError: string | null;
-}> = ({ isOpen, onClose, categories, setCategories, googleSheetUrl, setGoogleSheetUrl, onDownload, isSyncing, isGapiReady, syncError }) => {
+    isSheetConfigured: boolean;
+}> = ({ isOpen, onClose, categories, setCategories, googleSheetUrl, setGoogleSheetUrl, onDownload, isSyncing, isSheetConfigured }) => {
     const [editableCategories, setEditableCategories] = useState(categories);
     const [editableGoogleSheetUrl, setEditableGoogleSheetUrl] = useState(googleSheetUrl);
     
     useEffect(() => {
-        setEditableCategories(categories);
-        setEditableGoogleSheetUrl(googleSheetUrl);
+        if (isOpen) {
+            setEditableCategories(categories);
+            setEditableGoogleSheetUrl(googleSheetUrl);
+        }
     }, [isOpen, categories, googleSheetUrl]);
 
     const handleCategoryChange = (id: string, field: 'name' | 'color', value: string) => {
-        setEditableCategories(prev => prev.map(c => c.id === id ? { ...c, [field]: value } : c));
+        setEditableCategories(currentCategories =>
+            currentCategories.map(cat =>
+                cat.id === id ? { ...cat, [field]: value } : cat
+            )
+        );
     };
 
     const handleSave = () => {
         setCategories(editableCategories);
         setGoogleSheetUrl(editableGoogleSheetUrl);
-        // If the URL was empty and is now filled, we might want to trigger a re-download.
-        // The main component's useEffect will handle this when googleSheetUrl changes.
         onClose();
     };
 
     if (!isOpen) return null;
-    
-    const isDownloadDisabled = isSyncing || !isGapiReady || !!syncError;
 
     return (
         <AnimatePresence>
@@ -378,24 +314,30 @@ const SettingsModal: React.FC<{
                     </div>
                     <div className="p-6 max-h-[70vh] overflow-y-auto">
                         <div className="mb-8">
-                            <h3 className="text-lg font-semibold mb-2 text-white flex items-center gap-2">
+                            <h3 className="text-lg font-semibold mb-3 text-white flex items-center gap-2">
                                 <Sheet className="h-5 w-5 text-green-400" /> Google Sheets Sync
                             </h3>
-                            <p className="text-sm text-slate-400 mb-4">
-                                Tragen Sie die URL Ihres Google Sheets ein. Die Tabelle muss zwei Blätter haben: <code className="bg-slate-700 px-1 rounded">Categories</code> und <code className="bg-slate-700 px-1 rounded">Transactions</code>.
-                                Stellen Sie sicher, dass die Freigabe auf <span className="font-semibold text-amber-400">'Jeder, der über den Link verfügt'</span> mit der Berechtigung <span className="font-semibold text-amber-400">'Bearbeiter'</span> gesetzt ist.
+                            <p className="text-sm text-slate-400 mb-6">
+                                Sichern Sie Ihre Daten in einem privaten Google Sheet. Geben Sie die URL Ihres Sheets ein und geben Sie es für die E-Mail-Adresse Ihres Service-Accounts frei (siehe Anleitung).
+                                Ihre Tabelle muss die Blätter <code className="bg-slate-700 px-1 rounded text-xs">Categories</code> und <code className="bg-slate-700 px-1 rounded text-xs">Transactions</code> enthalten.
                             </p>
-                            <div className="flex flex-col sm:flex-row gap-2">
-                                <input
-                                    type="url"
-                                    value={editableGoogleSheetUrl}
-                                    onChange={e => setEditableGoogleSheetUrl(e.target.value)}
-                                    placeholder="https://docs.google.com/spreadsheets/d/..."
-                                    className="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500"
-                                />
-                                <button onClick={onDownload} disabled={isDownloadDisabled} className="bg-slate-600 hover:bg-slate-500 text-white font-semibold px-4 py-2 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
-                                    {isSyncing ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Laden'}
-                                </button>
+                            <div className="space-y-4">
+                                <div>
+                                    <label htmlFor="sheet-url" className="block text-sm font-medium text-slate-300 mb-2">Google Sheet URL</label>
+                                    <input
+                                        id="sheet-url"
+                                        type="url"
+                                        value={editableGoogleSheetUrl}
+                                        onChange={e => setEditableGoogleSheetUrl(e.target.value)}
+                                        placeholder="https://docs.google.com/spreadsheets/d/..."
+                                        className="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500"
+                                    />
+                                </div>
+                                <div className="pt-2">
+                                    <button onClick={onDownload} disabled={isSyncing || !isSheetConfigured} className="bg-slate-600 hover:bg-slate-500 text-white font-semibold px-4 py-2 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed" title={!isSheetConfigured ? 'Bitte zuerst URL speichern' : 'Daten aus Sheet laden'}>
+                                        {isSyncing ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Von Sheet laden'}
+                                    </button>
+                                </div>
                             </div>
                         </div>
                         <div>
@@ -431,7 +373,7 @@ const SettingsModal: React.FC<{
                     </div>
                     <div className="p-6 border-t border-slate-700 flex justify-end">
                          <button onClick={handleSave} className="bg-gradient-to-r from-rose-500 to-red-600 text-white font-semibold px-6 py-2 rounded-lg shadow-md hover:opacity-90 transition-opacity">
-                            Speichern
+                            Speichern & Schließen
                         </button>
                     </div>
                 </motion.div>

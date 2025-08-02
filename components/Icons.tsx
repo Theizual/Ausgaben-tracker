@@ -1,3 +1,4 @@
+
 import {
     TrendingDown,
     Settings,
@@ -29,7 +30,10 @@ import {
     Link,
     ChevronDown,
     Coins,
-    Sheet
+    Sheet,
+    LogIn,
+    LogOut,
+    KeyRound
 } from 'lucide-react';
 import type { LucideProps } from 'lucide-react';
 import type { FC } from 'react';
@@ -65,7 +69,10 @@ export const iconMap: { [key: string]: FC<LucideProps> } = {
     Link,
     ChevronDown,
     Coins,
-    Sheet
+    Sheet,
+    LogIn,
+    LogOut,
+    KeyRound
 };
 
 export {
@@ -99,5 +106,8 @@ export {
     Link,
     ChevronDown,
     Coins,
-    Sheet
+    Sheet,
+    LogIn,
+    LogOut,
+    KeyRound
 };
