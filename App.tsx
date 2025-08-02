@@ -7,14 +7,13 @@ import type { Transaction, Category } from './types';
 import Dashboard from './components/Dashboard';
 import Statistics from './components/Statistics';
 import { formatGermanDate } from './utils/dateUtils';
-import { extractSheetIdFromUrl } from './utils/sheetUtils';
 import { iconMap, Settings, Cloud, Loader2, X, TrendingDown, LayoutGrid, BarChart2, Sheet } from './components/Icons';
 
 // Main App Component
 const App: React.FC = () => {
     const [transactions, setTransactions] = useLocalStorage<Transaction[]>('transactions', []);
     const [categories, setCategories] = useLocalStorage<Category[]>('categories', INITIAL_CATEGORIES);
-    const [googleSheetUrl, setGoogleSheetUrl] = useLocalStorage<string>('googleSheetUrl', '');
+    const [isAutoSyncEnabled, setIsAutoSyncEnabled] = useLocalStorage<boolean>('autoSyncEnabled', false);
     
     const [activeTab, setActiveTab] = useState<'dashboard' | 'statistics'>('dashboard');
     const [isSettingsOpen, setSettingsOpen] = useState(false);
@@ -25,20 +24,13 @@ const App: React.FC = () => {
 
     const categoryMap = useMemo(() => new Map(categories.map(c => [c.id, c])), [categories]);
     
-    const sheetId = useMemo(() => extractSheetIdFromUrl(googleSheetUrl), [googleSheetUrl]);
-
     const downloadFromSheet = useCallback(async () => {
-        if (!sheetId) {
-             alert("Bitte zuerst eine gültige Google Sheet URL in den Einstellungen speichern.");
-             return;
-        }
         setIsSyncing(true);
         setSyncError(null);
         try {
             const response = await fetch('/api/sheets/read', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ sheetId }),
             });
 
             if (!response.ok) {
@@ -57,19 +49,17 @@ const App: React.FC = () => {
 
         } catch (e: any) {
             console.error("Error downloading from sheet:", e);
-            const errorMessage = e.message || "Unbekannter Fehler beim Herunterladen. Prüfen Sie URL, Blattnamen & Freigabe für den Service Account.";
+            const errorMessage = e.message || "Unbekannter Fehler beim Herunterladen. Prüfen Sie die Serverkonfiguration & Freigabe für den Service Account.";
             setSyncError(errorMessage);
             alert(errorMessage);
         } finally {
             setIsSyncing(false);
         }
-    }, [sheetId, setCategories, setTransactions]);
+    }, [setCategories, setTransactions]);
 
-    const uploadToSheet = useCallback(async () => {
-        if (!sheetId) {
-            alert("Keine gültige Sheet-URL konfiguriert.");
-            return;
-        }
+    const uploadToSheet = useCallback(async (options: { isAutoSync?: boolean } = {}) => {
+        const { isAutoSync = false } = options;
+
         setIsSyncing(true);
         setSyncError(null);
 
@@ -78,7 +68,6 @@ const App: React.FC = () => {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    sheetId,
                     categories,
                     transactions,
                 }),
@@ -90,16 +79,37 @@ const App: React.FC = () => {
             }
 
             await response.json();
-            alert("Daten erfolgreich in Google Sheet gespeichert!");
+            if (!isAutoSync) {
+                alert("Daten erfolgreich in Google Sheet gespeichert!");
+            }
         } catch (e: any) {
             console.error("Error uploading to sheet:", e);
             const errorMessage = e.message || "Fehler beim Hochladen. Prüfen Sie Ihre Berechtigungen.";
             setSyncError(errorMessage);
-            alert(errorMessage);
+            if (!isAutoSync) {
+                alert(errorMessage);
+            }
         } finally {
             setIsSyncing(false);
         }
-    }, [sheetId, categories, transactions]);
+    }, [categories, transactions]);
+
+    useEffect(() => {
+        if (!isAutoSyncEnabled) {
+            return;
+        }
+    
+        const intervalId = setInterval(() => {
+            if (!isSyncing) {
+                console.log('Auto-sync: Uploading data to Google Sheet...');
+                uploadToSheet({ isAutoSync: true });
+            } else {
+                console.log('Auto-sync: Skipped, another sync is in progress.');
+            }
+        }, 5 * 60 * 1000); // 5 minutes
+    
+        return () => clearInterval(intervalId);
+    }, [isAutoSyncEnabled, isSyncing, uploadToSheet]);
 
 
     const addTransaction = (transaction: Omit<Transaction, 'id'>) => {
@@ -119,9 +129,8 @@ const App: React.FC = () => {
             <div className="max-w-7xl mx-auto">
                 <Header 
                     onSettingsClick={() => setSettingsOpen(true)} 
-                    onSyncClick={uploadToSheet}
+                    onSyncClick={() => uploadToSheet()}
                     isSyncing={isSyncing} 
-                    isSheetConfigured={!!sheetId}
                 />
                 <SyncErrorBanner message={syncError} onClose={() => setSyncError(null)} />
                 <MainTabs activeTab={activeTab} setActiveTab={setActiveTab} />
@@ -154,11 +163,10 @@ const App: React.FC = () => {
                     onClose={() => setSettingsOpen(false)}
                     categories={categories}
                     setCategories={setCategories}
-                    googleSheetUrl={googleSheetUrl}
-                    setGoogleSheetUrl={setGoogleSheetUrl}
                     onDownload={downloadFromSheet}
                     isSyncing={isSyncing}
-                    isSheetConfigured={!!sheetId}
+                    isAutoSyncEnabled={isAutoSyncEnabled}
+                    setIsAutoSyncEnabled={setIsAutoSyncEnabled}
                 />
             </div>
         </div>
@@ -196,8 +204,7 @@ const Header: React.FC<{
     onSettingsClick: () => void; 
     onSyncClick: () => void; 
     isSyncing: boolean; 
-    isSheetConfigured: boolean; 
-}> = ({ onSettingsClick, onSyncClick, isSyncing, isSheetConfigured }) => {
+}> = ({ onSettingsClick, onSyncClick, isSyncing }) => {
     const [currentDate, setCurrentDate] = useState(formatGermanDate(new Date()));
     
     return (
@@ -212,9 +219,9 @@ const Header: React.FC<{
                 </div>
                  <button 
                     onClick={onSyncClick} 
-                    disabled={isSyncing || !isSheetConfigured} 
+                    disabled={isSyncing} 
                     className="p-2 rounded-full hover:bg-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" 
-                    title={!isSheetConfigured ? "Bitte Sheet URL in Einstellungen festlegen" : "In Google Sheet speichern"}
+                    title={"In Google Sheet speichern"}
                 >
                     {isSyncing ? <Loader2 className="h-5 w-5 animate-spin" /> : <Cloud className="h-5 w-5" />}
                 </button>
@@ -251,27 +258,48 @@ const MainTabs: React.FC<{ activeTab: string; setActiveTab: (tab: 'dashboard' | 
     );
 };
 
+const ToggleSwitch: React.FC<{
+    enabled: boolean;
+    setEnabled: (enabled: boolean) => void;
+    id?: string;
+}> = ({ enabled, setEnabled, id }) => {
+    return (
+        <button
+            type="button"
+            id={id}
+            role="switch"
+            aria-checked={enabled}
+            onClick={() => setEnabled(!enabled)}
+            className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-800 focus:ring-rose-500 ${enabled ? 'bg-rose-600' : 'bg-slate-600'}`}
+        >
+            <span className="sr-only">Automatische Synchronisierung aktivieren</span>
+            <motion.span
+                layout
+                transition={{ type: 'spring', stiffness: 700, damping: 30 }}
+                className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${enabled ? 'translate-x-6' : 'translate-x-1'}`}
+            />
+        </button>
+    );
+};
+
 // SettingsModal Component
 const SettingsModal: React.FC<{
     isOpen: boolean;
     onClose: () => void;
     categories: Category[];
     setCategories: (cats: Category[] | ((prev: Category[]) => Category[])) => void;
-    googleSheetUrl: string;
-    setGoogleSheetUrl: (url: string) => void;
     onDownload: () => void;
     isSyncing: boolean;
-    isSheetConfigured: boolean;
-}> = ({ isOpen, onClose, categories, setCategories, googleSheetUrl, setGoogleSheetUrl, onDownload, isSyncing, isSheetConfigured }) => {
+    isAutoSyncEnabled: boolean;
+    setIsAutoSyncEnabled: (enabled: boolean) => void;
+}> = ({ isOpen, onClose, categories, setCategories, onDownload, isSyncing, isAutoSyncEnabled, setIsAutoSyncEnabled }) => {
     const [editableCategories, setEditableCategories] = useState(categories);
-    const [editableGoogleSheetUrl, setEditableGoogleSheetUrl] = useState(googleSheetUrl);
     
     useEffect(() => {
         if (isOpen) {
             setEditableCategories(categories);
-            setEditableGoogleSheetUrl(googleSheetUrl);
         }
-    }, [isOpen, categories, googleSheetUrl]);
+    }, [isOpen, categories]);
 
     const handleCategoryChange = (id: string, field: 'name' | 'color', value: string) => {
         setEditableCategories(currentCategories =>
@@ -283,7 +311,6 @@ const SettingsModal: React.FC<{
 
     const handleSave = () => {
         setCategories(editableCategories);
-        setGoogleSheetUrl(editableGoogleSheetUrl);
         onClose();
     };
 
@@ -318,25 +345,21 @@ const SettingsModal: React.FC<{
                                 <Sheet className="h-5 w-5 text-green-400" /> Google Sheets Sync
                             </h3>
                             <p className="text-sm text-slate-400 mb-6">
-                                Sichern Sie Ihre Daten in einem privaten Google Sheet. Geben Sie die URL Ihres Sheets ein und geben Sie es für die E-Mail-Adresse Ihres Service-Accounts frei (siehe Anleitung).
+                                Ihre Daten werden mit dem vorkonfigurierten Google Sheet synchronisiert. Laden Sie aktuelle Daten vom Sheet herunter oder aktivieren Sie die automatische Synchronisierung.
                                 Ihre Tabelle muss die Blätter <code className="bg-slate-700 px-1 rounded text-xs">Categories</code> und <code className="bg-slate-700 px-1 rounded text-xs">Transactions</code> enthalten.
                             </p>
                             <div className="space-y-4">
-                                <div>
-                                    <label htmlFor="sheet-url" className="block text-sm font-medium text-slate-300 mb-2">Google Sheet URL</label>
-                                    <input
-                                        id="sheet-url"
-                                        type="url"
-                                        value={editableGoogleSheetUrl}
-                                        onChange={e => setEditableGoogleSheetUrl(e.target.value)}
-                                        placeholder="https://docs.google.com/spreadsheets/d/..."
-                                        className="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500"
-                                    />
-                                </div>
                                 <div className="pt-2">
-                                    <button onClick={onDownload} disabled={isSyncing || !isSheetConfigured} className="bg-slate-600 hover:bg-slate-500 text-white font-semibold px-4 py-2 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed" title={!isSheetConfigured ? 'Bitte zuerst URL speichern' : 'Daten aus Sheet laden'}>
+                                    <button onClick={onDownload} disabled={isSyncing} className="bg-slate-600 hover:bg-slate-500 text-white font-semibold px-4 py-2 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed" title={'Daten aus Sheet laden'}>
                                         {isSyncing ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Von Sheet laden'}
                                     </button>
+                                </div>
+                                <div className="flex items-center justify-between pt-4 mt-4 border-t border-slate-700/50">
+                                    <div>
+                                        <label htmlFor="auto-sync-toggle" className="block text-sm font-medium text-slate-300">Automatische Synchronisierung</label>
+                                        <p className="text-xs text-slate-400 mt-1">Speichert Änderungen alle 5 Minuten im Hintergrund.</p>
+                                    </div>
+                                    <ToggleSwitch id="auto-sync-toggle" enabled={isAutoSyncEnabled} setEnabled={setIsAutoSyncEnabled} />
                                 </div>
                             </div>
                         </div>

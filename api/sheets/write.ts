@@ -27,10 +27,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).end('Method Not Allowed');
   }
 
-  const { sheetId, categories, transactions } = req.body;
+  const { categories, transactions } = req.body;
+  const sheetId = process.env.GOOGLE_SHEET_ID;
 
-  if (!sheetId || !Array.isArray(categories) || !Array.isArray(transactions)) {
-    return res.status(400).json({ error: 'Sheet ID, categories, and transactions are required.' });
+  if (!sheetId || typeof sheetId !== 'string') {
+    return res.status(500).json({ error: 'Die Google Sheet ID ist auf dem Server nicht konfiguriert.' });
+  }
+
+  if (!Array.isArray(categories) || !Array.isArray(transactions)) {
+    return res.status(400).json({ error: 'Categories and transactions are required.' });
   }
 
   try {
@@ -42,7 +47,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const transactionHeader = ['id', 'amount', 'description', 'categoryId', 'date'];
 
     const categoryValues = [categoryHeader, ...categories.map((c: Category) => [c.id, c.name, c.color, c.icon])];
-    const transactionValues = [transactionHeader, ...transactions.map((t: Transaction) => [t.id, String(t.amount).replace('.', ','), t.description, t.categoryId, t.date])];
+    const transactionValues = [transactionHeader, ...transactions.map((t: Transaction) => [String(t.id), String(t.amount).replace('.', ','), t.description, t.categoryId, t.date])];
 
     // Clear existing data
     await sheets.spreadsheets.values.batchClear({

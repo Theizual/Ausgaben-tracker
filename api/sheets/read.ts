@@ -27,10 +27,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).end('Method Not Allowed');
   }
 
-  const { sheetId } = req.body;
+  const sheetId = process.env.GOOGLE_SHEET_ID;
 
   if (!sheetId || typeof sheetId !== 'string') {
-    return res.status(400).json({ error: 'Sheet ID is required.' });
+    return res.status(500).json({ error: 'Die Google Sheet ID ist auf dem Server nicht konfiguriert.' });
   }
 
   try {
