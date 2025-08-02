@@ -1,4 +1,3 @@
-
 import {
     TrendingDown,
     Settings,
@@ -33,7 +32,12 @@ import {
     Sheet,
     LogIn,
     LogOut,
-    KeyRound
+    KeyRound,
+    Save,
+    Sparkles,
+    Bone,
+    Gamepad2,
+    DownloadCloud
 } from 'lucide-react';
 import type { LucideProps } from 'lucide-react';
 import type { FC } from 'react';
@@ -72,7 +76,12 @@ export const iconMap: { [key: string]: FC<LucideProps> } = {
     Sheet,
     LogIn,
     LogOut,
-    KeyRound
+    KeyRound,
+    Save,
+    Sparkles,
+    Bone,
+    Gamepad2,
+    DownloadCloud
 };
 
 export {
@@ -109,5 +118,10 @@ export {
     Sheet,
     LogIn,
     LogOut,
-    KeyRound
+    KeyRound,
+    Save,
+    Sparkles,
+    Bone,
+    Gamepad2,
+    DownloadCloud
 };

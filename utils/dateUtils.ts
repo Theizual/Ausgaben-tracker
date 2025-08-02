@@ -77,4 +77,5 @@ export {
     isSameMonth,
     isToday,
     getDaysInMonth,
+    isWithinInterval,
 };

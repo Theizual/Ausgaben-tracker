@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { INITIAL_CATEGORIES } from './constants';
@@ -7,13 +6,13 @@ import type { Transaction, Category } from './types';
 import Dashboard from './components/Dashboard';
 import Statistics from './components/Statistics';
 import { formatGermanDate } from './utils/dateUtils';
-import { iconMap, Settings, Cloud, Loader2, X, TrendingDown, LayoutGrid, BarChart2, Sheet, LogIn } from './components/Icons';
+import { iconMap, Settings, Loader2, X, TrendingDown, LayoutGrid, BarChart2, Sheet, Save, DownloadCloud } from './components/Icons';
 
 // Main App Component
 const App: React.FC = () => {
     const [transactions, setTransactions] = useLocalStorage<Transaction[]>('transactions', []);
     const [categories, setCategories] = useLocalStorage<Category[]>('categories', INITIAL_CATEGORIES);
-    const [isAutoSyncEnabled, setIsAutoSyncEnabled] = useLocalStorage<boolean>('autoSyncEnabled', false);
+    const [isAutoSyncEnabled, setIsAutoSyncEnabled] = useLocalStorage<boolean>('autoSyncEnabled', true);
     
     const [activeTab, setActiveTab] = useState<'dashboard' | 'statistics'>('dashboard');
     const [isSettingsOpen, setSettingsOpen] = useState(false);
@@ -225,7 +224,7 @@ const Header: React.FC<{
                     className="p-2 rounded-full hover:bg-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" 
                     title={"Von Google Sheet laden"}
                 >
-                    {syncOperation === 'download' ? <Loader2 className="h-5 w-5 animate-spin" /> : <LogIn className="h-5 w-5" />}
+                    {syncOperation === 'download' ? <Loader2 className="h-5 w-5 animate-spin" /> : <DownloadCloud className="h-5 w-5" />}
                 </button>
                  <button 
                     onClick={onUploadClick} 
@@ -233,7 +232,7 @@ const Header: React.FC<{
                     className="p-2 rounded-full hover:bg-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" 
                     title={"In Google Sheet speichern"}
                 >
-                    {syncOperation === 'upload' ? <Loader2 className="h-5 w-5 animate-spin" /> : <Cloud className="h-5 w-5" />}
+                    {syncOperation === 'upload' ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />}
                 </button>
                 <button onClick={onSettingsClick} className="p-2 rounded-full hover:bg-slate-700 transition-colors">
                     <Settings className="h-5 w-5" />
@@ -352,9 +351,6 @@ const SettingsModal: React.FC<{
                             <h3 className="text-lg font-semibold mb-3 text-white flex items-center gap-2">
                                 <Sheet className="h-5 w-5 text-green-400" /> Google Sheets Sync
                             </h3>
-                            <p className="text-sm text-slate-400 mb-6">
-                                Aktivieren Sie die automatische Synchronisierung, um Ihre Daten alle 5 Minuten im Hintergrund zu sichern. Ihre Tabelle muss die Blätter <code className="bg-slate-700 px-1 rounded text-xs">Categories</code> und <code className="bg-slate-700 px-1 rounded text-xs">Transactions</code> enthalten.
-                            </p>
                             <div className="space-y-4">
                                 <div className="flex items-center justify-between pt-4 mt-4 border-t border-slate-700/50">
                                     <div>
@@ -397,8 +393,8 @@ const SettingsModal: React.FC<{
                         </div>
                     </div>
                     <div className="p-6 border-t border-slate-700 flex justify-end">
-                         <button onClick={handleSave} className="bg-gradient-to-r from-rose-500 to-red-600 text-white font-semibold px-6 py-2 rounded-lg shadow-md hover:opacity-90 transition-opacity">
-                            Speichern & Schließen
+                         <button onClick={handleSave} className="flex items-center justify-center gap-2 bg-gradient-to-r from-rose-500 to-red-600 text-white font-semibold px-6 py-2 rounded-lg shadow-md hover:opacity-90 transition-opacity">
+                            <Save className="h-4 w-4" /> Speichern & Schließen
                         </button>
                     </div>
                 </motion.div>

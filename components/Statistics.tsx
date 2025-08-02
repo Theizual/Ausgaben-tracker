@@ -25,8 +25,14 @@ const Statistics: FC<StatisticsProps> = (props) => {
         const start = startOfMonth(currentMonth);
         const end = endOfMonth(currentMonth);
         return props.transactions.filter(t => {
-            const date = parseISO(t.date);
-            return date >= start && date <= end;
+            if (!t.date || typeof t.date !== 'string') return false;
+            try {
+                const date = parseISO(t.date);
+                if (isNaN(date.getTime())) return false; // Check for Invalid Date
+                return date >= start && date <= end;
+            } catch {
+                return false;
+            }
         });
     }, [props.transactions, currentMonth]);
 
@@ -65,8 +71,15 @@ const CalendarView: FC<{
     const dailySpending = useMemo(() => {
         const map = new Map<string, number>();
         transactions.forEach(t => {
-            const day = format(parseISO(t.date), 'yyyy-MM-dd');
-            map.set(day, (map.get(day) || 0) + t.amount);
+            if (!t.date || typeof t.date !== 'string') return;
+            try {
+                const date = parseISO(t.date);
+                if (isNaN(date.getTime())) return;
+                const day = format(date, 'yyyy-MM-dd');
+                map.set(day, (map.get(day) || 0) + t.amount);
+            } catch (e) {
+                // ignore transaction with bad date
+            }
         });
         return map;
     }, [transactions]);
@@ -74,16 +87,22 @@ const CalendarView: FC<{
     const maxSpendingInView = useMemo(() => {
         const start = startOfMonth(currentMonth);
         const end = endOfMonth(currentMonth);
-        const relevantTransactions = transactions.filter(t => {
-            const date = parseISO(t.date);
-            return date >= start && date <= end;
-        });
         const monthlyMap = new Map<string, number>();
-        relevantTransactions.forEach(t => {
-            const day = format(parseISO(t.date), 'yyyy-MM-dd');
-            monthlyMap.set(day, (monthlyMap.get(day) || 0) + t.amount);
+        transactions.forEach(t => {
+            if (!t.date || typeof t.date !== 'string') return;
+            try {
+                const date = parseISO(t.date);
+                if (isNaN(date.getTime())) return;
+
+                if (date >= start && date <= end) {
+                    const day = format(date, 'yyyy-MM-dd');
+                    monthlyMap.set(day, (monthlyMap.get(day) || 0) + t.amount);
+                }
+            } catch(e) {
+                // ignore
+            }
         });
-        return Math.max(0, ...Array.from(monthlyMap.values()))
+        return Math.max(0, ...Array.from(monthlyMap.values()));
     }, [transactions, currentMonth]);
 
     const getSpendingForDay = (day: Date) => dailySpending.get(format(day, 'yyyy-MM-dd')) || 0;
@@ -149,9 +168,13 @@ const MonthlySummary: FC<{transactions: Transaction[], currentMonth: Date}> = ({
 
         const daily = new Map<string, number>();
         transactions.forEach(t => {
-            const date = parseISO(t.date);
-            const dayKey = format(date, 'yyyy-MM-dd');
-            daily.set(dayKey, (daily.get(dayKey) || 0) + t.amount);
+            if (!t.date || typeof t.date !== 'string') return;
+            try {
+                const date = parseISO(t.date);
+                if (isNaN(date.getTime())) return;
+                const dayKey = format(date, 'yyyy-MM-dd');
+                daily.set(dayKey, (daily.get(dayKey) || 0) + t.amount);
+            } catch(e) { /* ignore */ }
         });
 
         const findMax = (map: Map<string, number>) => {
