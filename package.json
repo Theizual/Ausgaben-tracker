@@ -14,9 +14,9 @@
     "framer-motion": "^11.2.10",
     "google-auth-library": "^9.11.0",
     "googleapis": "^140.0.1",
-    "lucide-react": "^0.395.0",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
+    "lucide-react": "^0.284.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
     "recharts": "^2.12.7"
   },
   "devDependencies": {
@@ -27,5 +27,9 @@
     "@vercel/node": "^3.1.5",
     "typescript": "^5.4.5",
     "vite": "^5.2.11"
+  },
+  "overrides": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
   }
 }
