@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import type { FC } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import type { Transaction, Category, CategoryId } from '../types';
+import type { Transaction, Category } from '../types';
 import { format, parseISO, formatCurrency, endOfDay, startOfDay } from '../utils/dateUtils';
 import { iconMap, Edit, Trash2, Search, SlidersHorizontal, X, ChevronDown, Tag } from './Icons';
 import CategoryButtons from './CategoryButtons';

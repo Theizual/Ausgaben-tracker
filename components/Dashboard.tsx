@@ -14,7 +14,7 @@ type DashboardProps = {
     categories: Category[];
     categoryGroups: string[];
     categoryMap: Map<string, Category>;
-    addTransaction: (transaction: Omit<Transaction, 'id'>) => void;
+    addTransaction: (transaction: Omit<Transaction, 'id' | 'date'>) => void;
     totalMonthlyBudget: number;
     allAvailableTags: string[];
 };
@@ -290,7 +290,7 @@ const ViewTabs: FC<{ viewMode: ViewMode; setViewMode: (mode: ViewMode) => void; 
 };
 
 const QuickAddForm: FC<{ 
-    addTransaction: (t: Omit<Transaction, 'id'>) => void;
+    addTransaction: (t: Omit<Transaction, 'id' | 'date'>) => void;
     categories: Category[];
     categoryGroups: string[];
     allAvailableTags: string[];

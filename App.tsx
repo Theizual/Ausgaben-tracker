@@ -17,8 +17,6 @@ const App: React.FC = () => {
     const [recurringTransactions, setRecurringTransactions] = useLocalStorage<RecurringTransaction[]>('recurringTransactions', []);
     const [categories, setCategories] = useLocalStorage<Category[]>('categories', INITIAL_CATEGORIES);
     const [categoryGroups, setCategoryGroups] = useLocalStorage<string[]>('categoryGroups', INITIAL_GROUPS);
-    const [totalMonthlyBudget, setTotalMonthlyBudget] = useLocalStorage<number>('totalMonthlyBudget', 1000);
-    const [isAutoSyncEnabled, setIsAutoSyncEnabled] = useLocalStorage<boolean>('autoSyncEnabled', true);
     const [allAvailableTags, setAllAvailableTags] = useLocalStorage<string[]>('allAvailableTags', ['Lidl', 'Dm']);
     
     const [activeTab, setActiveTab] = useState<'dashboard' | 'transactions' | 'statistics'>('dashboard');
@@ -29,6 +27,8 @@ const App: React.FC = () => {
     const [syncError, setSyncError] = useState<string | null>(null);
 
     const categoryMap = useMemo(() => new Map(categories.map(c => [c.id, c])), [categories]);
+    const totalMonthlyBudget = useMemo(() => categories.reduce((sum, cat) => sum + (cat.budget || 0), 0), [categories]);
+
     
     const learnNewTags = useCallback((tags: string[]) => {
         const newTags = tags.filter(tag => !allAvailableTags.includes(tag));
@@ -37,7 +37,7 @@ const App: React.FC = () => {
         }
     }, [allAvailableTags, setAllAvailableTags]);
 
-    const addTransaction = (transaction: Omit<Transaction, 'id'>) => {
+    const addTransaction = (transaction: Omit<Transaction, 'id' | 'date'>) => {
         const newTransaction = { ...transaction, id: crypto.randomUUID(), date: new Date().toISOString() };
         setTransactions(prev => [...prev, newTransaction]);
         if(transaction.tags) {
@@ -171,6 +171,8 @@ const App: React.FC = () => {
         }
     }, [categories, transactions, recurringTransactions, allAvailableTags]);
 
+    const [isAutoSyncEnabled, setIsAutoSyncEnabled] = useLocalStorage<boolean>('autoSyncEnabled', true);
+
     useEffect(() => {
         if (!isAutoSyncEnabled) {
             return;
@@ -228,12 +230,6 @@ const App: React.FC = () => {
             return transaction;
         }));
     }, [setAllAvailableTags, setTransactions]);
-    
-    // Update total budget whenever categories change
-    useEffect(() => {
-        const newTotal = categories.reduce((sum, cat) => sum + (cat.budget || 0), 0);
-        setTotalMonthlyBudget(newTotal);
-    }, [categories, setTotalMonthlyBudget]);
 
     return (
         <div className="min-h-screen bg-slate-900 text-slate-200 p-4 sm:p-6 lg:p-8">
@@ -334,7 +330,6 @@ const Header: React.FC<{
     onDownloadClick: () => void;
     syncOperation: 'upload' | 'download' | null;
 }> = ({ onSettingsClick, onUploadClick, onDownloadClick, syncOperation }) => {
-    const [currentDate, setCurrentDate] = useState(formatGermanDate(new Date()));
     const isSyncing = syncOperation !== null;
     
     return (
@@ -345,7 +340,7 @@ const Header: React.FC<{
             </div>
             <div className="flex items-center gap-2">
                 <div className="text-right hidden sm:block">
-                    <p className="text-slate-400 text-sm">{currentDate}</p>
+                    <p className="text-slate-400 text-sm">{formatGermanDate(new Date())}</p>
                 </div>
                  <button 
                     onClick={onDownloadClick} 
