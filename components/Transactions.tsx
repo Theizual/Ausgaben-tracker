@@ -59,11 +59,12 @@ const TransactionList: FC<{
     categories: Category[];
     categoryGroups: string[];
     allAvailableTags: Tag[];
+    recentlyUsedTags: Tag[];
     showEmptyMessage?: boolean;
     activeQuickFilter: QuickFilterId | null;
     onQuickFilter: (filter: QuickFilterId) => void;
     onTagClick: (tagId: string) => void;
-}> = ({ transactions, categoryMap, tagMap, updateTransaction, deleteTransaction, categories, categoryGroups, allAvailableTags, showEmptyMessage = false, activeQuickFilter, onQuickFilter, onTagClick }) => {
+}> = ({ transactions, categoryMap, tagMap, updateTransaction, deleteTransaction, categories, categoryGroups, allAvailableTags, recentlyUsedTags, showEmptyMessage = false, activeQuickFilter, onQuickFilter, onTagClick }) => {
     const [editingId, setEditingId] = useState<string | null>(null);
     return (
         <motion.div
@@ -88,6 +89,7 @@ const TransactionList: FC<{
                             categories={categories}
                             categoryGroups={categoryGroups}
                             allAvailableTags={allAvailableTags}
+                            recentlyUsedTags={recentlyUsedTags}
                             onTagClick={onTagClick}
                         />
                     </motion.div>
@@ -111,8 +113,9 @@ const TransactionItem: FC<{
     categories: Category[];
     categoryGroups: string[];
     allAvailableTags: Tag[];
+    recentlyUsedTags: Tag[];
     onTagClick: (tagId: string) => void;
-}> = ({ transaction, category, tagMap, onUpdate, onDelete, isEditing, onEditClick, categories, categoryGroups, allAvailableTags, onTagClick }) => {
+}> = ({ transaction, category, tagMap, onUpdate, onDelete, isEditing, onEditClick, categories, categoryGroups, allAvailableTags, recentlyUsedTags, onTagClick }) => {
     const [formState, setFormState] = useState(transaction);
     const [localTags, setLocalTags] = useState<string[]>([]);
     
@@ -215,7 +218,7 @@ const TransactionItem: FC<{
                         allAvailableTags={allAvailableTags}
                     />
                     <AvailableTags
-                        availableTags={allAvailableTags}
+                        availableTags={recentlyUsedTags}
                         selectedTags={localTags}
                         onTagClick={handleTagClick}
                     />
@@ -469,6 +472,24 @@ const TransactionsPage: FC<TransactionsPageProps> = ({
         [...transactions].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()), 
     [transactions]);
 
+    const recentlyUsedTags = useMemo(() => {
+        const sortedAllTransactions = [...transactions].sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime());
+        const recentTagIds = new Set<string>();
+
+        for (const transaction of sortedAllTransactions) {
+            if (recentTagIds.size >= 10) break;
+            if (transaction.tagIds) {
+                for (const tagId of transaction.tagIds) {
+                    if (recentTagIds.size >= 10) break;
+                    recentTagIds.add(tagId);
+                }
+            }
+        }
+        
+        const tagMap = new Map(allAvailableTags.map(t => [t.id, t]));
+        return Array.from(recentTagIds).map(id => tagMap.get(id)).filter((t): t is Tag => !!t);
+    }, [transactions, allAvailableTags]);
+
     const filteredTransactions = useMemo(() => {
         return sortedTransactions.filter(t => {
             if (filters.text && !t.description.toLowerCase().includes(filters.text.toLowerCase())) return false;
@@ -530,6 +551,7 @@ const TransactionsPage: FC<TransactionsPageProps> = ({
                     categories={categories}
                     categoryGroups={categoryGroups}
                     allAvailableTags={allAvailableTags}
+                    recentlyUsedTags={recentlyUsedTags}
                     showEmptyMessage={true}
                     activeQuickFilter={activeQuickFilter}
                     onQuickFilter={handleQuickFilter}

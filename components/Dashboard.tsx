@@ -140,6 +140,7 @@ const Dashboard: FC<DashboardProps> = (props) => {
                         categories={props.categories} 
                         categoryGroups={props.categoryGroups} 
                         allAvailableTags={props.allAvailableTags}
+                        transactions={props.transactions}
                     />
                 </div>
                 
@@ -294,11 +295,31 @@ const QuickAddForm: FC<{
     categories: Category[];
     categoryGroups: string[];
     allAvailableTags: Tag[];
-}> = ({ addTransaction, categories, categoryGroups, allAvailableTags }) => {
+    transactions: Transaction[];
+}> = ({ addTransaction, categories, categoryGroups, allAvailableTags, transactions }) => {
     const [amount, setAmount] = useState('');
     const [description, setDescription] = useState('');
     const [categoryId, setCategoryId] = useState('');
     const [tags, setTags] = useState<string[]>([]);
+
+    const recentlyUsedTags = useMemo(() => {
+        const sortedTransactions = [...transactions].sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime());
+        const recentTagIds = new Set<string>();
+
+        for (const transaction of sortedTransactions) {
+            if (recentTagIds.size >= 10) break;
+            if (transaction.tagIds) {
+                for (const tagId of transaction.tagIds) {
+                    if (recentTagIds.size >= 10) break;
+                    recentTagIds.add(tagId);
+                }
+            }
+        }
+        
+        const tagMap = new Map(allAvailableTags.map(t => [t.id, t]));
+        return Array.from(recentTagIds).map(id => tagMap.get(id)).filter((t): t is Tag => !!t);
+    }, [transactions, allAvailableTags]);
+
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -376,7 +397,7 @@ const QuickAddForm: FC<{
                             allAvailableTags={allAvailableTags}
                         />
                         <AvailableTags 
-                            availableTags={allAvailableTags}
+                            availableTags={recentlyUsedTags}
                             selectedTags={tags}
                             onTagClick={handleTagClick}
                         />
