@@ -39,7 +39,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const response = await sheets.spreadsheets.values.batchGet({
       spreadsheetId: sheetId,
-      ranges: ['Categories!A2:F', 'Transactions!A2:E', 'Recurring!A2:G'],
+      ranges: ['Categories!A2:F', 'Transactions!A2:F', 'Recurring!A2:G'],
     });
 
     const valueRanges = response.data.valueRanges || [];
@@ -64,6 +64,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       description: row[2],
       categoryId: row[3],
       date: row[4],
+      tags: row[5] ? row[5].split(',').map(tag => tag.trim()).filter(Boolean) : [],
     })).filter(t => t.id && t.amount > 0 && t.categoryId && t.date);
 
     const recurringValues = valueRanges.find(r => r.range?.startsWith('Recurring'))?.values || [];

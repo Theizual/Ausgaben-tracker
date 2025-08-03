@@ -1,4 +1,3 @@
-
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { google } from 'googleapis';
 import { JWT } from 'google-auth-library';
@@ -44,11 +43,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Prepare data for upload
     const categoryHeader = ['id', 'name', 'color', 'icon', 'budget', 'group'];
-    const transactionHeader = ['id', 'amount', 'description', 'categoryId', 'date'];
+    const transactionHeader = ['id', 'amount', 'description', 'categoryId', 'date', 'tags'];
     const recurringHeader = ['id', 'amount', 'description', 'categoryId', 'frequency', 'startDate', 'lastProcessedDate'];
 
     const categoryValues = [categoryHeader, ...categories.map((c: Category) => [c.id, c.name, c.color, c.icon, c.budget ? String(c.budget).replace('.', ',') : '', c.group])];
-    const transactionValues = [transactionHeader, ...transactions.map((t: Transaction) => [String(t.id), String(t.amount).replace('.', ','), t.description, t.categoryId, t.date])];
+    const transactionValues = [transactionHeader, ...transactions.map((t: Transaction) => [
+        String(t.id), 
+        String(t.amount).replace('.', ','), 
+        t.description, 
+        t.categoryId, 
+        t.date,
+        t.tags?.join(',') || ''
+    ])];
     const recurringValues = [recurringHeader, ...recurringTransactions.map((r: RecurringTransaction) => [r.id, String(r.amount).replace('.',','), r.description, r.categoryId, r.frequency, r.startDate, r.lastProcessedDate || ''])];
 
     // Clear existing data

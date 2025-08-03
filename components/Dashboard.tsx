@@ -1,4 +1,5 @@
 
+
 import React, { useState, useMemo } from 'react';
 import type { FC } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -6,6 +7,7 @@ import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recha
 import type { Transaction, Category, ViewMode, CategoryId } from '../types';
 import { format, parseISO, formatCurrency, de, endOfDay, isWithinInterval, startOfMonth, endOfMonth, getWeekInterval, getMonthInterval } from '../utils/dateUtils';
 import { iconMap, Plus, Edit, Trash2, BarChart2, ChevronDown, Coins, CalendarDays } from './Icons';
+import { CategoryButtons, TagInput, AvailableTags } from './Transactions';
 
 type DashboardProps = {
     transactions: Transaction[];
@@ -14,81 +16,7 @@ type DashboardProps = {
     categoryMap: Map<string, Category>;
     addTransaction: (transaction: Omit<Transaction, 'id'>) => void;
     totalMonthlyBudget: number;
-};
-
-export const CategoryButtons: FC<{
-    categories: Category[];
-    categoryGroups: string[];
-    selectedCategoryId: CategoryId;
-    onSelectCategory: (id: CategoryId) => void;
-}> = ({ categories, categoryGroups, selectedCategoryId, onSelectCategory }) => {
-    
-    const groupedCategories = useMemo(() => {
-        const groupMap = new Map<string, Category[]>();
-        categories.forEach(category => {
-            if (!groupMap.has(category.group)) {
-                groupMap.set(category.group, []);
-            }
-            groupMap.get(category.group)!.push(category);
-        });
-
-        return categoryGroups.map(groupName => ({
-            name: groupName,
-            categories: groupMap.get(groupName) || []
-        })).filter(group => group.categories.length > 0);
-
-    }, [categories, categoryGroups]);
-
-    return (
-        <div className="space-y-4">
-            {groupedCategories.map(group => (
-                <div key={group.name}>
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2 ml-1">{group.name}</h4>
-                    <div className="flex flex-wrap gap-2">
-                        {group.categories.map(category => {
-                            const Icon = iconMap[category.icon] || iconMap.MoreHorizontal;
-                            const isSelected = selectedCategoryId === category.id;
-                            return (
-                                <motion.button
-                                    key={category.id}
-                                    type="button"
-                                    onClick={() => onSelectCategory(category.id)}
-                                    layout
-                                    transition={{ type: 'spring', damping: 20, stiffness: 300 }}
-                                    style={{
-                                        backgroundColor: isSelected ? category.color : undefined,
-                                        borderColor: category.color,
-                                    }}
-                                    className={`flex items-center justify-center rounded-lg transition-colors duration-200 border
-                                        ${isSelected 
-                                            ? 'gap-2 px-4 py-3 text-white font-semibold shadow-lg' 
-                                            : 'w-12 h-12 bg-slate-700/80 hover:bg-slate-700'
-                                        }`
-                                    }
-                                    title={category.name}
-                                >
-                                    <Icon className="h-6 w-6 shrink-0" style={{ color: isSelected ? 'white' : category.color }} />
-                                    <AnimatePresence>
-                                        {isSelected && (
-                                            <motion.span
-                                                initial={{ opacity: 0, width: 0 }}
-                                                animate={{ opacity: 1, width: 'auto' }}
-                                                exit={{ opacity: 0, width: 0 }}
-                                                transition={{ duration: 0.15, ease: 'linear' }}
-                                                className="whitespace-nowrap overflow-hidden text-sm"
-                                            >
-                                                {category.name}
-                                            </motion.span>
-                                        )}
-                                    </AnimatePresence>
-                                </motion.button>
-                            );
-                        })}
-                    </div>
-                </div>
-            ))}
-        </div>
-    );
+    allAvailableTags: string[];
 };
 
 const ProgressBar: FC<{ percentage: number; color: string; }> = ({ percentage, color }) => (
@@ -206,11 +134,47 @@ const Dashboard: FC<DashboardProps> = (props) => {
                 
                 {/* Left Column */}
                 <div className="space-y-6">
-                    <QuickAddForm addTransaction={props.addTransaction} categories={props.categories} categoryGroups={props.categoryGroups} />
+                    <QuickAddForm 
+                        addTransaction={props.addTransaction} 
+                        categories={props.categories} 
+                        categoryGroups={props.categoryGroups} 
+                        allAvailableTags={props.allAvailableTags}
+                    />
                 </div>
                 
                 {/* Right Column */}
                 <div className="space-y-6">
+                    <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.1 }}
+                        className="bg-slate-800/50 p-6 rounded-2xl border border-slate-700/50"
+                    >
+                        <div className="flex justify-between items-start">
+                             <div className="w-[calc(50%-1rem)]">
+                                <div className="flex items-center text-slate-400 mb-2">
+                                    <Coins className="h-5 w-5 mr-2 flex-shrink-0" />
+                                    <p className="font-medium text-sm">Gesamtausgaben</p>
+                                </div>
+                                <div>
+                                    <p className="text-2xl font-bold text-white truncate" title={formatCurrency(totalExpenses)}>{formatCurrency(totalExpenses)}</p>
+                                </div>
+                            </div>
+                            
+                            <div className="w-px bg-slate-700/50 self-stretch mx-4"></div>
+                            
+                            <div className="w-[calc(50%-1rem)]">
+                                <div className="flex items-center text-slate-400 mb-2">
+                                    <BarChart2 className="h-5 w-5 mr-2 flex-shrink-0" />
+                                    <p className="font-medium text-sm">Tagesdurchschnitt</p>
+                                </div>
+                                <div>
+                                    <p className="text-2xl font-bold text-white truncate" title={formatCurrency(dailyAverage)}>{formatCurrency(dailyAverage)}</p>
+                                </div>
+                            </div>
+                        </div>
+                         {subtext && <p className="text-sm text-slate-500 text-center mt-4 pt-4 border-t border-slate-700/50">{subtext}</p>}
+                    </motion.div>
                     <motion.div
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -272,38 +236,6 @@ const Dashboard: FC<DashboardProps> = (props) => {
                             </div>
                         )}
                     </motion.div>
-                    
-                    <motion.div
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.1 }}
-                        className="bg-slate-800/50 p-6 rounded-2xl border border-slate-700/50"
-                    >
-                        <div className="flex justify-between items-start">
-                             <div className="w-[calc(50%-1rem)]">
-                                <div className="flex items-center text-slate-400 mb-2">
-                                    <Coins className="h-5 w-5 mr-2 flex-shrink-0" />
-                                    <p className="font-medium text-sm">Gesamtausgaben</p>
-                                </div>
-                                <div>
-                                    <p className="text-2xl font-bold text-white truncate" title={formatCurrency(totalExpenses)}>{formatCurrency(totalExpenses)}</p>
-                                </div>
-                            </div>
-                            
-                            <div className="w-px bg-slate-700/50 self-stretch mx-4"></div>
-                            
-                            <div className="w-[calc(50%-1rem)]">
-                                <div className="flex items-center text-slate-400 mb-2">
-                                    <BarChart2 className="h-5 w-5 mr-2 flex-shrink-0" />
-                                    <p className="font-medium text-sm">Tagesdurchschnitt</p>
-                                </div>
-                                <div>
-                                    <p className="text-2xl font-bold text-white truncate" title={formatCurrency(dailyAverage)}>{formatCurrency(dailyAverage)}</p>
-                                </div>
-                            </div>
-                        </div>
-                         {subtext && <p className="text-sm text-slate-500 text-center mt-4 pt-4 border-t border-slate-700/50">{subtext}</p>}
-                    </motion.div>
                 </div>
             </div>
         </div>
@@ -336,10 +268,12 @@ const QuickAddForm: FC<{
     addTransaction: (t: Omit<Transaction, 'id'>) => void;
     categories: Category[];
     categoryGroups: string[];
-}> = ({ addTransaction, categories, categoryGroups }) => {
+    allAvailableTags: string[];
+}> = ({ addTransaction, categories, categoryGroups, allAvailableTags }) => {
     const [amount, setAmount] = useState('');
     const [description, setDescription] = useState('');
     const [categoryId, setCategoryId] = useState(categories[0]?.id || '');
+    const [tags, setTags] = useState<string[]>([]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -354,11 +288,19 @@ const QuickAddForm: FC<{
             amount: numAmount, 
             description, 
             categoryId, 
-            date: transactionDate.toISOString() 
+            date: transactionDate.toISOString(),
+            tags,
         });
         
         setAmount('');
         setDescription('');
+        setTags([]);
+    };
+
+    const handleTagClick = (tag: string) => {
+        setTags(prev => 
+            prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
+        );
     };
 
     return (
@@ -397,6 +339,19 @@ const QuickAddForm: FC<{
                         selectedCategoryId={categoryId}
                         onSelectCategory={setCategoryId}
                     />
+
+                    <div className="space-y-3">
+                        <TagInput 
+                            tags={tags} 
+                            setTags={setTags}
+                            suggestionTags={allAvailableTags}
+                        />
+                        <AvailableTags 
+                            availableTags={allAvailableTags}
+                            selectedTags={tags}
+                            onTagClick={handleTagClick}
+                        />
+                    </div>
                     
                     <div className="flex justify-end pt-2">
                         <button
