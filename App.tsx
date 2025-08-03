@@ -1,23 +1,78 @@
+
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
-import { INITIAL_CATEGORIES } from './constants';
+import { AnimatePresence, motion, Reorder } from 'framer-motion';
+import { INITIAL_CATEGORIES, INITIAL_GROUPS } from './constants';
 import useLocalStorage from './hooks/useLocalStorage';
 import type { Transaction, Category } from './types';
 import Dashboard from './components/Dashboard';
 import Statistics from './components/Statistics';
+import Budget from './components/Budget';
+import TransactionsPage from './components/Transactions';
 import { formatGermanDate } from './utils/dateUtils';
-import { iconMap, Settings, Loader2, X, TrendingDown, LayoutGrid, BarChart2, Sheet, Save, DownloadCloud } from './components/Icons';
+import { iconMap, Settings, Loader2, X, TrendingDown, LayoutGrid, BarChart2, Sheet, Save, DownloadCloud, Target, Edit, Trash2, Plus, GripVertical, Wallet, SlidersHorizontal, Repeat } from './components/Icons';
+import type { LucideProps } from 'lucide-react';
+import type { FC } from 'react';
+
+// Icon Picker Component
+const IconPicker: FC<{
+  onSelect: (iconName: string) => void;
+  onClose: () => void;
+}> = ({ onSelect, onClose }) => {
+    const iconList = Object.keys(iconMap);
+    return (
+        <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-[60] p-4"
+            onClick={onClose}
+        >
+            <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                transition={{ type: 'spring', bounce: 0.3, duration: 0.4 }}
+                className="bg-slate-800 rounded-2xl w-full max-w-2xl shadow-2xl border border-slate-700 flex flex-col"
+                onClick={e => e.stopPropagation()}
+            >
+                <div className="flex justify-between items-center p-4 border-b border-slate-700 flex-shrink-0">
+                    <h3 className="text-lg font-bold text-white">Symbol auswählen</h3>
+                    <button onClick={onClose} className="p-2 rounded-full hover:bg-slate-700 transition-colors">
+                        <X className="h-5 w-5" />
+                    </button>
+                </div>
+                <div className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 gap-2 p-4 overflow-y-auto">
+                    {iconList.sort().map(iconName => {
+                        const Icon = iconMap[iconName];
+                        return (
+                            <button
+                                key={iconName}
+                                onClick={() => onSelect(iconName)}
+                                className="aspect-square flex items-center justify-center bg-slate-700/50 hover:bg-slate-700 rounded-lg transition-colors text-slate-300 hover:text-rose-400"
+                                title={iconName}
+                            >
+                                <Icon className="h-6 w-6" />
+                            </button>
+                        );
+                    })}
+                </div>
+            </motion.div>
+        </motion.div>
+    );
+};
+
 
 // Main App Component
 const App: React.FC = () => {
     const [transactions, setTransactions] = useLocalStorage<Transaction[]>('transactions', []);
     const [categories, setCategories] = useLocalStorage<Category[]>('categories', INITIAL_CATEGORIES);
+    const [categoryGroups, setCategoryGroups] = useLocalStorage<string[]>('categoryGroups', INITIAL_GROUPS);
+    const [totalMonthlyBudget, setTotalMonthlyBudget] = useLocalStorage<number>('totalMonthlyBudget', 0);
     const [isAutoSyncEnabled, setIsAutoSyncEnabled] = useLocalStorage<boolean>('autoSyncEnabled', true);
     
-    const [activeTab, setActiveTab] = useState<'dashboard' | 'statistics'>('dashboard');
+    const [activeTab, setActiveTab] = useState<'dashboard' | 'transactions' | 'budget' | 'statistics'>('dashboard');
     const [isSettingsOpen, setSettingsOpen] = useState(false);
     
-    // API communication state
     const [syncOperation, setSyncOperation] = useState<'upload' | 'download' | null>(null);
     const isSyncing = syncOperation !== null;
     const [syncError, setSyncError] = useState<string | null>(null);
@@ -42,7 +97,11 @@ const App: React.FC = () => {
             const newCategories: Category[] = data.categories || [];
             const newTransactions: Transaction[] = data.transactions || [];
 
-            if (newCategories.length > 0) setCategories(newCategories);
+            if (newCategories.length > 0) {
+                 setCategories(newCategories);
+                 const newGroups = [...new Set(newCategories.map(c => c.group))];
+                 setCategoryGroups(newGroups);
+            }
             if (newTransactions.length > 0) setTransactions(newTransactions);
             
             alert(`Daten erfolgreich geladen: ${newCategories.length} Kategorien und ${newTransactions.length} Transaktionen.`);
@@ -55,7 +114,7 @@ const App: React.FC = () => {
         } finally {
             setSyncOperation(null);
         }
-    }, [setCategories, setTransactions]);
+    }, [setCategories, setTransactions, setCategoryGroups]);
 
     const uploadToSheet = useCallback(async (options: { isAutoSync?: boolean } = {}) => {
         const { isAutoSync = false } = options;
@@ -148,10 +207,25 @@ const App: React.FC = () => {
                                 <Dashboard
                                     transactions={transactions}
                                     categories={categories}
+                                    categoryGroups={categoryGroups}
                                     categoryMap={categoryMap}
                                     addTransaction={addTransaction}
+                                    totalMonthlyBudget={totalMonthlyBudget}
+                                />
+                            ) : activeTab === 'transactions' ? (
+                                <TransactionsPage
+                                    transactions={transactions}
+                                    categoryMap={categoryMap}
                                     updateTransaction={updateTransaction}
                                     deleteTransaction={deleteTransaction}
+                                    categories={categories}
+                                    categoryGroups={categoryGroups}
+                                />
+                            ) : activeTab === 'budget' ? (
+                                <Budget
+                                    transactions={transactions}
+                                    categories={categories}
+                                    setCategories={setCategories}
                                 />
                             ) : (
                                 <Statistics transactions={transactions} categories={categories} categoryMap={categoryMap} />
@@ -164,8 +238,12 @@ const App: React.FC = () => {
                     onClose={() => setSettingsOpen(false)}
                     categories={categories}
                     setCategories={setCategories}
+                    categoryGroups={categoryGroups}
+                    setCategoryGroups={setCategoryGroups}
                     isAutoSyncEnabled={isAutoSyncEnabled}
                     setIsAutoSyncEnabled={setIsAutoSyncEnabled}
+                    totalMonthlyBudget={totalMonthlyBudget}
+                    setTotalMonthlyBudget={setTotalMonthlyBudget}
                 />
             </div>
         </div>
@@ -243,14 +321,19 @@ const Header: React.FC<{
 };
 
 // MainTabs Component
-const MainTabs: React.FC<{ activeTab: string; setActiveTab: (tab: 'dashboard' | 'statistics') => void }> = ({ activeTab, setActiveTab }) => {
-    const tabs = [{ id: 'dashboard', label: 'Übersicht', icon: LayoutGrid }, { id: 'statistics', label: 'Statistiken', icon: BarChart2 }];
+const MainTabs: React.FC<{ activeTab: string; setActiveTab: (tab: 'dashboard' | 'transactions' | 'budget' | 'statistics') => void }> = ({ activeTab, setActiveTab }) => {
+    const tabs = [
+        { id: 'dashboard', label: 'Übersicht', icon: LayoutGrid },
+        { id: 'transactions', label: 'Transaktionen', icon: Repeat },
+        { id: 'budget', label: 'Budgets', icon: Target },
+        { id: 'statistics', label: 'Statistiken', icon: BarChart2 }
+    ];
     return (
         <div className="mt-6 flex items-center space-x-2">
             {tabs.map(tab => (
                 <button
                     key={tab.id}
-                    onClick={() => setActiveTab(tab.id as 'dashboard' | 'statistics')}
+                    onClick={() => setActiveTab(tab.id as 'dashboard' | 'transactions' | 'budget' | 'statistics')}
                     className={`flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all
                         ${
                             activeTab === tab.id
@@ -297,27 +380,78 @@ const SettingsModal: React.FC<{
     onClose: () => void;
     categories: Category[];
     setCategories: (cats: Category[] | ((prev: Category[]) => Category[])) => void;
+    categoryGroups: string[];
+    setCategoryGroups: (groups: string[] | ((prev: string[]) => string[])) => void;
     isAutoSyncEnabled: boolean;
     setIsAutoSyncEnabled: (enabled: boolean) => void;
-}> = ({ isOpen, onClose, categories, setCategories, isAutoSyncEnabled, setIsAutoSyncEnabled }) => {
+    totalMonthlyBudget: number;
+    setTotalMonthlyBudget: (budget: number) => void;
+}> = ({ 
+    isOpen, onClose, categories, setCategories, categoryGroups, setCategoryGroups, 
+    isAutoSyncEnabled, setIsAutoSyncEnabled, totalMonthlyBudget, setTotalMonthlyBudget 
+}) => {
+    const [activeSettingsTab, setActiveSettingsTab] = useState<'general' | 'categories'>('general');
+    const [editableGroups, setEditableGroups] = useState(categoryGroups);
     const [editableCategories, setEditableCategories] = useState(categories);
-    
+    const [editableTotalBudget, setEditableTotalBudget] = useState(String(totalMonthlyBudget || ''));
+    const [pickingIconFor, setPickingIconFor] = useState<string | null>(null);
+
     useEffect(() => {
         if (isOpen) {
+            setActiveSettingsTab('general');
+            setEditableGroups(categoryGroups);
             setEditableCategories(categories);
+            setEditableTotalBudget(String(totalMonthlyBudget || ''));
         }
-    }, [isOpen, categories]);
+    }, [isOpen, categories, categoryGroups, totalMonthlyBudget]);
 
-    const handleCategoryChange = (id: string, field: 'name' | 'color', value: string) => {
-        setEditableCategories(currentCategories =>
-            currentCategories.map(cat =>
-                cat.id === id ? { ...cat, [field]: value } : cat
-            )
+    const handleCategoryChange = (id: string, field: keyof Category, value: any) => {
+        setEditableCategories(current =>
+            current.map(cat => cat.id === id ? { ...cat, [field]: value } : cat)
         );
+    };
+    
+    const handleGroupChange = (oldName: string, newName: string) => {
+      if (oldName === newName || !newName.trim()) return;
+      setEditableGroups(current => current.map(g => g === oldName ? newName : g));
+      setEditableCategories(current => current.map(cat => cat.group === oldName ? { ...cat, group: newName } : cat));
+    };
+
+    const handleAddGroup = () => {
+        const newGroupName = `Neue Gruppe ${editableGroups.length + 1}`;
+        if (editableGroups.includes(newGroupName)) return;
+        setEditableGroups(current => [...current, newGroupName]);
+    };
+
+    const handleDeleteGroup = (groupName: string) => {
+        if (editableGroups.length <= 1) {
+            alert("Die letzte Gruppe kann nicht gelöscht werden.");
+            return;
+        }
+        const fallbackGroup = editableGroups.find(g => g !== groupName) || '';
+        setEditableCategories(current => current.map(cat => cat.group === groupName ? { ...cat, group: fallbackGroup } : cat));
+        setEditableGroups(current => current.filter(g => g !== groupName));
+    };
+    
+    const handleAddCategory = (groupName: string) => {
+        const newCategory: Category = {
+            id: crypto.randomUUID(),
+            name: "Neue Kategorie",
+            color: "#8b5cf6",
+            icon: "Plus",
+            group: groupName
+        };
+        setEditableCategories(current => [...current, newCategory]);
+    };
+    
+    const handleDeleteCategory = (id: string) => {
+        setEditableCategories(current => current.filter(cat => cat.id !== id));
     };
 
     const handleSave = () => {
         setCategories(editableCategories);
+        setCategoryGroups(editableGroups);
+        setTotalMonthlyBudget(parseFloat(editableTotalBudget.replace(',', '.')) || 0);
         onClose();
     };
 
@@ -337,60 +471,159 @@ const SettingsModal: React.FC<{
                     animate={{ scale: 1, opacity: 1 }}
                     exit={{ scale: 0.9, opacity: 0 }}
                     transition={{ type: 'spring', bounce: 0.3, duration: 0.4 }}
-                    className="bg-slate-800 rounded-2xl w-full max-w-2xl shadow-2xl border border-slate-700"
+                    className="bg-slate-800 rounded-2xl w-full max-w-4xl shadow-2xl border border-slate-700 flex flex-col"
                     onClick={e => e.stopPropagation()}
                 >
-                    <div className="flex justify-between items-center p-6 border-b border-slate-700">
+                    <div className="flex justify-between items-center p-6 border-b border-slate-700 flex-shrink-0">
                         <h2 className="text-xl font-bold text-white">Einstellungen</h2>
-                        <button onClick={onClose} className="p-2 rounded-full hover:bg-slate-700 transition-colors">
-                            <X className="h-5 w-5" />
+                        <button onClick={onClose} className="p-2 rounded-full hover:bg-slate-700 transition-colors"><X className="h-5 w-5" /></button>
+                    </div>
+
+                    <div className="flex border-b border-slate-700 px-6 pt-4">
+                        <button 
+                            onClick={() => setActiveSettingsTab('general')} 
+                            className={`flex items-center gap-2 pb-3 px-2 border-b-2 text-sm font-semibold transition-colors ${
+                                activeSettingsTab === 'general' 
+                                ? 'border-rose-500 text-white' 
+                                : 'border-transparent text-slate-400 hover:text-white'
+                            }`}
+                        >
+                            <SlidersHorizontal className="h-4 w-4"/>
+                            Allgemein
+                        </button>
+                        <button 
+                            onClick={() => setActiveSettingsTab('categories')} 
+                            className={`flex items-center gap-2 pb-3 px-2 ml-4 border-b-2 text-sm font-semibold transition-colors ${
+                                activeSettingsTab === 'categories' 
+                                ? 'border-rose-500 text-white' 
+                                : 'border-transparent text-slate-400 hover:text-white'
+                            }`}
+                        >
+                           <LayoutGrid className="h-4 w-4"/>
+                           Kategorien
                         </button>
                     </div>
-                    <div className="p-6 max-h-[70vh] overflow-y-auto">
-                        <div className="mb-8">
-                            <h3 className="text-lg font-semibold mb-3 text-white flex items-center gap-2">
-                                <Sheet className="h-5 w-5 text-green-400" /> Google Sheets Sync
-                            </h3>
-                            <div className="space-y-4">
-                                <div className="flex items-center justify-between pt-4 mt-4 border-t border-slate-700/50">
+
+                    <div className="p-6 max-h-[60vh] overflow-y-auto space-y-8">
+                        <AnimatePresence mode="wait">
+                            {activeSettingsTab === 'general' && (
+                                <motion.div
+                                    key="general"
+                                    initial={{ opacity: 0, x: -10 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    exit={{ opacity: 0, x: -10 }}
+                                    transition={{ duration: 0.2 }}
+                                    className="space-y-8"
+                                >
+                                    {/* Sync Settings */}
                                     <div>
-                                        <label htmlFor="auto-sync-toggle" className="block text-sm font-medium text-slate-300">Automatische Synchronisierung</label>
-                                        <p className="text-xs text-slate-400 mt-1">Speichert Änderungen alle 5 Minuten im Hintergrund.</p>
+                                        <h3 className="text-lg font-semibold mb-3 text-white flex items-center gap-2">
+                                            <Sheet className="h-5 w-5 text-green-400" /> Google Sheets Sync
+                                        </h3>
+                                        <div className="flex items-center justify-between pt-4 mt-4 border-t border-slate-700/50">
+                                            <div>
+                                                <label htmlFor="auto-sync-toggle" className="block text-sm font-medium text-slate-300">Automatische Synchronisierung</label>
+                                                <p className="text-xs text-slate-400 mt-1">Speichert Änderungen alle 5 Minuten im Hintergrund.</p>
+                                            </div>
+                                            <ToggleSwitch id="auto-sync-toggle" enabled={isAutoSyncEnabled} setEnabled={setIsAutoSyncEnabled} />
+                                        </div>
                                     </div>
-                                    <ToggleSwitch id="auto-sync-toggle" enabled={isAutoSyncEnabled} setEnabled={setIsAutoSyncEnabled} />
-                                </div>
-                            </div>
-                        </div>
-                        <div>
-                            <h3 className="text-lg font-semibold mb-4 text-white">Kategorien verwalten</h3>
-                            <div className="space-y-3">
-                                {editableCategories.map(cat => {
-                                    const Icon = iconMap[cat.icon] || iconMap['MoreHorizontal'];
-                                    return (
-                                        <div key={cat.id} className="flex items-center gap-4 p-2 bg-slate-700/50 rounded-lg">
-                                            <div className="flex items-center gap-3 flex-1">
-                                                <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ backgroundColor: cat.color }}>
-                                                    <Icon className="h-5 w-5 text-white" />
-                                                </div>
+
+                                    {/* Default Budget */}
+                                    <div>
+                                        <h3 className="text-lg font-semibold mb-3 text-white flex items-center gap-2">
+                                            <Wallet className="h-5 w-5 text-blue-400" /> Monatliches Standardbudget
+                                        </h3>
+                                        <div className="pt-4 mt-4 border-t border-slate-700/50">
+                                           <label htmlFor="total-budget-input" className="block text-sm font-medium text-slate-300 mb-1">Gesamtbudget</label>
+                                           <p className="text-xs text-slate-400 mb-3">Dieses Budget wird als Gesamtbudget für die Monatsübersicht im "Budgets" Tab verwendet.</p>
+                                            <div className="relative mt-2 max-w-xs">
+                                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">€</span>
                                                 <input
+                                                    id="total-budget-input"
                                                     type="text"
-                                                    value={cat.name}
-                                                    onChange={e => handleCategoryChange(cat.id, 'name', e.target.value)}
-                                                    className="bg-transparent font-medium text-white w-full focus:outline-none"
+                                                    inputMode="decimal"
+                                                    value={editableTotalBudget}
+                                                    onChange={e => setEditableTotalBudget(e.target.value)}
+                                                    placeholder="z.B. 2000"
+                                                    className="w-full bg-slate-700 border border-slate-600 rounded-lg pl-8 pr-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-rose-500"
                                                 />
                                             </div>
-                                            <input
-                                                type="color"
-                                                value={cat.color}
-                                                onChange={e => handleCategoryChange(cat.id, 'color', e.target.value)}
-                                                className="w-8 h-8 p-0 border-none rounded-md bg-slate-600 cursor-pointer"
-                                                style={{backgroundColor: cat.color}}
-                                            />
                                         </div>
-                                    )
-                                })}
-                            </div>
-                        </div>
+                                    </div>
+                                </motion.div>
+                            )}
+
+                            {activeSettingsTab === 'categories' && (
+                                 <motion.div
+                                    key="categories"
+                                    initial={{ opacity: 0, x: 10 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    exit={{ opacity: 0, x: 10 }}
+                                    transition={{ duration: 0.2 }}
+                                >
+                                    <div className="flex justify-between items-center mb-4">
+                                        <h3 className="text-lg font-semibold text-white">Kategorien & Gruppen</h3>
+                                        <button onClick={handleAddGroup} className="flex items-center gap-2 text-sm bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded-md font-semibold"><Plus className="h-4 w-4"/>Neue Gruppe</button>
+                                    </div>
+                                    <Reorder.Group axis="y" values={editableGroups} onReorder={setEditableGroups} className="space-y-4">
+                                        {editableGroups.map(groupName => {
+                                            const groupCategories = editableCategories.filter(c => c.group === groupName);
+                                            return (
+                                            <Reorder.Item key={groupName} value={groupName} as="div" className="bg-slate-700/40 p-4 rounded-lg">
+                                                <div className="flex items-center gap-2 mb-4">
+                                                    <div className="text-slate-500 cursor-grab"><GripVertical className="h-5 w-5" /></div>
+                                                    <input
+                                                        type="text"
+                                                        value={groupName}
+                                                        onBlur={(e) => handleGroupChange(groupName, e.target.value)}
+                                                        onChange={(e) => setEditableGroups(current => current.map(g => g === groupName ? e.target.value : g))}
+                                                        className="bg-transparent text-lg font-bold text-white w-full focus:outline-none focus:bg-slate-600/50 rounded px-2"
+                                                    />
+                                                    <button onClick={() => handleDeleteGroup(groupName)} className="p-1 rounded-full hover:bg-red-500/20 text-slate-500 hover:text-red-400"><Trash2 className="h-4 w-4"/></button>
+                                                </div>
+                                                <Reorder.Group
+                                                    axis="y"
+                                                    values={groupCategories}
+                                                    onReorder={(newOrder) => {
+                                                        const otherCategories = editableCategories.filter(c => c.group !== groupName);
+                                                        setEditableCategories([...otherCategories, ...newOrder]);
+                                                    }}
+                                                    className="space-y-2 ml-4 pl-4 border-l-2 border-slate-600"
+                                                >
+                                                    {groupCategories.map(cat => {
+                                                        const Icon = iconMap[cat.icon] || iconMap['MoreHorizontal'];
+                                                        return (
+                                                            <Reorder.Item key={cat.id} value={cat} as="div" className="flex items-center gap-3 p-2 bg-slate-700/50 rounded-lg">
+                                                                <div className="text-slate-500 cursor-grab"><GripVertical className="h-5 w-5" /></div>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => setPickingIconFor(cat.id)}
+                                                                    className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-700 focus:ring-rose-500"
+                                                                    style={{ backgroundColor: cat.color }}
+                                                                    title="Symbol ändern"
+                                                                ><Icon className="h-5 w-5 text-white" /></button>
+                                                                
+                                                                <input type="text" value={cat.name} onChange={e => handleCategoryChange(cat.id, 'name', e.target.value)} className="bg-transparent font-medium text-white w-full focus:outline-none"/>
+                                                                <input type="color" value={cat.color} onChange={e => handleCategoryChange(cat.id, 'color', e.target.value)} className="w-8 h-8 p-0 border-none rounded-md bg-transparent cursor-pointer" title="Farbe ändern"/>
+                                                                
+                                                                <select value={cat.group} onChange={e => handleCategoryChange(cat.id, 'group', e.target.value)} className="bg-slate-600 text-sm rounded-md border-slate-500 p-1.5 focus:outline-none focus:ring-2 focus:ring-rose-500">
+                                                                  {editableGroups.map(g => <option key={g} value={g}>{g}</option>)}
+                                                                </select>
+
+                                                                <button onClick={() => handleDeleteCategory(cat.id)} className="p-1 rounded-full hover:bg-red-500/20 text-slate-500 hover:text-red-400"><Trash2 className="h-4 w-4"/></button>
+                                                            </Reorder.Item>
+                                                        )
+                                                    })}
+                                                </Reorder.Group>
+                                                <button onClick={() => handleAddCategory(groupName)} className="flex items-center gap-2 text-sm text-slate-400 hover:text-white mt-3 ml-8"><Plus className="h-4 w-4"/>Kategorie hinzufügen</button>
+                                            </Reorder.Item>
+                                            )
+                                        })}
+                                    </Reorder.Group>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
                     </div>
                     <div className="p-6 border-t border-slate-700 flex justify-end">
                          <button onClick={handleSave} className="flex items-center justify-center gap-2 bg-gradient-to-r from-rose-500 to-red-600 text-white font-semibold px-6 py-2 rounded-lg shadow-md hover:opacity-90 transition-opacity">
@@ -399,6 +632,17 @@ const SettingsModal: React.FC<{
                     </div>
                 </motion.div>
             </motion.div>
+            {pickingIconFor && (
+                <IconPicker
+                    onClose={() => setPickingIconFor(null)}
+                    onSelect={(iconName) => {
+                        if (pickingIconFor) {
+                             handleCategoryChange(pickingIconFor, 'icon', iconName);
+                        }
+                        setPickingIconFor(null);
+                    }}
+                />
+            )}
         </AnimatePresence>
     );
 };

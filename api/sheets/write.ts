@@ -43,10 +43,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const sheets = google.sheets({ version: 'v4', auth });
 
     // Prepare data for upload
-    const categoryHeader = ['id', 'name', 'color', 'icon'];
+    const categoryHeader = ['id', 'name', 'color', 'icon', 'budget', 'group'];
     const transactionHeader = ['id', 'amount', 'description', 'categoryId', 'date'];
 
-    const categoryValues = [categoryHeader, ...categories.map((c: Category) => [c.id, c.name, c.color, c.icon])];
+    const categoryValues = [categoryHeader, ...categories.map((c: Category) => [c.id, c.name, c.color, c.icon, c.budget ? String(c.budget).replace('.', ',') : '', c.group])];
     const transactionValues = [transactionHeader, ...transactions.map((t: Transaction) => [String(t.id), String(t.amount).replace('.', ','), t.description, t.categoryId, t.date])];
 
     // Clear existing data

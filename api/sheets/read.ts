@@ -39,15 +39,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const response = await sheets.spreadsheets.values.batchGet({
       spreadsheetId: sheetId,
-      ranges: ['Categories!A2:D', 'Transactions!A2:E'],
+      ranges: ['Categories!A2:F', 'Transactions!A2:E'],
     });
 
     const valueRanges = response.data.valueRanges || [];
 
     const categoryValues = valueRanges.find(r => r.range?.startsWith('Categories'))?.values || [];
-    const categories: Category[] = categoryValues.map((row: string[]) => ({
-      id: row[0], name: row[1], color: row[2], icon: row[3],
-    })).filter(c => c.id && c.name && c.color && c.icon);
+    const categories: Category[] = categoryValues.map((row: string[]) => {
+      const budget = row[4] ? parseFloat(row[4].replace(',', '.')) : undefined;
+      return {
+        id: row[0],
+        name: row[1],
+        color: row[2],
+        icon: row[3],
+        budget: budget && !isNaN(budget) && budget > 0 ? budget : undefined,
+        group: row[5] || 'Sonstiges',
+      };
+    }).filter(c => c.id && c.name && c.color && c.icon);
 
     const transactionValues = valueRanges.find(r => r.range?.startsWith('Transactions'))?.values || [];
     const transactions: Transaction[] = transactionValues.map((row: string[]) => ({

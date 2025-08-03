@@ -1,55 +1,88 @@
-import React, { useState, useMemo, useRef } from 'react';
+
+import React, { useState, useMemo } from 'react';
 import type { FC } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import type { Transaction, Category, ViewMode, CategoryId } from '../types';
-import { format, parseISO, formatCurrency, de, endOfDay, isWithinInterval } from '../utils/dateUtils';
+import { format, parseISO, formatCurrency, de, endOfDay, isWithinInterval, startOfMonth, endOfMonth } from '../utils/dateUtils';
 import { getWeekInterval, getMonthInterval } from '../utils/dateUtils';
 import { iconMap, Plus, Edit, Trash2, BarChart2, ChevronDown, Coins, CalendarDays } from './Icons';
-import { CATEGORY_GROUPS } from '../constants';
 
 type DashboardProps = {
     transactions: Transaction[];
     categories: Category[];
+    categoryGroups: string[];
     categoryMap: Map<string, Category>;
     addTransaction: (transaction: Omit<Transaction, 'id'>) => void;
-    updateTransaction: (transaction: Transaction) => void;
-    deleteTransaction: (id: string) => void;
+    totalMonthlyBudget: number;
 };
 
-const CategoryButtons: FC<{
+export const CategoryButtons: FC<{
+    categories: Category[];
+    categoryGroups: string[];
     selectedCategoryId: CategoryId;
     onSelectCategory: (id: CategoryId) => void;
-}> = ({ selectedCategoryId, onSelectCategory }) => {
+}> = ({ categories, categoryGroups, selectedCategoryId, onSelectCategory }) => {
+    
+    const groupedCategories = useMemo(() => {
+        const groupMap = new Map<string, Category[]>();
+        categories.forEach(category => {
+            if (!groupMap.has(category.group)) {
+                groupMap.set(category.group, []);
+            }
+            groupMap.get(category.group)!.push(category);
+        });
+
+        return categoryGroups.map(groupName => ({
+            name: groupName,
+            categories: groupMap.get(groupName) || []
+        })).filter(group => group.categories.length > 0);
+
+    }, [categories, categoryGroups]);
+
     return (
         <div className="space-y-4">
-            {CATEGORY_GROUPS.map(group => (
+            {groupedCategories.map(group => (
                 <div key={group.name}>
-                    <h4 className="text-sm font-semibold text-slate-400 mb-2">{group.name}</h4>
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2 ml-1">{group.name}</h4>
                     <div className="flex flex-wrap gap-2">
                         {group.categories.map(category => {
                             const Icon = iconMap[category.icon] || iconMap.MoreHorizontal;
                             const isSelected = selectedCategoryId === category.id;
                             return (
-                                <button
+                                <motion.button
                                     key={category.id}
                                     type="button"
                                     onClick={() => onSelectCategory(category.id)}
-                                    style={isSelected ? {
-                                        backgroundColor: category.color,
-                                        borderColor: category.color,
-                                    } : {
+                                    layout
+                                    transition={{ type: 'spring', damping: 20, stiffness: 300 }}
+                                    style={{
+                                        backgroundColor: isSelected ? category.color : undefined,
                                         borderColor: category.color,
                                     }}
-                                    className={`flex items-center gap-2 text-sm px-3 py-2 rounded-lg transition-all border
+                                    className={`flex items-center justify-center rounded-lg transition-colors duration-200 border
                                         ${isSelected 
-                                            ? 'text-white font-semibold shadow-md' 
-                                            : 'bg-slate-700/80 text-slate-300 hover:bg-slate-700'
-                                        }`}
+                                            ? 'gap-2 px-4 py-3 text-white font-semibold shadow-lg' 
+                                            : 'w-12 h-12 bg-slate-700/80 hover:bg-slate-700'
+                                        }`
+                                    }
+                                    title={category.name}
                                 >
-                                    <Icon className="h-4 w-4" style={!isSelected ? { color: category.color } : {}} />
-                                    <span>{category.name}</span>
-                                </button>
+                                    <Icon className="h-6 w-6 shrink-0" style={{ color: isSelected ? 'white' : category.color }} />
+                                    <AnimatePresence>
+                                        {isSelected && (
+                                            <motion.span
+                                                initial={{ opacity: 0, width: 0 }}
+                                                animate={{ opacity: 1, width: 'auto' }}
+                                                exit={{ opacity: 0, width: 0 }}
+                                                transition={{ duration: 0.15, ease: 'linear' }}
+                                                className="whitespace-nowrap overflow-hidden text-sm"
+                                            >
+                                                {category.name}
+                                            </motion.span>
+                                        )}
+                                    </AnimatePresence>
+                                </motion.button>
                             );
                         })}
                     </div>
@@ -58,6 +91,19 @@ const CategoryButtons: FC<{
         </div>
     );
 };
+
+const ProgressBar: FC<{ percentage: number; color: string; }> = ({ percentage, color }) => (
+    <div className="w-full bg-slate-700 rounded-full h-2">
+        <motion.div
+            className="h-2 rounded-full"
+            style={{ backgroundColor: color }}
+            initial={{ width: 0 }}
+            animate={{ width: `${Math.min(percentage, 100)}%` }}
+            transition={{ duration: 0.8, ease: "easeOut" }}
+        />
+    </div>
+);
+
 
 const Dashboard: FC<DashboardProps> = (props) => {
     const [viewMode, setViewMode] = useState<ViewMode>('woche');
@@ -101,7 +147,6 @@ const Dashboard: FC<DashboardProps> = (props) => {
             daysInPeriod = now.getDate();
         }
         
-        // Calculate total only up to the current day for the average to be accurate
         const endOfToday = endOfDay(now);
         const transactionsForAverage = filtered.filter(t => {
             if (!t.date || typeof t.date !== 'string') return false;
@@ -120,30 +165,66 @@ const Dashboard: FC<DashboardProps> = (props) => {
         return { filteredTransactions: filtered, totalExpenses: total, dailyAverage: average, subtext };
     }, [props.transactions, viewMode]);
 
+    const { totalSpentThisMonth } = useMemo(() => {
+        const now = new Date();
+        const monthInterval = getMonthInterval(now);
+        const monthlyTransactions = props.transactions.filter(t => isWithinInterval(parseISO(t.date), monthInterval));
+        const total = monthlyTransactions.reduce((sum, t) => sum + t.amount, 0);
+        return { totalSpentThisMonth: total };
+    }, [props.transactions]);
+
+    const totalBudgetPercentage = props.totalMonthlyBudget > 0 ? (totalSpentThisMonth / props.totalMonthlyBudget) * 100 : 0;
+    
+    const getTotalBarColor = () => {
+        if (totalBudgetPercentage > 100) return '#ef4444'; // red-500
+        if (totalBudgetPercentage > 85) return '#f97316'; // orange-500
+        return '#22c55e'; // green-500
+    };
+
     return (
         <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <h1 className="text-3xl font-bold text-white">Übersicht</h1>
-            </div>
+            <h1 className="text-3xl font-bold text-white">Übersicht</h1>
 
-            <QuickAddForm addTransaction={props.addTransaction} />
-            
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
                 
-                {/* Right column: Chart and Stats. Shows first on mobile. */}
-                <div className="lg:col-span-1 space-y-6 order-1 lg:order-2">
-                    <div className="bg-slate-800/50 p-4 rounded-2xl border border-slate-700/50">
-                        <div className="h-[280px]">
-                            <CategoryPieChart transactions={filteredTransactions} categoryMap={props.categoryMap} />
-                        </div>
-                        <div className="mt-4 flex justify-center">
+                {/* Left Column */}
+                <div className="space-y-6">
+                    <QuickAddForm addTransaction={props.addTransaction} categories={props.categories} categoryGroups={props.categoryGroups} />
+                </div>
+                
+                {/* Right Column */}
+                <div className="space-y-6">
+                    <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="bg-slate-800/50 p-6 rounded-2xl border border-slate-700/50 flex flex-col"
+                    >
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="font-bold text-white">Analyse</h3>
                             <ViewTabs viewMode={viewMode} setViewMode={setViewMode} />
                         </div>
-                    </div>
+                        <div className="h-[250px]">
+                            <CategoryPieChart transactions={filteredTransactions} categoryMap={props.categoryMap} />
+                        </div>
+                        {props.totalMonthlyBudget > 0 && (
+                            <div className="mt-6 pt-6 border-t border-slate-700/50">
+                                <h4 className="text-sm font-semibold text-slate-300 mb-3">Monatsbudget</h4>
+                                <div className="flex justify-between items-baseline text-sm mb-1">
+                                    <p className="text-slate-300">
+                                        <span className="font-semibold text-white">{formatCurrency(totalSpentThisMonth)}</span>
+                                        <span className="text-slate-500"> / {formatCurrency(props.totalMonthlyBudget)}</span>
+                                    </p>
+                                    <p className="font-semibold" style={{color: getTotalBarColor()}}>{totalBudgetPercentage.toFixed(0)}%</p>
+                                </div>
+                                <ProgressBar percentage={totalBudgetPercentage} color={getTotalBarColor()} />
+                            </div>
+                        )}
+                    </motion.div>
                     
                     <motion.div
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.1 }}
                         className="bg-slate-800/50 p-6 rounded-2xl border border-slate-700/50"
                     >
                         <div className="flex justify-between items-start">
@@ -172,24 +253,13 @@ const Dashboard: FC<DashboardProps> = (props) => {
                          {subtext && <p className="text-sm text-slate-500 text-center mt-4 pt-4 border-t border-slate-700/50">{subtext}</p>}
                     </motion.div>
                 </div>
-
-                {/* Left column: Transaction List. Shows second on mobile. */}
-                <div className="lg:col-span-2 order-2 lg:order-1 h-[640px] lg:h-auto">
-                    <TransactionList 
-                        transactions={filteredTransactions}
-                        categoryMap={props.categoryMap}
-                        updateTransaction={props.updateTransaction}
-                        deleteTransaction={props.deleteTransaction}
-                    />
-                </div>
-
             </div>
         </div>
     );
 };
 
 const ViewTabs: FC<{ viewMode: ViewMode; setViewMode: (mode: ViewMode) => void; }> = ({ viewMode, setViewMode }) => {
-    const tabs: { id: ViewMode; label: string }[] = [{ id: 'woche', label: 'Diese Woche' }, { id: 'monat', label: 'Dieser Monat' }];
+    const tabs: { id: ViewMode; label: string }[] = [{ id: 'woche', label: 'Woche' }, { id: 'monat', label: 'Monat' }];
 
     return (
         <div className="bg-slate-800 p-1 rounded-full flex items-center">
@@ -197,7 +267,7 @@ const ViewTabs: FC<{ viewMode: ViewMode; setViewMode: (mode: ViewMode) => void; 
                 <button
                     key={tab.id}
                     onClick={() => setViewMode(tab.id)}
-                    className={`px-4 py-1.5 text-sm font-semibold rounded-full transition-colors duration-300 ${
+                    className={`px-3 py-1 text-xs font-semibold rounded-full transition-colors duration-300 ${
                         viewMode === tab.id
                             ? 'bg-red-600 text-white'
                             : 'text-slate-300 hover:bg-slate-700/50'
@@ -210,10 +280,14 @@ const ViewTabs: FC<{ viewMode: ViewMode; setViewMode: (mode: ViewMode) => void; 
     );
 };
 
-const QuickAddForm: FC<{ addTransaction: (t: Omit<Transaction, 'id'>) => void }> = ({ addTransaction }) => {
+const QuickAddForm: FC<{ 
+    addTransaction: (t: Omit<Transaction, 'id'>) => void;
+    categories: Category[];
+    categoryGroups: string[];
+}> = ({ addTransaction, categories, categoryGroups }) => {
     const [amount, setAmount] = useState('');
     const [description, setDescription] = useState('');
-    const [categoryId, setCategoryId] = useState(CATEGORY_GROUPS[0]?.categories[0]?.id || '');
+    const [categoryId, setCategoryId] = useState(categories[0]?.id || '');
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -266,6 +340,8 @@ const QuickAddForm: FC<{ addTransaction: (t: Omit<Transaction, 'id'>) => void }>
                     </div>
 
                     <CategoryButtons
+                        categories={categories}
+                        categoryGroups={categoryGroups}
                         selectedCategoryId={categoryId}
                         onSelectCategory={setCategoryId}
                     />
@@ -285,164 +361,6 @@ const QuickAddForm: FC<{ addTransaction: (t: Omit<Transaction, 'id'>) => void }>
         </motion.div>
     );
 };
-
-const TransactionList: FC<{ 
-    transactions: Transaction[]; 
-    categoryMap: Map<string, Category>; 
-    updateTransaction: (t: Transaction) => void;
-    deleteTransaction: (id: string) => void; 
-}> = ({ transactions, categoryMap, updateTransaction, deleteTransaction }) => {
-    const [editingId, setEditingId] = useState<string | null>(null);
-    return (
-        <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="bg-slate-800/50 p-6 rounded-2xl border border-slate-700/50 flex flex-col h-full"
-        >
-            <h3 className="font-bold text-white mb-4 flex-shrink-0">Letzte Transaktionen</h3>
-            <div className="flex-grow space-y-3 overflow-y-auto -mr-4 pr-4">
-                <AnimatePresence>
-                {transactions.length > 0 ? transactions.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(t => (
-                    <motion.div key={t.id} layout initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }}>
-                        <TransactionItem 
-                            transaction={t}
-                            category={categoryMap.get(t.categoryId)}
-                            onUpdate={updateTransaction}
-                            onDelete={deleteTransaction}
-                            isEditing={editingId === t.id}
-                            onEditClick={() => setEditingId(t.id === editingId ? null : t.id)}
-                        />
-                    </motion.div>
-                )) : <p className="text-slate-500 text-center py-4">Keine Transaktionen in diesem Zeitraum.</p>}
-                </AnimatePresence>
-            </div>
-        </motion.div>
-    );
-};
-
-const TransactionItem: FC<{ 
-    transaction: Transaction; 
-    category?: Category; 
-    onUpdate: (t: Transaction) => void; 
-    onDelete: (id: string) => void; 
-    isEditing: boolean; 
-    onEditClick: () => void; 
-}> = ({ transaction, category, onUpdate, onDelete, isEditing, onEditClick }) => {
-    const [formState, setFormState] = useState(transaction);
-    
-    React.useEffect(() => {
-        setFormState(transaction);
-    }, [transaction, isEditing]);
-    
-    const Icon = category ? iconMap[category.icon] || iconMap.MoreHorizontal : iconMap.MoreHorizontal;
-    const color = category ? category.color : '#64748b';
-
-    const handleSave = () => {
-        onUpdate(formState);
-        onEditClick();
-    };
-
-    const formattedDate = React.useMemo(() => {
-        try {
-            if (!transaction.date || typeof transaction.date !== 'string') {
-                return 'Ungültiges Datum';
-            }
-            const parsedDate = parseISO(transaction.date);
-            if (isNaN(parsedDate.getTime())) {
-                return 'Ungültiges Datum';
-            }
-            return format(parsedDate, 'dd. MMMM, HH:mm');
-        } catch (error) {
-            return 'Ungültiges Datum';
-        }
-    }, [transaction.date]);
-
-    if (isEditing) {
-        // Safely format the date for the input to prevent crashes from invalid date strings
-        const getFormattedDate = () => {
-            try {
-                // Ensure date is a valid string before parsing
-                if (!formState.date || typeof formState.date !== 'string') {
-                    return '';
-                }
-                const parsedDate = parseISO(formState.date);
-                if (isNaN(parsedDate.getTime())) return '';
-                return format(parsedDate, 'yyyy-MM-dd');
-            } catch (error) {
-                console.error(`Invalid date format for transaction ${formState.id}:`, formState.date, error);
-                // Return an empty string, forcing the user to select a valid date
-                return '';
-            }
-        };
-
-        return (
-            <div className="bg-slate-700/80 p-4 rounded-lg space-y-4 ring-2 ring-rose-500">
-                <div className="grid grid-cols-2 gap-3">
-                    <input 
-                        type="number" 
-                        step="0.01" 
-                        value={formState.amount} 
-                        onChange={e => setFormState({...formState, amount: parseFloat(e.target.value) || 0})} 
-                        className="w-full bg-slate-600 border border-slate-500 rounded-md px-3 py-2 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500"
-                        placeholder="Betrag"
-                    />
-                    <input
-                        type="date"
-                        value={getFormattedDate()}
-                        onChange={(e) => {
-                            try {
-                                if (e.target.value) {
-                                    const transactionDate = endOfDay(parseISO(e.target.value));
-                                    setFormState({...formState, date: transactionDate.toISOString()});
-                                }
-                            } catch (err) {
-                                console.error("Could not parse date", e.target.value)
-                            }
-                        }}
-                        className="w-full bg-slate-600 border border-slate-500 rounded-md px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-rose-500"
-                        required
-                    />
-                 </div>
-                 <input 
-                    type="text" 
-                    value={formState.description} 
-                    onChange={e => setFormState({...formState, description: e.target.value})} 
-                    className="w-full bg-slate-600 border border-slate-500 rounded-md px-3 py-2 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500"
-                    placeholder="Beschreibung"
-                />
-                 <CategoryButtons 
-                    selectedCategoryId={formState.categoryId}
-                    onSelectCategory={(id) => setFormState({...formState, categoryId: id})}
-                 />
-                 <div className="flex justify-end gap-2 pt-2">
-                    <button onClick={onEditClick} className="text-slate-400 hover:text-white px-4 py-1.5 rounded-md hover:bg-slate-600/50 transition-colors text-sm">Abbrechen</button>
-                    <button onClick={handleSave} className="bg-rose-600 hover:bg-rose-500 text-white text-sm font-semibold px-4 py-1.5 rounded-md transition-colors">Speichern</button>
-                 </div>
-            </div>
-        )
-    }
-
-    return (
-        <div className="flex items-center gap-4 bg-slate-800/50 hover:bg-slate-700/50 p-3 rounded-lg transition-colors">
-            <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: color }}>
-                <Icon className="h-5 w-5 text-white" />
-            </div>
-            <div className="flex-1">
-                <p className="font-medium text-white">{transaction.description}</p>
-                <p className="text-xs text-slate-400">{formattedDate}</p>
-            </div>
-            <div className="text-right">
-                 <p className="font-bold text-white">{formatCurrency(transaction.amount)}</p>
-                 <div className="flex gap-3 justify-end mt-1">
-                    <button onClick={onEditClick}><Edit className="h-4 w-4 text-slate-500 hover:text-rose-400" /></button>
-                    <button onClick={() => onDelete(transaction.id)}><Trash2 className="h-4 w-4 text-slate-500 hover:text-red-500" /></button>
-                 </div>
-            </div>
-        </div>
-    );
-};
-
 
 // New Pie Chart Component
 interface CategoryPieChartProps {
@@ -551,7 +469,6 @@ const CategoryPieChart: React.FC<CategoryPieChartProps> = ({ transactions, categ
             align="right" 
             wrapperStyle={{ fontSize: '12px', lineHeight: '1.5', paddingLeft: '20px' }}
             formatter={(value, entry) => {
-                // Defensive check to prevent crash if entry or payload is malformed
                 if (!entry || !entry.payload) {
                     return <span className="text-slate-400">{value}</span>;
                 }

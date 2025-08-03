@@ -4,10 +4,12 @@ export interface Category {
   name: string;
   color: string;
   icon: string;
+  budget?: number;
+  group: string;
 }
 
 export interface Transaction {
-  id: string;
+  id:string;
   amount: number;
   description: string;
   categoryId: string;
