@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { google } from 'googleapis';
 import { JWT } from 'google-auth-library';
-import type { Category, Transaction, RecurringTransaction } from '../../types';
+import type { Category, Transaction, RecurringTransaction, Tag } from '../../types';
 
 async function getAuthClient() {
   const serviceAccountEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
@@ -64,9 +64,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Prepare data for upload
     const categoryHeader = ['id', 'name', 'color', 'icon', 'budget', 'group'];
-    const transactionHeader = ['id', 'amount', 'description', 'categoryId', 'date', 'tags'];
+    const transactionHeader = ['id', 'amount', 'description', 'categoryId', 'date', 'tagIds'];
     const recurringHeader = ['id', 'amount', 'description', 'categoryId', 'frequency', 'startDate', 'lastProcessedDate'];
-    const tagHeader = ['tag'];
+    const tagHeader = ['id', 'name'];
 
     const categoryValues = [categoryHeader, ...categories.map((c: Category) => [c.id, c.name, c.color, c.icon, c.budget ? String(c.budget).replace('.', ',') : '', c.group])];
     const transactionValues = [transactionHeader, ...transactions.map((t: Transaction) => [
@@ -75,10 +75,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         t.description, 
         t.categoryId, 
         t.date,
-        t.tags?.join(',') || ''
+        t.tagIds?.join(',') || ''
     ])];
     const recurringValues = [recurringHeader, ...recurringTransactions.map((r: RecurringTransaction) => [r.id, String(r.amount).replace('.',','), r.description, r.categoryId, r.frequency, r.startDate, r.lastProcessedDate || ''])];
-    const tagValues = [tagHeader, ...allAvailableTags.map((tag: string) => [tag])];
+    const tagValues = [tagHeader, ...allAvailableTags.map((tag: Tag) => [tag.id, tag.name])];
 
     // Clear existing data
     await sheets.spreadsheets.values.batchClear({

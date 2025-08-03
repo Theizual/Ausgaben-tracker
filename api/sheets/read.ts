@@ -2,7 +2,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { google } from 'googleapis';
 import { JWT } from 'google-auth-library';
-import type { Category, Transaction, RecurringTransaction } from '../../types';
+import type { Category, Transaction, RecurringTransaction, Tag } from '../../types';
 
 async function getAuthClient() {
   const serviceAccountEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
@@ -39,7 +39,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const response = await sheets.spreadsheets.values.batchGet({
       spreadsheetId: sheetId,
-      ranges: ['Categories!A2:F', 'Transactions!A2:F', 'Recurring!A2:G', 'Tags!A2:Z'],
+      ranges: ['Categories!A2:F', 'Transactions!A2:F', 'Recurring!A2:G', 'Tags!A2:B'],
     });
 
     const valueRanges = response.data.valueRanges || [];
@@ -64,7 +64,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       description: row[2],
       categoryId: row[3],
       date: row[4],
-      tags: row[5] ? row[5].split(',').map(tag => tag.trim()).filter(Boolean) : [],
+      tagIds: row[5] ? row[5].split(',').map(tagId => tagId.trim()).filter(Boolean) : [],
     })).filter(t => t.id && t.amount > 0 && t.categoryId && t.date);
 
     const recurringValues = valueRanges.find(r => r.range?.startsWith('Recurring'))?.values || [];
@@ -79,7 +79,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     })).filter(r => r.id && r.amount > 0 && r.categoryId && r.frequency && r.startDate);
 
     const tagValues = valueRanges.find(r => r.range?.startsWith('Tags'))?.values || [];
-    const allAvailableTags: string[] = tagValues.map((row: string[]) => row[0]).filter(Boolean);
+    const allAvailableTags: Tag[] = tagValues.map((row: string[]) => ({
+        id: row[0],
+        name: row[1],
+    })).filter(t => t.id && t.name);
 
     return res.status(200).json({ categories, transactions, recurringTransactions, allAvailableTags });
 

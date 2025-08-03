@@ -1,9 +1,8 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
-import type { FC } from 'react';
+import React, { useState, useMemo, useRef, useEffect, FC } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import type { Transaction, Category } from '../types';
-import { format, parseISO, formatCurrency, endOfDay, startOfDay } from '../utils/dateUtils';
-import { iconMap, Edit, Trash2, Search, SlidersHorizontal, X, ChevronDown, Tag } from './Icons';
+import type { Transaction, Category, Tag } from '../types';
+import { format, parseISO, formatCurrency, endOfDay, startOfDay, getWeekInterval, getMonthInterval } from '../utils/dateUtils';
+import { iconMap, Edit, Trash2, Search, SlidersHorizontal, X, ChevronDown, Tag as TagIcon } from './Icons';
 import CategoryButtons from './CategoryButtons';
 import TagInput from './TagInput';
 import AvailableTags from './AvailableTags';
@@ -11,23 +10,58 @@ import AvailableTags from './AvailableTags';
 interface TransactionsPageProps {
     transactions: Transaction[];
     categoryMap: Map<string, Category>;
-    updateTransaction: (transaction: Transaction) => void;
+    tagMap: Map<string, string>;
+    updateTransaction: (transaction: Omit<Transaction, 'tagIds'> & { tags?: string[] }) => void;
     deleteTransaction: (id: string) => void;
     categories: Category[];
     categoryGroups: string[];
-    allAvailableTags: string[];
+    allAvailableTags: Tag[];
 }
+
+type QuickFilterId = 'today' | 'week' | 'month' | 'all';
+const quickFilterButtons: { id: QuickFilterId; label: string }[] = [
+    { id: 'today', label: 'Heute' },
+    { id: 'week', label: 'Diese Woche' },
+    { id: 'month', label: 'Dieser Monat' },
+    { id: 'all', label: 'Gesamt' },
+];
+
+const QuickFilters: FC<{
+    activeQuickFilter: QuickFilterId | null;
+    onQuickFilter: (filter: QuickFilterId) => void;
+}> = ({ activeQuickFilter, onQuickFilter }) => {
+    return (
+        <div className="flex items-center space-x-1 bg-slate-700/80 p-1 rounded-full mb-4 self-start">
+            {quickFilterButtons.map(btn => (
+                <button
+                    key={btn.id}
+                    onClick={() => onQuickFilter(btn.id)}
+                    className={`px-3 py-1 text-sm font-semibold rounded-full transition-colors duration-300 whitespace-nowrap ${
+                        activeQuickFilter === btn.id
+                            ? 'bg-rose-600 text-white shadow-md'
+                            : 'text-slate-300 hover:bg-slate-600/50'
+                    }`}
+                >
+                    {btn.label}
+                </button>
+            ))}
+        </div>
+    );
+};
 
 const TransactionList: FC<{ 
     transactions: Transaction[]; 
-    categoryMap: Map<string, Category>; 
-    updateTransaction: (t: Transaction) => void;
+    categoryMap: Map<string, Category>;
+    tagMap: Map<string, string>;
+    updateTransaction: (t: Omit<Transaction, 'tagIds'> & { tags?: string[] }) => void;
     deleteTransaction: (id: string) => void; 
     categories: Category[];
     categoryGroups: string[];
-    allAvailableTags: string[];
+    allAvailableTags: Tag[];
     showEmptyMessage?: boolean;
-}> = ({ transactions, categoryMap, updateTransaction, deleteTransaction, categories, categoryGroups, allAvailableTags, showEmptyMessage = false }) => {
+    activeQuickFilter: QuickFilterId | null;
+    onQuickFilter: (filter: QuickFilterId) => void;
+}> = ({ transactions, categoryMap, tagMap, updateTransaction, deleteTransaction, categories, categoryGroups, allAvailableTags, showEmptyMessage = false, activeQuickFilter, onQuickFilter }) => {
     const [editingId, setEditingId] = useState<string | null>(null);
     return (
         <motion.div
@@ -36,6 +70,7 @@ const TransactionList: FC<{
             transition={{ delay: 0.1 }}
             className="bg-slate-800/50 p-6 rounded-2xl border border-slate-700/50 flex flex-col h-full"
         >
+            <QuickFilters activeQuickFilter={activeQuickFilter} onQuickFilter={onQuickFilter} />
             <div className="flex-grow space-y-3 overflow-y-auto -mr-4 pr-4">
                 <AnimatePresence>
                 {transactions.length > 0 ? transactions.map(t => (
@@ -43,6 +78,7 @@ const TransactionList: FC<{
                         <TransactionItem 
                             transaction={t}
                             category={categoryMap.get(t.categoryId)}
+                            tagMap={tagMap}
                             onUpdate={updateTransaction}
                             onDelete={deleteTransaction}
                             isEditing={editingId === t.id}
@@ -63,26 +99,33 @@ const TransactionList: FC<{
 
 const TransactionItem: FC<{ 
     transaction: Transaction; 
-    category?: Category; 
-    onUpdate: (t: Transaction) => void; 
+    category?: Category;
+    tagMap: Map<string, string>;
+    onUpdate: (t: Omit<Transaction, 'tagIds'> & { tags?: string[] }) => void;
     onDelete: (id: string) => void; 
     isEditing: boolean; 
     onEditClick: () => void;
     categories: Category[];
     categoryGroups: string[];
-    allAvailableTags: string[];
-}> = ({ transaction, category, onUpdate, onDelete, isEditing, onEditClick, categories, categoryGroups, allAvailableTags }) => {
+    allAvailableTags: Tag[];
+}> = ({ transaction, category, tagMap, onUpdate, onDelete, isEditing, onEditClick, categories, categoryGroups, allAvailableTags }) => {
     const [formState, setFormState] = useState(transaction);
+    const [localTags, setLocalTags] = useState<string[]>([]);
     
     React.useEffect(() => {
         setFormState(transaction);
-    }, [transaction, isEditing]);
+        if (isEditing) {
+            const tagNames = (transaction.tagIds || []).map(id => tagMap.get(id)).filter((name): name is string => !!name);
+            setLocalTags(tagNames);
+        }
+    }, [transaction, isEditing, tagMap]);
     
     const Icon = category ? iconMap[category.icon] || iconMap.MoreHorizontal : iconMap.MoreHorizontal;
     const color = category ? category.color : '#64748b';
 
     const handleSave = () => {
-        onUpdate(formState);
+        const { tagIds, ...restOfState } = formState;
+        onUpdate({ ...restOfState, tags: localTags });
         onEditClick();
     };
 
@@ -98,10 +141,10 @@ const TransactionItem: FC<{
     }, [transaction.date]);
 
     const handleTagClick = (tag: string) => {
-        setFormState(prev => {
-            const currentTags = prev.tags || [];
+        setLocalTags(prev => {
+            const currentTags = prev || [];
             const newTags = currentTags.includes(tag) ? currentTags.filter(t => t !== tag) : [...currentTags, tag];
-            return { ...prev, tags: newTags };
+            return newTags;
         });
     };
 
@@ -163,13 +206,13 @@ const TransactionItem: FC<{
                 />
                  <div className="space-y-3">
                     <TagInput
-                        tags={formState.tags || []}
-                        setTags={(newTags) => setFormState({ ...formState, tags: newTags })}
-                        suggestionTags={allAvailableTags}
+                        tags={localTags}
+                        setTags={setLocalTags}
+                        allAvailableTags={allAvailableTags}
                     />
                     <AvailableTags
                         availableTags={allAvailableTags}
-                        selectedTags={formState.tags || []}
+                        selectedTags={localTags}
                         onTagClick={handleTagClick}
                     />
                  </div>
@@ -196,13 +239,16 @@ const TransactionItem: FC<{
                 <p className="font-medium text-white truncate">{transaction.description}</p>
                  <div className="flex flex-col items-start">
                     <div className="text-xs text-slate-400 mt-1">{formattedDate}</div>
-                    {transaction.tags && transaction.tags.length > 0 && (
+                    {transaction.tagIds && transaction.tagIds.length > 0 && (
                         <div className="flex flex-wrap gap-1.5 mt-2">
-                            {transaction.tags.map(tag => (
-                                <span key={tag} className="text-xs font-medium bg-slate-700 text-slate-300 px-2 py-0.5 rounded-full">
-                                    #{tag}
+                            {transaction.tagIds.map(id => {
+                                const tagName = tagMap.get(id);
+                                if (!tagName) return null;
+                                return (
+                                <span key={id} className="text-xs font-medium bg-slate-700 text-slate-300 px-2 py-0.5 rounded-full">
+                                    #{tagName}
                                 </span>
-                            ))}
+                            )})}
                         </div>
                     )}
                 </div>
@@ -269,27 +315,16 @@ const MultiCategoryPicker: FC<{
 const TransactionFilters: FC<{
     categories: Category[];
     onFilterChange: (filters: any) => void;
-}> = ({ categories, onFilterChange }) => {
-    const [filters, setFilters] = useState({
-        text: '',
-        tags: '',
-        categories: [] as string[],
-        minAmount: '',
-        maxAmount: '',
-        startDate: '',
-        endDate: '',
-    });
+    filters: any;
+}> = ({ categories, onFilterChange, filters }) => {
     const [showAdvanced, setShowAdvanced] = useState(false);
 
     const handleFilterChange = (field: keyof typeof filters, value: any) => {
-        const newFilters = { ...filters, [field]: value };
-        setFilters(newFilters);
-        onFilterChange(newFilters);
+        onFilterChange({ ...filters, [field]: value });
     };
     
     const resetFilters = () => {
         const emptyFilters = { text: '', tags: '', categories: [], minAmount: '', maxAmount: '', startDate: '', endDate: '' };
-        setFilters(emptyFilters);
         onFilterChange(emptyFilters);
     };
 
@@ -307,7 +342,7 @@ const TransactionFilters: FC<{
                     />
                 </div>
                 <div className="relative flex-grow">
-                    <Tag className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+                    <TagIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
                     <input
                         type="text"
                         placeholder="Filter nach Tag..."
@@ -316,14 +351,20 @@ const TransactionFilters: FC<{
                         className="w-full bg-slate-700 border border-slate-600 rounded-lg pl-10 pr-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-rose-500"
                     />
                 </div>
-                <button onClick={() => setShowAdvanced(!showAdvanced)} className="flex items-center justify-center gap-2 text-sm text-white bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded-lg font-semibold">
-                    <SlidersHorizontal className="h-4 w-4"/>
-                    <span>Filter</span>
-                </button>
-                 <button onClick={resetFilters} className="text-sm text-slate-400 hover:text-white hover:bg-slate-700/50 px-4 py-2 rounded-lg">
-                    Zurücksetzen
-                </button>
             </div>
+
+            <div className="flex flex-col sm:flex-row gap-4 items-center justify-end pt-4 border-t border-slate-700/50">
+                <div className="flex items-center gap-2">
+                    <button onClick={() => setShowAdvanced(!showAdvanced)} className="flex items-center justify-center gap-2 text-sm text-white bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded-lg font-semibold">
+                        <SlidersHorizontal className="h-4 w-4"/>
+                        <span>Erweiterte Filter</span>
+                    </button>
+                     <button onClick={resetFilters} className="text-sm text-slate-400 hover:text-white hover:bg-slate-700/50 px-4 py-2 rounded-lg">
+                        Zurücksetzen
+                    </button>
+                </div>
+            </div>
+            
             <AnimatePresence>
             {showAdvanced && (
                 <motion.div initial={{opacity: 0, height: 0}} animate={{opacity: 1, height: 'auto'}} exit={{opacity: 0, height: 0}} className="overflow-hidden">
@@ -347,6 +388,7 @@ const TransactionFilters: FC<{
 const TransactionsPage: FC<TransactionsPageProps> = ({
     transactions,
     categoryMap,
+    tagMap,
     updateTransaction,
     deleteTransaction,
     categories,
@@ -362,6 +404,56 @@ const TransactionsPage: FC<TransactionsPageProps> = ({
         startDate: '',
         endDate: '',
     });
+    const [activeQuickFilter, setActiveQuickFilter] = useState<QuickFilterId | null>('all');
+
+    const handleQuickFilter = (filter: QuickFilterId) => {
+        setActiveQuickFilter(filter);
+        
+        let startDate = '';
+        let endDate = '';
+        const now = new Date();
+
+        switch (filter) {
+            case 'today':
+                startDate = format(startOfDay(now), 'yyyy-MM-dd');
+                endDate = format(endOfDay(now), 'yyyy-MM-dd');
+                break;
+            case 'week':
+                const weekInterval = getWeekInterval(now);
+                startDate = format(weekInterval.start, 'yyyy-MM-dd');
+                endDate = format(weekInterval.end, 'yyyy-MM-dd');
+                break;
+            case 'month':
+                const monthInterval = getMonthInterval(now);
+                startDate = format(monthInterval.start, 'yyyy-MM-dd');
+                endDate = format(monthInterval.end, 'yyyy-MM-dd');
+                break;
+            case 'all':
+                break; // a reset will set dates to ''
+        }
+        
+        setFilters(prevFilters => ({ ...prevFilters, startDate, endDate }));
+    };
+
+    const handleAdvancedFilterChange = (newFilters: any) => {
+        setFilters(newFilters);
+        
+        const { startDate, endDate } = newFilters;
+        const now = new Date();
+
+        let correspondingQuickFilter: QuickFilterId | null = null;
+        if (startDate === format(startOfDay(now), 'yyyy-MM-dd') && endDate === format(endOfDay(now), 'yyyy-MM-dd')) {
+            correspondingQuickFilter = 'today';
+        } else if (startDate === format(getWeekInterval(now).start, 'yyyy-MM-dd') && endDate === format(getWeekInterval(now).end, 'yyyy-MM-dd')) {
+            correspondingQuickFilter = 'week';
+        } else if (startDate === format(getMonthInterval(now).start, 'yyyy-MM-dd') && endDate === format(getMonthInterval(now).end, 'yyyy-MM-dd')) {
+            correspondingQuickFilter = 'month';
+        } else if (!startDate && !endDate) {
+            correspondingQuickFilter = 'all';
+        }
+        
+        setActiveQuickFilter(correspondingQuickFilter);
+    };
 
     const sortedTransactions = useMemo(() => 
         [...transactions].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()), 
@@ -370,7 +462,17 @@ const TransactionsPage: FC<TransactionsPageProps> = ({
     const filteredTransactions = useMemo(() => {
         return sortedTransactions.filter(t => {
             if (filters.text && !t.description.toLowerCase().includes(filters.text.toLowerCase())) return false;
-            if (filters.tags && (!t.tags || !t.tags.some(tag => tag.toLowerCase().includes(filters.tags.toLowerCase())))) return false;
+            
+            if (filters.tags) {
+                const searchTags = filters.tags.toLowerCase().split(',').map(tag => tag.trim()).filter(Boolean);
+                if (searchTags.length > 0) {
+                    const transactionTagNames = (t.tagIds || []).map(id => tagMap.get(id)?.toLowerCase());
+                    if (!searchTags.every(st => transactionTagNames.some(ttn => ttn?.includes(st)))) {
+                        return false;
+                    }
+                }
+            }
+
             if (filters.categories.length > 0 && !filters.categories.includes(t.categoryId)) return false;
             
             const min = parseFloat(filters.minAmount);
@@ -380,30 +482,47 @@ const TransactionsPage: FC<TransactionsPageProps> = ({
             if (!isNaN(max) && t.amount > max) return false;
             
             try {
+                if (!t.date || typeof t.date !== 'string') return false; // Guard against invalid date property
                 const tDate = parseISO(t.date);
-                if (filters.startDate && tDate < startOfDay(parseISO(filters.startDate))) return false;
-                if (filters.endDate && tDate > endOfDay(parseISO(filters.endDate))) return false;
-            } catch (e) { /* Invalid date in filter, ignore for now */ }
+                if (isNaN(tDate.getTime())) return false; // Guard against invalid date string
+                
+                if (filters.startDate) {
+                    const startDate = startOfDay(parseISO(filters.startDate));
+                    if (isNaN(startDate.getTime())) return true; // Ignore invalid filter
+                    if (tDate < startDate) return false;
+                }
+                if (filters.endDate) {
+                    const endDate = endOfDay(parseISO(filters.endDate));
+                    if (isNaN(endDate.getTime())) return true; // Ignore invalid filter
+                    if (tDate > endDate) return false;
+                }
+            } catch (e) { 
+                console.error("Date parsing error for transaction:", t, "or filter:", filters, e);
+                return true; // Don't filter out item on parsing error
+            }
 
             return true;
         });
-    }, [sortedTransactions, filters]);
+    }, [sortedTransactions, filters, tagMap]);
 
 
     return (
         <div className="space-y-6">
             <h1 className="text-3xl font-bold text-white">Transaktionen</h1>
-            <TransactionFilters categories={categories} onFilterChange={setFilters} />
-            <div className="h-[calc(100vh-350px)]">
+            <TransactionFilters categories={categories} onFilterChange={handleAdvancedFilterChange} filters={filters} />
+            <div className="h-[calc(100vh-380px)]">
                 <TransactionList 
                     transactions={filteredTransactions}
                     categoryMap={categoryMap}
+                    tagMap={tagMap}
                     updateTransaction={updateTransaction}
                     deleteTransaction={deleteTransaction}
                     categories={categories}
                     categoryGroups={categoryGroups}
                     allAvailableTags={allAvailableTags}
                     showEmptyMessage={true}
+                    activeQuickFilter={activeQuickFilter}
+                    onQuickFilter={handleQuickFilter}
                 />
             </div>
         </div>

@@ -1,8 +1,8 @@
 import React, { useState, useMemo, useCallback, useEffect, FC } from 'react';
 import { AnimatePresence, motion, Reorder } from 'framer-motion';
-import type { Category, RecurringTransaction } from '../types';
+import type { Category, RecurringTransaction, Tag } from '../types';
 import { format, parseISO, formatCurrency } from '../utils/dateUtils';
-import { iconMap, Settings, Loader2, X, TrendingDown, LayoutGrid, BarChart2, Sheet, Save, DownloadCloud, Target, Edit, Trash2, Plus, GripVertical, Wallet, SlidersHorizontal, Repeat, History, Tag, ChevronUp, ChevronDown } from './Icons';
+import { iconMap, Settings, Loader2, X, TrendingDown, LayoutGrid, BarChart2, Sheet, Save, DownloadCloud, Target, Edit, Trash2, Plus, GripVertical, Wallet, SlidersHorizontal, Repeat, History, Tag as TagIcon, ChevronUp, ChevronDown } from './Icons';
 import type { LucideProps } from 'lucide-react';
 
 // Icon Picker Component
@@ -78,17 +78,17 @@ const ToggleSwitch: React.FC<{
 };
 
 const TagSettings: FC<{
-    tags: string[];
-    onUpdateTag: (oldTag: string, newTag: string) => void;
-    onDeleteTag: (tag: string) => void;
+    tags: Tag[];
+    onUpdateTag: (tagId: string, newName: string) => void;
+    onDeleteTag: (tagId: string) => void;
 }> = ({ tags, onUpdateTag, onDeleteTag }) => {
     
-    const handleUpdate = (oldTag: string, e: React.FocusEvent<HTMLInputElement> | React.KeyboardEvent<HTMLInputElement>) => {
+    const handleUpdate = (tag: Tag, e: React.FocusEvent<HTMLInputElement> | React.KeyboardEvent<HTMLInputElement>) => {
         const newTag = (e.target as HTMLInputElement).value.trim();
-        if (newTag && newTag !== oldTag) {
-            onUpdateTag(oldTag, newTag);
+        if (newTag && newTag !== tag.name) {
+            onUpdateTag(tag.id, newTag);
         } else {
-            (e.target as HTMLInputElement).value = oldTag; // Reset if invalid or unchanged
+            (e.target as HTMLInputElement).value = tag.name; // Reset if invalid or unchanged
         }
     };
     
@@ -105,12 +105,12 @@ const TagSettings: FC<{
                 Bearbeiten oder löschen Sie bestehende Tags. Änderungen werden sofort auf alle zugehörigen Transaktionen angewendet.
             </p>
             <div className="space-y-3">
-                {tags.sort().map(tag => (
-                    <div key={tag} className="flex items-center gap-3 bg-slate-700/50 p-2 rounded-lg">
-                        <Tag className="h-5 w-5 text-slate-400 shrink-0 ml-2" />
+                {tags.map(tag => (
+                    <div key={tag.id} className="flex items-center gap-3 bg-slate-700/50 p-2 rounded-lg">
+                        <TagIcon className="h-5 w-5 text-slate-400 shrink-0 ml-2" />
                         <input
                             type="text"
-                            defaultValue={tag}
+                            defaultValue={tag.name}
                             onBlur={(e) => handleUpdate(tag, e)}
                             onKeyDown={(e) => {
                                 if (e.key === 'Enter') {
@@ -122,8 +122,8 @@ const TagSettings: FC<{
                         />
                          <button
                             onClick={() => {
-                                if (window.confirm(`Möchten Sie den Tag "${tag}" wirklich löschen? Er wird von allen Transaktionen entfernt.`)) {
-                                    onDeleteTag(tag);
+                                if (window.confirm(`Möchten Sie den Tag "${tag.name}" wirklich löschen? Er wird von allen Transaktionen entfernt.`)) {
+                                    onDeleteTag(tag.id);
                                 }
                             }}
                             className="p-2 rounded-full hover:bg-red-500/20 text-slate-500 hover:text-red-400"
@@ -306,9 +306,9 @@ const SettingsModal: React.FC<{
     setIsAutoSyncEnabled: (enabled: boolean) => void;
     recurringTransactions: RecurringTransaction[];
     setRecurringTransactions: (r: RecurringTransaction[] | ((prev: RecurringTransaction[]) => RecurringTransaction[])) => void;
-    allAvailableTags: string[];
-    onUpdateTag: (oldTag: string, newTag: string) => void;
-    onDeleteTag: (tag: string) => void;
+    allAvailableTags: Tag[];
+    onUpdateTag: (tagId: string, newName: string) => void;
+    onDeleteTag: (tagId: string) => void;
 }> = ({ 
     isOpen, onClose, categories, setCategories, categoryGroups, setCategoryGroups, 
     isAutoSyncEnabled, setIsAutoSyncEnabled,
@@ -404,7 +404,7 @@ const SettingsModal: React.FC<{
         { id: 'general', label: 'Allgemein', icon: SlidersHorizontal },
         { id: 'budget', label: 'Budgets', icon: Target },
         { id: 'categories', label: 'Kategorien', icon: LayoutGrid },
-        { id: 'tags', label: 'Tags', icon: Tag },
+        { id: 'tags', label: 'Tags', icon: TagIcon },
         { id: 'recurring', label: 'Wiederkehrende Ausgaben', icon: History }
     ];
 

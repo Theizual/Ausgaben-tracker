@@ -10,7 +10,7 @@ import {
     isSameMonth, isSameDay
 } from '../utils/dateUtils';
 import { de, addMonths, subMonths } from '../utils/dateUtils';
-import { ChevronLeft, ChevronRight, X, iconMap } from './Icons';
+import { ChevronLeft, ChevronRight, X, iconMap, ChevronDown } from './Icons';
 import { formatCurrency, formatGermanDate } from '../utils/dateUtils';
 
 type StatisticsProps = {
@@ -322,6 +322,8 @@ const HighlightCard: FC<{ title: string, label: string, value: number }> = ({ ti
 );
 
 const MonthlyCategoryBreakdown: FC<{ transactions: Transaction[], categoryMap: Map<string, Category>, currentMonth: Date }> = ({ transactions, categoryMap, currentMonth }) => {
+    const [expandedId, setExpandedId] = useState<string | null>(null);
+
     const categoryBreakdown = useMemo(() => {
         const spending = new Map<string, number>();
         transactions.forEach(t => {
@@ -350,22 +352,58 @@ const MonthlyCategoryBreakdown: FC<{ transactions: Transaction[], categoryMap: M
     return (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-slate-800 p-6 rounded-2xl border border-slate-700">
             <h3 className="text-lg font-bold text-white mb-4">Kategorienübersicht ({format(currentMonth, 'MMMM', { locale: de })})</h3>
-            <div className="space-y-4">
+            <div className="space-y-2">
                 {categoryBreakdown.length > 0 ? categoryBreakdown.map(({ category, amount, percentage }) => (
-                    <div key={category.id}>
-                        <div className="flex justify-between items-center text-sm mb-1">
-                            <span className="font-medium text-slate-300">{category.name}</span>
-                            <span className="font-bold text-white">{formatCurrency(amount)}</span>
+                    <div key={category.id} className="bg-slate-800/50 rounded-lg p-3">
+                        <div 
+                            className="flex justify-between items-center cursor-pointer"
+                            onClick={() => setExpandedId(expandedId === category.id ? null : category.id)}
+                        >
+                            <div className="flex-1 min-w-0">
+                                <div className="flex justify-between items-center text-sm mb-1">
+                                    <div className="flex items-center gap-3">
+                                        <ChevronDown className={`h-4 w-4 text-slate-500 transition-transform ${expandedId === category.id ? 'rotate-180' : ''}`} />
+                                        <span className="font-medium text-slate-300 truncate">{category.name}</span>
+                                    </div>
+                                    <span className="font-bold text-white flex-shrink-0 pl-2">{formatCurrency(amount)}</span>
+                                </div>
+                                <div className="w-full bg-slate-700 rounded-full h-2.5 ml-7">
+                                    <motion.div
+                                        className="h-2.5 rounded-full"
+                                        style={{ backgroundColor: category.color }}
+                                        initial={{ width: 0 }}
+                                        animate={{ width: `${percentage}%` }}
+                                        transition={{ duration: 0.8, ease: "easeOut" }}
+                                    />
+                                </div>
+                            </div>
                         </div>
-                        <div className="w-full bg-slate-700 rounded-full h-2.5">
-                            <motion.div
-                                className="h-2.5 rounded-full"
-                                style={{ backgroundColor: category.color }}
-                                initial={{ width: 0 }}
-                                animate={{ width: `${percentage}%` }}
-                                transition={{ duration: 0.8, ease: "easeOut" }}
-                            />
-                        </div>
+
+                        <AnimatePresence>
+                            {expandedId === category.id && (
+                                <motion.div
+                                    initial={{ opacity: 0, height: 0, marginTop: 0 }}
+                                    animate={{ opacity: 1, height: 'auto', marginTop: '1rem' }}
+                                    exit={{ opacity: 0, height: 0, marginTop: 0 }}
+                                    className="overflow-hidden"
+                                >
+                                    <div className="ml-4 pl-4 border-l-2 border-slate-600/50 space-y-2">
+                                        {transactions.filter(t => t.categoryId === category.id)
+                                            .sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime())
+                                            .map(t => (
+                                                <div key={t.id} className="flex justify-between items-center text-sm p-2 rounded-md hover:bg-slate-700/50">
+                                                    <div>
+                                                        <p className="text-slate-300">{t.description}</p>
+                                                        <p className="text-xs text-slate-500">{format(parseISO(t.date), 'dd.MM, HH:mm')} Uhr</p>
+                                                    </div>
+                                                    <p className="font-semibold text-slate-200">{formatCurrency(t.amount)}</p>
+                                                </div>
+                                            ))
+                                        }
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
                     </div>
                 )) : <p className="text-slate-500 text-center py-4">Keine Ausgaben in diesem Monat.</p>}
             </div>

@@ -1,4 +1,9 @@
 
+export interface Tag {
+  id: string;
+  name: string;
+}
+
 export interface Category {
   id: string;
   name: string;
@@ -14,7 +19,7 @@ export interface Transaction {
   description: string;
   categoryId: string;
   date: string; // ISO string format
-  tags?: string[];
+  tagIds?: string[];
 }
 
 export interface RecurringTransaction {

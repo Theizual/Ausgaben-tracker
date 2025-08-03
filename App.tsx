@@ -2,7 +2,7 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { INITIAL_CATEGORIES, INITIAL_GROUPS } from './constants';
 import useLocalStorage from './hooks/useLocalStorage';
-import type { Transaction, Category, RecurringTransaction } from './types';
+import type { Transaction, Category, RecurringTransaction, Tag } from './types';
 import Dashboard from './components/Dashboard';
 import Statistics from './components/Statistics';
 import TransactionsPage from './components/Transactions';
@@ -17,7 +17,7 @@ const App: React.FC = () => {
     const [recurringTransactions, setRecurringTransactions] = useLocalStorage<RecurringTransaction[]>('recurringTransactions', []);
     const [categories, setCategories] = useLocalStorage<Category[]>('categories', INITIAL_CATEGORIES);
     const [categoryGroups, setCategoryGroups] = useLocalStorage<string[]>('categoryGroups', INITIAL_GROUPS);
-    const [allAvailableTags, setAllAvailableTags] = useLocalStorage<string[]>('allAvailableTags', ['Lidl', 'Dm']);
+    const [allAvailableTags, setAllAvailableTags] = useLocalStorage<Tag[]>('allAvailableTags', []);
     
     const [activeTab, setActiveTab] = useState<'dashboard' | 'transactions' | 'statistics'>('dashboard');
     const [isSettingsOpen, setSettingsOpen] = useState(false);
@@ -27,22 +27,48 @@ const App: React.FC = () => {
     const [syncError, setSyncError] = useState<string | null>(null);
 
     const categoryMap = useMemo(() => new Map(categories.map(c => [c.id, c])), [categories]);
+    const tagMap = useMemo(() => new Map(allAvailableTags.map(t => [t.id, t.name])), [allAvailableTags]);
     const totalMonthlyBudget = useMemo(() => categories.reduce((sum, cat) => sum + (cat.budget || 0), 0), [categories]);
-
     
-    const learnNewTags = useCallback((tags: string[]) => {
-        const newTags = tags.filter(tag => !allAvailableTags.includes(tag));
+    const getOrCreateTagIds = useCallback((tagNames?: string[]): string[] => {
+        if (!tagNames || tagNames.length === 0) return [];
+        
+        const newTags: Tag[] = [];
+        const ids: string[] = [];
+        const currentTagMapByName = new Map(allAvailableTags.map(t => [t.name.toLowerCase(), t.id]));
+
+        tagNames.forEach(name => {
+            const trimmedName = name.trim();
+            if (!trimmedName) return;
+            const existingId = currentTagMapByName.get(trimmedName.toLowerCase());
+            if (existingId) {
+                if(!ids.includes(existingId)) ids.push(existingId);
+            } else {
+                const newTag: Tag = { id: crypto.randomUUID(), name: trimmedName };
+                newTags.push(newTag);
+                ids.push(newTag.id);
+                currentTagMapByName.set(trimmedName.toLowerCase(), newTag.id);
+            }
+        });
+
         if (newTags.length > 0) {
-            setAllAvailableTags(prev => [...new Set([...prev, ...newTags])].sort());
+            setAllAvailableTags(prev => [...prev, ...newTags].sort((a,b) => a.name.localeCompare(b.name)));
         }
+        return ids;
     }, [allAvailableTags, setAllAvailableTags]);
 
-    const addTransaction = (transaction: Omit<Transaction, 'id' | 'date'>) => {
-        const newTransaction = { ...transaction, id: crypto.randomUUID(), date: new Date().toISOString() };
+
+    const addTransaction = (transaction: Omit<Transaction, 'id' | 'date' | 'tagIds'> & { tags?: string[] }) => {
+        const tagIds = getOrCreateTagIds(transaction.tags);
+        const newTransaction: Transaction = {
+            amount: transaction.amount,
+            description: transaction.description,
+            categoryId: transaction.categoryId,
+            id: crypto.randomUUID(),
+            date: new Date().toISOString(),
+            tagIds,
+        };
         setTransactions(prev => [...prev, newTransaction]);
-        if(transaction.tags) {
-            learnNewTags(transaction.tags);
-        }
     };
     
     // Process recurring transactions on app load
@@ -108,7 +134,7 @@ const App: React.FC = () => {
             const newCategories: Category[] = data.categories || [];
             const newTransactions: Transaction[] = data.transactions || [];
             const newRecurring: RecurringTransaction[] = data.recurringTransactions || [];
-            const newTags: string[] = data.allAvailableTags || [];
+            const newTags: Tag[] = data.allAvailableTags || [];
 
 
             if (newCategories.length > 0) {
@@ -190,42 +216,45 @@ const App: React.FC = () => {
         return () => clearInterval(intervalId);
     }, [isAutoSyncEnabled, isSyncing, uploadToSheet]);
 
-    const updateTransaction = (updatedTransaction: Transaction) => {
-        setTransactions(prev => prev.map(t => t.id === updatedTransaction.id ? updatedTransaction : t));
-        if(updatedTransaction.tags) {
-            learnNewTags(updatedTransaction.tags);
-        }
+    const updateTransaction = (updatedTransaction: Omit<Transaction, 'tagIds'> & { tags?: string[] }) => {
+        const tagIds = getOrCreateTagIds(updatedTransaction.tags);
+        
+        const finalTransaction: Transaction = {
+            id: updatedTransaction.id,
+            amount: updatedTransaction.amount,
+            description: updatedTransaction.description,
+            categoryId: updatedTransaction.categoryId,
+            date: updatedTransaction.date,
+            tagIds,
+        };
+        
+        setTransactions(prev => prev.map(t => t.id === finalTransaction.id ? finalTransaction : t));
     };
 
     const deleteTransaction = (id: string) => {
         setTransactions(prev => prev.filter(t => t.id !== id));
     };
 
-    const handleUpdateTag = useCallback((oldTag: string, newTag: string) => {
-        const trimmedNewTag = newTag.trim();
-        if (!trimmedNewTag || (allAvailableTags.includes(trimmedNewTag) && trimmedNewTag !== oldTag)) {
-            alert(`Der Tag "${trimmedNewTag}" existiert bereits.`);
+    const handleUpdateTag = useCallback((tagId: string, newName: string) => {
+        const trimmedNewName = newName.trim();
+        if (!trimmedNewName) return;
+
+        const isDuplicate = allAvailableTags.some(t => t.name.toLowerCase() === trimmedNewName.toLowerCase() && t.id !== tagId);
+        if (isDuplicate) {
+            alert(`Der Tag "${trimmedNewName}" existiert bereits.`);
             return;
         }
         
-        setAllAvailableTags(prev => [...new Set(prev.map(t => t === oldTag ? trimmedNewTag : t))].sort());
-        
-        setTransactions(prev => prev.map(transaction => {
-            if (transaction.tags?.includes(oldTag)) {
-                return {
-                    ...transaction,
-                    tags: [...new Set(transaction.tags.map(t => t === oldTag ? trimmedNewTag : t))]
-                };
-            }
-            return transaction;
-        }));
-    }, [allAvailableTags, setAllAvailableTags, setTransactions]);
+        setAllAvailableTags(prev => prev.map(t => (t.id === tagId ? { ...t, name: trimmedNewName } : t))
+            .sort((a,b) => a.name.localeCompare(b.name))
+        );
+    }, [allAvailableTags, setAllAvailableTags]);
 
-    const handleDeleteTag = useCallback((tagToDelete: string) => {
-        setAllAvailableTags(prev => prev.filter(t => t !== tagToDelete));
+    const handleDeleteTag = useCallback((tagId: string) => {
+        setAllAvailableTags(prev => prev.filter(t => t.id !== tagId));
         setTransactions(prev => prev.map(transaction => {
-            if (transaction.tags?.includes(tagToDelete)) {
-                return { ...transaction, tags: transaction.tags.filter(t => t !== tagToDelete) };
+            if (transaction.tagIds?.includes(tagId)) {
+                return { ...transaction, tagIds: transaction.tagIds.filter(id => id !== tagId) };
             }
             return transaction;
         }));
@@ -265,6 +294,7 @@ const App: React.FC = () => {
                                 <TransactionsPage
                                     transactions={transactions}
                                     categoryMap={categoryMap}
+                                    tagMap={tagMap}
                                     updateTransaction={updateTransaction}
                                     deleteTransaction={deleteTransaction}
                                     categories={categories}

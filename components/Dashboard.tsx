@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import type { FC } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import type { Transaction, Category, ViewMode, CategoryId } from '../types';
+import type { Transaction, Category, ViewMode, CategoryId, Tag } from '../types';
 import { format, parseISO, formatCurrency, de, endOfDay, isWithinInterval, startOfMonth, endOfMonth, getWeekInterval, getMonthInterval } from '../utils/dateUtils';
 import { iconMap, Plus, BarChart2, ChevronDown, Coins } from './Icons';
 import CategoryButtons from './CategoryButtons';
@@ -14,9 +14,9 @@ type DashboardProps = {
     categories: Category[];
     categoryGroups: string[];
     categoryMap: Map<string, Category>;
-    addTransaction: (transaction: Omit<Transaction, 'id' | 'date'>) => void;
+    addTransaction: (transaction: Omit<Transaction, 'id' | 'date' | 'tagIds'> & { tags?: string[] }) => void;
     totalMonthlyBudget: number;
-    allAvailableTags: string[];
+    allAvailableTags: Tag[];
 };
 
 const ProgressBar: FC<{ percentage: number; color: string; }> = ({ percentage, color }) => (
@@ -290,20 +290,23 @@ const ViewTabs: FC<{ viewMode: ViewMode; setViewMode: (mode: ViewMode) => void; 
 };
 
 const QuickAddForm: FC<{ 
-    addTransaction: (t: Omit<Transaction, 'id' | 'date'>) => void;
+    addTransaction: (t: Omit<Transaction, 'id' | 'date' | 'tagIds'> & { tags?: string[] }) => void;
     categories: Category[];
     categoryGroups: string[];
-    allAvailableTags: string[];
+    allAvailableTags: Tag[];
 }> = ({ addTransaction, categories, categoryGroups, allAvailableTags }) => {
     const [amount, setAmount] = useState('');
     const [description, setDescription] = useState('');
-    const [categoryId, setCategoryId] = useState(categories[0]?.id || '');
+    const [categoryId, setCategoryId] = useState('');
     const [tags, setTags] = useState<string[]>([]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         const numAmount = parseFloat(amount.replace(',', '.'));
         if (!numAmount || numAmount <= 0 || !description || !categoryId) {
+            if (!categoryId) {
+                alert("Bitte wählen Sie eine Kategorie aus.");
+            }
             return;
         }
         
@@ -317,6 +320,7 @@ const QuickAddForm: FC<{
         setAmount('');
         setDescription('');
         setTags([]);
+        setCategoryId('');
     };
 
     const handleTagClick = (tag: string) => {
@@ -354,19 +358,22 @@ const QuickAddForm: FC<{
                             required
                         />
                     </div>
-
-                    <CategoryButtons
-                        categories={categories}
-                        categoryGroups={categoryGroups}
-                        selectedCategoryId={categoryId}
-                        onSelectCategory={setCategoryId}
-                    />
+                    
+                    <div className="pt-2">
+                        <h4 className="text-sm font-semibold text-white mb-3">Kategorie wählen:</h4>
+                        <CategoryButtons
+                            categories={categories}
+                            categoryGroups={categoryGroups}
+                            selectedCategoryId={categoryId}
+                            onSelectCategory={setCategoryId}
+                        />
+                    </div>
 
                     <div className="space-y-3">
                         <TagInput 
                             tags={tags} 
                             setTags={setTags}
-                            suggestionTags={allAvailableTags}
+                            allAvailableTags={allAvailableTags}
                         />
                         <AvailableTags 
                             availableTags={allAvailableTags}

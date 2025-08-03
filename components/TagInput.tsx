@@ -2,21 +2,23 @@ import React, { useState } from 'react';
 import type { FC } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Tag, X } from './Icons';
+import type { Tag as TagType } from '../types';
 
 const TagInput: FC<{
     tags: string[];
     setTags: (tags: string[]) => void;
-    suggestionTags?: string[];
-}> = ({ tags, setTags, suggestionTags = [] }) => {
+    allAvailableTags: TagType[];
+}> = ({ tags, setTags, allAvailableTags }) => {
     const [inputValue, setInputValue] = useState('');
     const [suggestions, setSuggestions] = useState<string[]>([]);
+    const suggestionTagNames = allAvailableTags.map(t => t.name);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const value = e.target.value;
         setInputValue(value);
 
-        if (value.trim() && suggestionTags.length > 0) {
-            const filteredSuggestions = suggestionTags
+        if (value.trim() && suggestionTagNames.length > 0) {
+            const filteredSuggestions = suggestionTagNames
                 .filter(tag => 
                     tag.toLowerCase().includes(value.toLowerCase()) && !tags.includes(tag)
                 )
