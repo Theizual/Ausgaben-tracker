@@ -16,6 +16,7 @@ interface TransactionsPageProps {
     categories: Category[];
     categoryGroups: string[];
     allAvailableTags: Tag[];
+    onTagClick: (tagId: string) => void;
 }
 
 type QuickFilterId = 'today' | 'week' | 'month' | 'all';
@@ -61,7 +62,8 @@ const TransactionList: FC<{
     showEmptyMessage?: boolean;
     activeQuickFilter: QuickFilterId | null;
     onQuickFilter: (filter: QuickFilterId) => void;
-}> = ({ transactions, categoryMap, tagMap, updateTransaction, deleteTransaction, categories, categoryGroups, allAvailableTags, showEmptyMessage = false, activeQuickFilter, onQuickFilter }) => {
+    onTagClick: (tagId: string) => void;
+}> = ({ transactions, categoryMap, tagMap, updateTransaction, deleteTransaction, categories, categoryGroups, allAvailableTags, showEmptyMessage = false, activeQuickFilter, onQuickFilter, onTagClick }) => {
     const [editingId, setEditingId] = useState<string | null>(null);
     return (
         <motion.div
@@ -86,6 +88,7 @@ const TransactionList: FC<{
                             categories={categories}
                             categoryGroups={categoryGroups}
                             allAvailableTags={allAvailableTags}
+                            onTagClick={onTagClick}
                         />
                     </motion.div>
                 )) : (
@@ -108,7 +111,8 @@ const TransactionItem: FC<{
     categories: Category[];
     categoryGroups: string[];
     allAvailableTags: Tag[];
-}> = ({ transaction, category, tagMap, onUpdate, onDelete, isEditing, onEditClick, categories, categoryGroups, allAvailableTags }) => {
+    onTagClick: (tagId: string) => void;
+}> = ({ transaction, category, tagMap, onUpdate, onDelete, isEditing, onEditClick, categories, categoryGroups, allAvailableTags, onTagClick }) => {
     const [formState, setFormState] = useState(transaction);
     const [localTags, setLocalTags] = useState<string[]>([]);
     
@@ -245,9 +249,14 @@ const TransactionItem: FC<{
                                 const tagName = tagMap.get(id);
                                 if (!tagName) return null;
                                 return (
-                                <span key={id} className="text-xs font-medium bg-slate-700 text-slate-300 px-2 py-0.5 rounded-full">
+                                <button
+                                    key={id}
+                                    onClick={() => onTagClick(id)}
+                                    className="text-xs font-medium bg-slate-700 hover:bg-slate-600 text-slate-300 hover:text-white px-2 py-0.5 rounded-full transition-colors"
+                                    aria-label={`Analysiere Tag ${tagName}`}
+                                >
                                     #{tagName}
-                                </span>
+                                </button>
                             )})}
                         </div>
                     )}
@@ -393,7 +402,8 @@ const TransactionsPage: FC<TransactionsPageProps> = ({
     deleteTransaction,
     categories,
     categoryGroups,
-    allAvailableTags
+    allAvailableTags,
+    onTagClick,
 }) => {
     const [filters, setFilters] = useState({
         text: '',
@@ -523,6 +533,7 @@ const TransactionsPage: FC<TransactionsPageProps> = ({
                     showEmptyMessage={true}
                     activeQuickFilter={activeQuickFilter}
                     onQuickFilter={handleQuickFilter}
+                    onTagClick={onTagClick}
                 />
             </div>
         </div>

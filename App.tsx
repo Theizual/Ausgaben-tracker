@@ -6,9 +6,10 @@ import type { Transaction, Category, RecurringTransaction, Tag } from './types';
 import Dashboard from './components/Dashboard';
 import Statistics from './components/Statistics';
 import TransactionsPage from './components/Transactions';
+import TagsPage from './components/TagsPage';
 import SettingsModal from './components/SettingsModal';
 import { formatGermanDate, parseISO, addMonths, addYears, isSameDay } from './utils/dateUtils';
-import { Settings, Loader2, X, TrendingDown, LayoutGrid, BarChart2, Repeat, Save, DownloadCloud } from './components/Icons';
+import { Settings, Loader2, X, TrendingDown, LayoutGrid, BarChart2, Repeat, Save, DownloadCloud, Tags } from './components/Icons';
 
 
 // Main App Component
@@ -19,7 +20,8 @@ const App: React.FC = () => {
     const [categoryGroups, setCategoryGroups] = useLocalStorage<string[]>('categoryGroups', INITIAL_GROUPS);
     const [allAvailableTags, setAllAvailableTags] = useLocalStorage<Tag[]>('allAvailableTags', []);
     
-    const [activeTab, setActiveTab] = useState<'dashboard' | 'transactions' | 'statistics'>('dashboard');
+    const [activeTab, setActiveTab] = useState<'dashboard' | 'transactions' | 'statistics' | 'tags'>('dashboard');
+    const [selectedTagIdForAnalysis, setSelectedTagIdForAnalysis] = useState<string | null>(null);
     const [isSettingsOpen, setSettingsOpen] = useState(false);
     
     const [syncOperation, setSyncOperation] = useState<'upload' | 'download' | null>(null);
@@ -32,27 +34,36 @@ const App: React.FC = () => {
     
     const getOrCreateTagIds = useCallback((tagNames?: string[]): string[] => {
         if (!tagNames || tagNames.length === 0) return [];
-        
+
         const newTags: Tag[] = [];
         const ids: string[] = [];
         const currentTagMapByName = new Map(allAvailableTags.map(t => [t.name.toLowerCase(), t.id]));
 
+        // Find the highest current numeric ID to avoid collisions and keep it sequential
+        const numericIds = allAvailableTags
+            .map(t => parseInt(t.id, 10))
+            .filter(id => !isNaN(id));
+        let nextIdCounter = numericIds.length > 0 ? Math.max(...numericIds) + 1 : 1;
+
         tagNames.forEach(name => {
             const trimmedName = name.trim();
             if (!trimmedName) return;
+
             const existingId = currentTagMapByName.get(trimmedName.toLowerCase());
             if (existingId) {
-                if(!ids.includes(existingId)) ids.push(existingId);
+                if (!ids.includes(existingId)) ids.push(existingId);
             } else {
-                const newTag: Tag = { id: crypto.randomUUID(), name: trimmedName };
+                const newId = nextIdCounter.toString().padStart(4, '0');
+                const newTag: Tag = { id: newId, name: trimmedName };
                 newTags.push(newTag);
                 ids.push(newTag.id);
                 currentTagMapByName.set(trimmedName.toLowerCase(), newTag.id);
+                nextIdCounter++;
             }
         });
 
         if (newTags.length > 0) {
-            setAllAvailableTags(prev => [...prev, ...newTags].sort((a,b) => a.name.localeCompare(b.name)));
+            setAllAvailableTags(prev => [...prev, ...newTags].sort((a, b) => a.name.localeCompare(b.name)));
         }
         return ids;
     }, [allAvailableTags, setAllAvailableTags]);
@@ -260,6 +271,61 @@ const App: React.FC = () => {
         }));
     }, [setAllAvailableTags, setTransactions]);
 
+    const handleTagAnalyticsClick = (tagId: string) => {
+        setActiveTab('tags');
+        setSelectedTagIdForAnalysis(tagId);
+    };
+
+    const handleSelectTagForAnalysis = (tagId: string) => {
+        setSelectedTagIdForAnalysis(tagId);
+    };
+
+    const renderContent = () => {
+        switch (activeTab) {
+            case 'dashboard':
+                return (
+                    <Dashboard
+                        transactions={transactions}
+                        categories={categories}
+                        categoryGroups={categoryGroups}
+                        categoryMap={categoryMap}
+                        addTransaction={addTransaction}
+                        totalMonthlyBudget={totalMonthlyBudget}
+                        allAvailableTags={allAvailableTags}
+                    />
+                );
+            case 'transactions':
+                return (
+                    <TransactionsPage
+                        transactions={transactions}
+                        categoryMap={categoryMap}
+                        tagMap={tagMap}
+                        updateTransaction={updateTransaction}
+                        deleteTransaction={deleteTransaction}
+                        categories={categories}
+                        categoryGroups={categoryGroups}
+                        allAvailableTags={allAvailableTags}
+                        onTagClick={handleTagAnalyticsClick}
+                    />
+                );
+            case 'statistics':
+                return <Statistics transactions={transactions} categories={categories} categoryMap={categoryMap} />;
+            case 'tags':
+                return (
+                    <TagsPage
+                        transactions={transactions}
+                        tags={allAvailableTags}
+                        tagMap={tagMap}
+                        categoryMap={categoryMap}
+                        selectedTagId={selectedTagIdForAnalysis}
+                        onTagSelect={handleSelectTagForAnalysis}
+                    />
+                );
+            default:
+                return null;
+        }
+    };
+
     return (
         <div className="min-h-screen bg-slate-900 text-slate-200 p-4 sm:p-6 lg:p-8">
             <div className="max-w-7xl mx-auto">
@@ -280,30 +346,7 @@ const App: React.FC = () => {
                             exit={{ opacity: 0, y: -20 }}
                             transition={{ duration: 0.3 }}
                         >
-                            {activeTab === 'dashboard' ? (
-                                <Dashboard
-                                    transactions={transactions}
-                                    categories={categories}
-                                    categoryGroups={categoryGroups}
-                                    categoryMap={categoryMap}
-                                    addTransaction={addTransaction}
-                                    totalMonthlyBudget={totalMonthlyBudget}
-                                    allAvailableTags={allAvailableTags}
-                                />
-                            ) : activeTab === 'transactions' ? (
-                                <TransactionsPage
-                                    transactions={transactions}
-                                    categoryMap={categoryMap}
-                                    tagMap={tagMap}
-                                    updateTransaction={updateTransaction}
-                                    deleteTransaction={deleteTransaction}
-                                    categories={categories}
-                                    categoryGroups={categoryGroups}
-                                    allAvailableTags={allAvailableTags}
-                                />
-                            ) : (
-                                <Statistics transactions={transactions} categories={categories} categoryMap={categoryMap} />
-                            )}
+                            {renderContent()}
                         </motion.div>
                     </AnimatePresence>
                 </main>
@@ -397,18 +440,19 @@ const Header: React.FC<{
 };
 
 // MainTabs Component
-const MainTabs: React.FC<{ activeTab: string; setActiveTab: (tab: 'dashboard' | 'transactions' | 'statistics') => void }> = ({ activeTab, setActiveTab }) => {
+const MainTabs: React.FC<{ activeTab: string; setActiveTab: (tab: 'dashboard' | 'transactions' | 'statistics' | 'tags') => void }> = ({ activeTab, setActiveTab }) => {
     const tabs = [
         { id: 'dashboard', label: 'Übersicht', icon: LayoutGrid },
         { id: 'transactions', label: 'Transaktionen', icon: Repeat },
-        { id: 'statistics', label: 'Statistiken', icon: BarChart2 }
+        { id: 'statistics', label: 'Statistiken', icon: BarChart2 },
+        { id: 'tags', label: 'Tags', icon: Tags },
     ];
     return (
         <div className="mt-6 flex items-center space-x-2">
             {tabs.map(tab => (
                 <button
                     key={tab.id}
-                    onClick={() => setActiveTab(tab.id as 'dashboard' | 'transactions' | 'statistics')}
+                    onClick={() => setActiveTab(tab.id as 'dashboard' | 'transactions' | 'statistics' | 'tags')}
                     className={`flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all
                         ${
                             activeTab === tab.id
