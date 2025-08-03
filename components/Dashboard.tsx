@@ -4,8 +4,7 @@ import type { FC } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import type { Transaction, Category, ViewMode, CategoryId } from '../types';
-import { format, parseISO, formatCurrency, de, endOfDay, isWithinInterval, startOfMonth, endOfMonth } from '../utils/dateUtils';
-import { getWeekInterval, getMonthInterval } from '../utils/dateUtils';
+import { format, parseISO, formatCurrency, de, endOfDay, isWithinInterval, startOfMonth, endOfMonth, getWeekInterval, getMonthInterval } from '../utils/dateUtils';
 import { iconMap, Plus, Edit, Trash2, BarChart2, ChevronDown, Coins, CalendarDays } from './Icons';
 
 type DashboardProps = {
@@ -165,13 +164,25 @@ const Dashboard: FC<DashboardProps> = (props) => {
         return { filteredTransactions: filtered, totalExpenses: total, dailyAverage: average, subtext };
     }, [props.transactions, viewMode]);
 
-    const { totalSpentThisMonth } = useMemo(() => {
+    const { totalSpentThisMonth, spendingByCategory, budgetedCategories } = useMemo(() => {
         const now = new Date();
         const monthInterval = getMonthInterval(now);
         const monthlyTransactions = props.transactions.filter(t => isWithinInterval(parseISO(t.date), monthInterval));
         const total = monthlyTransactions.reduce((sum, t) => sum + t.amount, 0);
-        return { totalSpentThisMonth: total };
-    }, [props.transactions]);
+        
+        const spendingMap = new Map<CategoryId, number>();
+        monthlyTransactions.forEach(t => {
+            spendingMap.set(t.categoryId, (spendingMap.get(t.categoryId) || 0) + t.amount);
+        });
+        
+        const budgetedCats = props.categories.filter(c => c.budget && c.budget > 0);
+
+        return { 
+            totalSpentThisMonth: total,
+            spendingByCategory: spendingMap,
+            budgetedCategories: budgetedCats
+        };
+    }, [props.transactions, props.categories]);
 
     const totalBudgetPercentage = props.totalMonthlyBudget > 0 ? (totalSpentThisMonth / props.totalMonthlyBudget) * 100 : 0;
     
@@ -179,6 +190,12 @@ const Dashboard: FC<DashboardProps> = (props) => {
         if (totalBudgetPercentage > 100) return '#ef4444'; // red-500
         if (totalBudgetPercentage > 85) return '#f97316'; // orange-500
         return '#22c55e'; // green-500
+    };
+
+    const getCategoryBarColor = (percentage: number, categoryColor: string) => {
+        if (percentage > 100) return '#ef4444'; // red-500
+        if (percentage > 85) return '#f97316'; // orange-500
+        return categoryColor;
     };
 
     return (
@@ -217,6 +234,41 @@ const Dashboard: FC<DashboardProps> = (props) => {
                                     <p className="font-semibold" style={{color: getTotalBarColor()}}>{totalBudgetPercentage.toFixed(0)}%</p>
                                 </div>
                                 <ProgressBar percentage={totalBudgetPercentage} color={getTotalBarColor()} />
+                            </div>
+                        )}
+                        {budgetedCategories.length > 0 && (
+                            <div className="mt-6 pt-6 border-t border-slate-700/50">
+                                <h4 className="text-sm font-semibold text-slate-300 mb-4">Kategorienbudgets</h4>
+                                <div className="space-y-4 max-h-48 overflow-y-auto pr-2 -mr-2">
+                                    {budgetedCategories.map(category => {
+                                        const spent = spendingByCategory.get(category.id) || 0;
+                                        const budget = category.budget!;
+                                        const percentage = (spent / budget) * 100;
+                                        const totalBudgetShare = props.totalMonthlyBudget > 0 ? ((budget / props.totalMonthlyBudget) * 100) : 0;
+                                        const Icon = iconMap[category.icon] || iconMap.MoreHorizontal;
+                                        
+                                        return (
+                                            <div key={category.id}>
+                                                <div className="flex justify-between items-center text-sm mb-1.5">
+                                                    <div className="flex items-center gap-3 truncate">
+                                                        <Icon className="h-4 w-4 flex-shrink-0" style={{ color: category.color }} />
+                                                        <span className="font-medium text-white truncate">{category.name}</span>
+                                                    </div>
+                                                    <div className="font-semibold text-white flex-shrink-0 pl-2">
+                                                        {formatCurrency(spent)}
+                                                        <span className="text-slate-500 text-xs"> / {formatCurrency(budget)}</span>
+                                                    </div>
+                                                </div>
+                                                <ProgressBar percentage={percentage} color={getCategoryBarColor(percentage, category.color)} />
+                                                {totalBudgetShare > 0 && (
+                                                    <p className="text-xs text-slate-500 text-right mt-1">
+                                                        Entspricht {totalBudgetShare.toFixed(0)}% des Gesamtbudgets
+                                                    </p>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
                             </div>
                         )}
                     </motion.div>

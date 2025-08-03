@@ -2,7 +2,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { google } from 'googleapis';
 import { JWT } from 'google-auth-library';
-import type { Category, Transaction } from '../../types';
+import type { Category, Transaction, RecurringTransaction } from '../../types';
 
 async function getAuthClient() {
   const serviceAccountEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
@@ -39,7 +39,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const response = await sheets.spreadsheets.values.batchGet({
       spreadsheetId: sheetId,
-      ranges: ['Categories!A2:F', 'Transactions!A2:E'],
+      ranges: ['Categories!A2:F', 'Transactions!A2:E', 'Recurring!A2:G'],
     });
 
     const valueRanges = response.data.valueRanges || [];
@@ -66,7 +66,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       date: row[4],
     })).filter(t => t.id && t.amount > 0 && t.categoryId && t.date);
 
-    return res.status(200).json({ categories, transactions });
+    const recurringValues = valueRanges.find(r => r.range?.startsWith('Recurring'))?.values || [];
+    const recurringTransactions: RecurringTransaction[] = recurringValues.map((row: string[]) => ({
+        id: row[0],
+        amount: parseFloat(row[1]?.replace(',', '.')) || 0,
+        description: row[2],
+        categoryId: row[3],
+        frequency: row[4] as 'monthly' | 'yearly',
+        startDate: row[5],
+        lastProcessedDate: row[6],
+    })).filter(r => r.id && r.amount > 0 && r.categoryId && r.frequency && r.startDate);
+
+
+    return res.status(200).json({ categories, transactions, recurringTransactions });
 
   } catch (error: any) {
     console.error('Error reading from Google Sheet:', error);

@@ -2,7 +2,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { google } from 'googleapis';
 import { JWT } from 'google-auth-library';
-import type { Category, Transaction } from '../../types';
+import type { Category, Transaction, RecurringTransaction } from '../../types';
 
 async function getAuthClient() {
   const serviceAccountEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
@@ -27,15 +27,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).end('Method Not Allowed');
   }
 
-  const { categories, transactions } = req.body;
+  const { categories, transactions, recurringTransactions } = req.body;
   const sheetId = process.env.GOOGLE_SHEET_ID;
 
   if (!sheetId || typeof sheetId !== 'string') {
     return res.status(500).json({ error: 'Die Google Sheet ID ist auf dem Server nicht konfiguriert.' });
   }
 
-  if (!Array.isArray(categories) || !Array.isArray(transactions)) {
-    return res.status(400).json({ error: 'Categories and transactions are required.' });
+  if (!Array.isArray(categories) || !Array.isArray(transactions) || !Array.isArray(recurringTransactions)) {
+    return res.status(400).json({ error: 'Categories, transactions, and recurring transactions are required.' });
   }
 
   try {
@@ -45,15 +45,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Prepare data for upload
     const categoryHeader = ['id', 'name', 'color', 'icon', 'budget', 'group'];
     const transactionHeader = ['id', 'amount', 'description', 'categoryId', 'date'];
+    const recurringHeader = ['id', 'amount', 'description', 'categoryId', 'frequency', 'startDate', 'lastProcessedDate'];
 
     const categoryValues = [categoryHeader, ...categories.map((c: Category) => [c.id, c.name, c.color, c.icon, c.budget ? String(c.budget).replace('.', ',') : '', c.group])];
     const transactionValues = [transactionHeader, ...transactions.map((t: Transaction) => [String(t.id), String(t.amount).replace('.', ','), t.description, t.categoryId, t.date])];
+    const recurringValues = [recurringHeader, ...recurringTransactions.map((r: RecurringTransaction) => [r.id, String(r.amount).replace('.',','), r.description, r.categoryId, r.frequency, r.startDate, r.lastProcessedDate || ''])];
 
     // Clear existing data
     await sheets.spreadsheets.values.batchClear({
       spreadsheetId: sheetId,
       requestBody: {
-        ranges: ['Categories!A1:Z', 'Transactions!A1:Z'],
+        ranges: ['Categories!A1:Z', 'Transactions!A1:Z', 'Recurring!A1:Z'],
       },
     });
 
@@ -65,6 +67,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         data: [
           { range: 'Categories!A1', values: categoryValues },
           { range: 'Transactions!A1', values: transactionValues },
+          { range: 'Recurring!A1', values: recurringValues },
         ],
       },
     });

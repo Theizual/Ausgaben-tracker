@@ -23,6 +23,7 @@ import {
     isSameMonth,
     isToday,
     getDaysInMonth,
+    addYears,
 } from 'date-fns';
 import { de } from 'date-fns/locale';
 import type { Transaction } from '../types';
@@ -78,4 +79,5 @@ export {
     isToday,
     getDaysInMonth,
     isWithinInterval,
+    addYears,
 };

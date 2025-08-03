@@ -3,13 +3,12 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { AnimatePresence, motion, Reorder } from 'framer-motion';
 import { INITIAL_CATEGORIES, INITIAL_GROUPS } from './constants';
 import useLocalStorage from './hooks/useLocalStorage';
-import type { Transaction, Category } from './types';
+import type { Transaction, Category, RecurringTransaction } from './types';
 import Dashboard from './components/Dashboard';
 import Statistics from './components/Statistics';
-import Budget from './components/Budget';
 import TransactionsPage from './components/Transactions';
-import { formatGermanDate } from './utils/dateUtils';
-import { iconMap, Settings, Loader2, X, TrendingDown, LayoutGrid, BarChart2, Sheet, Save, DownloadCloud, Target, Edit, Trash2, Plus, GripVertical, Wallet, SlidersHorizontal, Repeat } from './components/Icons';
+import { formatGermanDate, parseISO, addMonths, addYears, endOfDay, format, formatCurrency } from './utils/dateUtils';
+import { iconMap, Settings, Loader2, X, TrendingDown, LayoutGrid, BarChart2, Sheet, Save, DownloadCloud, Target, Edit, Trash2, Plus, GripVertical, Wallet, SlidersHorizontal, Repeat, History } from './components/Icons';
 import type { LucideProps } from 'lucide-react';
 import type { FC } from 'react';
 
@@ -65,12 +64,13 @@ const IconPicker: FC<{
 // Main App Component
 const App: React.FC = () => {
     const [transactions, setTransactions] = useLocalStorage<Transaction[]>('transactions', []);
+    const [recurringTransactions, setRecurringTransactions] = useLocalStorage<RecurringTransaction[]>('recurringTransactions', []);
     const [categories, setCategories] = useLocalStorage<Category[]>('categories', INITIAL_CATEGORIES);
     const [categoryGroups, setCategoryGroups] = useLocalStorage<string[]>('categoryGroups', INITIAL_GROUPS);
     const [totalMonthlyBudget, setTotalMonthlyBudget] = useLocalStorage<number>('totalMonthlyBudget', 0);
     const [isAutoSyncEnabled, setIsAutoSyncEnabled] = useLocalStorage<boolean>('autoSyncEnabled', true);
     
-    const [activeTab, setActiveTab] = useState<'dashboard' | 'transactions' | 'budget' | 'statistics'>('dashboard');
+    const [activeTab, setActiveTab] = useState<'dashboard' | 'transactions' | 'statistics'>('dashboard');
     const [isSettingsOpen, setSettingsOpen] = useState(false);
     
     const [syncOperation, setSyncOperation] = useState<'upload' | 'download' | null>(null);
@@ -79,6 +79,55 @@ const App: React.FC = () => {
 
     const categoryMap = useMemo(() => new Map(categories.map(c => [c.id, c])), [categories]);
     
+    const addTransaction = (transaction: Omit<Transaction, 'id'>) => {
+        setTransactions(prev => [...prev, { ...transaction, id: crypto.randomUUID() }]);
+    };
+    
+    // Process recurring transactions on app load
+    useEffect(() => {
+        const newTransactions: Omit<Transaction, 'id'>[] = [];
+        const updatedRecurring = recurringTransactions.map(rec => {
+            const newRec = { ...rec };
+            let lastDate = newRec.lastProcessedDate ? parseISO(newRec.lastProcessedDate) : parseISO(newRec.startDate);
+            
+            while (true) {
+                const nextDueDate = newRec.frequency === 'monthly'
+                    ? addMonths(lastDate, 1)
+                    : addYears(lastDate, 1);
+                
+                if (nextDueDate > new Date()) break;
+
+                // Only add if the due date is on or after the start date
+                if (nextDueDate >= parseISO(newRec.startDate)) {
+                    // Check if a transaction for this recurring item on this day already exists
+                    const alreadyExists = transactions.some(t => 
+                        t.description.includes(`(Wiederkehrend) ${newRec.description}`) &&
+                        isSameDay(parseISO(t.date), nextDueDate)
+                    );
+
+                    if (!alreadyExists) {
+                        newTransactions.push({
+                            amount: newRec.amount,
+                            description: `(Wiederkehrend) ${newRec.description}`,
+                            categoryId: newRec.categoryId,
+                            date: endOfDay(nextDueDate).toISOString(),
+                        });
+                    }
+                }
+
+                lastDate = nextDueDate;
+                newRec.lastProcessedDate = lastDate.toISOString();
+            }
+            return newRec;
+        });
+
+        if (newTransactions.length > 0) {
+            setTransactions(prev => [...prev, ...newTransactions.map(t => ({ ...t, id: crypto.randomUUID() }))]);
+            setRecurringTransactions(updatedRecurring);
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []); // Run only once on mount to catch up
+
     const downloadFromSheet = useCallback(async () => {
         setSyncOperation('download');
         setSyncError(null);
@@ -96,6 +145,8 @@ const App: React.FC = () => {
             const data = await response.json();
             const newCategories: Category[] = data.categories || [];
             const newTransactions: Transaction[] = data.transactions || [];
+            const newRecurring: RecurringTransaction[] = data.recurringTransactions || [];
+
 
             if (newCategories.length > 0) {
                  setCategories(newCategories);
@@ -103,8 +154,9 @@ const App: React.FC = () => {
                  setCategoryGroups(newGroups);
             }
             if (newTransactions.length > 0) setTransactions(newTransactions);
+            if (newRecurring.length > 0) setRecurringTransactions(newRecurring);
             
-            alert(`Daten erfolgreich geladen: ${newCategories.length} Kategorien und ${newTransactions.length} Transaktionen.`);
+            alert(`Daten erfolgreich geladen: ${newCategories.length} Kategorien, ${newTransactions.length} Transaktionen, ${newRecurring.length} wiederkehrende Ausgaben.`);
 
         } catch (e: any) {
             console.error("Error downloading from sheet:", e);
@@ -114,7 +166,7 @@ const App: React.FC = () => {
         } finally {
             setSyncOperation(null);
         }
-    }, [setCategories, setTransactions, setCategoryGroups]);
+    }, [setCategories, setTransactions, setCategoryGroups, setRecurringTransactions]);
 
     const uploadToSheet = useCallback(async (options: { isAutoSync?: boolean } = {}) => {
         const { isAutoSync = false } = options;
@@ -129,6 +181,7 @@ const App: React.FC = () => {
                 body: JSON.stringify({
                     categories,
                     transactions,
+                    recurringTransactions,
                 }),
             });
 
@@ -151,7 +204,7 @@ const App: React.FC = () => {
         } finally {
             if(!isAutoSync) setSyncOperation(null);
         }
-    }, [categories, transactions]);
+    }, [categories, transactions, recurringTransactions]);
 
     useEffect(() => {
         if (!isAutoSyncEnabled) {
@@ -170,11 +223,6 @@ const App: React.FC = () => {
         return () => clearInterval(intervalId);
     }, [isAutoSyncEnabled, isSyncing, uploadToSheet]);
 
-
-    const addTransaction = (transaction: Omit<Transaction, 'id'>) => {
-        setTransactions(prev => [...prev, { ...transaction, id: crypto.randomUUID() }]);
-    };
-
     const updateTransaction = (updatedTransaction: Transaction) => {
         setTransactions(prev => prev.map(t => t.id === updatedTransaction.id ? updatedTransaction : t));
     };
@@ -182,6 +230,11 @@ const App: React.FC = () => {
     const deleteTransaction = (id: string) => {
         setTransactions(prev => prev.filter(t => t.id !== id));
     };
+
+    const isSameDay = (date1: Date, date2: Date) =>
+        date1.getFullYear() === date2.getFullYear() &&
+        date1.getMonth() === date2.getMonth() &&
+        date1.getDate() === date2.getDate();
 
     return (
         <div className="min-h-screen bg-slate-900 text-slate-200 p-4 sm:p-6 lg:p-8">
@@ -221,12 +274,6 @@ const App: React.FC = () => {
                                     categories={categories}
                                     categoryGroups={categoryGroups}
                                 />
-                            ) : activeTab === 'budget' ? (
-                                <Budget
-                                    transactions={transactions}
-                                    categories={categories}
-                                    setCategories={setCategories}
-                                />
                             ) : (
                                 <Statistics transactions={transactions} categories={categories} categoryMap={categoryMap} />
                             )}
@@ -244,6 +291,8 @@ const App: React.FC = () => {
                     setIsAutoSyncEnabled={setIsAutoSyncEnabled}
                     totalMonthlyBudget={totalMonthlyBudget}
                     setTotalMonthlyBudget={setTotalMonthlyBudget}
+                    recurringTransactions={recurringTransactions}
+                    setRecurringTransactions={setRecurringTransactions}
                 />
             </div>
         </div>
@@ -321,11 +370,10 @@ const Header: React.FC<{
 };
 
 // MainTabs Component
-const MainTabs: React.FC<{ activeTab: string; setActiveTab: (tab: 'dashboard' | 'transactions' | 'budget' | 'statistics') => void }> = ({ activeTab, setActiveTab }) => {
+const MainTabs: React.FC<{ activeTab: string; setActiveTab: (tab: 'dashboard' | 'transactions' | 'statistics') => void }> = ({ activeTab, setActiveTab }) => {
     const tabs = [
         { id: 'dashboard', label: 'Übersicht', icon: LayoutGrid },
         { id: 'transactions', label: 'Transaktionen', icon: Repeat },
-        { id: 'budget', label: 'Budgets', icon: Target },
         { id: 'statistics', label: 'Statistiken', icon: BarChart2 }
     ];
     return (
@@ -333,7 +381,7 @@ const MainTabs: React.FC<{ activeTab: string; setActiveTab: (tab: 'dashboard' | 
             {tabs.map(tab => (
                 <button
                     key={tab.id}
-                    onClick={() => setActiveTab(tab.id as 'dashboard' | 'transactions' | 'budget' | 'statistics')}
+                    onClick={() => setActiveTab(tab.id as 'dashboard' | 'transactions' | 'statistics')}
                     className={`flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all
                         ${
                             activeTab === tab.id
@@ -386,13 +434,17 @@ const SettingsModal: React.FC<{
     setIsAutoSyncEnabled: (enabled: boolean) => void;
     totalMonthlyBudget: number;
     setTotalMonthlyBudget: (budget: number) => void;
+    recurringTransactions: RecurringTransaction[];
+    setRecurringTransactions: (r: RecurringTransaction[] | ((prev: RecurringTransaction[]) => RecurringTransaction[])) => void;
 }> = ({ 
     isOpen, onClose, categories, setCategories, categoryGroups, setCategoryGroups, 
-    isAutoSyncEnabled, setIsAutoSyncEnabled, totalMonthlyBudget, setTotalMonthlyBudget 
+    isAutoSyncEnabled, setIsAutoSyncEnabled, totalMonthlyBudget, setTotalMonthlyBudget,
+    recurringTransactions, setRecurringTransactions
 }) => {
-    const [activeSettingsTab, setActiveSettingsTab] = useState<'general' | 'categories'>('general');
+    const [activeSettingsTab, setActiveSettingsTab] = useState<'general' | 'budget' | 'categories' | 'recurring'>('general');
     const [editableGroups, setEditableGroups] = useState(categoryGroups);
     const [editableCategories, setEditableCategories] = useState(categories);
+    const [editableRecurring, setEditableRecurring] = useState(recurringTransactions);
     const [editableTotalBudget, setEditableTotalBudget] = useState(String(totalMonthlyBudget || ''));
     const [pickingIconFor, setPickingIconFor] = useState<string | null>(null);
 
@@ -401,16 +453,23 @@ const SettingsModal: React.FC<{
             setActiveSettingsTab('general');
             setEditableGroups(categoryGroups);
             setEditableCategories(categories);
+            setEditableRecurring(recurringTransactions);
             setEditableTotalBudget(String(totalMonthlyBudget || ''));
         }
-    }, [isOpen, categories, categoryGroups, totalMonthlyBudget]);
+    }, [isOpen, categories, categoryGroups, totalMonthlyBudget, recurringTransactions]);
 
     const handleCategoryChange = (id: string, field: keyof Category, value: any) => {
         setEditableCategories(current =>
             current.map(cat => cat.id === id ? { ...cat, [field]: value } : cat)
         );
     };
-    
+
+    const handleCategoryBudgetChange = (id: string, value: string) => {
+        const budgetValue = parseFloat(value.replace(',', '.'));
+        const newBudgetValue = isNaN(budgetValue) || budgetValue <= 0 ? undefined : budgetValue;
+        handleCategoryChange(id, 'budget', newBudgetValue);
+    };
+
     const handleGroupChange = (oldName: string, newName: string) => {
       if (oldName === newName || !newName.trim()) return;
       setEditableGroups(current => current.map(g => g === oldName ? newName : g));
@@ -451,6 +510,7 @@ const SettingsModal: React.FC<{
     const handleSave = () => {
         setCategories(editableCategories);
         setCategoryGroups(editableGroups);
+        setRecurringTransactions(editableRecurring);
         setTotalMonthlyBudget(parseFloat(editableTotalBudget.replace(',', '.')) || 0);
         onClose();
     };
@@ -492,6 +552,17 @@ const SettingsModal: React.FC<{
                             Allgemein
                         </button>
                         <button 
+                            onClick={() => setActiveSettingsTab('budget')} 
+                            className={`flex items-center gap-2 pb-3 px-2 ml-4 border-b-2 text-sm font-semibold transition-colors ${
+                                activeSettingsTab === 'budget' 
+                                ? 'border-rose-500 text-white' 
+                                : 'border-transparent text-slate-400 hover:text-white'
+                            }`}
+                        >
+                           <Target className="h-4 w-4"/>
+                           Budgets
+                        </button>
+                        <button 
                             onClick={() => setActiveSettingsTab('categories')} 
                             className={`flex items-center gap-2 pb-3 px-2 ml-4 border-b-2 text-sm font-semibold transition-colors ${
                                 activeSettingsTab === 'categories' 
@@ -501,6 +572,17 @@ const SettingsModal: React.FC<{
                         >
                            <LayoutGrid className="h-4 w-4"/>
                            Kategorien
+                        </button>
+                         <button 
+                            onClick={() => setActiveSettingsTab('recurring')} 
+                            className={`flex items-center gap-2 pb-3 px-2 ml-4 border-b-2 text-sm font-semibold transition-colors ${
+                                activeSettingsTab === 'recurring' 
+                                ? 'border-rose-500 text-white' 
+                                : 'border-transparent text-slate-400 hover:text-white'
+                            }`}
+                        >
+                           <History className="h-4 w-4"/>
+                           Wiederkehrende Ausgaben
                         </button>
                     </div>
 
@@ -552,6 +634,13 @@ const SettingsModal: React.FC<{
                                         </div>
                                     </div>
                                 </motion.div>
+                            )}
+                            
+                            {activeSettingsTab === 'budget' && (
+                                <BudgetSettings 
+                                    categories={editableCategories}
+                                    onBudgetChange={handleCategoryBudgetChange}
+                                />
                             )}
 
                             {activeSettingsTab === 'categories' && (
@@ -623,6 +712,14 @@ const SettingsModal: React.FC<{
                                     </Reorder.Group>
                                 </motion.div>
                             )}
+
+                             {activeSettingsTab === 'recurring' && (
+                                <RecurringSettings
+                                    recurring={editableRecurring}
+                                    setRecurring={setEditableRecurring}
+                                    categories={categories}
+                                />
+                            )}
                         </AnimatePresence>
                     </div>
                     <div className="p-6 border-t border-slate-700 flex justify-end">
@@ -646,5 +743,145 @@ const SettingsModal: React.FC<{
         </AnimatePresence>
     );
 };
+
+const BudgetSettings: FC<{
+    categories: Category[];
+    onBudgetChange: (id: string, value: string) => void;
+}> = ({ categories, onBudgetChange }) => {
+    return (
+        <motion.div
+            key="budget"
+            initial={{ opacity: 0, x: 10 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 10 }}
+            transition={{ duration: 0.2 }}
+        >
+            <h3 className="text-lg font-semibold text-white mb-4">Kategorienbudgets</h3>
+            <p className="text-sm text-slate-400 mb-6">
+                Legen Sie für jede Kategorie ein monatliches Budget fest. Diese werden im "Budgets"-Tab als Fortschrittsbalken visualisiert.
+            </p>
+            <div className="space-y-4">
+                {categories.map(category => {
+                    const Icon = iconMap[category.icon] || iconMap.MoreHorizontal;
+                    return (
+                        <div key={category.id} className="flex items-center gap-4 p-2 bg-slate-700/50 rounded-lg">
+                            <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: category.color }}>
+                                <Icon className="h-5 w-5 text-white" />
+                            </div>
+                            <div className="flex-1 font-medium text-white">{category.name}</div>
+                            <div className="relative w-40">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">€</span>
+                                <input
+                                    type="text"
+                                    inputMode="decimal"
+                                    value={category.budget?.toString().replace('.', ',') || ''}
+                                    onChange={e => onBudgetChange(category.id, e.target.value)}
+                                    placeholder="Budget"
+                                    className="bg-slate-700 border border-slate-600 rounded-md py-1.5 pl-7 pr-2 text-white placeholder-slate-400 w-full focus:outline-none focus:ring-2 focus:ring-rose-500"
+                                />
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+        </motion.div>
+    )
+}
+
+const RecurringSettings: FC<{
+    recurring: RecurringTransaction[];
+    setRecurring: (r: RecurringTransaction[] | ((prev: RecurringTransaction[]) => RecurringTransaction[])) => void;
+    categories: Category[];
+}> = ({ recurring, setRecurring, categories }) => {
+    const [editingId, setEditingId] = useState<string | null>(null);
+
+    const handleAdd = () => {
+        const newRecurring: RecurringTransaction = {
+            id: crypto.randomUUID(),
+            amount: 0,
+            description: '',
+            categoryId: categories[0]?.id || '',
+            frequency: 'monthly',
+            startDate: new Date().toISOString().split('T')[0],
+        };
+        setRecurring(prev => [...prev, newRecurring]);
+        setEditingId(newRecurring.id);
+    };
+
+    const handleUpdate = (id: string, field: keyof RecurringTransaction, value: any) => {
+        setRecurring(prev => prev.map(r => r.id === id ? { ...r, [field]: value } : r));
+    };
+
+    const handleDelete = (id: string) => {
+        setRecurring(prev => prev.filter(r => r.id !== id));
+    };
+    
+    return (
+        <motion.div
+            key="recurring"
+            initial={{ opacity: 0, x: 10 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 10 }}
+            transition={{ duration: 0.2 }}
+        >
+            <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold text-white">Wiederkehrende Ausgaben</h3>
+                <button onClick={handleAdd} className="flex items-center gap-2 text-sm bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded-md font-semibold">
+                    <Plus className="h-4 w-4"/>Neue Ausgabe
+                </button>
+            </div>
+            <div className="space-y-3">
+                {recurring.map(item => {
+                    const isEditing = editingId === item.id;
+                    const category = categories.find(c => c.id === item.categoryId);
+                    const Icon = category ? iconMap[category.icon] || iconMap.MoreHorizontal : iconMap.MoreHorizontal;
+
+                    if (isEditing) {
+                        return (
+                            <div key={item.id} className="bg-slate-700/80 p-4 rounded-lg space-y-4 ring-2 ring-rose-500">
+                               <input type="text" value={item.description} onChange={e => handleUpdate(item.id, 'description', e.target.value)} placeholder="Beschreibung" className="w-full bg-slate-600 border-slate-500 rounded p-2 text-white"/>
+                               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                                <input type="number" value={item.amount} onChange={e => handleUpdate(item.id, 'amount', parseFloat(e.target.value) || 0)} placeholder="Betrag" className="bg-slate-600 border-slate-500 rounded p-2 text-white"/>
+                                <select value={item.categoryId} onChange={e => handleUpdate(item.id, 'categoryId', e.target.value)} className="bg-slate-600 border-slate-500 rounded p-2 text-white">
+                                    {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                </select>
+                                <input type="date" value={format(parseISO(item.startDate), 'yyyy-MM-dd')} onChange={e => handleUpdate(item.id, 'startDate', e.target.value)} className="bg-slate-600 border-slate-500 rounded p-2 text-white"/>
+                                <select value={item.frequency} onChange={e => handleUpdate(item.id, 'frequency', e.target.value as 'monthly' | 'yearly')} className="bg-slate-600 border-slate-500 rounded p-2 text-white">
+                                    <option value="monthly">Monatlich</option>
+                                    <option value="yearly">Jährlich</option>
+                                </select>
+                               </div>
+                               <div className="flex justify-end gap-2">
+                                <button onClick={() => setEditingId(null)} className="text-slate-300 hover:text-white px-3 py-1 rounded">Fertig</button>
+                               </div>
+                            </div>
+                        )
+                    }
+
+                    return (
+                        <div key={item.id} className="flex items-center gap-4 bg-slate-700/50 p-3 rounded-lg">
+                            <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: category?.color || '#64748b' }}>
+                                <Icon className="h-5 w-5 text-white" />
+                            </div>
+                            <div className="flex-1">
+                                <p className="font-semibold text-white">{item.description}</p>
+                                <p className="text-sm text-slate-400">{category?.name} &bull; {item.frequency === 'monthly' ? 'Monatlich' : 'Jährlich'} ab {format(parseISO(item.startDate), 'dd.MM.yyyy')}</p>
+                            </div>
+                            <div className="font-bold text-white text-lg">
+                                {formatCurrency(item.amount)}
+                            </div>
+                            <div className="flex gap-2">
+                                <button onClick={() => setEditingId(item.id)} className="p-2 rounded-full hover:bg-slate-600"><Edit className="h-4 w-4 text-slate-400"/></button>
+                                <button onClick={() => handleDelete(item.id)} className="p-2 rounded-full hover:bg-slate-600"><Trash2 className="h-4 w-4 text-red-400"/></button>
+                            </div>
+                        </div>
+                    );
+                })}
+                 {recurring.length === 0 && <p className="text-center text-slate-500 py-4">Keine wiederkehrenden Ausgaben festgelegt.</p>}
+            </div>
+        </motion.div>
+    )
+};
+
 
 export default App;
