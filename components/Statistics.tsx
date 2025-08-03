@@ -3,6 +3,7 @@
 import React, { useState, useMemo } from 'react';
 import type { FC } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
+import { useApp } from '../contexts/AppContext';
 import type { Transaction, Category } from '../types';
 import {
     format, parseISO, startOfMonth, endOfMonth,
@@ -13,20 +14,15 @@ import { de, addMonths, subMonths } from '../utils/dateUtils';
 import { ChevronLeft, ChevronRight, X, iconMap, ChevronDown } from './Icons';
 import { formatCurrency, formatGermanDate } from '../utils/dateUtils';
 
-type StatisticsProps = {
-    transactions: Transaction[];
-    categories: Category[];
-    categoryMap: Map<string, Category>;
-};
-
-const Statistics: FC<StatisticsProps> = (props) => {
+const Statistics: FC = () => {
+    const { transactions, categoryMap } = useApp();
     const [currentMonth, setCurrentMonth] = useState(new Date());
     const [selectedDay, setSelectedDay] = useState<Date | null>(new Date());
 
     const monthlyTransactions = useMemo(() => {
         const start = startOfMonth(currentMonth);
         const end = endOfMonth(currentMonth);
-        return props.transactions.filter(t => {
+        return transactions.filter(t => {
             if (!t.date || typeof t.date !== 'string') return false;
             try {
                 const date = parseISO(t.date);
@@ -36,11 +32,11 @@ const Statistics: FC<StatisticsProps> = (props) => {
                 return false;
             }
         });
-    }, [props.transactions, currentMonth]);
+    }, [transactions, currentMonth]);
 
     const transactionsForSelectedDay = useMemo(() => {
         if (!selectedDay) return [];
-        return props.transactions.filter(t => {
+        return transactions.filter(t => {
             if (!t.date || typeof t.date !== 'string') return false;
             try {
                 const date = parseISO(t.date);
@@ -50,13 +46,13 @@ const Statistics: FC<StatisticsProps> = (props) => {
                 return false;
             }
         });
-    }, [props.transactions, selectedDay]);
+    }, [transactions, selectedDay]);
 
     return (
         <div className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
                 <CalendarView
-                    transactions={props.transactions}
+                    transactions={transactions}
                     currentMonth={currentMonth}
                     setCurrentMonth={setCurrentMonth}
                     onDayClick={(day) => setSelectedDay(prev => prev && isSameDay(prev, day) ? null : day)}
@@ -73,7 +69,6 @@ const Statistics: FC<StatisticsProps> = (props) => {
                             <DailyBreakdownView
                                 date={selectedDay}
                                 transactions={transactionsForSelectedDay}
-                                categoryMap={props.categoryMap}
                                 onClose={() => setSelectedDay(null)}
                             />
                         </motion.div>
@@ -86,7 +81,6 @@ const Statistics: FC<StatisticsProps> = (props) => {
             />
             <MonthlyCategoryBreakdown
                 transactions={monthlyTransactions}
-                categoryMap={props.categoryMap}
                 currentMonth={currentMonth}
             />
         </div>
@@ -97,9 +91,9 @@ const Statistics: FC<StatisticsProps> = (props) => {
 const DailyBreakdownView: FC<{
     date: Date;
     transactions: Transaction[];
-    categoryMap: Map<string, Category>;
     onClose: () => void;
-}> = ({ date, transactions, categoryMap, onClose }) => {
+}> = ({ date, transactions, onClose }) => {
+    const { categoryMap } = useApp();
     const dailyTotal = useMemo(() => transactions.reduce((sum, t) => sum + t.amount, 0), [transactions]);
 
     const categoryBreakdown = useMemo(() => {
@@ -321,7 +315,8 @@ const HighlightCard: FC<{ title: string, label: string, value: number }> = ({ ti
     </motion.div>
 );
 
-const MonthlyCategoryBreakdown: FC<{ transactions: Transaction[], categoryMap: Map<string, Category>, currentMonth: Date }> = ({ transactions, categoryMap, currentMonth }) => {
+const MonthlyCategoryBreakdown: FC<{ transactions: Transaction[], currentMonth: Date }> = ({ transactions, currentMonth }) => {
+    const { categoryMap } = useApp();
     const [expandedId, setExpandedId] = useState<string | null>(null);
 
     const categoryBreakdown = useMemo(() => {

@@ -1,5 +1,8 @@
+
 import React, { useState, useMemo, useCallback, useEffect, FC } from 'react';
 import { AnimatePresence, motion, Reorder } from 'framer-motion';
+import { toast } from 'react-hot-toast';
+import { useApp } from '../contexts/AppContext';
 import type { Category, RecurringTransaction, Tag } from '../types';
 import { format, parseISO, formatCurrency } from '../utils/dateUtils';
 import { iconMap, Settings, Loader2, X, TrendingDown, LayoutGrid, BarChart2, Sheet, Save, DownloadCloud, Target, Edit, Trash2, Plus, GripVertical, Wallet, SlidersHorizontal, Repeat, History, Tag as TagIcon, ChevronUp, ChevronDown } from './Icons';
@@ -77,16 +80,13 @@ const ToggleSwitch: React.FC<{
     );
 };
 
-const TagSettings: FC<{
-    tags: Tag[];
-    onUpdateTag: (tagId: string, newName: string) => void;
-    onDeleteTag: (tagId: string) => void;
-}> = ({ tags, onUpdateTag, onDeleteTag }) => {
+const TagSettings: FC = () => {
+    const { allAvailableTags, handleUpdateTag, handleDeleteTag } = useApp();
     
     const handleUpdate = (tag: Tag, e: React.FocusEvent<HTMLInputElement> | React.KeyboardEvent<HTMLInputElement>) => {
         const newTag = (e.target as HTMLInputElement).value.trim();
         if (newTag && newTag !== tag.name) {
-            onUpdateTag(tag.id, newTag);
+            handleUpdateTag(tag.id, newTag);
         } else {
             (e.target as HTMLInputElement).value = tag.name; // Reset if invalid or unchanged
         }
@@ -105,7 +105,7 @@ const TagSettings: FC<{
                 Bearbeiten oder löschen Sie bestehende Tags. Änderungen werden sofort auf alle zugehörigen Transaktionen angewendet.
             </p>
             <div className="space-y-3">
-                {tags.map(tag => (
+                {allAvailableTags.map(tag => (
                     <div key={tag.id} className="flex items-center gap-3 bg-slate-700/50 p-2 rounded-lg">
                         <TagIcon className="h-5 w-5 text-slate-400 shrink-0 ml-2" />
                         <input
@@ -123,16 +123,16 @@ const TagSettings: FC<{
                          <button
                             onClick={() => {
                                 if (window.confirm(`Möchten Sie den Tag "${tag.name}" wirklich löschen? Er wird von allen Transaktionen entfernt.`)) {
-                                    onDeleteTag(tag.id);
+                                    handleDeleteTag(tag.id);
                                 }
                             }}
-                            className="p-2 rounded-full hover:bg-red-500/20 text-slate-500 hover:text-red-400"
+                            className="p-3 rounded-full hover:bg-red-500/20 text-slate-500 hover:text-red-400"
                         >
-                            <Trash2 className="h-4 w-4" />
+                            <Trash2 className="h-5 w-5" />
                         </button>
                     </div>
                 ))}
-                {tags.length === 0 && (
+                {allAvailableTags.length === 0 && (
                     <p className="text-center text-slate-500 py-4">Keine Tags vorhanden. Fügen Sie bei einer Transaktion einen neuen Tag hinzu.</p>
                 )}
             </div>
@@ -202,8 +202,8 @@ const BudgetSettings: FC<{
 const RecurringSettings: FC<{
     recurring: RecurringTransaction[];
     setRecurring: (r: RecurringTransaction[] | ((prev: RecurringTransaction[]) => RecurringTransaction[])) => void;
-    categories: Category[];
-}> = ({ recurring, setRecurring, categories }) => {
+}> = () => {
+    const { categories, recurringTransactions, setRecurringTransactions } = useApp();
     const [editingId, setEditingId] = useState<string | null>(null);
 
     const handleAdd = () => {
@@ -215,16 +215,16 @@ const RecurringSettings: FC<{
             frequency: 'monthly',
             startDate: new Date().toISOString().split('T')[0],
         };
-        setRecurring(prev => [...prev, newRecurring]);
+        setRecurringTransactions(prev => [...prev, newRecurring]);
         setEditingId(newRecurring.id);
     };
 
     const handleUpdate = (id: string, field: keyof RecurringTransaction, value: any) => {
-        setRecurring(prev => prev.map(r => r.id === id ? { ...r, [field]: value } : r));
+        setRecurringTransactions(prev => prev.map(r => r.id === id ? { ...r, [field]: value } : r));
     };
 
     const handleDelete = (id: string) => {
-        setRecurring(prev => prev.filter(r => r.id !== id));
+        setRecurringTransactions(prev => prev.filter(r => r.id !== id));
     };
     
     return (
@@ -242,7 +242,7 @@ const RecurringSettings: FC<{
                 </button>
             </div>
             <div className="space-y-3">
-                {recurring.map(item => {
+                {recurringTransactions.map(item => {
                     const isEditing = editingId === item.id;
                     const category = categories.find(c => c.id === item.categoryId);
                     const Icon = category ? iconMap[category.icon] || iconMap.MoreHorizontal : iconMap.MoreHorizontal;
@@ -288,7 +288,7 @@ const RecurringSettings: FC<{
                         </div>
                     );
                 })}
-                 {recurring.length === 0 && <p className="text-center text-slate-500 py-4">Keine wiederkehrenden Ausgaben festgelegt.</p>}
+                 {recurringTransactions.length === 0 && <p className="text-center text-slate-500 py-4">Keine wiederkehrenden Ausgaben festgelegt.</p>}
             </div>
         </motion.div>
     )
@@ -298,37 +298,40 @@ const RecurringSettings: FC<{
 const SettingsModal: React.FC<{
     isOpen: boolean;
     onClose: () => void;
-    categories: Category[];
-    setCategories: (cats: Category[] | ((prev: Category[]) => Category[])) => void;
-    categoryGroups: string[];
-    setCategoryGroups: (groups: string[] | ((prev: string[]) => string[])) => void;
-    isAutoSyncEnabled: boolean;
-    setIsAutoSyncEnabled: (enabled: boolean) => void;
-    recurringTransactions: RecurringTransaction[];
-    setRecurringTransactions: (r: RecurringTransaction[] | ((prev: RecurringTransaction[]) => RecurringTransaction[])) => void;
-    allAvailableTags: Tag[];
-    onUpdateTag: (tagId: string, newName: string) => void;
-    onDeleteTag: (tagId: string) => void;
-}> = ({ 
-    isOpen, onClose, categories, setCategories, categoryGroups, setCategoryGroups, 
-    isAutoSyncEnabled, setIsAutoSyncEnabled,
-    recurringTransactions, setRecurringTransactions,
-    allAvailableTags, onUpdateTag, onDeleteTag
-}) => {
+}> = ({ isOpen, onClose }) => {
+    const {
+        categories,
+        setCategories,
+        categoryGroups,
+        setCategoryGroups,
+        isAutoSyncEnabled,
+        setIsAutoSyncEnabled,
+    } = useApp();
+
     const [activeSettingsTab, setActiveSettingsTab] = useState<'general' | 'budget' | 'categories' | 'tags' | 'recurring'>('general');
+    // Local state for edits
     const [editableGroups, setEditableGroups] = useState(categoryGroups);
     const [editableCategories, setEditableCategories] = useState(categories);
-    const [editableRecurring, setEditableRecurring] = useState(recurringTransactions);
     const [pickingIconFor, setPickingIconFor] = useState<string | null>(null);
 
     useEffect(() => {
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                onClose();
+            }
+        };
+
         if (isOpen) {
+            window.addEventListener('keydown', handleKeyDown);
             setActiveSettingsTab('general');
             setEditableGroups(categoryGroups);
             setEditableCategories(categories);
-            setEditableRecurring(recurringTransactions);
         }
-    }, [isOpen, categories, categoryGroups, recurringTransactions]);
+
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [isOpen, onClose, categories, categoryGroups]);
 
     const handleCategoryChange = (id: string, field: keyof Category, value: any) => {
         setEditableCategories(current =>
@@ -356,7 +359,7 @@ const SettingsModal: React.FC<{
 
     const handleDeleteGroup = (groupName: string) => {
         if (editableGroups.length <= 1) {
-            alert("Die letzte Gruppe kann nicht gelöscht werden.");
+            toast.error("Die letzte Gruppe kann nicht gelöscht werden.");
             return;
         }
         const fallbackGroup = editableGroups.find(g => g !== groupName) || '';
@@ -394,7 +397,6 @@ const SettingsModal: React.FC<{
     const handleSave = () => {
         setCategories(editableCategories);
         setCategoryGroups(editableGroups);
-        setRecurringTransactions(editableRecurring);
         onClose();
     };
 
@@ -414,15 +416,15 @@ const SettingsModal: React.FC<{
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50 p-4"
+                className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-end md:items-center z-50"
                 onClick={onClose}
             >
                 <motion.div
-                    initial={{ scale: 0.9, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    exit={{ scale: 0.9, opacity: 0 }}
-                    transition={{ type: 'spring', bounce: 0.3, duration: 0.4 }}
-                    className="bg-slate-800 rounded-2xl w-full max-w-4xl shadow-2xl border border-slate-700 flex flex-col"
+                    initial={{ y: "100%" }}
+                    animate={{ y: 0 }}
+                    exit={{ y: "100%" }}
+                    transition={{ type: "spring", bounce: 0.3, duration: 0.4 }}
+                    className="bg-slate-800 rounded-t-2xl md:rounded-2xl w-full max-w-4xl shadow-2xl border-t md:border border-slate-700 flex flex-col max-h-[90vh] md:max-h-[85vh]"
                     onClick={e => e.stopPropagation()}
                 >
                     <div className="flex justify-between items-center p-6 border-b border-slate-700 flex-shrink-0">
@@ -447,7 +449,7 @@ const SettingsModal: React.FC<{
                         ))}
                     </div>
 
-                    <div className="p-6 max-h-[60vh] overflow-y-auto space-y-8">
+                    <div className="p-6 flex-grow overflow-y-auto space-y-8">
                         <AnimatePresence mode="wait">
                             {activeSettingsTab === 'general' && (
                                 <motion.div
@@ -482,11 +484,7 @@ const SettingsModal: React.FC<{
                             )}
 
                              {activeSettingsTab === 'tags' && (
-                                <TagSettings 
-                                    tags={allAvailableTags} 
-                                    onUpdateTag={onUpdateTag} 
-                                    onDeleteTag={onDeleteTag}
-                                />
+                                <TagSettings />
                              )}
 
                             {activeSettingsTab === 'categories' && (
@@ -499,7 +497,7 @@ const SettingsModal: React.FC<{
                                 >
                                     <div className="flex justify-between items-center mb-4">
                                         <h3 className="text-lg font-semibold text-white">Kategorien & Gruppen</h3>
-                                        <button onClick={handleAddGroup} className="flex items-center gap-2 text-sm bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded-md font-semibold"><Plus className="h-4 w-4"/>Neue Gruppe</button>
+                                        <button onClick={handleAddGroup} className="flex items-center gap-2 text-sm bg-slate-700 hover:bg-slate-600 px-3 py-2 rounded-md font-semibold"><Plus className="h-4 w-4"/>Neue Gruppe</button>
                                     </div>
                                     <div className="space-y-4">
                                         {editableGroups.map((groupName, index) => {
@@ -507,22 +505,22 @@ const SettingsModal: React.FC<{
                                             return (
                                             <div key={groupName} className="bg-slate-700/40 p-4 rounded-lg">
                                                 <div className="flex items-center gap-3 mb-4">
-                                                    <div className="flex flex-col -my-1">
+                                                    <div className="flex flex-col -my-2">
                                                         <button
                                                             onClick={() => handleMoveGroup(index, 'up')}
                                                             disabled={index === 0}
-                                                            className="p-1 rounded-full text-slate-500 hover:bg-slate-600 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
+                                                            className="p-2 rounded-full text-slate-500 hover:bg-slate-600 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
                                                             title="Gruppe nach oben verschieben"
                                                         >
-                                                            <ChevronUp className="h-4 w-4" />
+                                                            <ChevronUp className="h-5 w-5" />
                                                         </button>
                                                         <button
                                                             onClick={() => handleMoveGroup(index, 'down')}
                                                             disabled={index === editableGroups.length - 1}
-                                                            className="p-1 rounded-full text-slate-500 hover:bg-slate-600 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
+                                                            className="p-2 rounded-full text-slate-500 hover:bg-slate-600 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
                                                             title="Gruppe nach unten verschieben"
                                                         >
-                                                            <ChevronDown className="h-4 w-4" />
+                                                            <ChevronDown className="h-5 w-5" />
                                                         </button>
                                                     </div>
                                                     <input
@@ -532,7 +530,7 @@ const SettingsModal: React.FC<{
                                                         onChange={(e) => setEditableGroups(current => current.map(g => g === groupName ? e.target.value : g))}
                                                         className="bg-transparent text-lg font-bold text-white w-full focus:outline-none focus:bg-slate-600/50 rounded px-2"
                                                     />
-                                                    <button onClick={() => handleDeleteGroup(groupName)} className="p-1 rounded-full hover:bg-red-500/20 text-slate-500 hover:text-red-400"><Trash2 className="h-4 w-4"/></button>
+                                                    <button onClick={() => handleDeleteGroup(groupName)} className="p-3 rounded-full hover:bg-red-500/20 text-slate-500 hover:text-red-400"><Trash2 className="h-5 w-5"/></button>
                                                 </div>
                                                 <Reorder.Group
                                                     axis="y"
@@ -555,11 +553,11 @@ const SettingsModal: React.FC<{
                                                                              <button
                                                                                 type="button"
                                                                                 onClick={() => setPickingIconFor(cat.id)}
-                                                                                className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-700 focus:ring-rose-500"
+                                                                                className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 transition-transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-700 focus:ring-rose-500"
                                                                                 style={{ backgroundColor: cat.color }}
                                                                                 title="Symbol ändern"
                                                                             >
-                                                                                <Icon className="h-5 w-5 text-white" />
+                                                                                <Icon className="h-6 w-6 text-white" />
                                                                             </button>
                                                                              <input
                                                                                 type="text"
@@ -573,7 +571,7 @@ const SettingsModal: React.FC<{
                                                                                 type="color"
                                                                                 value={cat.color}
                                                                                 onChange={e => handleCategoryChange(cat.id, 'color', e.target.value)}
-                                                                                className="w-8 h-8 p-0 border-none rounded-md bg-transparent cursor-pointer"
+                                                                                className="w-10 h-10 p-0 border-none rounded-md bg-transparent cursor-pointer"
                                                                                 title="Farbe ändern"
                                                                             />
                                                                             <select
@@ -585,8 +583,8 @@ const SettingsModal: React.FC<{
                                                                             </select>
                                                                         </div>
                                                                     </div>
-                                                                     <button onClick={() => handleDeleteCategory(cat.id)} className="p-1 rounded-full hover:bg-red-500/20 text-slate-500 hover:text-red-400">
-                                                                        <Trash2 className="h-4 w-4"/>
+                                                                     <button onClick={() => handleDeleteCategory(cat.id)} className="p-3 rounded-full hover:bg-red-500/20 text-slate-500 hover:text-red-400">
+                                                                        <Trash2 className="h-5 w-5"/>
                                                                     </button>
                                                                 </div>
                                                             </Reorder.Item>
@@ -603,15 +601,14 @@ const SettingsModal: React.FC<{
 
                              {activeSettingsTab === 'recurring' && (
                                 <RecurringSettings
-                                    recurring={editableRecurring}
-                                    setRecurring={setEditableRecurring}
-                                    categories={categories}
+                                    recurring={[]}
+                                    setRecurring={() => {}}
                                 />
                             )}
                         </AnimatePresence>
                     </div>
                     <div className="p-6 border-t border-slate-700 flex justify-end">
-                         <button onClick={handleSave} className="flex items-center justify-center gap-2 bg-gradient-to-r from-rose-500 to-red-600 text-white font-semibold px-6 py-2 rounded-lg shadow-md hover:opacity-90 transition-opacity">
+                         <button onClick={handleSave} className="flex items-center justify-center gap-2 bg-gradient-to-r from-rose-500 to-red-600 text-white font-semibold px-6 py-3 rounded-lg shadow-md hover:opacity-90 transition-opacity">
                             <Save className="h-4 w-4" /> Speichern & Schließen
                         </button>
                     </div>

@@ -1,40 +1,112 @@
+
 import React, { useState, useMemo, useEffect } from 'react';
 import type { FC } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { useApp } from '../contexts/AppContext';
 import type { Transaction, Category, Tag } from '../types';
 import { format, parseISO, formatCurrency, de, isWithinInterval, addMonths, subMonths, addYears, subYears, getMonthInterval, getYearInterval } from '../utils/dateUtils';
-import { Search, Hash, Coins, BarChart2, CalendarDays, ChevronLeft, ChevronRight } from './Icons';
+import { Search, Hash, Coins, BarChart2, CalendarDays, ChevronLeft, ChevronRight, ChevronDown, X, Edit, Trash2 } from './Icons';
 import { iconMap } from './Icons';
 
-interface TagsPageProps {
-    transactions: Transaction[];
-    tags: Tag[];
-    tagMap: Map<string, string>;
-    categoryMap: Map<string, Category>;
-    selectedTagId: string | null;
+const TagList: FC<{
+    tags: Tag[],
+    transactions: Transaction[],
+    selectedTagId: string | null,
     onTagSelect: (tagId: string) => void;
-}
+}> = ({ tags, transactions, selectedTagId, onTagSelect }) => {
+    const [searchTerm, setSearchTerm] = useState('');
 
-const TagsPage: FC<TagsPageProps> = ({ transactions, tags, tagMap, categoryMap, selectedTagId, onTagSelect }) => {
+    const tagSpending = useMemo(() => {
+        const spendingMap = new Map<string, number>();
+        transactions.forEach(t => {
+            t.tagIds?.forEach(tagId => {
+                spendingMap.set(tagId, (spendingMap.get(tagId) || 0) + t.amount);
+            });
+        });
+        return spendingMap;
+    }, [transactions]);
+    
+    const sortedAndFilteredTags = useMemo(() => {
+        return tags
+            .map(tag => ({...tag, total: tagSpending.get(tag.id) || 0}))
+            .filter(tag => tag.name.toLowerCase().includes(searchTerm.toLowerCase()))
+            .sort((a,b) => b.total - a.total);
+    }, [tags, searchTerm, tagSpending]);
+
+    return (
+        <div className="h-full flex flex-col">
+            <div className="relative mb-4 px-4 pt-4">
+                <Search className="absolute left-7 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <input
+                    type="text"
+                    placeholder="Tag suchen..."
+                    value={searchTerm}
+                    onChange={e => setSearchTerm(e.target.value)}
+                    className="w-full bg-slate-700 border border-slate-600 rounded-lg pl-9 pr-3 py-2 text-white placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500"
+                />
+            </div>
+            <div className="flex-grow overflow-y-auto space-y-2 px-4 pb-4">
+                {sortedAndFilteredTags.map(tag => (
+                    <button
+                        key={tag.id}
+                        onClick={() => onTagSelect(tag.id)}
+                        className={`w-full flex justify-between items-center p-3 rounded-lg text-left transition-colors ${
+                            selectedTagId === tag.id
+                                ? 'bg-rose-600/20 ring-1 ring-rose-500'
+                                : 'hover:bg-slate-700/70'
+                        }`}
+                    >
+                        <div>
+                            <p className={`font-semibold ${selectedTagId === tag.id ? 'text-rose-300' : 'text-white'}`}>#{tag.name}</p>
+                        </div>
+                        <p className={`text-sm font-bold ${selectedTagId === tag.id ? 'text-white' : 'text-slate-300'}`}>{formatCurrency(tag.total)}</p>
+                    </button>
+                ))}
+            </div>
+        </div>
+    );
+};
+
+const TagsPage: FC = () => {
+    const { 
+        transactions, 
+        allAvailableTags, 
+        tagMap, 
+        categoryMap,
+        selectedTagIdForAnalysis,
+        handleSelectTagForAnalysis,
+    } = useApp();
+
     const [periodType, setPeriodType] = useState<'month' | 'year'>('month');
     const [currentDate, setCurrentDate] = useState(new Date());
+    const [isTagListModalOpen, setIsTagListModalOpen] = useState(false);
 
-    // This logic determines the active tag ID. It uses the one from props if available,
-    // otherwise defaults to the first in the list. This avoids running a side effect
-    // to set the default, which could cause infinite loops.
-    const activeTagId = selectedTagId || (tags.length > 0 ? tags[0].id : null);
+    const activeTagId = selectedTagIdForAnalysis || (allAvailableTags.length > 0 ? allAvailableTags[0].id : null);
     
-    // This effect ensures that if the page is loaded without a pre-selected tag,
-    // the parent component's state is updated to reflect the default selection.
     useEffect(() => {
-        if (!selectedTagId && tags.length > 0) {
-            onTagSelect(tags[0].id);
+        if (!selectedTagIdForAnalysis && allAvailableTags.length > 0) {
+            handleSelectTagForAnalysis(allAvailableTags[0].id);
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [tags]); // It should only depend on tags being loaded
+    }, [allAvailableTags, selectedTagIdForAnalysis, handleSelectTagForAnalysis]);
+    
+    useEffect(() => {
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                setIsTagListModalOpen(false);
+            }
+        };
 
-    if (tags.length === 0) {
+        if (isTagListModalOpen) {
+            window.addEventListener('keydown', handleKeyDown);
+        }
+
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [isTagListModalOpen]);
+
+    if (allAvailableTags.length === 0) {
         return (
             <div className="space-y-6">
                 <h1 className="text-3xl font-bold text-white">Tag-Analyse</h1>
@@ -44,30 +116,59 @@ const TagsPage: FC<TagsPageProps> = ({ transactions, tags, tagMap, categoryMap, 
             </div>
         );
     }
+    
+    const activeTagName = activeTagId ? tagMap.get(activeTagId) || 'Unbekannt' : 'Tag auswählen';
+
+    const handleSelectTagAndCloseModal = (tagId: string) => {
+        handleSelectTagForAnalysis(tagId);
+        setIsTagListModalOpen(false);
+    };
 
     return (
         <div className="space-y-6">
             <h1 className="text-3xl font-bold text-white">Tag-Analyse</h1>
-             <PeriodNavigator
+
+            <div className="lg:hidden">
+                <button
+                    onClick={() => setIsTagListModalOpen(true)}
+                    className="w-full bg-slate-800/50 p-4 rounded-2xl border border-slate-700/50 flex justify-between items-center text-left min-h-[44px]"
+                >
+                    <div>
+                        <span className="text-xs text-slate-400">Ausgewählter Tag</span>
+                        <p className="font-bold text-white text-lg flex items-center gap-2">
+                           <Hash className="h-5 w-5 text-rose-400" /> {activeTagName}
+                        </p>
+                    </div>
+                    <ChevronDown className="h-6 w-6 text-slate-400" />
+                </button>
+            </div>
+
+            <PeriodNavigator
                 periodType={periodType}
                 setPeriodType={setPeriodType}
                 currentDate={currentDate}
                 setCurrentDate={setCurrentDate}
             />
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-                <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="lg:col-span-1">
-                    <TagList 
-                        tags={tags}
-                        transactions={transactions}
-                        selectedTagId={activeTagId} 
-                        onTagSelect={onTagSelect}
-                    />
+                 <motion.div
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    className="hidden lg:block lg:col-span-1"
+                >
+                    <div className="bg-slate-800/50 rounded-2xl border border-slate-700/50 max-h-[calc(100vh-360px)]">
+                        <TagList
+                            tags={allAvailableTags}
+                            transactions={transactions}
+                            selectedTagId={activeTagId}
+                            onTagSelect={handleSelectTagForAnalysis}
+                        />
+                    </div>
                 </motion.div>
                 <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="lg:col-span-2">
                     <AnimatePresence mode="wait">
                         {activeTagId ? (
                             <TagDetailView
-                                key={`${activeTagId}-${periodType}-${currentDate.toISOString()}`} // Re-mount for animations
+                                key={`${activeTagId}-${periodType}-${currentDate.toISOString()}`}
                                 tagId={activeTagId}
                                 transactions={transactions}
                                 tagMap={tagMap}
@@ -83,6 +184,42 @@ const TagsPage: FC<TagsPageProps> = ({ transactions, tags, tagMap, categoryMap, 
                     </AnimatePresence>
                 </motion.div>
             </div>
+            
+            <AnimatePresence>
+                {isTagListModalOpen && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-end md:items-center z-50"
+                        onClick={() => setIsTagListModalOpen(false)}
+                    >
+                         <motion.div
+                            initial={{ y: "100%" }}
+                            animate={{ y: 0 }}
+                            exit={{ y: "100%" }}
+                            transition={{ type: "spring", bounce: 0.3, duration: 0.4 }}
+                            className="bg-slate-800 rounded-t-2xl md:rounded-2xl w-full max-w-lg shadow-2xl border-t md:border border-slate-700 flex flex-col max-h-[85vh]"
+                            onClick={e => e.stopPropagation()}
+                        >
+                            <div className="flex justify-between items-center p-4 border-b border-slate-700 flex-shrink-0">
+                                <h3 className="text-lg font-bold text-white">Tag auswählen</h3>
+                                <button onClick={() => setIsTagListModalOpen(false)} className="p-2 rounded-full hover:bg-slate-700">
+                                    <X className="h-5 w-5" />
+                                </button>
+                            </div>
+                            <div className="flex-grow overflow-hidden">
+                               <TagList 
+                                    tags={allAvailableTags}
+                                    transactions={transactions}
+                                    selectedTagId={activeTagId} 
+                                    onTagSelect={handleSelectTagAndCloseModal}
+                                />
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 };
@@ -132,66 +269,6 @@ const PeriodNavigator: FC<{
     );
 };
 
-
-const TagList: FC<{
-    tags: Tag[],
-    transactions: Transaction[],
-    selectedTagId: string | null,
-    onTagSelect: (tagId: string) => void;
-}> = ({ tags, transactions, selectedTagId, onTagSelect }) => {
-    const [searchTerm, setSearchTerm] = useState('');
-
-    const tagSpending = useMemo(() => {
-        const spendingMap = new Map<string, number>();
-        transactions.forEach(t => {
-            t.tagIds?.forEach(tagId => {
-                spendingMap.set(tagId, (spendingMap.get(tagId) || 0) + t.amount);
-            });
-        });
-        return spendingMap;
-    }, [transactions]);
-    
-    const sortedAndFilteredTags = useMemo(() => {
-        return tags
-            .map(tag => ({...tag, total: tagSpending.get(tag.id) || 0}))
-            .filter(tag => tag.name.toLowerCase().includes(searchTerm.toLowerCase()))
-            .sort((a,b) => b.total - a.total);
-    }, [tags, searchTerm, tagSpending]);
-
-    return (
-        <div className="bg-slate-800/50 p-4 rounded-2xl border border-slate-700/50">
-            <div className="relative mb-4">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                <input
-                    type="text"
-                    placeholder="Tag suchen..."
-                    value={searchTerm}
-                    onChange={e => setSearchTerm(e.target.value)}
-                    className="w-full bg-slate-700 border border-slate-600 rounded-lg pl-9 pr-3 py-2 text-white placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500"
-                />
-            </div>
-            <div className="max-h-[calc(100vh-420px)] overflow-y-auto space-y-2 -mr-2 pr-2">
-                {sortedAndFilteredTags.map(tag => (
-                    <button
-                        key={tag.id}
-                        onClick={() => onTagSelect(tag.id)}
-                        className={`w-full flex justify-between items-center p-3 rounded-lg text-left transition-colors ${
-                            selectedTagId === tag.id
-                                ? 'bg-rose-600/20 ring-1 ring-rose-500'
-                                : 'hover:bg-slate-700/70'
-                        }`}
-                    >
-                        <div>
-                            <p className={`font-semibold ${selectedTagId === tag.id ? 'text-rose-300' : 'text-white'}`}>#{tag.name}</p>
-                        </div>
-                        <p className={`text-sm font-bold ${selectedTagId === tag.id ? 'text-white' : 'text-slate-300'}`}>{formatCurrency(tag.total)}</p>
-                    </button>
-                ))}
-            </div>
-        </div>
-    );
-};
-
 const TagDetailView: FC<{
     tagId: string,
     transactions: Transaction[],
@@ -200,7 +277,7 @@ const TagDetailView: FC<{
     periodType: 'month' | 'year',
     currentDate: Date
 }> = ({ tagId, transactions, tagMap, categoryMap, periodType, currentDate }) => {
-    
+    const { handleTransactionClick, deleteTransaction } = useApp();
     const tagName = tagMap.get(tagId);
 
     const relatedTransactions = useMemo(() => {
@@ -313,17 +390,42 @@ const TagDetailView: FC<{
                         if (!category) return null;
                         const Icon = iconMap[category.icon] || iconMap.MoreHorizontal;
                         return (
-                            <div key={t.id} className="flex items-center gap-4 bg-slate-800 p-3 rounded-lg">
-                                <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: category.color }}>
-                                    <Icon className="h-5 w-5 text-white" />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <p className="font-medium text-white truncate">{t.description}</p>
-                                    <p className="text-xs text-slate-400">{format(parseISO(t.date), 'dd. MMMM yyyy, HH:mm')} Uhr</p>
-                                </div>
-                                <div className="text-right flex-shrink-0">
-                                    <p className="font-bold text-white">{formatCurrency(t.amount)}</p>
-                                    <p className="text-xs text-slate-500">{category.name}</p>
+                            <div key={t.id} className="flex items-center gap-3 bg-slate-800/50 hover:bg-slate-700/50 p-3 rounded-lg transition-colors">
+                                <button
+                                    onClick={() => handleTransactionClick(t, 'view')}
+                                    className="w-full flex items-start gap-4 flex-1 min-w-0 text-left"
+                                >
+                                    <div className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: category.color }}>
+                                        <Icon className="h-6 w-6 text-white" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="font-medium text-white truncate">{t.description}</p>
+                                        <p className="text-sm text-slate-400">{format(parseISO(t.date), 'dd. MMMM yyyy, HH:mm')} Uhr</p>
+                                    </div>
+                                    <div className="text-right flex-shrink-0 ml-2">
+                                        <p className="font-bold text-white text-lg">{formatCurrency(t.amount)}</p>
+                                        <p className="text-xs text-slate-500">{category.name}</p>
+                                    </div>
+                                </button>
+                                <div className="flex items-center gap-1">
+                                    <button
+                                        onClick={() => handleTransactionClick(t, 'edit')}
+                                        className="p-2 rounded-full text-slate-400 hover:bg-slate-600 hover:text-white"
+                                        title="Bearbeiten"
+                                    >
+                                        <Edit className="h-4 w-4" />
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            if (window.confirm(`Möchten Sie die Ausgabe "${t.description}" wirklich löschen?`)) {
+                                                deleteTransaction(t.id);
+                                            }
+                                        }}
+                                        className="p-2 rounded-full text-slate-400 hover:bg-slate-600 hover:text-red-400"
+                                        title="Löschen"
+                                    >
+                                        <Trash2 className="h-4 w-4" />
+                                    </button>
                                 </div>
                             </div>
                         )

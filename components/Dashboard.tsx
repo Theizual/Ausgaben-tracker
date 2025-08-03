@@ -1,23 +1,16 @@
+
 import React, { useState, useMemo } from 'react';
 import type { FC } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
+import { toast } from 'react-hot-toast';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { useApp } from '../contexts/AppContext';
 import type { Transaction, Category, ViewMode, CategoryId, Tag } from '../types';
 import { format, parseISO, formatCurrency, de, endOfDay, isWithinInterval, startOfMonth, endOfMonth, getWeekInterval, getMonthInterval } from '../utils/dateUtils';
 import { iconMap, Plus, BarChart2, ChevronDown, Coins } from './Icons';
 import CategoryButtons from './CategoryButtons';
 import TagInput from './TagInput';
 import AvailableTags from './AvailableTags';
-
-type DashboardProps = {
-    transactions: Transaction[];
-    categories: Category[];
-    categoryGroups: string[];
-    categoryMap: Map<string, Category>;
-    addTransaction: (transaction: Omit<Transaction, 'id' | 'date' | 'tagIds'> & { tags?: string[] }) => void;
-    totalMonthlyBudget: number;
-    allAvailableTags: Tag[];
-};
 
 const ProgressBar: FC<{ percentage: number; color: string; }> = ({ percentage, color }) => (
     <div className="w-full bg-slate-700 rounded-full h-2">
@@ -32,13 +25,30 @@ const ProgressBar: FC<{ percentage: number; color: string; }> = ({ percentage, c
 );
 
 
-const Dashboard: FC<DashboardProps> = (props) => {
+const Dashboard: FC = () => {
+    const {
+        transactions,
+        categories,
+        categoryGroups,
+        categoryMap,
+        addTransaction,
+        totalMonthlyBudget,
+        totalSpentThisMonth,
+        allAvailableTags,
+    } = useApp();
+
     const [viewMode, setViewMode] = useState<ViewMode>('woche');
     const [isCategoryBudgetOpen, setCategoryBudgetOpen] = useState(false);
+    const [expandedBudgetId, setExpandedBudgetId] = useState<string | null>(null);
     
-    const { filteredTransactions, totalExpenses, dailyAverage, subtext } = useMemo(() => {
+    const { filteredTransactions, totalExpenses, dailyAverage, subtext, monthlyTransactions } = useMemo(() => {
         const now = new Date();
-        const interval = viewMode === 'woche' ? getWeekInterval(now) : getMonthInterval(now);
+        const weekInterval = getWeekInterval(now);
+        const monthInterval = getMonthInterval(now);
+
+        const allMonthlyTransactions = transactions.filter(t => isWithinInterval(parseISO(t.date), monthInterval));
+
+        const interval = viewMode === 'woche' ? weekInterval : monthInterval;
         
         let subtext: string;
         if (viewMode === 'woche') {
@@ -49,7 +59,7 @@ const Dashboard: FC<DashboardProps> = (props) => {
             subtext = `Dieser Monat (${range})`;
         }
 
-        const filtered = props.transactions.filter(t => {
+        const filtered = transactions.filter(t => {
             if (!t.date || typeof t.date !== 'string') return false;
             try {
                 const date = parseISO(t.date);
@@ -63,7 +73,7 @@ const Dashboard: FC<DashboardProps> = (props) => {
         const total = filtered.reduce((sum, t) => sum + t.amount, 0);
 
         if (filtered.length === 0) {
-            return { filteredTransactions: filtered, totalExpenses: 0, dailyAverage: 0, subtext };
+            return { filteredTransactions: filtered, totalExpenses: 0, dailyAverage: 0, subtext, monthlyTransactions: allMonthlyTransactions };
         }
 
         let daysInPeriod: number;
@@ -90,30 +100,24 @@ const Dashboard: FC<DashboardProps> = (props) => {
 
         const average = daysInPeriod > 0 ? totalForAverage / daysInPeriod : 0;
 
-        return { filteredTransactions: filtered, totalExpenses: total, dailyAverage: average, subtext };
-    }, [props.transactions, viewMode]);
+        return { filteredTransactions: filtered, totalExpenses: total, dailyAverage: average, subtext, monthlyTransactions: allMonthlyTransactions };
+    }, [transactions, viewMode]);
 
-    const { totalSpentThisMonth, spendingByCategory, budgetedCategories } = useMemo(() => {
-        const now = new Date();
-        const monthInterval = getMonthInterval(now);
-        const monthlyTransactions = props.transactions.filter(t => isWithinInterval(parseISO(t.date), monthInterval));
-        const total = monthlyTransactions.reduce((sum, t) => sum + t.amount, 0);
-        
+    const { spendingByCategory, budgetedCategories } = useMemo(() => {
         const spendingMap = new Map<CategoryId, number>();
         monthlyTransactions.forEach(t => {
             spendingMap.set(t.categoryId, (spendingMap.get(t.categoryId) || 0) + t.amount);
         });
         
-        const budgetedCats = props.categories.filter(c => c.budget && c.budget > 0);
+        const budgetedCats = categories.filter(c => c.budget && c.budget > 0);
 
         return { 
-            totalSpentThisMonth: total,
             spendingByCategory: spendingMap,
             budgetedCategories: budgetedCats
         };
-    }, [props.transactions, props.categories]);
+    }, [monthlyTransactions, categories]);
 
-    const totalBudgetPercentage = props.totalMonthlyBudget > 0 ? (totalSpentThisMonth / props.totalMonthlyBudget) * 100 : 0;
+    const totalBudgetPercentage = totalMonthlyBudget > 0 ? (totalSpentThisMonth / totalMonthlyBudget) * 100 : 0;
     
     const getTotalBarColor = () => {
         if (totalBudgetPercentage > 100) return '#ef4444'; // red-500
@@ -135,13 +139,7 @@ const Dashboard: FC<DashboardProps> = (props) => {
                 
                 {/* Left Column */}
                 <div className="space-y-6">
-                    <QuickAddForm 
-                        addTransaction={props.addTransaction} 
-                        categories={props.categories} 
-                        categoryGroups={props.categoryGroups} 
-                        allAvailableTags={props.allAvailableTags}
-                        transactions={props.transactions}
-                    />
+                    <QuickAddForm />
                 </div>
                 
                 {/* Right Column */}
@@ -190,15 +188,15 @@ const Dashboard: FC<DashboardProps> = (props) => {
                             <h3 className="font-bold text-white">Analyse</h3>
                         </div>
                         <div className="h-[250px]">
-                            <CategoryPieChart transactions={filteredTransactions} categoryMap={props.categoryMap} />
+                            <CategoryPieChart transactions={filteredTransactions} categoryMap={categoryMap} />
                         </div>
-                        {props.totalMonthlyBudget > 0 && (
+                        {totalMonthlyBudget > 0 && (
                             <div className="mt-6 pt-6 border-t border-slate-700/50">
                                 <h4 className="text-sm font-semibold text-slate-300 mb-3">Monatsbudget</h4>
                                 <div className="flex justify-between items-baseline text-sm mb-1">
                                     <p className="text-slate-300">
                                         <span className="font-semibold text-white">{formatCurrency(totalSpentThisMonth)}</span>
-                                        <span className="text-slate-500"> / {formatCurrency(props.totalMonthlyBudget)}</span>
+                                        <span className="text-slate-500"> / {formatCurrency(totalMonthlyBudget)}</span>
                                     </p>
                                     <p className="font-semibold" style={{color: getTotalBarColor()}}>{totalBudgetPercentage.toFixed(0)}%</p>
                                 </div>
@@ -231,27 +229,56 @@ const Dashboard: FC<DashboardProps> = (props) => {
                                                 const spent = spendingByCategory.get(category.id) || 0;
                                                 const budget = category.budget!;
                                                 const percentage = (spent / budget) * 100;
-                                                const totalBudgetShare = props.totalMonthlyBudget > 0 ? ((budget / props.totalMonthlyBudget) * 100) : 0;
                                                 const Icon = iconMap[category.icon] || iconMap.MoreHorizontal;
+                                                const isExpanded = expandedBudgetId === category.id;
                                                 
                                                 return (
-                                                    <div key={category.id}>
-                                                        <div className="flex justify-between items-center text-sm mb-1.5">
-                                                            <div className="flex items-center gap-3 truncate">
-                                                                <Icon className="h-4 w-4 flex-shrink-0" style={{ color: category.color }} />
-                                                                <span className="font-medium text-white truncate">{category.name}</span>
+                                                    <div key={category.id} className="bg-slate-700/30 p-3 rounded-lg">
+                                                        <div 
+                                                            className="flex flex-col cursor-pointer"
+                                                            onClick={() => setExpandedBudgetId(isExpanded ? null : category.id)}
+                                                        >
+                                                            <div className="flex justify-between items-center text-sm mb-1.5">
+                                                                <div className="flex items-center gap-3 truncate">
+                                                                    <Icon className="h-4 w-4 flex-shrink-0" style={{ color: category.color }} />
+                                                                    <span className="font-medium text-white truncate">{category.name}</span>
+                                                                    <ChevronDown className={`h-4 w-4 text-slate-500 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                                                                </div>
+                                                                <div className="font-semibold text-white flex-shrink-0 pl-2">
+                                                                    {formatCurrency(spent)}
+                                                                    <span className="text-slate-500 text-xs"> / {formatCurrency(budget)}</span>
+                                                                </div>
                                                             </div>
-                                                            <div className="font-semibold text-white flex-shrink-0 pl-2">
-                                                                {formatCurrency(spent)}
-                                                                <span className="text-slate-500 text-xs"> / {formatCurrency(budget)}</span>
-                                                            </div>
+                                                            <ProgressBar percentage={percentage} color={getCategoryBarColor(percentage, category.color)} />
                                                         </div>
-                                                        <ProgressBar percentage={percentage} color={getCategoryBarColor(percentage, category.color)} />
-                                                        {totalBudgetShare > 0 && (
-                                                            <p className="text-xs text-slate-500 text-right mt-1">
-                                                                Entspricht {totalBudgetShare.toFixed(0)}% des Gesamtbudgets
-                                                            </p>
-                                                        )}
+                                                         <AnimatePresence>
+                                                            {isExpanded && (
+                                                                <motion.div
+                                                                    initial={{ opacity: 0, height: 0, marginTop: 0 }}
+                                                                    animate={{ opacity: 1, height: 'auto', marginTop: '1rem' }}
+                                                                    exit={{ opacity: 0, height: 0, marginTop: 0 }}
+                                                                    className="overflow-hidden"
+                                                                >
+                                                                    <div className="ml-4 pl-4 border-l-2 border-slate-600/50 space-y-2">
+                                                                        {monthlyTransactions.filter(t => t.categoryId === category.id)
+                                                                            .sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime())
+                                                                            .map(t => (
+                                                                                <div key={t.id} className="flex justify-between items-center text-sm p-2 rounded-md hover:bg-slate-700/50">
+                                                                                    <div>
+                                                                                        <p className="text-slate-300">{t.description}</p>
+                                                                                        <p className="text-xs text-slate-500">{format(parseISO(t.date), 'dd.MM, HH:mm')} Uhr</p>
+                                                                                    </div>
+                                                                                    <p className="font-semibold text-slate-200">{formatCurrency(t.amount)}</p>
+                                                                                </div>
+                                                                            ))
+                                                                        }
+                                                                         {monthlyTransactions.filter(t => t.categoryId === category.id).length === 0 && (
+                                                                            <p className="text-slate-500 text-sm p-2">Keine Ausgaben diesen Monat.</p>
+                                                                        )}
+                                                                    </div>
+                                                                </motion.div>
+                                                            )}
+                                                        </AnimatePresence>
                                                     </div>
                                                 );
                                             })}
@@ -290,13 +317,15 @@ const ViewTabs: FC<{ viewMode: ViewMode; setViewMode: (mode: ViewMode) => void; 
     );
 };
 
-const QuickAddForm: FC<{ 
-    addTransaction: (t: Omit<Transaction, 'id' | 'date' | 'tagIds'> & { tags?: string[] }) => void;
-    categories: Category[];
-    categoryGroups: string[];
-    allAvailableTags: Tag[];
-    transactions: Transaction[];
-}> = ({ addTransaction, categories, categoryGroups, allAvailableTags, transactions }) => {
+const QuickAddForm: FC = () => {
+    const { 
+        addTransaction, 
+        categories, 
+        categoryGroups, 
+        allAvailableTags, 
+        transactions 
+    } = useApp();
+    
     const [amount, setAmount] = useState('');
     const [description, setDescription] = useState('');
     const [categoryId, setCategoryId] = useState('');
@@ -326,7 +355,7 @@ const QuickAddForm: FC<{
         const numAmount = parseFloat(amount.replace(',', '.'));
         if (!numAmount || numAmount <= 0 || !description || !categoryId) {
             if (!categoryId) {
-                alert("Bitte wählen Sie eine Kategorie aus.");
+                toast.error("Bitte wählen Sie eine Kategorie aus.");
             }
             return;
         }

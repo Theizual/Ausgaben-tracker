@@ -1,23 +1,10 @@
+
 import React, { useState, useMemo, useRef, useEffect, FC } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
+import { useApp } from '../contexts/AppContext';
 import type { Transaction, Category, Tag } from '../types';
 import { format, parseISO, formatCurrency, endOfDay, startOfDay, getWeekInterval, getMonthInterval } from '../utils/dateUtils';
-import { iconMap, Edit, Trash2, Search, SlidersHorizontal, X, ChevronDown, Tag as TagIcon } from './Icons';
-import CategoryButtons from './CategoryButtons';
-import TagInput from './TagInput';
-import AvailableTags from './AvailableTags';
-
-interface TransactionsPageProps {
-    transactions: Transaction[];
-    categoryMap: Map<string, Category>;
-    tagMap: Map<string, string>;
-    updateTransaction: (transaction: Omit<Transaction, 'tagIds'> & { tags?: string[] }) => void;
-    deleteTransaction: (id: string) => void;
-    categories: Category[];
-    categoryGroups: string[];
-    allAvailableTags: Tag[];
-    onTagClick: (tagId: string) => void;
-}
+import { iconMap, Search, SlidersHorizontal, ChevronDown, Tag as TagIcon, Edit, Trash2 } from './Icons';
 
 type QuickFilterId = 'today' | 'week' | 'month' | 'all';
 const quickFilterButtons: { id: QuickFilterId; label: string }[] = [
@@ -52,20 +39,12 @@ const QuickFilters: FC<{
 
 const TransactionList: FC<{ 
     transactions: Transaction[]; 
-    categoryMap: Map<string, Category>;
-    tagMap: Map<string, string>;
-    updateTransaction: (t: Omit<Transaction, 'tagIds'> & { tags?: string[] }) => void;
-    deleteTransaction: (id: string) => void; 
-    categories: Category[];
-    categoryGroups: string[];
-    allAvailableTags: Tag[];
-    recentlyUsedTags: Tag[];
     showEmptyMessage?: boolean;
     activeQuickFilter: QuickFilterId | null;
     onQuickFilter: (filter: QuickFilterId) => void;
-    onTagClick: (tagId: string) => void;
-}> = ({ transactions, categoryMap, tagMap, updateTransaction, deleteTransaction, categories, categoryGroups, allAvailableTags, recentlyUsedTags, showEmptyMessage = false, activeQuickFilter, onQuickFilter, onTagClick }) => {
-    const [editingId, setEditingId] = useState<string | null>(null);
+}> = ({ transactions, showEmptyMessage = false, activeQuickFilter, onQuickFilter }) => {
+    const { categoryMap, tagMap, handleTagAnalyticsClick, handleTransactionClick, deleteTransaction } = useApp();
+    
     return (
         <motion.div
             initial={{ opacity: 0, y: 10 }}
@@ -77,20 +56,21 @@ const TransactionList: FC<{
             <div className="flex-grow space-y-3 overflow-y-auto -mr-4 pr-4">
                 <AnimatePresence>
                 {transactions.length > 0 ? transactions.map(t => (
-                    <motion.div key={t.id} layout initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }}>
+                    <motion.div 
+                        key={t.id} 
+                        layout
+                        initial={{ opacity: 0, y: 10 }} 
+                        animate={{ opacity: 1, y: 0 }} 
+                        exit={{ opacity: 0, x: -20 }} 
+                        transition={{ duration: 0.3 }}
+                    >
                         <TransactionItem 
                             transaction={t}
                             category={categoryMap.get(t.categoryId)}
                             tagMap={tagMap}
-                            onUpdate={updateTransaction}
-                            onDelete={deleteTransaction}
-                            isEditing={editingId === t.id}
-                            onEditClick={() => setEditingId(t.id === editingId ? null : t.id)}
-                            categories={categories}
-                            categoryGroups={categoryGroups}
-                            allAvailableTags={allAvailableTags}
-                            recentlyUsedTags={recentlyUsedTags}
-                            onTagClick={onTagClick}
+                            onTagClick={handleTagAnalyticsClick}
+                            onTransactionClick={handleTransactionClick}
+                            deleteTransaction={deleteTransaction}
                         />
                     </motion.div>
                 )) : (
@@ -106,35 +86,12 @@ const TransactionItem: FC<{
     transaction: Transaction; 
     category?: Category;
     tagMap: Map<string, string>;
-    onUpdate: (t: Omit<Transaction, 'tagIds'> & { tags?: string[] }) => void;
-    onDelete: (id: string) => void; 
-    isEditing: boolean; 
-    onEditClick: () => void;
-    categories: Category[];
-    categoryGroups: string[];
-    allAvailableTags: Tag[];
-    recentlyUsedTags: Tag[];
     onTagClick: (tagId: string) => void;
-}> = ({ transaction, category, tagMap, onUpdate, onDelete, isEditing, onEditClick, categories, categoryGroups, allAvailableTags, recentlyUsedTags, onTagClick }) => {
-    const [formState, setFormState] = useState(transaction);
-    const [localTags, setLocalTags] = useState<string[]>([]);
-    
-    React.useEffect(() => {
-        setFormState(transaction);
-        if (isEditing) {
-            const tagNames = (transaction.tagIds || []).map(id => tagMap.get(id)).filter((name): name is string => !!name);
-            setLocalTags(tagNames);
-        }
-    }, [transaction, isEditing, tagMap]);
-    
+    onTransactionClick: (transaction: Transaction, mode: 'view' | 'edit') => void;
+    deleteTransaction: (id: string) => void;
+}> = ({ transaction, category, tagMap, onTagClick, onTransactionClick, deleteTransaction }) => {
     const Icon = category ? iconMap[category.icon] || iconMap.MoreHorizontal : iconMap.MoreHorizontal;
     const color = category ? category.color : '#64748b';
-
-    const handleSave = () => {
-        const { tagIds, ...restOfState } = formState;
-        onUpdate({ ...restOfState, tags: localTags });
-        onEditClick();
-    };
 
     const formattedDate = React.useMemo(() => {
         try {
@@ -147,130 +104,65 @@ const TransactionItem: FC<{
         }
     }, [transaction.date]);
 
-    const handleTagClick = (tag: string) => {
-        setLocalTags(prev => {
-            const currentTags = prev || [];
-            const newTags = currentTags.includes(tag) ? currentTags.filter(t => t !== tag) : [...currentTags, tag];
-            return newTags;
-        });
-    };
-
-    if (isEditing) {
-        const getFormattedDate = () => {
-            try {
-                if (!formState.date || typeof formState.date !== 'string') return '';
-                const parsedDate = parseISO(formState.date);
-                if (isNaN(parsedDate.getTime())) return '';
-                return format(parsedDate, 'yyyy-MM-dd');
-            } catch (error) {
-                console.error(`Invalid date format for transaction ${formState.id}:`, formState.date, error);
-                return '';
-            }
-        };
-
-        return (
-            <div className="bg-slate-700/80 p-4 rounded-lg space-y-4 ring-2 ring-rose-500">
-                <div className="grid grid-cols-2 gap-3">
-                    <input 
-                        type="number" 
-                        step="0.01" 
-                        value={formState.amount} 
-                        onChange={e => setFormState({...formState, amount: parseFloat(e.target.value) || 0})} 
-                        className="w-full bg-slate-600 border border-slate-500 rounded-md px-3 py-2 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500"
-                        placeholder="Betrag"
-                    />
-                    <input
-                        type="date"
-                        value={getFormattedDate()}
-                        onChange={(e) => {
-                            try {
-                                if (e.target.value) {
-                                    const newDatePart = parseISO(e.target.value);
-                                    const originalDate = parseISO(formState.date);
-                                    
-                                    const finalDate = new Date(newDatePart);
-                                    finalDate.setHours(originalDate.getHours());
-                                    finalDate.setMinutes(originalDate.getMinutes());
-                                    finalDate.setSeconds(originalDate.getSeconds());
-                                    finalDate.setMilliseconds(originalDate.getMilliseconds());
-
-                                    setFormState({...formState, date: finalDate.toISOString()});
-                                }
-                            } catch (err) {
-                                console.error("Could not parse date", e.target.value)
-                            }
-                        }}
-                        className="w-full bg-slate-600 border border-slate-500 rounded-md px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-rose-500"
-                        required
-                    />
-                 </div>
-                 <input 
-                    type="text" 
-                    value={formState.description} 
-                    onChange={e => setFormState({...formState, description: e.target.value})} 
-                    className="w-full bg-slate-600 border border-slate-500 rounded-md px-3 py-2 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500"
-                    placeholder="Beschreibung"
-                />
-                 <div className="space-y-3">
-                    <TagInput
-                        tags={localTags}
-                        setTags={setLocalTags}
-                        allAvailableTags={allAvailableTags}
-                    />
-                    <AvailableTags
-                        availableTags={recentlyUsedTags}
-                        selectedTags={localTags}
-                        onTagClick={handleTagClick}
-                    />
-                 </div>
-                 <CategoryButtons 
-                    categories={categories}
-                    categoryGroups={categoryGroups}
-                    selectedCategoryId={formState.categoryId}
-                    onSelectCategory={(id) => setFormState({...formState, categoryId: id})}
-                 />
-                 <div className="flex justify-end gap-2 pt-2">
-                    <button onClick={onEditClick} className="text-slate-400 hover:text-white px-4 py-1.5 rounded-md hover:bg-slate-600/50 transition-colors text-sm">Abbrechen</button>
-                    <button onClick={handleSave} className="bg-rose-600 hover:bg-rose-500 text-white text-sm font-semibold px-4 py-1.5 rounded-md transition-colors">Speichern</button>
-                 </div>
-            </div>
-        )
-    }
-
     return (
-        <div className="flex items-start gap-4 bg-slate-800/50 hover:bg-slate-700/50 p-3 rounded-lg transition-colors">
-            <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: color }}>
-                <Icon className="h-5 w-5 text-white" />
-            </div>
-            <div className="flex-1 min-w-0">
-                <p className="font-medium text-white truncate">{transaction.description}</p>
-                 <div className="flex flex-col items-start">
-                    <div className="text-xs text-slate-400 mt-1">{formattedDate}</div>
-                    {transaction.tagIds && transaction.tagIds.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5 mt-2">
-                            {transaction.tagIds.map(id => {
-                                const tagName = tagMap.get(id);
-                                if (!tagName) return null;
-                                return (
-                                <button
-                                    key={id}
-                                    onClick={() => onTagClick(id)}
-                                    className="text-xs font-medium bg-slate-700 hover:bg-slate-600 text-slate-300 hover:text-white px-2 py-0.5 rounded-full transition-colors"
-                                    aria-label={`Analysiere Tag ${tagName}`}
-                                >
-                                    #{tagName}
-                                </button>
-                            )})}
-                        </div>
-                    )}
+        <div className="flex items-center gap-3 bg-slate-800/50 hover:bg-slate-700/50 p-3 rounded-lg transition-colors">
+            <button 
+                onClick={() => onTransactionClick(transaction, 'view')}
+                className="w-full flex items-start gap-4 flex-1 min-w-0 text-left"
+            >
+                <div className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: color }}>
+                    <Icon className="h-6 w-6 text-white" />
                 </div>
-            </div>
-            <div className="text-right flex-shrink-0">
-                 <p className="font-bold text-white">{formatCurrency(transaction.amount)}</p>
-                 <div className="flex gap-3 justify-end mt-1">
-                    <button onClick={onEditClick}><Edit className="h-4 w-4 text-slate-500 hover:text-rose-400" /></button>
-                    <button onClick={() => onDelete(transaction.id)}><Trash2 className="h-4 w-4 text-slate-500 hover:text-red-500" /></button>
-                 </div>
+                <div className="flex-1 min-w-0">
+                    <p className="font-medium text-white truncate">{transaction.description}</p>
+                     <div className="flex flex-col items-start">
+                        <div className="text-sm text-slate-400 mt-1">{formattedDate}</div>
+                        {transaction.tagIds && transaction.tagIds.length > 0 && (
+                            <div className="flex flex-wrap gap-1.5 mt-2">
+                                {transaction.tagIds.map(id => {
+                                    const tagName = tagMap.get(id);
+                                    if (!tagName) return null;
+                                    return (
+                                    <div
+                                        key={id}
+                                        onClick={(e) => {
+                                            e.stopPropagation(); // prevent opening the detail modal
+                                            onTagClick(id);
+                                        }}
+                                        className="text-xs font-medium bg-slate-700 hover:bg-slate-600 text-slate-300 hover:text-white px-2 py-0.5 rounded-full transition-colors cursor-pointer"
+                                        aria-label={`Analysiere Tag ${tagName}`}
+                                    >
+                                        #{tagName}
+                                    </div>
+                                )})}
+                            </div>
+                        )}
+                    </div>
+                </div>
+                <div className="text-right flex-shrink-0 ml-2">
+                     <p className="font-bold text-white text-lg">{formatCurrency(transaction.amount)}</p>
+                     <p className="text-xs text-slate-400 truncate">{category?.name}</p>
+                </div>
+            </button>
+            <div className="flex items-center gap-1">
+                <button
+                    onClick={() => onTransactionClick(transaction, 'edit')}
+                    className="p-2 rounded-full text-slate-400 hover:bg-slate-600 hover:text-white"
+                    title="Bearbeiten"
+                >
+                    <Edit className="h-4 w-4" />
+                </button>
+                <button
+                    onClick={() => {
+                        if (window.confirm(`Möchten Sie die Ausgabe "${transaction.description}" wirklich löschen?`)) {
+                            deleteTransaction(transaction.id);
+                        }
+                    }}
+                    className="p-2 rounded-full text-slate-400 hover:bg-slate-600 hover:text-red-400"
+                    title="Löschen"
+                >
+                    <Trash2 className="h-4 w-4" />
+                </button>
             </div>
         </div>
     );
@@ -302,6 +194,10 @@ const MultiCategoryPicker: FC<{
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, [wrapperRef]);
 
+    const allCategories = useMemo(() => {
+        return [...categories].sort((a,b) => a.name.localeCompare(b.name));
+    }, [categories]);
+
     return (
         <div className="relative" ref={wrapperRef}>
             <button onClick={() => setIsOpen(!isOpen)} className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-left text-white flex justify-between items-center">
@@ -311,7 +207,7 @@ const MultiCategoryPicker: FC<{
             <AnimatePresence>
             {isOpen && (
                 <motion.div initial={{opacity: 0, y: -5}} animate={{opacity: 1, y: 0}} exit={{opacity: 0, y: -5}} className="absolute z-10 top-full mt-2 w-full bg-slate-800 border border-slate-600 rounded-lg shadow-xl max-h-60 overflow-y-auto">
-                    {categories.map(category => (
+                    {allCategories.map(category => (
                         <label key={category.id} className="flex items-center gap-3 p-3 hover:bg-slate-700/50 cursor-pointer">
                             <input type="checkbox" checked={selected.includes(category.id)} onChange={() => toggleCategory(category.id)} className="w-4 h-4 rounded text-rose-500 bg-slate-600 border-slate-500 focus:ring-rose-500"/>
                             <span className="text-white text-sm font-medium">{category.name}</span>
@@ -325,10 +221,10 @@ const MultiCategoryPicker: FC<{
 };
 
 const TransactionFilters: FC<{
-    categories: Category[];
     onFilterChange: (filters: any) => void;
     filters: any;
-}> = ({ categories, onFilterChange, filters }) => {
+}> = ({ onFilterChange, filters }) => {
+    const { categories } = useApp();
     const [showAdvanced, setShowAdvanced] = useState(false);
 
     const handleFilterChange = (field: keyof typeof filters, value: any) => {
@@ -397,17 +293,9 @@ const TransactionFilters: FC<{
     );
 }
 
-const TransactionsPage: FC<TransactionsPageProps> = ({
-    transactions,
-    categoryMap,
-    tagMap,
-    updateTransaction,
-    deleteTransaction,
-    categories,
-    categoryGroups,
-    allAvailableTags,
-    onTagClick,
-}) => {
+const TransactionsPage: FC = () => {
+    const { transactions, tagMap } = useApp();
+
     const [filters, setFilters] = useState({
         text: '',
         tags: '',
@@ -472,24 +360,6 @@ const TransactionsPage: FC<TransactionsPageProps> = ({
         [...transactions].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()), 
     [transactions]);
 
-    const recentlyUsedTags = useMemo(() => {
-        const sortedAllTransactions = [...transactions].sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime());
-        const recentTagIds = new Set<string>();
-
-        for (const transaction of sortedAllTransactions) {
-            if (recentTagIds.size >= 10) break;
-            if (transaction.tagIds) {
-                for (const tagId of transaction.tagIds) {
-                    if (recentTagIds.size >= 10) break;
-                    recentTagIds.add(tagId);
-                }
-            }
-        }
-        
-        const tagMap = new Map(allAvailableTags.map(t => [t.id, t]));
-        return Array.from(recentTagIds).map(id => tagMap.get(id)).filter((t): t is Tag => !!t);
-    }, [transactions, allAvailableTags]);
-
     const filteredTransactions = useMemo(() => {
         return sortedTransactions.filter(t => {
             if (filters.text && !t.description.toLowerCase().includes(filters.text.toLowerCase())) return false;
@@ -540,22 +410,13 @@ const TransactionsPage: FC<TransactionsPageProps> = ({
     return (
         <div className="space-y-6">
             <h1 className="text-3xl font-bold text-white">Transaktionen</h1>
-            <TransactionFilters categories={categories} onFilterChange={handleAdvancedFilterChange} filters={filters} />
+            <TransactionFilters onFilterChange={handleAdvancedFilterChange} filters={filters} />
             <div className="h-[calc(100vh-380px)]">
                 <TransactionList 
                     transactions={filteredTransactions}
-                    categoryMap={categoryMap}
-                    tagMap={tagMap}
-                    updateTransaction={updateTransaction}
-                    deleteTransaction={deleteTransaction}
-                    categories={categories}
-                    categoryGroups={categoryGroups}
-                    allAvailableTags={allAvailableTags}
-                    recentlyUsedTags={recentlyUsedTags}
                     showEmptyMessage={true}
                     activeQuickFilter={activeQuickFilter}
                     onQuickFilter={handleQuickFilter}
-                    onTagClick={onTagClick}
                 />
             </div>
         </div>
