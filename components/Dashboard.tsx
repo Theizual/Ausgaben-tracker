@@ -1,13 +1,13 @@
-
-
 import React, { useState, useMemo } from 'react';
 import type { FC } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import type { Transaction, Category, ViewMode, CategoryId } from '../types';
 import { format, parseISO, formatCurrency, de, endOfDay, isWithinInterval, startOfMonth, endOfMonth, getWeekInterval, getMonthInterval } from '../utils/dateUtils';
-import { iconMap, Plus, Edit, Trash2, BarChart2, ChevronDown, Coins, CalendarDays } from './Icons';
-import { CategoryButtons, TagInput, AvailableTags } from './Transactions';
+import { iconMap, Plus, BarChart2, ChevronDown, Coins } from './Icons';
+import CategoryButtons from './CategoryButtons';
+import TagInput from './TagInput';
+import AvailableTags from './AvailableTags';
 
 type DashboardProps = {
     transactions: Transaction[];
@@ -307,13 +307,10 @@ const QuickAddForm: FC<{
             return;
         }
         
-        const transactionDate = endOfDay(new Date());
-        
         addTransaction({ 
             amount: numAmount, 
             description, 
             categoryId, 
-            date: transactionDate.toISOString(),
             tags,
         });
         

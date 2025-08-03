@@ -1,224 +1,12 @@
-
-
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import type { FC } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import type { Transaction, Category, CategoryId } from '../types';
 import { format, parseISO, formatCurrency, endOfDay, startOfDay } from '../utils/dateUtils';
 import { iconMap, Edit, Trash2, Search, SlidersHorizontal, X, ChevronDown, Tag } from './Icons';
-
-export const CategoryButtons: FC<{
-    categories: Category[];
-    categoryGroups: string[];
-    selectedCategoryId: CategoryId;
-    onSelectCategory: (id: CategoryId) => void;
-}> = ({ categories, categoryGroups, selectedCategoryId, onSelectCategory }) => {
-    
-    const groupedCategories = useMemo(() => {
-        const groupMap = new Map<string, Category[]>();
-        categories.forEach(category => {
-            if (!groupMap.has(category.group)) {
-                groupMap.set(category.group, []);
-            }
-            groupMap.get(category.group)!.push(category);
-        });
-
-        return categoryGroups.map(groupName => ({
-            name: groupName,
-            categories: groupMap.get(groupName) || []
-        })).filter(group => group.categories.length > 0);
-
-    }, [categories, categoryGroups]);
-
-    return (
-        <div className="space-y-4">
-            {groupedCategories.map(group => (
-                <div key={group.name}>
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2 ml-1">{group.name}</h4>
-                    <div className="flex flex-wrap gap-2">
-                        {group.categories.map(category => {
-                            const Icon = iconMap[category.icon] || iconMap.MoreHorizontal;
-                            const isSelected = selectedCategoryId === category.id;
-                            return (
-                                <motion.button
-                                    key={category.id}
-                                    type="button"
-                                    onClick={() => onSelectCategory(category.id)}
-                                    layout
-                                    transition={{ type: 'spring', damping: 20, stiffness: 300 }}
-                                    style={{
-                                        backgroundColor: isSelected ? category.color : undefined,
-                                        borderColor: category.color,
-                                    }}
-                                    className={`flex items-center justify-center rounded-lg transition-colors duration-200 border
-                                        ${isSelected 
-                                            ? 'gap-2 px-4 py-3 text-white font-semibold shadow-lg' 
-                                            : 'w-12 h-12 bg-slate-700/80 hover:bg-slate-700'
-                                        }`
-                                    }
-                                    title={category.name}
-                                >
-                                    <Icon className="h-6 w-6 shrink-0" style={{ color: isSelected ? 'white' : category.color }} />
-                                    <AnimatePresence>
-                                        {isSelected && (
-                                            <motion.span
-                                                initial={{ opacity: 0, width: 0 }}
-                                                animate={{ opacity: 1, width: 'auto' }}
-                                                exit={{ opacity: 0, width: 0 }}
-                                                transition={{ duration: 0.15, ease: 'linear' }}
-                                                className="whitespace-nowrap overflow-hidden text-sm"
-                                            >
-                                                {category.name}
-                                            </motion.span>
-                                        )}
-                                    </AnimatePresence>
-                                </motion.button>
-                            );
-                        })}
-                    </div>
-                </div>
-            ))}
-        </div>
-    );
-};
-
-export const TagInput: FC<{
-    tags: string[];
-    setTags: (tags: string[]) => void;
-    suggestionTags?: string[];
-}> = ({ tags, setTags, suggestionTags = [] }) => {
-    const [inputValue, setInputValue] = useState('');
-    const [suggestions, setSuggestions] = useState<string[]>([]);
-
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const value = e.target.value;
-        setInputValue(value);
-
-        if (value.trim() && suggestionTags.length > 0) {
-            const filteredSuggestions = suggestionTags
-                .filter(tag => 
-                    tag.toLowerCase().includes(value.toLowerCase()) && !tags.includes(tag)
-                )
-                .slice(0, 10);
-            setSuggestions(filteredSuggestions);
-        } else {
-            setSuggestions([]);
-        }
-    };
-    
-    const addTag = (tag: string) => {
-        const newTag = tag.trim().replace(/^#/, '');
-        if (newTag && !tags.includes(newTag)) {
-            setTags([...tags, newTag]);
-        }
-        setInputValue('');
-        setSuggestions([]);
-    };
-
-    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-        if ((e.key === 'Enter' || e.key === ',') && inputValue.trim()) {
-            e.preventDefault();
-            addTag(inputValue);
-        } else if (e.key === 'Backspace' && !inputValue) {
-            e.preventDefault();
-            setTags(tags.slice(0, -1));
-        }
-    };
-
-    const removeTag = (tagToRemove: string) => {
-        setTags(tags.filter(tag => tag !== tagToRemove));
-    };
-
-    return (
-        <div className="relative">
-            <div className="flex flex-wrap items-center gap-2 w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-1.5 focus-within:ring-2 focus-within:ring-rose-500">
-                <Tag className="h-5 w-5 text-slate-400 shrink-0" />
-                <AnimatePresence>
-                    {tags.map(tag => (
-                        <motion.span
-                            layout
-                            key={tag}
-                            initial={{ opacity: 0, scale: 0.8 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.8 }}
-                            transition={{ duration: 0.15 }}
-                            className="flex items-center gap-1.5 bg-rose-500/20 text-rose-300 text-sm font-medium pl-2.5 pr-1 py-0.5 rounded-full"
-                        >
-                           #{tag}
-                            <button type="button" onClick={() => removeTag(tag)} className="bg-rose-500/30 hover:bg-rose-500/50 rounded-full p-0.5">
-                                <X className="h-3 w-3" />
-                            </button>
-                        </motion.span>
-                    ))}
-                </AnimatePresence>
-                <input
-                    type="text"
-                    value={inputValue}
-                    onChange={handleInputChange}
-                    onKeyDown={handleKeyDown}
-                    onFocus={handleInputChange}
-                    onBlur={() => setTimeout(() => setSuggestions([]), 150)}
-                    placeholder={tags.length === 0 ? "Tags hinzufügen..." : ""}
-                    className="bg-transparent text-white placeholder-slate-500 flex-grow focus:outline-none text-sm min-w-[100px]"
-                />
-            </div>
-            <AnimatePresence>
-                {suggestions.length > 0 && (
-                    <motion.ul 
-                        initial={{ opacity: 0, y: -5 }} 
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -5 }}
-                        className="absolute z-20 top-full mt-1 w-full bg-slate-800 border border-slate-600 rounded-lg shadow-xl overflow-y-auto max-h-48"
-                    >
-                        {suggestions.map(suggestion => (
-                            <li 
-                                key={suggestion} 
-                                onMouseDown={(e) => { e.preventDefault(); addTag(suggestion); }}
-                                className="px-4 py-2 text-sm text-white hover:bg-rose-500/20 cursor-pointer"
-                            >
-                                #{suggestion}
-                            </li>
-                        ))}
-                    </motion.ul>
-                )}
-            </AnimatePresence>
-        </div>
-    );
-};
-
-export const AvailableTags: FC<{
-    availableTags: string[];
-    selectedTags: string[];
-    onTagClick: (tag: string) => void;
-}> = ({ availableTags, selectedTags, onTagClick }) => {
-    if (availableTags.length === 0) return null;
-
-    return (
-        <div>
-            <h5 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2 ml-1">Schnellauswahl Tags</h5>
-            <div className="flex flex-wrap gap-2">
-                {availableTags.map(tag => {
-                    const isSelected = selectedTags.includes(tag);
-                    return (
-                        <button
-                            key={tag}
-                            type="button"
-                            onClick={() => onTagClick(tag)}
-                            className={`px-3 py-1 text-sm font-medium rounded-full transition-colors ${
-                                isSelected 
-                                    ? 'bg-rose-500 text-white' 
-                                    : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-                            }`}
-                        >
-                            #{tag}
-                        </button>
-                    )
-                })}
-            </div>
-        </div>
-    );
-}
-
+import CategoryButtons from './CategoryButtons';
+import TagInput from './TagInput';
+import AvailableTags from './AvailableTags';
 
 interface TransactionsPageProps {
     transactions: Transaction[];
@@ -347,8 +135,16 @@ const TransactionItem: FC<{
                         onChange={(e) => {
                             try {
                                 if (e.target.value) {
-                                    const transactionDate = endOfDay(parseISO(e.target.value));
-                                    setFormState({...formState, date: transactionDate.toISOString()});
+                                    const newDatePart = parseISO(e.target.value);
+                                    const originalDate = parseISO(formState.date);
+                                    
+                                    const finalDate = new Date(newDatePart);
+                                    finalDate.setHours(originalDate.getHours());
+                                    finalDate.setMinutes(originalDate.getMinutes());
+                                    finalDate.setSeconds(originalDate.getSeconds());
+                                    finalDate.setMilliseconds(originalDate.getMilliseconds());
+
+                                    setFormState({...formState, date: finalDate.toISOString()});
                                 }
                             } catch (err) {
                                 console.error("Could not parse date", e.target.value)
