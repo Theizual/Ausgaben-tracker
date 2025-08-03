@@ -1,4 +1,3 @@
-
 import {
     format,
     startOfWeek,
@@ -24,6 +23,7 @@ import {
     isToday,
     getDaysInMonth,
     addYears,
+    subYears,
 } from 'date-fns';
 import { de } from 'date-fns/locale';
 import type { Transaction } from '../types';
@@ -47,6 +47,13 @@ export const getMonthInterval = (date: Date) => {
     return {
         start: startOfMonth(date),
         end: endOfMonth(date),
+    };
+};
+
+export const getYearInterval = (date: Date) => {
+    return {
+        start: startOfYear(date),
+        end: endOfYear(date),
     };
 };
 
@@ -80,4 +87,5 @@ export {
     getDaysInMonth,
     isWithinInterval,
     addYears,
+    subYears,
 };

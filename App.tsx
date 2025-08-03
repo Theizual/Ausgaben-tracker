@@ -453,16 +453,18 @@ const MainTabs: React.FC<{ activeTab: string; setActiveTab: (tab: 'dashboard' | 
                 <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id as 'dashboard' | 'transactions' | 'statistics' | 'tags')}
-                    className={`flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all
+                    className={`flex items-center justify-center rounded-lg text-sm font-medium transition-all sm:gap-2 p-3 sm:px-4 sm:py-2
                         ${
                             activeTab === tab.id
                                 ? 'bg-gradient-to-r from-rose-500 to-red-600 text-white shadow-lg'
-                                : 'text-slate-400 hover:text-white'
+                                : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
                         }`
                     }
+                    title={tab.label}
+                    aria-label={tab.label}
                 >
                     <tab.icon className="h-5 w-5" />
-                    <span>{tab.label}</span>
+                    <span className="hidden sm:inline">{tab.label}</span>
                 </button>
             ))}
         </div>
