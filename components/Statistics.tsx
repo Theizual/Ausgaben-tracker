@@ -1,4 +1,5 @@
 
+
 import React, { useState, useMemo } from 'react';
 import type { FC } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -20,7 +21,7 @@ type StatisticsProps = {
 
 const Statistics: FC<StatisticsProps> = (props) => {
     const [currentMonth, setCurrentMonth] = useState(new Date());
-    const [selectedDay, setSelectedDay] = useState<Date | null>(null);
+    const [selectedDay, setSelectedDay] = useState<Date | null>(new Date());
 
     const monthlyTransactions = useMemo(() => {
         const start = startOfMonth(currentMonth);
@@ -83,7 +84,7 @@ const Statistics: FC<StatisticsProps> = (props) => {
                 transactions={monthlyTransactions}
                 currentMonth={currentMonth}
             />
-            <TopCategories
+            <MonthlyCategoryBreakdown
                 transactions={monthlyTransactions}
                 categoryMap={props.categoryMap}
                 currentMonth={currentMonth}
@@ -320,8 +321,8 @@ const HighlightCard: FC<{ title: string, label: string, value: number }> = ({ ti
     </motion.div>
 );
 
-const TopCategories: FC<{ transactions: Transaction[], categoryMap: Map<string, Category>, currentMonth: Date }> = ({ transactions, categoryMap, currentMonth }) => {
-    const topCategories = useMemo(() => {
+const MonthlyCategoryBreakdown: FC<{ transactions: Transaction[], categoryMap: Map<string, Category>, currentMonth: Date }> = ({ transactions, categoryMap, currentMonth }) => {
+    const categoryBreakdown = useMemo(() => {
         const spending = new Map<string, number>();
         transactions.forEach(t => {
             if (t.categoryId) { // Ensure categoryId exists
@@ -329,7 +330,7 @@ const TopCategories: FC<{ transactions: Transaction[], categoryMap: Map<string, 
             }
         });
 
-        const sorted = [...spending.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
+        const sorted = [...spending.entries()].sort((a, b) => b[1] - a[1]);
         const totalMonthlySpending = transactions.reduce((sum, t) => sum + t.amount, 0);
 
         return sorted.map(([id, amount]) => {
@@ -348,9 +349,9 @@ const TopCategories: FC<{ transactions: Transaction[], categoryMap: Map<string, 
 
     return (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-slate-800 p-6 rounded-2xl border border-slate-700">
-            <h3 className="text-lg font-bold text-white mb-4">Top 5 Kategorien ({format(currentMonth, 'MMMM', { locale: de })})</h3>
+            <h3 className="text-lg font-bold text-white mb-4">Kategorienübersicht ({format(currentMonth, 'MMMM', { locale: de })})</h3>
             <div className="space-y-4">
-                {topCategories.length > 0 ? topCategories.map(({ category, amount, percentage }) => (
+                {categoryBreakdown.length > 0 ? categoryBreakdown.map(({ category, amount, percentage }) => (
                     <div key={category.id}>
                         <div className="flex justify-between items-center text-sm mb-1">
                             <span className="font-medium text-slate-300">{category.name}</span>

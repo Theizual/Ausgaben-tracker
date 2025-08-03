@@ -34,6 +34,7 @@ const ProgressBar: FC<{ percentage: number; color: string; }> = ({ percentage, c
 
 const Dashboard: FC<DashboardProps> = (props) => {
     const [viewMode, setViewMode] = useState<ViewMode>('woche');
+    const [isCategoryBudgetOpen, setCategoryBudgetOpen] = useState(false);
     
     const { filteredTransactions, totalExpenses, dailyAverage, subtext } = useMemo(() => {
         const now = new Date();
@@ -150,6 +151,10 @@ const Dashboard: FC<DashboardProps> = (props) => {
                         transition={{ delay: 0.1 }}
                         className="bg-slate-800/50 p-6 rounded-2xl border border-slate-700/50"
                     >
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="font-bold text-white">Zusammenfassung</h3>
+                            <ViewTabs viewMode={viewMode} setViewMode={setViewMode} />
+                        </div>
                         <div className="flex justify-between items-start">
                              <div className="w-[calc(50%-1rem)]">
                                 <div className="flex items-center text-slate-400 mb-2">
@@ -182,7 +187,6 @@ const Dashboard: FC<DashboardProps> = (props) => {
                     >
                         <div className="flex justify-between items-center mb-4">
                             <h3 className="font-bold text-white">Analyse</h3>
-                            <ViewTabs viewMode={viewMode} setViewMode={setViewMode} />
                         </div>
                         <div className="h-[250px]">
                             <CategoryPieChart transactions={filteredTransactions} categoryMap={props.categoryMap} />
@@ -202,37 +206,58 @@ const Dashboard: FC<DashboardProps> = (props) => {
                         )}
                         {budgetedCategories.length > 0 && (
                             <div className="mt-6 pt-6 border-t border-slate-700/50">
-                                <h4 className="text-sm font-semibold text-slate-300 mb-4">Kategorienbudgets</h4>
-                                <div className="space-y-4 max-h-48 overflow-y-auto pr-2 -mr-2">
-                                    {budgetedCategories.map(category => {
-                                        const spent = spendingByCategory.get(category.id) || 0;
-                                        const budget = category.budget!;
-                                        const percentage = (spent / budget) * 100;
-                                        const totalBudgetShare = props.totalMonthlyBudget > 0 ? ((budget / props.totalMonthlyBudget) * 100) : 0;
-                                        const Icon = iconMap[category.icon] || iconMap.MoreHorizontal;
-                                        
-                                        return (
-                                            <div key={category.id}>
-                                                <div className="flex justify-between items-center text-sm mb-1.5">
-                                                    <div className="flex items-center gap-3 truncate">
-                                                        <Icon className="h-4 w-4 flex-shrink-0" style={{ color: category.color }} />
-                                                        <span className="font-medium text-white truncate">{category.name}</span>
+                                <button 
+                                    onClick={() => setCategoryBudgetOpen(!isCategoryBudgetOpen)}
+                                    className="w-full flex justify-between items-center text-left"
+                                    aria-expanded={isCategoryBudgetOpen}
+                                >
+                                    <h4 className="text-sm font-semibold text-slate-300">Kategorienbudgets</h4>
+                                    <ChevronDown 
+                                        className={`h-5 w-5 text-slate-400 transition-transform duration-300 ${isCategoryBudgetOpen ? 'rotate-180' : ''}`} 
+                                    />
+                                </button>
+                                <AnimatePresence>
+                                {isCategoryBudgetOpen && (
+                                     <motion.div
+                                        initial={{ height: 0, opacity: 0 }}
+                                        animate={{ height: 'auto', opacity: 1 }}
+                                        exit={{ height: 0, opacity: 0 }}
+                                        transition={{ duration: 0.3, ease: 'easeInOut' }}
+                                        className="overflow-hidden"
+                                    >
+                                        <div className="space-y-4 mt-4">
+                                            {budgetedCategories.map(category => {
+                                                const spent = spendingByCategory.get(category.id) || 0;
+                                                const budget = category.budget!;
+                                                const percentage = (spent / budget) * 100;
+                                                const totalBudgetShare = props.totalMonthlyBudget > 0 ? ((budget / props.totalMonthlyBudget) * 100) : 0;
+                                                const Icon = iconMap[category.icon] || iconMap.MoreHorizontal;
+                                                
+                                                return (
+                                                    <div key={category.id}>
+                                                        <div className="flex justify-between items-center text-sm mb-1.5">
+                                                            <div className="flex items-center gap-3 truncate">
+                                                                <Icon className="h-4 w-4 flex-shrink-0" style={{ color: category.color }} />
+                                                                <span className="font-medium text-white truncate">{category.name}</span>
+                                                            </div>
+                                                            <div className="font-semibold text-white flex-shrink-0 pl-2">
+                                                                {formatCurrency(spent)}
+                                                                <span className="text-slate-500 text-xs"> / {formatCurrency(budget)}</span>
+                                                            </div>
+                                                        </div>
+                                                        <ProgressBar percentage={percentage} color={getCategoryBarColor(percentage, category.color)} />
+                                                        {totalBudgetShare > 0 && (
+                                                            <p className="text-xs text-slate-500 text-right mt-1">
+                                                                Entspricht {totalBudgetShare.toFixed(0)}% des Gesamtbudgets
+                                                            </p>
+                                                        )}
                                                     </div>
-                                                    <div className="font-semibold text-white flex-shrink-0 pl-2">
-                                                        {formatCurrency(spent)}
-                                                        <span className="text-slate-500 text-xs"> / {formatCurrency(budget)}</span>
-                                                    </div>
-                                                </div>
-                                                <ProgressBar percentage={percentage} color={getCategoryBarColor(percentage, category.color)} />
-                                                {totalBudgetShare > 0 && (
-                                                    <p className="text-xs text-slate-500 text-right mt-1">
-                                                        Entspricht {totalBudgetShare.toFixed(0)}% des Gesamtbudgets
-                                                    </p>
-                                                )}
-                                            </div>
-                                        );
-                                    })}
-                                </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </motion.div>
+                                )}
+                                </AnimatePresence>
                             </div>
                         )}
                     </motion.div>

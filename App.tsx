@@ -1,5 +1,6 @@
 
 
+
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { AnimatePresence, motion, Reorder } from 'framer-motion';
 import { INITIAL_CATEGORIES, INITIAL_GROUPS } from './constants';
@@ -9,7 +10,7 @@ import Dashboard from './components/Dashboard';
 import Statistics from './components/Statistics';
 import TransactionsPage from './components/Transactions';
 import { formatGermanDate, parseISO, addMonths, addYears, endOfDay, format, formatCurrency } from './utils/dateUtils';
-import { iconMap, Settings, Loader2, X, TrendingDown, LayoutGrid, BarChart2, Sheet, Save, DownloadCloud, Target, Edit, Trash2, Plus, GripVertical, Wallet, SlidersHorizontal, Repeat, History, Tag } from './components/Icons';
+import { iconMap, Settings, Loader2, X, TrendingDown, LayoutGrid, BarChart2, Sheet, Save, DownloadCloud, Target, Edit, Trash2, Plus, GripVertical, Wallet, SlidersHorizontal, Repeat, History, Tag, ChevronUp, ChevronDown } from './components/Icons';
 import type { LucideProps } from 'lucide-react';
 import type { FC } from 'react';
 
@@ -611,6 +612,18 @@ const SettingsModal: React.FC<{
         setEditableCategories(current => current.map(cat => cat.group === groupName ? { ...cat, group: fallbackGroup } : cat));
         setEditableGroups(current => current.filter(g => g !== groupName));
     };
+
+    const handleMoveGroup = (index: number, direction: 'up' | 'down') => {
+        setEditableGroups(current => {
+            const newGroups = [...current];
+            const otherIndex = direction === 'up' ? index - 1 : index + 1;
+            if (otherIndex < 0 || otherIndex >= newGroups.length) {
+                return newGroups;
+            }
+            [newGroups[index], newGroups[otherIndex]] = [newGroups[otherIndex], newGroups[index]];
+            return newGroups;
+        });
+    };
     
     const handleAddCategory = (groupName: string) => {
         const newCategory: Category = {
@@ -737,13 +750,30 @@ const SettingsModal: React.FC<{
                                         <h3 className="text-lg font-semibold text-white">Kategorien & Gruppen</h3>
                                         <button onClick={handleAddGroup} className="flex items-center gap-2 text-sm bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded-md font-semibold"><Plus className="h-4 w-4"/>Neue Gruppe</button>
                                     </div>
-                                    <Reorder.Group axis="y" values={editableGroups} onReorder={setEditableGroups} className="space-y-4">
-                                        {editableGroups.map(groupName => {
+                                    <div className="space-y-4">
+                                        {editableGroups.map((groupName, index) => {
                                             const groupCategories = editableCategories.filter(c => c.group === groupName);
                                             return (
-                                            <Reorder.Item key={groupName} value={groupName} as="div" className="bg-slate-700/40 p-4 rounded-lg">
-                                                <div className="flex items-center gap-2 mb-4">
-                                                    <div className="text-slate-500 cursor-grab"><GripVertical className="h-5 w-5" /></div>
+                                            <div key={groupName} className="bg-slate-700/40 p-4 rounded-lg">
+                                                <div className="flex items-center gap-3 mb-4">
+                                                    <div className="flex flex-col -my-1">
+                                                        <button
+                                                            onClick={() => handleMoveGroup(index, 'up')}
+                                                            disabled={index === 0}
+                                                            className="p-1 rounded-full text-slate-500 hover:bg-slate-600 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
+                                                            title="Gruppe nach oben verschieben"
+                                                        >
+                                                            <ChevronUp className="h-4 w-4" />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleMoveGroup(index, 'down')}
+                                                            disabled={index === editableGroups.length - 1}
+                                                            className="p-1 rounded-full text-slate-500 hover:bg-slate-600 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
+                                                            title="Gruppe nach unten verschieben"
+                                                        >
+                                                            <ChevronDown className="h-4 w-4" />
+                                                        </button>
+                                                    </div>
                                                     <input
                                                         type="text"
                                                         value={groupName}
@@ -765,33 +795,58 @@ const SettingsModal: React.FC<{
                                                     {groupCategories.map(cat => {
                                                         const Icon = iconMap[cat.icon] || iconMap['MoreHorizontal'];
                                                         return (
-                                                            <Reorder.Item key={cat.id} value={cat} as="div" className="flex items-center gap-3 p-2 bg-slate-700/50 rounded-lg">
-                                                                <div className="text-slate-500 cursor-grab"><GripVertical className="h-5 w-5" /></div>
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => setPickingIconFor(cat.id)}
-                                                                    className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-700 focus:ring-rose-500"
-                                                                    style={{ backgroundColor: cat.color }}
-                                                                    title="Symbol ändern"
-                                                                ><Icon className="h-5 w-5 text-white" /></button>
-                                                                
-                                                                <input type="text" value={cat.name} onChange={e => handleCategoryChange(cat.id, 'name', e.target.value)} className="bg-transparent font-medium text-white w-full focus:outline-none"/>
-                                                                <input type="color" value={cat.color} onChange={e => handleCategoryChange(cat.id, 'color', e.target.value)} className="w-8 h-8 p-0 border-none rounded-md bg-transparent cursor-pointer" title="Farbe ändern"/>
-                                                                
-                                                                <select value={cat.group} onChange={e => handleCategoryChange(cat.id, 'group', e.target.value)} className="bg-slate-600 text-sm rounded-md border-slate-500 p-1.5 focus:outline-none focus:ring-2 focus:ring-rose-500">
-                                                                  {editableGroups.map(g => <option key={g} value={g}>{g}</option>)}
-                                                                </select>
-
-                                                                <button onClick={() => handleDeleteCategory(cat.id)} className="p-1 rounded-full hover:bg-red-500/20 text-slate-500 hover:text-red-400"><Trash2 className="h-4 w-4"/></button>
+                                                            <Reorder.Item key={cat.id} value={cat} as="div" className="bg-slate-700/50 p-3 rounded-lg">
+                                                                <div className="flex items-start gap-3 w-full">
+                                                                    <div className="text-slate-500 cursor-grab pt-1"><GripVertical className="h-5 w-5" /></div>
+                                                                    
+                                                                    <div className="flex-1 flex flex-col gap-3">
+                                                                        <div className="flex items-center gap-3">
+                                                                             <button
+                                                                                type="button"
+                                                                                onClick={() => setPickingIconFor(cat.id)}
+                                                                                className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-700 focus:ring-rose-500"
+                                                                                style={{ backgroundColor: cat.color }}
+                                                                                title="Symbol ändern"
+                                                                            >
+                                                                                <Icon className="h-5 w-5 text-white" />
+                                                                            </button>
+                                                                             <input
+                                                                                type="text"
+                                                                                value={cat.name}
+                                                                                onChange={e => handleCategoryChange(cat.id, 'name', e.target.value)}
+                                                                                className="bg-transparent font-medium text-white w-full focus:outline-none"
+                                                                            />
+                                                                        </div>
+                                                                         <div className="flex items-center gap-3">
+                                                                            <input
+                                                                                type="color"
+                                                                                value={cat.color}
+                                                                                onChange={e => handleCategoryChange(cat.id, 'color', e.target.value)}
+                                                                                className="w-8 h-8 p-0 border-none rounded-md bg-transparent cursor-pointer"
+                                                                                title="Farbe ändern"
+                                                                            />
+                                                                            <select
+                                                                                value={cat.group}
+                                                                                onChange={e => handleCategoryChange(cat.id, 'group', e.target.value)}
+                                                                                className="bg-slate-600 text-sm rounded-md border-slate-500 p-1.5 focus:outline-none focus:ring-2 focus:ring-rose-500"
+                                                                            >
+                                                                                {editableGroups.map(g => <option key={g} value={g}>{g}</option>)}
+                                                                            </select>
+                                                                        </div>
+                                                                    </div>
+                                                                     <button onClick={() => handleDeleteCategory(cat.id)} className="p-1 rounded-full hover:bg-red-500/20 text-slate-500 hover:text-red-400">
+                                                                        <Trash2 className="h-4 w-4"/>
+                                                                    </button>
+                                                                </div>
                                                             </Reorder.Item>
                                                         )
                                                     })}
                                                 </Reorder.Group>
                                                 <button onClick={() => handleAddCategory(groupName)} className="flex items-center gap-2 text-sm text-slate-400 hover:text-white mt-3 ml-8"><Plus className="h-4 w-4"/>Kategorie hinzufügen</button>
-                                            </Reorder.Item>
+                                            </div>
                                             )
                                         })}
-                                    </Reorder.Group>
+                                    </div>
                                 </motion.div>
                             )}
 
