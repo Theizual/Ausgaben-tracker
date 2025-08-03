@@ -39,7 +39,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const response = await sheets.spreadsheets.values.batchGet({
       spreadsheetId: sheetId,
-      ranges: ['Categories!A2:F', 'Transactions!A2:F', 'Recurring!A2:G'],
+      ranges: ['Categories!A2:F', 'Transactions!A2:F', 'Recurring!A2:G', 'Tags!A2:Z'],
     });
 
     const valueRanges = response.data.valueRanges || [];
@@ -78,8 +78,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         lastProcessedDate: row[6],
     })).filter(r => r.id && r.amount > 0 && r.categoryId && r.frequency && r.startDate);
 
+    const tagValues = valueRanges.find(r => r.range?.startsWith('Tags'))?.values || [];
+    const allAvailableTags: string[] = tagValues.map((row: string[]) => row[0]).filter(Boolean);
 
-    return res.status(200).json({ categories, transactions, recurringTransactions });
+    return res.status(200).json({ categories, transactions, recurringTransactions, allAvailableTags });
 
   } catch (error: any) {
     console.error('Error reading from Google Sheet:', error);

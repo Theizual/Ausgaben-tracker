@@ -26,25 +26,47 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).end('Method Not Allowed');
   }
 
-  const { categories, transactions, recurringTransactions } = req.body;
+  const { categories, transactions, recurringTransactions, allAvailableTags } = req.body;
   const sheetId = process.env.GOOGLE_SHEET_ID;
 
   if (!sheetId || typeof sheetId !== 'string') {
     return res.status(500).json({ error: 'Die Google Sheet ID ist auf dem Server nicht konfiguriert.' });
   }
 
-  if (!Array.isArray(categories) || !Array.isArray(transactions) || !Array.isArray(recurringTransactions)) {
-    return res.status(400).json({ error: 'Categories, transactions, and recurring transactions are required.' });
+  if (!Array.isArray(categories) || !Array.isArray(transactions) || !Array.isArray(recurringTransactions) || !Array.isArray(allAvailableTags)) {
+    return res.status(400).json({ error: 'Categories, transactions, recurring transactions, and tags are required.' });
   }
 
   try {
     const auth = await getAuthClient();
     const sheets = google.sheets({ version: 'v4', auth });
 
+    // Ensure all required sheets exist, create them if they don't
+    const requiredSheetTitles = ['Categories', 'Transactions', 'Recurring', 'Tags'];
+    const spreadsheet = await sheets.spreadsheets.get({
+        spreadsheetId: sheetId,
+        fields: 'sheets.properties.title',
+    });
+
+    const existingSheetTitles = spreadsheet.data.sheets?.map(s => s.properties?.title || '') || [];
+    const missingSheets = requiredSheetTitles.filter(title => !existingSheetTitles.includes(title));
+
+    if (missingSheets.length > 0) {
+        await sheets.spreadsheets.batchUpdate({
+            spreadsheetId: sheetId,
+            requestBody: {
+                requests: missingSheets.map(title => ({
+                    addSheet: { properties: { title } }
+                }))
+            }
+        });
+    }
+
     // Prepare data for upload
     const categoryHeader = ['id', 'name', 'color', 'icon', 'budget', 'group'];
     const transactionHeader = ['id', 'amount', 'description', 'categoryId', 'date', 'tags'];
     const recurringHeader = ['id', 'amount', 'description', 'categoryId', 'frequency', 'startDate', 'lastProcessedDate'];
+    const tagHeader = ['tag'];
 
     const categoryValues = [categoryHeader, ...categories.map((c: Category) => [c.id, c.name, c.color, c.icon, c.budget ? String(c.budget).replace('.', ',') : '', c.group])];
     const transactionValues = [transactionHeader, ...transactions.map((t: Transaction) => [
@@ -56,12 +78,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         t.tags?.join(',') || ''
     ])];
     const recurringValues = [recurringHeader, ...recurringTransactions.map((r: RecurringTransaction) => [r.id, String(r.amount).replace('.',','), r.description, r.categoryId, r.frequency, r.startDate, r.lastProcessedDate || ''])];
+    const tagValues = [tagHeader, ...allAvailableTags.map((tag: string) => [tag])];
 
     // Clear existing data
     await sheets.spreadsheets.values.batchClear({
       spreadsheetId: sheetId,
       requestBody: {
-        ranges: ['Categories!A1:Z', 'Transactions!A1:Z', 'Recurring!A1:Z'],
+        ranges: ['Categories!A1:Z', 'Transactions!A1:Z', 'Recurring!A1:Z', 'Tags!A1:Z'],
       },
     });
 
@@ -74,6 +97,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           { range: 'Categories!A1', values: categoryValues },
           { range: 'Transactions!A1', values: transactionValues },
           { range: 'Recurring!A1', values: recurringValues },
+          { range: 'Tags!A1', values: tagValues },
         ],
       },
     });

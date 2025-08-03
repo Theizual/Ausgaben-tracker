@@ -163,6 +163,7 @@ const App: React.FC = () => {
             const newCategories: Category[] = data.categories || [];
             const newTransactions: Transaction[] = data.transactions || [];
             const newRecurring: RecurringTransaction[] = data.recurringTransactions || [];
+            const newTags: string[] = data.allAvailableTags || [];
 
 
             if (newCategories.length > 0) {
@@ -172,8 +173,9 @@ const App: React.FC = () => {
             }
             if (newTransactions.length > 0) setTransactions(newTransactions);
             if (newRecurring.length > 0) setRecurringTransactions(newRecurring);
+            if (newTags.length > 0) setAllAvailableTags(newTags);
             
-            alert(`Daten erfolgreich geladen: ${newCategories.length} Kategorien, ${newTransactions.length} Transaktionen, ${newRecurring.length} wiederkehrende Ausgaben.`);
+            alert(`Daten erfolgreich geladen: ${newCategories.length} Kategorien, ${newTransactions.length} Transaktionen, ${newRecurring.length} wiederkehrende Ausgaben, ${newTags.length} Tags.`);
 
         } catch (e: any) {
             console.error("Error downloading from sheet:", e);
@@ -183,7 +185,7 @@ const App: React.FC = () => {
         } finally {
             setSyncOperation(null);
         }
-    }, [setCategories, setTransactions, setCategoryGroups, setRecurringTransactions]);
+    }, [setCategories, setTransactions, setCategoryGroups, setRecurringTransactions, setAllAvailableTags]);
 
     const uploadToSheet = useCallback(async (options: { isAutoSync?: boolean } = {}) => {
         const { isAutoSync = false } = options;
@@ -199,6 +201,7 @@ const App: React.FC = () => {
                     categories,
                     transactions,
                     recurringTransactions,
+                    allAvailableTags,
                 }),
             });
 
@@ -221,7 +224,7 @@ const App: React.FC = () => {
         } finally {
             if(!isAutoSync) setSyncOperation(null);
         }
-    }, [categories, transactions, recurringTransactions]);
+    }, [categories, transactions, recurringTransactions, allAvailableTags]);
 
     useEffect(() => {
         if (!isAutoSyncEnabled) {
