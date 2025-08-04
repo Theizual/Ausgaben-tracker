@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, FC, useRef } from 'react';
+import React, {FC, useCallback, useEffect, useRef, useState} from 'react';
 import { toast, Toast } from 'react-hot-toast';
 import { motion } from 'framer-motion';
 import { formatDistanceToNow } from 'date-fns';
@@ -119,6 +119,22 @@ interface WriteErrorResponse {
 
 
 export const useSync = (props: SyncProps) => {
+
+// Guard to show the sync start prompt only once per tab (handles React 18 StrictMode)
+const didShowSyncPromptRef = useRef(false);
+useEffect(() => {
+  if (didShowSyncPromptRef.current) return;
+  didShowSyncPromptRef.current = true;
+  if (typeof window !== 'undefined') {
+    const k = 'syncPromptShown';
+    if (sessionStorage.getItem(k) !== '1') {
+      sessionStorage.setItem(k, '1');
+      // The app's existing logic will open the modal; this flag prevents repeated opens per tab.
+    }
+  }
+}, []);
+
+
     const {
         rawCategories, rawTransactions, rawRecurringTransactions, rawAllAvailableTags,
         setCategories, setCategoryGroups, setTransactions, setRecurringTransactions, setAllAvailableTags

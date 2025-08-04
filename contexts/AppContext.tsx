@@ -1,4 +1,7 @@
-import React, { createContext, useContext, useEffect, useRef, useMemo } from 'react';
+import debounce from 'lodash.debounce';
+
+
+import React, { createContext, useContext, useEffect, useMemo, useRef} from 'react';
 import { useCategories } from '../hooks/useCategories';
 import { useTransactionData } from '../hooks/useTransactionData';
 import { useUI } from '../hooks/useUI';
@@ -52,21 +55,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         syncStateRef.current = syncState;
     });
 
-    // Suppress auto-sync shortly after a sync operation to ignore state changes from the sync itself
-    const suppressAutoSyncRef = useRef(false);
-    useEffect(() => {
-      if (syncState.isSyncing) return; // Don't do anything while a sync is in progress
-      // After a sync completes (isSyncing becomes false), suppress auto-sync for 1 second
-      suppressAutoSyncRef.current = true;
-      const timer = setTimeout(() => { suppressAutoSyncRef.current = false; }, 1000);
-      return () => clearTimeout(timer);
-    }, [syncState.isSyncing]);
-
     // 2. Stable debounced function: Created once with useMemo.
     // It reads from the ref at execution time, getting the latest state.
-    const debouncedSync = useMemo(() => debounce(() => {
+    
+// Suppress auto-sync right after a sync finishes to avoid loops from sync-written state
+const suppressAutoSyncRef = useRef(false);
+useEffect(() => {
+  // When syncing stops, block auto-sync for a short period
+  if (!syncState.isSyncing) {
+    suppressAutoSyncRef.current = true;
+    const t = setTimeout(() => { suppressAutoSyncRef.current = false; }, 1000);
+    return () => clearTimeout(t);
+  }
+}, [syncState.isSyncing]);
+
+const debouncedSync = useMemo(() => debounce(() => {
         const { isAutoSyncEnabled, isSyncing, syncData } = syncStateRef.current;
-        if (suppressAutoSyncRef.current) return; // <-- Important: check the suppression flag
         if (isAutoSyncEnabled && !isSyncing) {
            syncData({ isAuto: true });
         }
