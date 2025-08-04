@@ -1,6 +1,4 @@
-
-
-import React, { useState, useCallback, useEffect, FC } from 'react';
+import React, { useState, useCallback, useEffect, FC, useRef } from 'react';
 import { toast, Toast } from 'react-hot-toast';
 import { motion } from 'framer-motion';
 import { formatDistanceToNow } from 'date-fns';
@@ -130,6 +128,7 @@ export const useSync = (props: SyncProps) => {
     const [lastSync, setLastSync] = useLocalStorage<string | null>('lastSyncTimestamp', null);
     const isSyncing = syncOperation !== null;
     const [isAutoSyncEnabled, setIsAutoSyncEnabled] = useLocalStorage<boolean>('autoSyncEnabled', false);
+    const promptShownRef = useRef(false);
 
     const syncData = useCallback(async (options: { isAuto?: boolean; isConflictResolution?: boolean } = {}) => {
         const { isAuto = false, isConflictResolution = false } = options;
@@ -252,6 +251,11 @@ export const useSync = (props: SyncProps) => {
     ]);
 
     useEffect(() => {
+        // Don't show prompt if already shown in this session, or if a sync is happening.
+        if (promptShownRef.current || isSyncing) {
+            return;
+        }
+
         const SYNC_PROMPT_THRESHOLD = 60 * 60 * 1000; // 1 hour
         let shouldPrompt = false;
 
@@ -269,9 +273,12 @@ export const useSync = (props: SyncProps) => {
             }
         }
         
-        if (shouldPrompt && !isSyncing) {
-            setTimeout(() => { // Use timeout to ensure toaster is ready
-                 toast.custom(
+        if (shouldPrompt) {
+            // Mark as shown immediately to prevent re-triggering on subsequent renders.
+            promptShownRef.current = true;
+            
+            setTimeout(() => {
+                toast.custom(
                     (t: Toast) => React.createElement(SyncPromptToast, {
                         lastSync: lastSync,
                         onSync: () => syncData(),
@@ -285,7 +292,7 @@ export const useSync = (props: SyncProps) => {
                 );
             }, 500);
         }
-    }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [lastSync, isSyncing, syncData]);
 
     return {
         syncOperation,
