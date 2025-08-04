@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { google } from 'googleapis';
 import { JWT } from 'google-auth-library';
 import { z } from 'zod';
-import { withRetry, createSchemas, parseSheetData } from './utils';
+import { withRetry, createSchemas, parseSheetData } from './utils.js';
 import type { Category, Transaction, RecurringTransaction, Tag } from '../../types';
 
 async function getAuthClient() {
