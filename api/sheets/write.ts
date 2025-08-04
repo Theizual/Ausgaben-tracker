@@ -75,7 +75,7 @@ const WriteBodySchema = z.object({
 
 type Mergeable = Category | Transaction | RecurringTransaction | Tag;
 
-function findConflicts<T extends Mergeable>(clientItems: T[], serverItems: T[]): T[] {
+function findConflicts<T extends { id: string; version: number }>(clientItems: T[], serverItems: T[]): T[] {
     const serverMap = new Map(serverItems.map(item => [item.id, item]));
     const conflicts: T[] = [];
 
@@ -89,7 +89,7 @@ function findConflicts<T extends Mergeable>(clientItems: T[], serverItems: T[]):
     return conflicts;
 }
 
-function mergeData<T extends Mergeable>(clientItems: T[], serverItems: T[]): T[] {
+function mergeData<T extends { id: string; version: number }>(clientItems: T[], serverItems: T[]): T[] {
     const allItems = new Map<string, T>();
     
     [...serverItems, ...clientItems].forEach(item => {

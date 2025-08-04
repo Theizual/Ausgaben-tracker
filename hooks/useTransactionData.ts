@@ -303,6 +303,19 @@ export const useTransactionData = ({ showConfirmation, closeTransactionDetail }:
         }
     }, [rawState.transactions, closeTransactionDetail]);
 
+    const deleteMultipleTransactions = useCallback((ids: string[]) => {
+        if (ids.length === 0) return;
+        const now = new Date().toISOString();
+        const updatedTransactions = rawState.transactions.map(t => {
+            if (ids.includes(t.id)) {
+                return { ...t, isDeleted: true, lastModified: now, version: (t.version || 0) + 1 };
+            }
+            return t;
+        });
+        dispatch({ type: 'SET_TRANSACTIONS', payload: updatedTransactions });
+        toast.success(`${ids.length} ${ids.length > 1 ? 'Einträge' : 'Eintrag'} gelöscht.`);
+    }, [rawState.transactions]);
+
     const addRecurringTransaction = useCallback((item: Omit<RecurringTransaction, 'lastModified' | 'version'>) => {
         const newRec: RecurringTransaction = { ...item, lastModified: new Date().toISOString(), version: 1 };
         dispatch({ type: 'ADD_RECURRING', payload: newRec });
@@ -455,6 +468,7 @@ export const useTransactionData = ({ showConfirmation, closeTransactionDetail }:
         addMultipleTransactions,
         updateTransaction,
         deleteTransaction,
+        deleteMultipleTransactions,
         addRecurringTransaction,
         updateRecurringTransaction,
         deleteRecurringTransaction,

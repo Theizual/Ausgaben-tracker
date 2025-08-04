@@ -1,19 +1,26 @@
 
 
-import React, { useState, useMemo, useRef, useEffect, FC } from 'react';
+import React, { useState, useMemo, FC, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useApp } from '../contexts/AppContext';
 import type { Transaction, Category, Tag, QuickFilterId } from '../types';
-import { format, parseISO, formatCurrency, endOfDay, startOfDay, getWeekInterval, getMonthInterval } from '../utils/dateUtils';
-import { iconMap, Search, SlidersHorizontal, ChevronDown, Tag as TagIcon, Edit, Trash2, X } from './Icons';
+import { format, parseISO, formatCurrency, endOfDay, startOfDay, getWeekInterval, getMonthInterval, isToday, isYesterday } from '../utils/dateUtils';
+import { de } from 'date-fns/locale';
+import { iconMap, Search, SlidersHorizontal, ChevronDown, Tag as TagIcon, Edit, Trash2, X, Square, CheckSquare, Calendar } from './Icons';
 
 const MotionDiv = motion('div');
 const MotionButton = motion('button');
 
+type GroupedTransactions = {
+    date: string;
+    total: number;
+    transactions: Transaction[];
+}[];
+
 const quickFilterButtons: { id: QuickFilterId; label: string }[] = [
     { id: 'today', label: 'Heute' },
-    { id: 'week', label: 'Diese Woche' },
-    { id: 'month', label: 'Dieser Monat' },
+    { id: 'week', label: 'Woche' },
+    { id: 'month', label: 'Monat' },
     { id: 'all', label: 'Gesamt' },
 ];
 
@@ -40,67 +47,73 @@ const QuickFilters: FC<{
     );
 };
 
-const TransactionList: FC<{ 
-    transactions: Transaction[]; 
+const TransactionList: FC<{
+    groupedTransactions: GroupedTransactions;
     showEmptyMessage?: boolean;
-    activeQuickFilter: QuickFilterId | null;
-    onQuickFilter: (filter: QuickFilterId) => void;
-    onOpenFilters: () => void;
-    isFilterActive: boolean;
-}> = ({ transactions, showEmptyMessage = false, activeQuickFilter, onQuickFilter, onOpenFilters, isFilterActive }) => {
+    selectedIds: string[];
+    onToggleSelect: (id: string) => void;
+    onToggleSelectGroup: (ids: string[]) => void;
+}> = ({ groupedTransactions, showEmptyMessage = false, selectedIds, onToggleSelect, onToggleSelectGroup }) => {
     const { categoryMap, tagMap, handleTagAnalyticsClick, handleTransactionClick, deleteTransaction } = useApp();
+
+    if (showEmptyMessage && groupedTransactions.length === 0) {
+        return (
+            <div className="flex flex-col items-center justify-center h-full text-slate-500 text-center p-4">
+                <Search className="h-12 w-12 mb-4 text-slate-600" />
+                <h3 className="text-lg font-semibold text-slate-300">Keine Transaktionen gefunden</h3>
+                <p>Für die aktuellen Filter gibt es keine Einträge.</p>
+            </div>
+        );
+    }
     
     return (
-        <MotionDiv
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="bg-slate-800/50 p-6 rounded-2xl border border-slate-700/50 flex flex-col h-full"
-        >
-            <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
-                <QuickFilters activeQuickFilter={activeQuickFilter} onQuickFilter={onQuickFilter} />
-                <MotionButton
-                    layout
-                    onClick={onOpenFilters}
-                    className={`relative p-2 rounded-full transition-colors ${
-                        isFilterActive
-                            ? 'bg-rose-500/30 text-rose-300'
-                            : 'text-slate-400 hover:bg-slate-700 hover:text-white'
-                    }`}
-                    title="Suchen & Filtern"
-                >
-                    <Search className="h-5 w-5" />
-                    {isFilterActive && (
-                        <MotionDiv layoutId="filter-dot" className="absolute top-1 right-1 h-2 w-2 bg-rose-400 rounded-full" />
-                    )}
-                </MotionButton>
-            </div>
-            <div className="flex-grow space-y-3 overflow-y-auto -mr-4 pr-4">
-                <AnimatePresence>
-                {transactions.length > 0 ? transactions.map(t => (
-                    <MotionDiv 
-                        key={t.id} 
-                        layout
-                        initial={{ opacity: 0, y: 10 }} 
-                        animate={{ opacity: 1, y: 0 }} 
-                        exit={{ opacity: 0, x: -20 }} 
-                        transition={{ duration: 0.3 }}
-                    >
-                        <TransactionItem 
-                            transaction={t}
-                            category={categoryMap.get(t.categoryId)}
-                            tagMap={tagMap}
-                            onTagClick={handleTagAnalyticsClick}
-                            onTransactionClick={handleTransactionClick}
-                            deleteTransaction={deleteTransaction}
-                        />
-                    </MotionDiv>
-                )) : (
-                    showEmptyMessage && <p className="text-slate-500 text-center py-4">Keine Transaktionen gefunden.</p>
-                )}
-                </AnimatePresence>
-            </div>
-        </MotionDiv>
+        <div className="flex-grow space-y-3 overflow-y-auto -mr-3 pr-3">
+            <AnimatePresence>
+                {groupedTransactions.map(group => {
+                    const groupTransactionIds = group.transactions.map(t => t.id);
+                    const areAllInGroupSelected = groupTransactionIds.every(id => selectedIds.includes(id));
+
+                    return (
+                        <MotionDiv 
+                            key={group.date} 
+                            layout
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: 20 }}
+                            transition={{ duration: 0.3 }}
+                            className="bg-slate-800/20 rounded-xl"
+                        >
+                            <header className="sticky top-0 bg-slate-800/80 backdrop-blur-sm z-10 flex items-center justify-between p-3 border-b border-slate-700/50">
+                                <div className="flex items-center gap-3">
+                                     <button onClick={() => onToggleSelectGroup(groupTransactionIds)} className="p-1 text-slate-400 hover:text-white">
+                                        {areAllInGroupSelected ? <CheckSquare className="h-5 w-5 text-rose-400" /> : <Square className="h-5 w-5" />}
+                                    </button>
+                                    <div>
+                                        <h3 className="font-bold text-white text-md">{group.date}</h3>
+                                        <p className="text-xs text-slate-400">Gesamt: {formatCurrency(group.total)}</p>
+                                    </div>
+                                </div>
+                            </header>
+                            <div className="p-2 space-y-1">
+                                {group.transactions.map(t => (
+                                    <TransactionItem
+                                        key={t.id}
+                                        transaction={t}
+                                        category={categoryMap.get(t.categoryId)}
+                                        tagMap={tagMap}
+                                        onTagClick={handleTagAnalyticsClick}
+                                        onTransactionClick={handleTransactionClick}
+                                        deleteTransaction={deleteTransaction}
+                                        isSelected={selectedIds.includes(t.id)}
+                                        onToggleSelect={() => onToggleSelect(t.id)}
+                                    />
+                                ))}
+                            </div>
+                        </MotionDiv>
+                    );
+                })}
+            </AnimatePresence>
+        </div>
     );
 };
 
@@ -111,62 +124,48 @@ const TransactionItem: FC<{
     onTagClick: (tagId: string) => void;
     onTransactionClick: (transaction: Transaction, mode: 'view' | 'edit') => void;
     deleteTransaction: (id: string) => void;
-}> = ({ transaction, category, tagMap, onTagClick, onTransactionClick, deleteTransaction }) => {
+    isSelected: boolean;
+    onToggleSelect: () => void;
+}> = ({ transaction, category, tagMap, onTagClick, onTransactionClick, deleteTransaction, isSelected, onToggleSelect }) => {
     const Icon = category ? iconMap[category.icon] || iconMap.MoreHorizontal : iconMap.MoreHorizontal;
     const color = category ? category.color : '#64748b';
 
-    const formattedDate = React.useMemo(() => {
-        try {
-            if (!transaction.date || typeof transaction.date !== 'string') return 'Ungültiges Datum';
-            const parsedDate = parseISO(transaction.date);
-            if (isNaN(parsedDate.getTime())) return 'Ungültiges Datum';
-            return format(parsedDate, 'dd. MMMM, HH:mm');
-        } catch (error) {
-            return 'Ungültiges Datum';
-        }
-    }, [transaction.date]);
-
     return (
-        <div className="flex items-center gap-3 bg-slate-800/50 hover:bg-slate-700/50 p-3 rounded-lg transition-colors">
-            <button 
+        <div className={`group flex items-center gap-2 rounded-lg transition-colors duration-150 ${isSelected ? 'bg-rose-500/10' : 'hover:bg-slate-700/50'}`}>
+            <button onClick={onToggleSelect} className="p-3 text-slate-500 hover:text-white">
+                {isSelected ? <CheckSquare className="h-5 w-5 text-rose-400" /> : <Square className="h-5 w-5" />}
+            </button>
+            <div 
+                className="w-full flex items-center gap-3 flex-1 min-w-0 text-left py-2 pr-2 cursor-pointer"
                 onClick={() => onTransactionClick(transaction, 'view')}
-                className="w-full flex items-start gap-4 flex-1 min-w-0 text-left"
             >
-                <div className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: color }}>
-                    <Icon className="h-6 w-6 text-white" />
+                <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: color }}>
+                    <Icon className="h-5 w-5 text-white" />
                 </div>
                 <div className="flex-1 min-w-0">
                     <p className="font-medium text-white truncate">{transaction.description}</p>
-                     <div className="flex flex-col items-start">
-                        <div className="text-sm text-slate-400 mt-1">{formattedDate}</div>
-                        {transaction.tagIds && transaction.tagIds.length > 0 && (
-                            <div className="flex flex-wrap gap-1.5 mt-2">
-                                {transaction.tagIds.map(id => {
-                                    const tagName = tagMap.get(id);
-                                    if (!tagName) return null;
-                                    return (
-                                    <div
-                                        key={id}
-                                        onClick={(e) => {
-                                            e.stopPropagation(); // prevent opening the detail modal
-                                            onTagClick(id);
-                                        }}
-                                        className="text-xs font-medium bg-slate-700 hover:bg-slate-600 text-slate-300 hover:text-white px-2 py-0.5 rounded-full transition-colors cursor-pointer"
-                                        aria-label={`Analysiere Tag ${tagName}`}
-                                    >
-                                        #{tagName}
-                                    </div>
-                                )})}
-                            </div>
-                        )}
+                    <p className="text-xs text-slate-400 truncate">{category?.name}</p>
+                </div>
+                 {transaction.tagIds && transaction.tagIds.length > 0 && (
+                    <div className="hidden md:flex flex-wrap gap-1.5 flex-shrink-0">
+                        {transaction.tagIds.map(id => {
+                            const tagName = tagMap.get(id);
+                            if (!tagName) return null;
+                            return (
+                                <div
+                                    key={id}
+                                    onClick={(e) => { e.stopPropagation(); onTagClick(id); }}
+                                    className="text-xs font-medium bg-slate-700 hover:bg-slate-600 text-slate-300 hover:text-white px-2 py-0.5 rounded-full transition-colors"
+                                >
+                                    #{tagName}
+                                </div>
+                            );
+                        })}
                     </div>
-                </div>
-                <div className="text-right flex-shrink-0 ml-2">
-                     <p className="font-bold text-white text-lg">{formatCurrency(transaction.amount)}</p>
-                     <p className="text-xs text-slate-400 truncate">{category?.name}</p>
-                </div>
-            </button>
-            <div className="flex items-center gap-1">
+                 )}
+                <p className="font-bold text-white text-md text-right w-24 flex-shrink-0 ml-2">{formatCurrency(transaction.amount)}</p>
+            </div>
+            <div className="flex items-center gap-0 pr-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                 <button
                     onClick={() => onTransactionClick(transaction, 'edit')}
                     className="p-2 rounded-full text-slate-400 hover:bg-slate-600 hover:text-white"
@@ -186,58 +185,6 @@ const TransactionItem: FC<{
                     <Trash2 className="h-4 w-4" />
                 </button>
             </div>
-        </div>
-    );
-};
-
-const MultiCategoryPicker: FC<{
-    categories: Category[];
-    selected: string[];
-    onChange: (selected: string[]) => void;
-}> = ({ categories, selected, onChange }) => {
-    const [isOpen, setIsOpen] = useState(false);
-    const wrapperRef = useRef<HTMLDivElement>(null);
-
-    const toggleCategory = (id: string) => {
-        if (selected.includes(id)) {
-            onChange(selected.filter(catId => catId !== id));
-        } else {
-            onChange([...selected, id]);
-        }
-    };
-    
-    useEffect(() => {
-        function handleClickOutside(event: MouseEvent) {
-            if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
-                setIsOpen(false);
-            }
-        }
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, [wrapperRef]);
-
-    const allCategories = useMemo(() => {
-        return [...categories].sort((a,b) => a.name.localeCompare(b.name));
-    }, [categories]);
-
-    return (
-        <div className="relative" ref={wrapperRef}>
-            <button onClick={() => setIsOpen(!isOpen)} className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-left text-white flex justify-between items-center">
-                <span className="truncate">{selected.length === 0 ? 'Alle Kategorien' : `${selected.length} Kategorien gewählt`}</span>
-                <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-            </button>
-            <AnimatePresence>
-            {isOpen && (
-                <MotionDiv initial={{opacity: 0, y: -5}} animate={{opacity: 1, y: 0}} exit={{opacity: 0, y: -5}} className="absolute z-10 top-full mt-2 w-full bg-slate-800 border border-slate-600 rounded-lg shadow-xl max-h-60 overflow-y-auto">
-                    {allCategories.map(category => (
-                        <label key={category.id} className="flex items-center gap-3 p-3 hover:bg-slate-700/50 cursor-pointer">
-                            <input type="checkbox" checked={selected.includes(category.id)} onChange={() => toggleCategory(category.id)} className="w-4 h-4 rounded text-rose-500 bg-slate-600 border-slate-500 focus:ring-rose-500"/>
-                            <span className="text-white text-sm font-medium">{category.name}</span>
-                        </label>
-                    ))}
-                </MotionDiv>
-            )}
-            </AnimatePresence>
         </div>
     );
 };
@@ -372,17 +319,98 @@ const FilterModal: FC<{
     );
 };
 
+const MultiCategoryPicker: FC<{
+    categories: Category[];
+    selected: string[];
+    onChange: (selected: string[]) => void;
+}> = ({ categories, selected, onChange }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const wrapperRef = React.useRef<HTMLDivElement>(null);
+
+    const toggleCategory = (id: string) => {
+        if (selected.includes(id)) {
+            onChange(selected.filter(catId => catId !== id));
+        } else {
+            onChange([...selected, id]);
+        }
+    };
+    
+    React.useEffect(() => {
+        function handleClickOutside(event: MouseEvent) {
+            if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
+                setIsOpen(false);
+            }
+        }
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, [wrapperRef]);
+
+    const allCategories = useMemo(() => {
+        return [...categories].sort((a,b) => a.name.localeCompare(b.name));
+    }, [categories]);
+
+    return (
+        <div className="relative" ref={wrapperRef}>
+            <button onClick={() => setIsOpen(!isOpen)} className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-left text-white flex justify-between items-center">
+                <span className="truncate">{selected.length === 0 ? 'Alle Kategorien' : `${selected.length} Kategorien gewählt`}</span>
+                <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+            </button>
+            <AnimatePresence>
+            {isOpen && (
+                <MotionDiv initial={{opacity: 0, y: -5}} animate={{opacity: 1, y: 0}} exit={{opacity: 0, y: -5}} className="absolute z-10 top-full mt-2 w-full bg-slate-800 border border-slate-600 rounded-lg shadow-xl max-h-60 overflow-y-auto">
+                    {allCategories.map(category => (
+                        <label key={category.id} className="flex items-center gap-3 p-3 hover:bg-slate-700/50 cursor-pointer">
+                            <input type="checkbox" checked={selected.includes(category.id)} onChange={() => toggleCategory(category.id)} className="w-4 h-4 rounded text-rose-500 bg-slate-600 border-slate-500 focus:ring-rose-500"/>
+                            <span className="text-white text-sm font-medium">{category.name}</span>
+                        </label>
+                    ))}
+                </MotionDiv>
+            )}
+            </AnimatePresence>
+        </div>
+    );
+};
+
+const BulkActionBar: FC<{
+    count: number;
+    onDelete: () => void;
+    onClear: () => void;
+}> = ({ count, onDelete, onClear }) => (
+    <AnimatePresence>
+        {count > 0 && (
+            <MotionDiv
+                initial={{ y: "110%" }}
+                animate={{ y: 0 }}
+                exit={{ y: "110%" }}
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                className="fixed bottom-20 md:bottom-4 left-1/2 -translate-x-1/2 w-auto bg-slate-900/80 backdrop-blur-md border border-slate-700 rounded-xl shadow-2xl p-2 flex items-center gap-4 z-40"
+            >
+                <div className="text-white font-semibold text-sm px-3">
+                    {count} {count === 1 ? 'Eintrag' : 'Einträge'} ausgewählt
+                </div>
+                <button onClick={onDelete} className="flex items-center gap-2 bg-red-500/80 hover:bg-red-500 text-white font-bold py-2 px-4 rounded-lg">
+                    <Trash2 className="h-5 w-5"/> Löschen
+                </button>
+                 <button onClick={onClear} className="text-slate-400 hover:text-white p-2 rounded-full">
+                    <X className="h-5 w-5" />
+                </button>
+            </MotionDiv>
+        )}
+    </AnimatePresence>
+);
 
 const TransactionsPage: FC = () => {
     const { 
         transactions, 
-        tagMap, 
+        tagMap,
+        deleteMultipleTransactions,
         transactionFilters, 
         setTransactionFilters, 
         transactionActiveQuickFilter, 
         setTransactionActiveQuickFilter 
     } = useApp();
     const [isFilterModalOpen, setFilterModalOpen] = useState(false);
+    const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
     const handleQuickFilter = (filter: QuickFilterId) => {
         setTransactionActiveQuickFilter(filter);
@@ -410,7 +438,6 @@ const TransactionsPage: FC = () => {
                 break; // a reset will set dates to ''
         }
         
-        // Reset advanced filters when using a quick filter
         setTransactionFilters({
             text: '',
             tags: '',
@@ -420,6 +447,7 @@ const TransactionsPage: FC = () => {
             startDate,
             endDate,
         });
+        setSelectedIds([]); // Clear selection on filter change
     };
 
     const handleAdvancedFilterChange = (newFilters: any) => {
@@ -428,7 +456,6 @@ const TransactionsPage: FC = () => {
         const { startDate, endDate, text, tags, categories, minAmount, maxAmount } = newFilters;
         const now = new Date();
         
-        // Deselect quick filter if any advanced filter is active or dates don't match
         const hasAdvancedFilters = text || tags || categories.length > 0 || minAmount || maxAmount;
         let correspondingQuickFilter: QuickFilterId | null = null;
         
@@ -445,6 +472,7 @@ const TransactionsPage: FC = () => {
         }
         
         setTransactionActiveQuickFilter(correspondingQuickFilter);
+        setSelectedIds([]); // Clear selection on filter change
     };
 
     const isFilterActive = useMemo(() => {
@@ -455,13 +483,8 @@ const TransactionsPage: FC = () => {
                transactionFilters.maxAmount);
     }, [transactionFilters]);
 
-
-    const sortedTransactions = useMemo(() => 
-        [...transactions].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()), 
-    [transactions]);
-
     const filteredTransactions = useMemo(() => {
-        return sortedTransactions.filter(t => {
+        return transactions.filter(t => {
             if (transactionFilters.text && !t.description.toLowerCase().includes(transactionFilters.text.toLowerCase())) return false;
             
             if (transactionFilters.tags) {
@@ -483,43 +506,127 @@ const TransactionsPage: FC = () => {
             if (!isNaN(max) && t.amount > max) return false;
             
             try {
-                if (!t.date || typeof t.date !== 'string') return false; // Guard against invalid date property
+                if (!t.date || typeof t.date !== 'string') return false; 
                 const tDate = parseISO(t.date);
-                if (isNaN(tDate.getTime())) return false; // Guard against invalid date string
+                if (isNaN(tDate.getTime())) return false;
                 
                 if (transactionFilters.startDate) {
                     const startDate = startOfDay(parseISO(transactionFilters.startDate));
-                    if (isNaN(startDate.getTime())) return true; // Ignore invalid filter
+                    if (isNaN(startDate.getTime())) return true;
                     if (tDate < startDate) return false;
                 }
                 if (transactionFilters.endDate) {
                     const endDate = endOfDay(parseISO(transactionFilters.endDate));
-                    if (isNaN(endDate.getTime())) return true; // Ignore invalid filter
+                    if (isNaN(endDate.getTime())) return true; 
                     if (tDate > endDate) return false;
                 }
             } catch (e) { 
                 console.error("Date parsing error for transaction:", t, "or filter:", transactionFilters, e);
-                return true; // Don't filter out item on parsing error
+                return true; 
             }
 
             return true;
         });
-    }, [sortedTransactions, transactionFilters, tagMap]);
+    }, [transactions, transactionFilters, tagMap]);
 
+    const groupedTransactions = useMemo(() => {
+        const groups: { [key: string]: { total: number, transactions: Transaction[] } } = {};
+        
+        filteredTransactions.forEach(t => {
+            const date = format(parseISO(t.date), 'yyyy-MM-dd');
+            if (!groups[date]) {
+                groups[date] = { total: 0, transactions: [] };
+            }
+            groups[date].total += t.amount;
+            groups[date].transactions.push(t);
+        });
+
+        return Object.entries(groups).map(([date, groupData]) => {
+            const parsedDate = parseISO(date);
+            let formattedDate = format(parsedDate, 'EEEE, dd. MMMM', { locale: de });
+            if(isToday(parsedDate)) formattedDate = `Heute, ${format(parsedDate, 'dd. MMMM', { locale: de })}`;
+            if(isYesterday(parsedDate)) formattedDate = `Gestern, ${format(parsedDate, 'dd. MMMM', { locale: de })}`;
+
+            return {
+                date: formattedDate,
+                total: groupData.total,
+                transactions: groupData.transactions,
+            }
+        });
+    }, [filteredTransactions]);
+
+    const handleToggleSelect = (id: string) => {
+        setSelectedIds(prev =>
+            prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+        );
+    };
+
+    const handleToggleSelectGroup = (ids: string[]) => {
+        const areAllSelected = ids.every(id => selectedIds.includes(id));
+        if (areAllSelected) {
+            setSelectedIds(prev => prev.filter(id => !ids.includes(id)));
+        } else {
+            setSelectedIds(prev => [...new Set([...prev, ...ids])]);
+        }
+    };
+    
+    const handleDeleteSelected = () => {
+        if (window.confirm(`Möchten Sie ${selectedIds.length} Einträge wirklich löschen?`)) {
+            deleteMultipleTransactions(selectedIds);
+            setSelectedIds([]);
+        }
+    }
 
     return (
-        <div className="space-y-6">
-            <h1 className="text-3xl font-bold text-white">Transaktionen</h1>
-            <div className="h-[calc(100vh-280px)]">
-                <TransactionList 
-                    transactions={filteredTransactions}
+        <div className="flex flex-col h-full space-y-4">
+            <h1 className="text-3xl font-bold text-white flex-shrink-0">Transaktionen</h1>
+            
+             <MotionDiv
+                layout
+                className="bg-slate-800/50 p-4 rounded-2xl border border-slate-700/50 flex flex-col flex-grow h-0"
+            >
+                <div className="flex justify-between items-center mb-4 flex-wrap gap-2 flex-shrink-0">
+                    <QuickFilters activeQuickFilter={transactionActiveQuickFilter} onQuickFilter={handleQuickFilter} />
+                    <div className="flex items-center gap-2">
+                        {transactionActiveQuickFilter !== 'today' && (
+                             <MotionButton
+                                onClick={() => handleQuickFilter('today')}
+                                className="relative p-2 rounded-full transition-colors text-slate-400 hover:bg-slate-700 hover:text-white"
+                                title="Heute anzeigen"
+                                initial={{opacity: 0}} animate={{opacity: 1}} exit={{opacity: 0}}
+                            >
+                                <Calendar className="h-5 w-5" />
+                            </MotionButton>
+                        )}
+                        <MotionButton
+                            layout
+                            onClick={() => setFilterModalOpen(true)}
+                            className={`relative p-2 rounded-full transition-colors ${
+                                isFilterActive
+                                    ? 'bg-rose-500/30 text-rose-300'
+                                    : 'text-slate-400 hover:bg-slate-700 hover:text-white'
+                            }`}
+                            title="Suchen & Filtern"
+                        >
+                            <SlidersHorizontal className="h-5 w-5" />
+                            {isFilterActive && (
+                                <MotionDiv layoutId="filter-dot" className="absolute top-1 right-1 h-2 w-2 bg-rose-400 rounded-full" />
+                            )}
+                        </MotionButton>
+                    </div>
+                </div>
+
+                 <TransactionList
+                    groupedTransactions={groupedTransactions}
                     showEmptyMessage={true}
-                    activeQuickFilter={transactionActiveQuickFilter}
-                    onQuickFilter={handleQuickFilter}
-                    onOpenFilters={() => setFilterModalOpen(true)}
-                    isFilterActive={isFilterActive}
+                    selectedIds={selectedIds}
+                    onToggleSelect={handleToggleSelect}
+                    onToggleSelectGroup={handleToggleSelectGroup}
                 />
-            </div>
+            </MotionDiv>
+            
+            <BulkActionBar count={selectedIds.length} onDelete={handleDeleteSelected} onClear={() => setSelectedIds([])}/>
+            
             <FilterModal
                 isOpen={isFilterModalOpen}
                 onClose={() => setFilterModalOpen(false)}

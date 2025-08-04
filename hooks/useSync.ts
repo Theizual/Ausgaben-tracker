@@ -20,14 +20,17 @@ export interface SyncProps {
     setAllAvailableTags: (data: Tag[]) => void;
 }
 
-type Mergeable = Category | Transaction | RecurringTransaction | Tag;
+interface Mergeable {
+    id: string;
+    version: number;
+    conflicted?: boolean;
+}
 
 // Generic function to merge local and remote data based on version number
 function mergeItems<T extends Mergeable>(localItems: T[], remoteItems: T[], conflicts: T[] = []): T[] {
   const allItems = new Map<string, T>();
 
   const processItem = (item: T) => {
-      if (!item.id) return;
       const existing = allItems.get(item.id);
       if (!existing || item.version > existing.version) {
           allItems.set(item.id, item);

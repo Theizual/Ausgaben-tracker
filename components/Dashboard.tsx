@@ -46,7 +46,7 @@ const Dashboard: FC = () => {
     const [isCategoryBudgetOpen, setCategoryBudgetOpen] = useState(false);
     const [expandedBudgetId, setExpandedBudgetId] = useState<string | null>(null);
     
-    const { filteredTransactions, totalExpenses, dailyAverage, totalExpensesLabel, dailyAverageLabel, monthlyTransactions } = useMemo(() => {
+    const { filteredTransactions, totalExpenses, todaysExpenses, totalExpensesLabel, todaysExpensesLabel, monthlyTransactions } = useMemo(() => {
         const now = new Date();
         const weekInterval = getWeekInterval(now);
         const monthInterval = getMonthInterval(now);
@@ -78,47 +78,26 @@ const Dashboard: FC = () => {
         });
     
         const totalExpenses = filteredTransactions.reduce((sum, t) => sum + t.amount, 0);
-        const endOfToday = endOfDay(now);
-    
-        // Filter transactions up to today for average calculation
-        const transactionsForAverage = filteredTransactions.filter(t => {
+
+        // --- Calculation for Today's Expenses ---
+        const todaysTransactions = transactions.filter(t => {
+            if (!t.date || typeof t.date !== 'string') return false;
             try {
                 const date = parseISO(t.date);
-                return date <= endOfToday;
+                return !isNaN(date.getTime()) && isSameDay(date, now);
             } catch {
                 return false;
             }
         });
-    
-        let dailyAverage = 0;
-        let dailyAverageLabel = 'Kein Zeitraum';
-    
-        if (transactionsForAverage.length > 0) {
-            let daysInPeriod: number;
-            let startOfPeriodForAverage: Date;
-    
-            if (dashboardViewMode === 'woche') {
-                const dayOfWeek = now.getDay();
-                daysInPeriod = dayOfWeek === 0 ? 7 : dayOfWeek; // Days passed in the week
-                startOfPeriodForAverage = weekInterval.start;
-            } else { // monat
-                daysInPeriod = now.getDate(); // Days passed in the month
-                startOfPeriodForAverage = monthInterval.start;
-            }
-            
-            const totalForAverage = transactionsForAverage.reduce((sum, t) => sum + t.amount, 0);
-            dailyAverage = daysInPeriod > 0 ? totalForAverage / daysInPeriod : 0;
-            
-            const range = `${format(startOfPeriodForAverage, 'd. MMM', { locale: de })} - ${format(now, 'd. MMM', { locale: de })}`;
-            dailyAverageLabel = `Zeitraum: ${range}`;
-        }
+        const todaysExpenses = todaysTransactions.reduce((sum, t) => sum + t.amount, 0);
+        const todaysExpensesLabel = `Heute, ${format(now, 'd. MMMM', { locale: de })}`;
         
         return { 
             filteredTransactions, 
             totalExpenses, 
-            dailyAverage, 
+            todaysExpenses, 
             totalExpensesLabel,
-            dailyAverageLabel, 
+            todaysExpensesLabel, 
             monthlyTransactions: allMonthlyTransactions 
         };
     }, [transactions, dashboardViewMode]);
@@ -191,11 +170,11 @@ const Dashboard: FC = () => {
                             <div className="w-[calc(50%-1rem)]">
                                 <div className="flex items-center text-slate-400 mb-1">
                                     <BarChart2 className="h-5 w-5 mr-2 flex-shrink-0" />
-                                    <p className="font-medium text-sm">Tagesdurchschnitt</p>
+                                    <p className="font-medium text-sm">Tagesausgaben</p>
                                 </div>
                                 <div>
-                                    <p className="text-2xl font-bold text-white truncate" title={formatCurrency(dailyAverage)}>{formatCurrency(dailyAverage)}</p>
-                                    <p className="text-xs text-slate-500 truncate mt-0.5" title={dailyAverageLabel}>{dailyAverageLabel}</p>
+                                    <p className="text-2xl font-bold text-white truncate" title={formatCurrency(todaysExpenses)}>{formatCurrency(todaysExpenses)}</p>
+                                    <p className="text-xs text-slate-500 truncate mt-0.5" title={todaysExpensesLabel}>{todaysExpensesLabel}</p>
                                 </div>
                             </div>
                         </div>

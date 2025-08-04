@@ -102,6 +102,7 @@ const debouncedSync = useMemo(() => debounce(() => {
         ...uiState,
         ...categoriesState,
         ...transactionDataState,
+        deleteMultipleTransactions: transactionDataState.deleteMultipleTransactions,
         addMultipleTransactions: transactionDataState.addMultipleTransactions,
         selectTotalSpentForMonth: transactionDataState.selectTotalSpentForMonth,
         ...syncState,
