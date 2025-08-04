@@ -272,7 +272,10 @@ useEffect(() => {
             return;
         }
 
-        const SYNC_PROMPT_THRESHOLD = 60 * 60 * 1000; // 1 hour
+        
+        // Session-level guard
+        if (typeof window !== 'undefined' && sessionStorage.getItem('syncPromptShown') === '1') { return; }
+const SYNC_PROMPT_THRESHOLD = 60 * 60 * 1000; // 1 hour
         let shouldPrompt = false;
 
         if (!lastSync) {
@@ -291,6 +294,7 @@ useEffect(() => {
         
         if (shouldPrompt) {
             // Mark as shown immediately to prevent re-triggering on subsequent renders.
+            if (typeof window !== 'undefined') { sessionStorage.setItem('syncPromptShown', '1'); }
             promptShownRef.current = true;
             
             setTimeout(() => {

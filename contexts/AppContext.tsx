@@ -70,6 +70,7 @@ useEffect(() => {
 }, [syncState.isSyncing]);
 
 const debouncedSync = useMemo(() => debounce(() => {
+        if (suppressAutoSyncRef.current) return;
         const { isAutoSyncEnabled, isSyncing, syncData } = syncStateRef.current;
         if (isAutoSyncEnabled && !isSyncing) {
            syncData({ isAuto: true });
