@@ -1,14 +1,19 @@
 
 
-import React, { useState, useMemo, useEffect, useRef } from 'react';
-import type { FC } from 'react';
+import React, { useState, useMemo, FC } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { useApp } from '../contexts/AppContext';
-import type { Transaction, Category, Tag } from '../types';
-import { format, parseISO, formatCurrency, de, isWithinInterval, addMonths, subMonths, addYears, subYears, getMonthInterval, getYearInterval } from '../utils/dateUtils';
+import type { Transaction, Category, Tag, PeriodType } from '../types';
+import { 
+    format, parseISO, formatCurrency, de, isWithinInterval, addMonths, subMonths, 
+    addYears, subYears, getMonthInterval, getYearInterval,
+    addDays, differenceInDays, startOfDay, endOfDay, startOfMonth, endOfMonth, startOfYear, endOfYear
+} from '../utils/dateUtils';
 import { Hash, Coins, BarChart2, ChevronLeft, ChevronRight, X, Edit, Trash2, Plus, Search } from './Icons';
 import { iconMap } from './Icons';
+
+const MotionDiv = motion('div');
 
 const AllTagsModal: FC<{
     allTags: Tag[];
@@ -26,14 +31,14 @@ const AllTagsModal: FC<{
     );
 
     return (
-        <motion.div
+        <MotionDiv
             className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50 p-4"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
         >
-            <motion.div
+            <MotionDiv
                 className="bg-slate-800 rounded-2xl w-full max-w-md shadow-2xl border border-slate-700 flex flex-col max-h-[70vh]"
                 initial={{ scale: 0.95, y: 20 }}
                 animate={{ scale: 1, y: 0 }}
@@ -79,8 +84,8 @@ const AllTagsModal: FC<{
                         Schließen
                     </button>
                 </footer>
-            </motion.div>
-        </motion.div>
+            </MotionDiv>
+        </MotionDiv>
     );
 };
 
@@ -151,102 +156,24 @@ const MultiTagPicker: FC<{
     );
 };
 
-
-const TagsPage: FC = () => {
-    const { 
-        allAvailableTags,
-        transactions,
-        selectedTagIdsForAnalysis,
-        handleSelectTagForAnalysis,
-        ...rest
-    } = useApp();
-
-    const [periodType, setPeriodType] = useState<'month' | 'year'>('month');
-    const [currentDate, setCurrentDate] = useState(new Date());
-
-    const recentlyUsedTags = useMemo(() => {
-        const sortedTransactions = [...transactions].sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime());
-        const recentTagIds = new Set<string>();
-
-        for (const transaction of sortedTransactions) {
-            if (recentTagIds.size >= 20) break;
-            if (transaction.tagIds) {
-                for (const tagId of transaction.tagIds) {
-                    if (recentTagIds.size >= 20) break;
-                    recentTagIds.add(tagId);
-                }
-            }
-        }
-        
-        const tagMap = new Map(allAvailableTags.map(t => [t.id, t]));
-        return Array.from(recentTagIds).map(id => tagMap.get(id)).filter((t): t is Tag => !!t);
-    }, [transactions, allAvailableTags]);
-
-
-    if (allAvailableTags.length === 0) {
-        return (
-            <div className="space-y-6">
-                <h1 className="text-3xl font-bold text-white">Tag-Analyse</h1>
-                <div className="flex items-center justify-center h-96 bg-slate-800/50 rounded-2xl border border-slate-700/50">
-                    <p className="text-slate-500">Keine Tags vorhanden. Fügen Sie bei einer Transaktion einen neuen Tag hinzu.</p>
-                </div>
-            </div>
-        );
-    }
-
-    return (
-        <div className="space-y-6">
-            <h1 className="text-3xl font-bold text-white">Tag-Analyse</h1>
-            
-            <MultiTagPicker 
-                allTags={allAvailableTags}
-                recentTags={recentlyUsedTags}
-                selectedTagIds={selectedTagIdsForAnalysis}
-                onSelectionChange={handleSelectTagForAnalysis}
-            />
-
-            <PeriodNavigator
-                periodType={periodType}
-                setPeriodType={setPeriodType}
-                currentDate={currentDate}
-                setCurrentDate={setCurrentDate}
-            />
-
-            <AnimatePresence mode="wait">
-                {selectedTagIdsForAnalysis.length > 0 ? (
-                    <motion.div
-                        key={selectedTagIdsForAnalysis.join('-')}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -20 }}
-                        transition={{ duration: 0.3 }}
-                    >
-                        <TagDetailView
-                            tagIds={selectedTagIdsForAnalysis}
-                            periodType={periodType}
-                            currentDate={currentDate}
-                            appContext={{ ...rest, transactions }}
-                        />
-                    </motion.div>
-                ) : (
-                     <div className="flex flex-col items-center justify-center h-96 bg-slate-800/50 rounded-2xl border border-slate-700/50 text-center">
-                         <Hash className="text-slate-600 h-12 w-12 mb-4" />
-                         <h2 className="text-xl font-bold text-white">Wählen Sie Tags zur Analyse aus</h2>
-                         <p className="text-slate-400">Klicken Sie oben auf einen Tag, um zu beginnen.</p>
-                    </div>
-                )}
-            </AnimatePresence>
-        </div>
-    );
-};
-
 const PeriodNavigator: FC<{
-    periodType: 'month' | 'year';
-    setPeriodType: (type: 'month' | 'year') => void;
+    periodType: PeriodType;
+    setPeriodType: (type: PeriodType) => void;
     currentDate: Date;
     setCurrentDate: (date: Date) => void;
-}> = ({ periodType, setPeriodType, currentDate, setCurrentDate }) => {
+    customDateRange: { start: string, end: string };
+    setCustomDateRange: (range: { start: string, end: string }) => void;
+}> = ({ periodType, setPeriodType, currentDate, setCurrentDate, customDateRange, setCustomDateRange }) => {
+    
+    const periodButtons: { id: PeriodType, label: string }[] = [
+        { id: 'last3Months', label: 'Letzte 3 Monate' },
+        { id: 'month', label: 'Monat' },
+        { id: 'year', label: 'Jahr' },
+        { id: 'custom', label: 'Zeitraum' },
+    ];
+    
     const changeDate = (direction: 'prev' | 'next') => {
+        if (periodType !== 'month' && periodType !== 'year') return;
         const amount = direction === 'prev' ? -1 : 1;
         if (periodType === 'month') {
             setCurrentDate(addMonths(currentDate, amount));
@@ -255,150 +182,269 @@ const PeriodNavigator: FC<{
         }
     };
 
-    const periodLabel = periodType === 'month'
-        ? format(currentDate, 'MMMM yyyy', { locale: de })
-        : format(currentDate, 'yyyy', { locale: de });
+    const getPeriodLabel = () => {
+        switch(periodType) {
+            case 'last3Months': return 'Letzte 3 Monate';
+            case 'month': return format(currentDate, 'MMMM yyyy', { locale: de });
+            case 'year': return format(currentDate, 'yyyy', { locale: de });
+            case 'custom': return 'Benutzerdefiniert';
+        }
+    };
+
+    const isNavDisabled = periodType === 'last3Months' || periodType === 'custom';
 
     return (
         <div className="flex flex-col sm:flex-row gap-4 justify-between items-center bg-slate-800/50 p-3 rounded-2xl border border-slate-700/50">
-             <div className="bg-slate-800 p-1 rounded-full flex items-center self-start sm:self-center">
-                {(['month', 'year'] as const).map(type => (
+            <div className="bg-slate-800 p-1 rounded-full flex items-center self-start sm:self-center flex-wrap">
+                {periodButtons.map(p => (
                     <button
-                        key={type}
-                        onClick={() => setPeriodType(type)}
-                        className={`px-4 py-1.5 text-sm font-semibold rounded-full transition-colors duration-300 ${
-                            periodType === type
+                        key={p.id}
+                        onClick={() => setPeriodType(p.id)}
+                        className={`px-4 py-1.5 text-sm font-semibold rounded-full transition-colors duration-300 whitespace-nowrap ${
+                            periodType === p.id
                                 ? 'bg-rose-600 text-white'
                                 : 'text-slate-300 hover:bg-slate-700/50'
                         }`}
                     >
-                        {type === 'month' ? 'Monat' : 'Jahr'}
+                        {p.label}
                     </button>
                 ))}
             </div>
-            <div className="flex items-center gap-4">
-                <button onClick={() => changeDate('prev')} className="p-2 rounded-full hover:bg-slate-700"><ChevronLeft className="h-5 w-5" /></button>
-                <span className="font-bold text-white w-36 text-center">{periodLabel}</span>
-                <button onClick={() => changeDate('next')} className="p-2 rounded-full hover:bg-slate-700"><ChevronRight className="h-5 w-5" /></button>
-            </div>
+            
+            <AnimatePresence mode="wait">
+                {periodType === 'custom' ? (
+                    <MotionDiv 
+                        key="custom"
+                        initial={{ opacity: 0, width: 0 }}
+                        animate={{ opacity: 1, width: 'auto' }}
+                        exit={{ opacity: 0, width: 0 }}
+                        transition={{ duration: 0.3 }}
+                        className="flex items-center gap-2 overflow-hidden"
+                    >
+                        <input
+                            type="date"
+                            value={customDateRange.start}
+                            onChange={(e) => setCustomDateRange({ ...customDateRange, start: e.target.value })}
+                            className="bg-slate-700 border border-slate-600 rounded-md px-2 py-1.5 text-white text-sm"
+                        />
+                        <span className="text-slate-400">-</span>
+                        <input
+                            type="date"
+                            value={customDateRange.end}
+                            onChange={(e) => setCustomDateRange({ ...customDateRange, end: e.target.value })}
+                            className="bg-slate-700 border border-slate-600 rounded-md px-2 py-1.5 text-white text-sm"
+                        />
+                    </MotionDiv>
+                ) : (
+                    <MotionDiv 
+                        key="nav"
+                        initial={{ opacity: 0, width: 0 }}
+                        animate={{ opacity: 1, width: 'auto' }}
+                        exit={{ opacity: 0, width: 0 }}
+                        transition={{ duration: 0.3 }}
+                        className="flex items-center gap-4"
+                    >
+                        <button onClick={() => changeDate('prev')} disabled={isNavDisabled} className="p-2 rounded-full hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed"><ChevronLeft className="h-5 w-5" /></button>
+                        <span className="font-bold text-white w-40 text-center">{getPeriodLabel()}</span>
+                        <button onClick={() => changeDate('next')} disabled={isNavDisabled} className="p-2 rounded-full hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed"><ChevronRight className="h-5 w-5" /></button>
+                    </MotionDiv>
+                )}
+            </AnimatePresence>
         </div>
     );
 };
 
-// We pass the appContext down to avoid prop-drilling hell inside a memoized component
-type AppContextSubset = Omit<ReturnType<typeof useApp>, 'allAvailableTags' | 'selectedTagIdsForAnalysis' | 'handleSelectTagForAnalysis'>;
+type AppContextSubset = Omit<ReturnType<typeof useApp>,
+    'allAvailableTags' |
+    'selectedTagIdsForAnalysis' |
+    'handleSelectTagForAnalysis' |
+    'tagsPeriodType' |
+    'setTagsPeriodType' |
+    'tagsCurrentDate' |
+    'setTagsCurrentDate' |
+    'tagsCustomDateRange' |
+    'setTagsCustomDateRange'
+>;
 
 const TagDetailView: FC<{
     tagIds: string[],
-    periodType: 'month' | 'year',
+    periodType: PeriodType,
     currentDate: Date,
+    customDateRange: { start: string, end: string },
     appContext: AppContextSubset
-}> = ({ tagIds, periodType, currentDate, appContext }) => {
+}> = ({ tagIds, periodType, currentDate, customDateRange, appContext }) => {
     const { transactions, tagMap, categoryMap, handleTransactionClick, deleteTransaction } = appContext;
-    const tagNames = tagIds.map(id => tagMap.get(id) || 'Unbekannt').join(', ');
+    const formattedTagNames = tagIds.map(id => `#${tagMap.get(id) || 'Unbekannt'}`).join(', ');
 
-    const relatedTransactions = useMemo(() => {
-        const interval = periodType === 'month' 
-            ? getMonthInterval(currentDate) 
-            : getYearInterval(currentDate);
+    const { filteredTransactions, interval } = useMemo(() => {
+        let start: Date, end: Date;
+        const now = new Date();
 
-        return transactions
-            .filter(t => t.tagIds?.some(tagId => tagIds.includes(tagId)) && isWithinInterval(parseISO(t.date), interval))
-            .sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime());
-    }, [tagIds, transactions, periodType, currentDate]);
-    
-    const stats = useMemo(() => {
-        const total = relatedTransactions.reduce((sum, t) => sum + t.amount, 0);
-        const count = relatedTransactions.length;
-        const average = count > 0 ? total / count : 0;
-        return { total, count, average };
-    }, [relatedTransactions]);
-
-    const relatedCategoryNames = useMemo(() => {
-        if (relatedTransactions.length === 0) return 'Keine';
-        
-        const categoryIds = new Set<string>();
-        relatedTransactions.forEach(t => categoryIds.add(t.categoryId));
-        
-        return Array.from(categoryIds)
-            .map(id => categoryMap.get(id)?.name)
-            .filter(Boolean)
-            .join(', ');
-    }, [relatedTransactions, categoryMap]);
-    
-    const spendingOverTimeData = useMemo(() => {
-        if (periodType === 'month') {
-            const dailySpending = new Map<string, number>();
-            relatedTransactions.forEach(t => {
-                const day = format(parseISO(t.date), 'yyyy-MM-dd');
-                dailySpending.set(day, (dailySpending.get(day) || 0) + t.amount);
-            });
-            return Array.from(dailySpending.entries())
-                .map(([date, amount]) => ({ date, amount }))
-                .sort((a, b) => parseISO(a.date).getTime() - parseISO(b.date).getTime());
-        } else { // year
-            const monthlySpending = new Map<string, { date: string, amount: number }>();
-            for (let i = 0; i < 12; i++) {
-                const monthDate = new Date(currentDate.getFullYear(), i, 1);
-                const monthKey = format(monthDate, 'yyyy-MM');
-                monthlySpending.set(monthKey, { date: monthKey, amount: 0 });
-            }
-            relatedTransactions.forEach(t => {
-                const monthKey = format(parseISO(t.date), 'yyyy-MM');
-                if (monthlySpending.has(monthKey)) {
-                    monthlySpending.get(monthKey)!.amount += t.amount;
+        switch (periodType) {
+            case 'last3Months':
+                start = startOfMonth(subMonths(now, 2));
+                end = endOfDay(now);
+                break;
+            case 'month':
+                start = startOfMonth(currentDate);
+                end = endOfMonth(currentDate);
+                break;
+            case 'year':
+                start = startOfYear(currentDate);
+                end = endOfYear(currentDate);
+                break;
+            case 'custom':
+                try {
+                    start = startOfDay(parseISO(customDateRange.start));
+                    end = endOfDay(parseISO(customDateRange.end));
+                } catch {
+                    start = new Date(); end = new Date(); // fallback
                 }
-            });
-            return Array.from(monthlySpending.values())
-                .sort((a,b) => a.date.localeCompare(b.date));
+                break;
         }
-    }, [relatedTransactions, periodType, currentDate]);
+        
+        const filtered = transactions
+            .filter(t => t.tagIds?.some(tagId => tagIds.includes(tagId)) && isWithinInterval(parseISO(t.date), {start, end}))
+            .sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime());
 
-    if (relatedTransactions.length === 0) {
+        return { filteredTransactions: filtered, interval: { start, end } };
+    }, [tagIds, transactions, periodType, currentDate, customDateRange]);
+
+    const chartMetrics = useMemo(() => {
+        if (filteredTransactions.length === 0) {
+            return { chartData: [], averages: {}, colors: {}, earliestDate: null };
+        }
+
+        const colors: Record<string, string> = {};
+        const colorPalette = ['#f43f5e', '#3b82f6', '#22c55e', '#f97316', '#a855f7', '#64748b', '#06b6d4', '#d946ef'];
+        tagIds.forEach((id, index) => {
+            colors[id] = colorPalette[index % colorPalette.length];
+        });
+
+        const earliestTransactionDate = filteredTransactions.reduce((earliest, t) => {
+            const tDate = parseISO(t.date);
+            return tDate < earliest ? tDate : earliest;
+        }, new Date());
+
+        const chartStartDate = startOfDay(earliestTransactionDate);
+        const chartEndDate = interval.end;
+        const diffDays = differenceInDays(chartEndDate, chartStartDate);
+
+        const groupByMonth = periodType === 'year' || (periodType === 'custom' && diffDays > 92);
+        
+        const dataMap = new Map<string, any>();
+        let currentDatePointer = chartStartDate;
+
+        while (currentDatePointer <= chartEndDate) {
+            const key = groupByMonth ? format(currentDatePointer, 'yyyy-MM') : format(currentDatePointer, 'yyyy-MM-dd');
+            if (!dataMap.has(key)) {
+                const entry: any = { date: key };
+                tagIds.forEach(id => { entry[id] = 0; });
+                dataMap.set(key, entry);
+            }
+            currentDatePointer = groupByMonth ? addMonths(currentDatePointer, 1) : addDays(currentDatePointer, 1);
+        }
+
+        const tagTotals: Record<string, number> = {};
+        tagIds.forEach(id => { tagTotals[id] = 0; });
+
+        filteredTransactions.forEach(t => {
+            const tDate = parseISO(t.date);
+            const key = groupByMonth ? format(tDate, 'yyyy-MM') : format(tDate, 'yyyy-MM-dd');
+            if (dataMap.has(key)) {
+                t.tagIds?.forEach(tagId => {
+                    if (tagIds.includes(tagId)) {
+                        dataMap.get(key)[tagId] += t.amount;
+                        tagTotals[tagId] += t.amount;
+                    }
+                });
+            }
+        });
+        
+        const averages: Record<string, number> = {};
+        const numberOfUnits = dataMap.size;
+        if (numberOfUnits > 0) {
+            tagIds.forEach(id => { averages[id] = tagTotals[id] / numberOfUnits; });
+        }
+        
+        dataMap.forEach(entry => {
+            tagIds.forEach(id => { entry[`avg_${id}`] = averages[id]; });
+        });
+
+        const chartData = Array.from(dataMap.values()).sort((a,b) => a.date.localeCompare(b.date));
+
+        return { chartData, averages, colors, earliestDate: chartStartDate };
+    }, [filteredTransactions, tagIds, interval, periodType]);
+
+    const stats = useMemo(() => {
+        const total = filteredTransactions.reduce((sum, t) => sum + t.amount, 0);
+        return { total, count: filteredTransactions.length };
+    }, [filteredTransactions]);
+
+    if (filteredTransactions.length === 0) {
         return (
-             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col items-center justify-center h-96 bg-slate-800/50 rounded-2xl border border-slate-700/50 p-6 text-center">
+             <MotionDiv initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col items-center justify-center h-96 bg-slate-800/50 rounded-2xl border border-slate-700/50 p-6 text-center">
                  <Hash className="text-slate-600 h-12 w-12 mb-4" />
-                 <h2 className="text-xl font-bold text-white">Keine Daten für #{tagNames}</h2>
+                 <h2 className="text-xl font-bold text-white">Keine Daten für {formattedTagNames}</h2>
                  <p className="text-slate-400">Für den gewählten Zeitraum gibt es keine Transaktionen mit diesen Tags.</p>
-            </motion.div>
+            </MotionDiv>
         )
     }
 
     return (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6">
-            <div>
-                 <h2 className="text-2xl font-bold text-white flex items-center gap-2 flex-wrap">
-                    #{tagNames}
-                </h2>
-                <p className="text-sm text-slate-400 mt-1">Kategorien: {relatedCategoryNames}</p>
-            </div>
+        <MotionDiv initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6">
+            <h2 className="text-2xl font-bold text-white flex items-center gap-2 flex-wrap">
+                {formattedTagNames}
+            </h2>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <StatCard icon={Coins} title="Gesamtausgaben" value={formatCurrency(stats.total)} />
                 <StatCard icon={BarChart2} title="Transaktionen" value={stats.count.toString()} />
             </div>
 
-            <div className="grid grid-cols-1 gap-6">
-                 <div className="bg-slate-800/50 p-4 rounded-2xl border border-slate-700/50">
-                    <h3 className="font-bold text-white mb-4">Ausgaben im Zeitverlauf</h3>
-                    <div className="h-64 pr-4">
-                        <ResponsiveContainer width="100%" height="100%">
-                             <LineChart data={spendingOverTimeData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
-                                <XAxis dataKey="date" tickFormatter={(d) => format(parseISO(d), periodType === 'month' ? 'd. MMM' : 'MMM', {locale: de})} stroke="#94a3b8" fontSize={12} />
-                                <YAxis tickFormatter={(v) => formatCurrency(v)} stroke="#94a3b8" fontSize={12} width={80} axisLine={false} tickLine={false} />
-                                <Tooltip content={<CustomTooltip />} />
-                                <Line type="monotone" dataKey="amount" name="Ausgaben" stroke="#f43f5e" strokeWidth={2} dot={{ r: 4, fill: '#f43f5e' }} activeDot={{ r: 6 }} />
-                            </LineChart>
-                        </ResponsiveContainer>
-                    </div>
+             <div className="bg-slate-800/50 p-4 rounded-2xl border border-slate-700/50">
+                <h3 className="font-bold text-white mb-4">Ausgaben im Zeitverlauf</h3>
+                <div className="h-72 pr-4">
+                    <ResponsiveContainer width="100%" height="100%">
+                         <LineChart data={chartMetrics.chartData} margin={{ top: 5, right: 10, left: 0, bottom: 20 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
+                            <XAxis dataKey="date" tickFormatter={(d) => format(parseISO(d), chartMetrics.chartData.length > 31 ? 'MMM yy' : 'd. MMM', {locale: de})} stroke="#94a3b8" fontSize={12} />
+                            <YAxis tickFormatter={(v) => formatCurrency(v)} stroke="#94a3b8" fontSize={12} width={80} axisLine={false} tickLine={false} />
+                            <Tooltip content={<CustomTooltip tagMap={tagMap} />} />
+                            <Legend wrapperStyle={{paddingTop: '20px'}} />
+                            {tagIds.map(id => (
+                                <React.Fragment key={id}>
+                                    <Line
+                                        type="monotone"
+                                        dataKey={id}
+                                        name={tagMap.get(id) || 'Unbekannt'}
+                                        stroke={chartMetrics.colors[id]}
+                                        strokeWidth={2}
+                                        dot={false}
+                                        activeDot={{ r: 6 }}
+                                    />
+                                    <Line
+                                        type="monotone"
+                                        dataKey={`avg_${id}`}
+                                        name={`Ø ${tagMap.get(id)}`}
+                                        stroke={chartMetrics.colors[id]}
+                                        strokeWidth={1.5}
+                                        strokeDasharray="3 5"
+                                        dot={false}
+                                        activeDot={false}
+                                        legendType="none"
+                                    />
+                                </React.Fragment>
+                            ))}
+                        </LineChart>
+                    </ResponsiveContainer>
                 </div>
             </div>
 
             <div className="bg-slate-800/50 p-4 rounded-2xl border border-slate-700/50">
-                <h3 className="font-bold text-white mb-4">Transaktionen ({relatedTransactions.length})</h3>
+                <h3 className="font-bold text-white mb-4">Transaktionen ({filteredTransactions.length})</h3>
                 <div className="max-h-96 overflow-y-auto space-y-2 pr-2">
-                    {relatedTransactions.map(t => {
+                    {filteredTransactions.map(t => {
                         const category = categoryMap.get(t.categoryId);
                         if (!category) return null;
                         const Icon = iconMap[category.icon] || iconMap.MoreHorizontal;
@@ -445,9 +491,105 @@ const TagDetailView: FC<{
                     })}
                 </div>
             </div>
-        </motion.div>
+        </MotionDiv>
     )
 }
+
+
+const TagsPage: FC = () => {
+    const { 
+        allAvailableTags,
+        transactions,
+        selectedTagIdsForAnalysis,
+        handleSelectTagForAnalysis,
+        tagsPeriodType,
+        setTagsPeriodType,
+        tagsCurrentDate,
+        setTagsCurrentDate,
+        tagsCustomDateRange,
+        setTagsCustomDateRange,
+        ...rest
+    } = useApp();
+
+    const recentlyUsedTags = useMemo(() => {
+        const sortedTransactions = [...transactions].sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime());
+        const recentTagIds = new Set<string>();
+
+        for (const transaction of sortedTransactions) {
+            if (recentTagIds.size >= 20) break;
+            if (transaction.tagIds) {
+                for (const tagId of transaction.tagIds) {
+                    if (recentTagIds.size >= 20) break;
+                    recentTagIds.add(tagId);
+                }
+            }
+        }
+        
+        const tagMap = new Map(allAvailableTags.map(t => [t.id, t]));
+        return Array.from(recentTagIds).map(id => tagMap.get(id)).filter((t): t is Tag => !!t);
+    }, [transactions, allAvailableTags]);
+
+
+    if (allAvailableTags.length === 0) {
+        return (
+            <div className="space-y-6">
+                <h1 className="text-3xl font-bold text-white">Tag-Analyse</h1>
+                <div className="flex items-center justify-center h-96 bg-slate-800/50 rounded-2xl border border-slate-700/50">
+                    <p className="text-slate-500">Keine Tags vorhanden. Fügen Sie bei einer Transaktion einen neuen Tag hinzu.</p>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-6">
+            <h1 className="text-3xl font-bold text-white">Tag-Analyse</h1>
+            
+            <MultiTagPicker 
+                allTags={allAvailableTags}
+                recentTags={recentlyUsedTags}
+                selectedTagIds={selectedTagIdsForAnalysis}
+                onSelectionChange={handleSelectTagForAnalysis}
+            />
+
+            <PeriodNavigator
+                periodType={tagsPeriodType}
+                setPeriodType={setTagsPeriodType}
+                currentDate={tagsCurrentDate}
+                setCurrentDate={setTagsCurrentDate}
+                customDateRange={tagsCustomDateRange}
+                setCustomDateRange={setTagsCustomDateRange}
+            />
+
+            <AnimatePresence mode="wait">
+                {selectedTagIdsForAnalysis.length > 0 ? (
+                    <MotionDiv
+                        key={selectedTagIdsForAnalysis.join('-')}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -20 }}
+                        transition={{ duration: 0.3 }}
+                    >
+                        <TagDetailView
+                            tagIds={selectedTagIdsForAnalysis}
+                            periodType={tagsPeriodType}
+                            currentDate={tagsCurrentDate}
+                            customDateRange={tagsCustomDateRange}
+                            appContext={{ ...rest, transactions }}
+                        />
+                    </MotionDiv>
+                ) : (
+                     <div className="flex flex-col items-center justify-center h-96 bg-slate-800/50 rounded-2xl border border-slate-700/50 text-center">
+                         <Hash className="text-slate-600 h-12 w-12 mb-4" />
+                         <h2 className="text-xl font-bold text-white">Wählen Sie Tags zur Analyse aus</h2>
+                         <p className="text-slate-400">Klicken Sie oben auf einen Tag, um zu beginnen.</p>
+                    </div>
+                )}
+            </AnimatePresence>
+        </div>
+    );
+};
+
 
 const StatCard: FC<{ icon: FC<any>, title: string, value: string, subValue?: string }> = ({ icon: Icon, title, value, subValue }) => (
     <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700/50 flex items-center gap-4">
@@ -462,21 +604,39 @@ const StatCard: FC<{ icon: FC<any>, title: string, value: string, subValue?: str
     </div>
 );
 
-const CustomTooltip = ({ active, payload, label }: any) => {
+const CustomTooltip = ({ active, payload, label, tagMap }: any) => {
     if (active && payload && payload.length) {
-        const data = payload[0];
         const formattedLabel = label ? (
-            label.includes('-') // Check if it's a date string like '2023-10' or '2023-10-25'
+            label.includes('-') 
                 ? format(parseISO(label), label.length > 7 ? 'eeee, d. MMM' : 'MMMM yyyy', { locale: de }) 
                 : label
-            ) : data.name;
+            ) : '';
+        
+        const entries = payload
+            .filter(p => !p.dataKey.startsWith('avg_') && p.value > 0) // Exclude averages and zero values
+            .map(p => ({
+                name: p.name,
+                value: p.value,
+                color: p.stroke,
+            }))
+            .sort((a,b) => b.value - a.value);
+
+        if (entries.length === 0) return null;
 
         return (
             <div className="bg-slate-700 p-3 rounded-lg border border-slate-600 shadow-xl">
-                 <p className="text-sm text-slate-400">{formattedLabel}</p>
-                 <p className="font-bold text-white" style={{color: '#f43f5e'}}>
-                    {formatCurrency(data.value)}
-                </p>
+                 <p className="text-sm text-slate-400 mb-1">{formattedLabel}</p>
+                 {entries.map(entry => (
+                     <div key={entry.name} className="flex justify-between items-center gap-4">
+                        <span className="font-semibold text-sm flex items-center gap-2" style={{color: entry.color}}>
+                             <div className="h-2 w-2 rounded-full" style={{backgroundColor: entry.color}} />
+                             {entry.name}
+                        </span>
+                        <span className="font-bold text-white text-sm">
+                            {formatCurrency(entry.value)}
+                        </span>
+                    </div>
+                 ))}
             </div>
         );
     }

@@ -17,6 +17,8 @@ import { formatDistanceToNow } from 'date-fns';
 import { de } from 'date-fns/locale';
 import Logo from './components/Logo';
 
+const MotionDiv = motion('div');
+
 // Main App Component (now a clean layout/composition root)
 const App: React.FC = () => {
     const {
@@ -63,7 +65,7 @@ const App: React.FC = () => {
                 }}
             />
 
-            {/* Sticky Header */}
+            {/* Sticky Header & Desktop Nav */}
             <div className="sticky top-0 z-30 bg-slate-900/95 backdrop-blur-sm border-b border-slate-700">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <Header 
@@ -72,18 +74,17 @@ const App: React.FC = () => {
                         syncOperation={syncOperation}
                         lastSync={lastSync}
                     />
+                    {/* Desktop Tabs are now part of the sticky container */}
+                    <div className="hidden md:block">
+                        <MainTabs activeTab={activeTab} setActiveTab={setActiveTab} isMobile={false} />
+                    </div>
                 </div>
             </div>
             
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-24 md:pb-6">
-                {/* Desktop Tabs */}
-                <div className="hidden md:block">
-                    <MainTabs activeTab={activeTab} setActiveTab={setActiveTab} isMobile={false} />
-                </div>
-                
                 <main className="mt-6">
                     <AnimatePresence mode="wait">
-                        <motion.div
+                        <MotionDiv
                             key={activeTab}
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
@@ -91,7 +92,7 @@ const App: React.FC = () => {
                             transition={{ duration: 0.3 }}
                         >
                             {renderContent()}
-                        </motion.div>
+                        </MotionDiv>
                     </AnimatePresence>
                 </main>
             </div>
@@ -202,7 +203,7 @@ const MainTabs: React.FC<{
                             <tab.icon className="h-6 w-6" />
                             <span className="text-xs font-medium">{tab.label}</span>
                              {activeTab === tab.id && (
-                                <motion.div className="absolute bottom-0 h-1 w-8 bg-rose-400 rounded-t-full" layoutId="underline" />
+                                <MotionDiv className="absolute bottom-0 h-1 w-8 bg-rose-400 rounded-t-full" layoutId="underline" />
                             )}
                         </button>
                     ))}
@@ -212,7 +213,7 @@ const MainTabs: React.FC<{
     }
 
     return (
-        <div className="mt-6 flex items-center space-x-2">
+        <div className="pb-3 flex items-center space-x-2">
             {tabs.map(tab => (
                 <button
                     key={tab.id}

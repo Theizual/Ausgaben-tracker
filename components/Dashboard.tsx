@@ -13,9 +13,11 @@ import CategoryButtons from './CategoryButtons';
 import TagInput from './TagInput';
 import AvailableTags from './AvailableTags';
 
+const MotionDiv = motion('div');
+
 const ProgressBar: FC<{ percentage: number; color: string; }> = ({ percentage, color }) => (
     <div className="w-full bg-slate-700 rounded-full h-2">
-        <motion.div
+        <MotionDiv
             className="h-2 rounded-full"
             style={{ backgroundColor: color }}
             initial={{ width: 0 }}
@@ -37,9 +39,10 @@ const Dashboard: FC = () => {
         totalSpentThisMonth,
         allAvailableTags,
         handleTransactionClick,
+        dashboardViewMode,
+        setDashboardViewMode,
     } = useApp();
 
-    const [viewMode, setViewMode] = useState<ViewMode>('woche');
     const [isCategoryBudgetOpen, setCategoryBudgetOpen] = useState(false);
     const [expandedBudgetId, setExpandedBudgetId] = useState<string | null>(null);
     
@@ -52,11 +55,11 @@ const Dashboard: FC = () => {
             try { return isWithinInterval(parseISO(t.date), monthInterval); } catch { return false; }
         });
     
-        const interval = viewMode === 'woche' ? weekInterval : monthInterval;
+        const interval = dashboardViewMode === 'woche' ? weekInterval : monthInterval;
         
         // Label for Total Expenses
         let totalExpensesLabel: string;
-        if (viewMode === 'woche') {
+        if (dashboardViewMode === 'woche') {
             const range = `${format(interval.start, 'd. MMM', { locale: de })} - ${format(interval.end, 'd. MMM', { locale: de })}`;
             totalExpensesLabel = `Diese Woche (${range})`;
         } else {
@@ -94,7 +97,7 @@ const Dashboard: FC = () => {
             let daysInPeriod: number;
             let startOfPeriodForAverage: Date;
     
-            if (viewMode === 'woche') {
+            if (dashboardViewMode === 'woche') {
                 const dayOfWeek = now.getDay();
                 daysInPeriod = dayOfWeek === 0 ? 7 : dayOfWeek; // Days passed in the week
                 startOfPeriodForAverage = weekInterval.start;
@@ -118,7 +121,7 @@ const Dashboard: FC = () => {
             dailyAverageLabel, 
             monthlyTransactions: allMonthlyTransactions 
         };
-    }, [transactions, viewMode]);
+    }, [transactions, dashboardViewMode]);
 
     const { spendingByCategory, budgetedCategories } = useMemo(() => {
         const spendingMap = new Map<CategoryId, number>();
@@ -161,7 +164,7 @@ const Dashboard: FC = () => {
                 
                 {/* Right Column */}
                 <div className="space-y-6">
-                    <motion.div
+                    <MotionDiv
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.1 }}
@@ -169,7 +172,7 @@ const Dashboard: FC = () => {
                     >
                         <div className="flex justify-between items-center mb-4">
                             <h3 className="font-bold text-white">Zusammenfassung</h3>
-                            <ViewTabs viewMode={viewMode} setViewMode={setViewMode} />
+                            <ViewTabs viewMode={dashboardViewMode} setViewMode={setDashboardViewMode} />
                         </div>
                         <div className="flex justify-between items-start">
                              <div className="w-[calc(50%-1rem)]">
@@ -196,8 +199,8 @@ const Dashboard: FC = () => {
                                 </div>
                             </div>
                         </div>
-                    </motion.div>
-                    <motion.div
+                    </MotionDiv>
+                    <MotionDiv
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         className="bg-slate-800/50 p-6 rounded-2xl border border-slate-700/50 flex flex-col"
@@ -235,7 +238,7 @@ const Dashboard: FC = () => {
                                 </button>
                                 <AnimatePresence>
                                 {isCategoryBudgetOpen && (
-                                     <motion.div
+                                     <MotionDiv
                                         initial={{ height: 0, opacity: 0 }}
                                         animate={{ height: 'auto', opacity: 1 }}
                                         exit={{ height: 0, opacity: 0 }}
@@ -271,7 +274,7 @@ const Dashboard: FC = () => {
                                                         </div>
                                                          <AnimatePresence>
                                                             {isExpanded && (
-                                                                <motion.div
+                                                                <MotionDiv
                                                                     initial={{ opacity: 0, height: 0, marginTop: 0 }}
                                                                     animate={{ opacity: 1, height: 'auto', marginTop: '1rem' }}
                                                                     exit={{ opacity: 0, height: 0, marginTop: 0 }}
@@ -303,19 +306,19 @@ const Dashboard: FC = () => {
                                                                             <p className="text-slate-500 text-sm p-2">Keine Ausgaben diesen Monat.</p>
                                                                         )}
                                                                     </div>
-                                                                </motion.div>
+                                                                </MotionDiv>
                                                             )}
                                                         </AnimatePresence>
                                                     </div>
                                                 );
                                             })}
                                         </div>
-                                    </motion.div>
+                                    </MotionDiv>
                                 )}
                                 </AnimatePresence>
                             </div>
                         )}
-                    </motion.div>
+                    </MotionDiv>
                 </div>
             </div>
         </div>
@@ -430,23 +433,25 @@ const QuickAddForm: FC = () => {
     };
 
     return (
-        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+        <MotionDiv initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
             <div className="bg-slate-800/50 p-6 rounded-2xl border border-slate-700/50">
                 <h3 className="text-lg font-bold text-white mb-4">Ausgabe hinzufügen</h3>
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div className="flex flex-col sm:flex-row gap-3">
-                        <div className="relative sm:w-48 flex-shrink-0">
-                            <Coins className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 pointer-events-none" />
-                            <input
-                                id="amount"
-                                type="text"
-                                inputMode="decimal"
-                                value={amount}
-                                onChange={e => setAmount(e.target.value)}
-                                placeholder="Betrag"
-                                className="w-full bg-slate-700 border border-slate-600 rounded-lg pl-10 pr-3 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-rose-500"
-                                required
-                            />
+                        <div className="sm:w-48 flex-shrink-0">
+                            <div className="flex items-center bg-slate-700 border border-slate-600 rounded-lg focus-within:ring-2 focus-within:ring-rose-500 px-3">
+                                <Coins className="h-5 w-5 text-slate-400 shrink-0" />
+                                <input
+                                    id="amount"
+                                    type="text"
+                                    inputMode="decimal"
+                                    value={amount}
+                                    onChange={e => setAmount(e.target.value)}
+                                    placeholder="Betrag"
+                                    className="w-full bg-transparent border-none pl-2 pr-0 py-2.5 text-white placeholder-slate-500 focus:outline-none"
+                                    required
+                                />
+                            </div>
                         </div>
                         <div className="flex-grow">
                             <input
@@ -497,7 +502,7 @@ const QuickAddForm: FC = () => {
                     </div>
                 </form>
             </div>
-        </motion.div>
+        </MotionDiv>
     );
 };
 
