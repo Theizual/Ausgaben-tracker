@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useApp } from '../contexts/AppContext';
 import type { Transaction, Category, Tag } from '../types';
 import { format, parseISO, formatCurrency, endOfDay, startOfDay, getWeekInterval, getMonthInterval } from '../utils/dateUtils';
-import { iconMap, Search, SlidersHorizontal, ChevronDown, Tag as TagIcon, Edit, Trash2 } from './Icons';
+import { iconMap, Search, SlidersHorizontal, ChevronDown, Tag as TagIcon, Edit, Trash2, X } from './Icons';
 
 type QuickFilterId = 'today' | 'week' | 'month' | 'all';
 const quickFilterButtons: { id: QuickFilterId; label: string }[] = [
@@ -19,7 +19,7 @@ const QuickFilters: FC<{
     onQuickFilter: (filter: QuickFilterId) => void;
 }> = ({ activeQuickFilter, onQuickFilter }) => {
     return (
-        <div className="flex items-center space-x-1 bg-slate-700/80 p-1 rounded-full mb-4 self-start">
+        <div className="flex items-center space-x-1 bg-slate-700/80 p-1 rounded-full self-start">
             {quickFilterButtons.map(btn => (
                 <button
                     key={btn.id}
@@ -42,7 +42,9 @@ const TransactionList: FC<{
     showEmptyMessage?: boolean;
     activeQuickFilter: QuickFilterId | null;
     onQuickFilter: (filter: QuickFilterId) => void;
-}> = ({ transactions, showEmptyMessage = false, activeQuickFilter, onQuickFilter }) => {
+    onOpenFilters: () => void;
+    isFilterActive: boolean;
+}> = ({ transactions, showEmptyMessage = false, activeQuickFilter, onQuickFilter, onOpenFilters, isFilterActive }) => {
     const { categoryMap, tagMap, handleTagAnalyticsClick, handleTransactionClick, deleteTransaction } = useApp();
     
     return (
@@ -52,7 +54,24 @@ const TransactionList: FC<{
             transition={{ delay: 0.1 }}
             className="bg-slate-800/50 p-6 rounded-2xl border border-slate-700/50 flex flex-col h-full"
         >
-            <QuickFilters activeQuickFilter={activeQuickFilter} onQuickFilter={onQuickFilter} />
+            <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
+                <QuickFilters activeQuickFilter={activeQuickFilter} onQuickFilter={onQuickFilter} />
+                <motion.button
+                    layout
+                    onClick={onOpenFilters}
+                    className={`relative p-2 rounded-full transition-colors ${
+                        isFilterActive
+                            ? 'bg-rose-500/30 text-rose-300'
+                            : 'text-slate-400 hover:bg-slate-700 hover:text-white'
+                    }`}
+                    title="Suchen & Filtern"
+                >
+                    <Search className="h-5 w-5" />
+                    {isFilterActive && (
+                        <motion.div layoutId="filter-dot" className="absolute top-1 right-1 h-2 w-2 bg-rose-400 rounded-full" />
+                    )}
+                </motion.button>
+            </div>
             <div className="flex-grow space-y-3 overflow-y-auto -mr-4 pr-4">
                 <AnimatePresence>
                 {transactions.length > 0 ? transactions.map(t => (
@@ -220,92 +239,154 @@ const MultiCategoryPicker: FC<{
     );
 };
 
-const TransactionFilters: FC<{
-    onFilterChange: (filters: any) => void;
-    filters: any;
-}> = ({ onFilterChange, filters }) => {
+const FilterModal: FC<{
+    isOpen: boolean;
+    onClose: () => void;
+    onApplyFilters: (filters: any) => void;
+    initialFilters: any;
+}> = ({ isOpen, onClose, onApplyFilters, initialFilters }) => {
     const { categories } = useApp();
+    const [localFilters, setLocalFilters] = useState(initialFilters);
     const [showAdvanced, setShowAdvanced] = useState(false);
 
-    const handleFilterChange = (field: keyof typeof filters, value: any) => {
-        onFilterChange({ ...filters, [field]: value });
+    useEffect(() => {
+        if (isOpen) {
+            setLocalFilters(initialFilters);
+            const hasAdvancedFilters = initialFilters.categories.length > 0 || initialFilters.minAmount || initialFilters.maxAmount;
+            setShowAdvanced(hasAdvancedFilters);
+        }
+    }, [isOpen, initialFilters]);
+
+    const handleFilterChange = (field: keyof typeof localFilters, value: any) => {
+        setLocalFilters(prev => ({ ...prev, [field]: value }));
     };
-    
-    const resetFilters = () => {
+
+    const handleReset = () => {
         const emptyFilters = { text: '', tags: '', categories: [], minAmount: '', maxAmount: '', startDate: '', endDate: '' };
-        onFilterChange(emptyFilters);
+        onApplyFilters(emptyFilters);
+        onClose();
+    };
+
+    const handleApply = () => {
+        onApplyFilters(localFilters);
+        onClose();
     };
 
     return (
-        <div className="bg-slate-800/50 p-4 rounded-2xl border border-slate-700/50 mb-6 space-y-4">
-            <div className="flex flex-col md:flex-row gap-3">
-                <div className="relative flex-grow">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
-                    <input
-                        type="text"
-                        placeholder="Suche nach Beschreibung..."
-                        value={filters.text}
-                        onChange={e => handleFilterChange('text', e.target.value)}
-                        className="w-full bg-slate-700 border border-slate-600 rounded-lg pl-10 pr-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-rose-500"
-                    />
-                </div>
-                <div className="relative flex-grow">
-                    <TagIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
-                    <input
-                        type="text"
-                        placeholder="Filter nach Tag..."
-                        value={filters.tags}
-                        onChange={e => handleFilterChange('tags', e.target.value)}
-                        className="w-full bg-slate-700 border border-slate-600 rounded-lg pl-10 pr-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-rose-500"
-                    />
-                </div>
-            </div>
+        <AnimatePresence>
+            {isOpen && (
+                <motion.div
+                    className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-end md:items-center z-50"
+                    onClick={onClose}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                >
+                    <motion.div
+                        className="bg-slate-800 rounded-t-2xl md:rounded-2xl w-full max-w-2xl shadow-2xl border-t md:border border-slate-700 flex flex-col max-h-[90vh]"
+                        onClick={e => e.stopPropagation()}
+                        initial={{ y: "100%", opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        exit={{ y: "100%", opacity: 0 }}
+                        transition={{ type: 'spring', bounce: 0.2, duration: 0.4 }}
+                    >
+                        <header className="flex justify-between items-center p-4 border-b border-slate-700 flex-shrink-0">
+                            <h2 className="text-xl font-bold text-white flex items-center gap-2"><Search className="h-5 w-5"/> Suchen & Filtern</h2>
+                            <button onClick={onClose} className="p-2 rounded-full hover:bg-slate-700 transition-colors"><X className="h-5 w-5" /></button>
+                        </header>
 
-            <div className="flex flex-col sm:flex-row gap-4 items-center justify-end pt-4 border-t border-slate-700/50">
-                <div className="flex items-center gap-2">
-                    <button onClick={() => setShowAdvanced(!showAdvanced)} className="flex items-center justify-center gap-2 text-sm text-white bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded-lg font-semibold">
-                        <SlidersHorizontal className="h-4 w-4"/>
-                        <span>Erweiterte Filter</span>
-                    </button>
-                     <button onClick={resetFilters} className="text-sm text-slate-400 hover:text-white hover:bg-slate-700/50 px-4 py-2 rounded-lg">
-                        Zurücksetzen
-                    </button>
-                </div>
-            </div>
-            
-            <AnimatePresence>
-            {showAdvanced && (
-                <motion.div initial={{opacity: 0, height: 0}} animate={{opacity: 1, height: 'auto'}} exit={{opacity: 0, height: 0}} className="overflow-hidden">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4 border-t border-slate-700">
-                         <MultiCategoryPicker categories={categories} selected={filters.categories} onChange={val => handleFilterChange('categories', val)} />
-                         <input type="number" placeholder="Min. Betrag" value={filters.minAmount} onChange={e => handleFilterChange('minAmount', e.target.value)} className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white placeholder-slate-500"/>
-                         <input type="number" placeholder="Max. Betrag" value={filters.maxAmount} onChange={e => handleFilterChange('maxAmount', e.target.value)} className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white placeholder-slate-500"/>
-                         <div className="flex items-center gap-2">
-                            <input type="date" value={filters.startDate} onChange={e => handleFilterChange('startDate', e.target.value)} className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white"/>
-                            <span className="text-slate-400">-</span>
-                            <input type="date" value={filters.endDate} onChange={e => handleFilterChange('endDate', e.target.value)} className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white"/>
-                         </div>
-                    </div>
+                        <main className="p-6 space-y-4 overflow-y-auto">
+                            <div className="flex flex-col md:flex-row gap-3">
+                                <div className="relative flex-grow">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+                                    <input
+                                        type="text"
+                                        placeholder="Suche nach Beschreibung..."
+                                        value={localFilters.text}
+                                        onChange={e => handleFilterChange('text', e.target.value)}
+                                        className="w-full bg-slate-700 border border-slate-600 rounded-lg pl-10 pr-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-rose-500"
+                                    />
+                                </div>
+                                <div className="relative flex-grow">
+                                    <TagIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+                                    <input
+                                        type="text"
+                                        placeholder="Filter nach Tag (mit Komma trennen)..."
+                                        value={localFilters.tags}
+                                        onChange={e => handleFilterChange('tags', e.target.value)}
+                                        className="w-full bg-slate-700 border border-slate-600 rounded-lg pl-10 pr-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-rose-500"
+                                    />
+                                </div>
+                            </div>
+                            
+                            <div className="pt-4 border-t border-slate-700/50">
+                                <button onClick={() => setShowAdvanced(!showAdvanced)} className="w-full flex justify-between items-center text-left text-lg font-semibold text-white">
+                                    <span>Erweiterte Filter</span>
+                                    <ChevronDown className={`h-5 w-5 transition-transform ${showAdvanced ? 'rotate-180' : ''}`} />
+                                </button>
+                            </div>
+
+                            <AnimatePresence>
+                            {showAdvanced && (
+                                <motion.div initial={{opacity: 0, height: 0}} animate={{opacity: 1, height: 'auto'}} exit={{opacity: 0, height: 0}} className="overflow-hidden">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4">
+                                        <div className="md:col-span-2">
+                                            <p className="text-sm font-medium text-slate-300 mb-2">Kategorien</p>
+                                            <MultiCategoryPicker categories={categories} selected={localFilters.categories} onChange={val => handleFilterChange('categories', val)} />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-medium text-slate-300 mb-2">Betrag</p>
+                                            <div className="flex items-center gap-2">
+                                                <input type="number" placeholder="Min." value={localFilters.minAmount} onChange={e => handleFilterChange('minAmount', e.target.value)} className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white placeholder-slate-500"/>
+                                                <input type="number" placeholder="Max." value={localFilters.maxAmount} onChange={e => handleFilterChange('maxAmount', e.target.value)} className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white placeholder-slate-500"/>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-medium text-slate-300 mb-2">Zeitraum</p>
+                                            <div className="flex items-center gap-2">
+                                                <input type="date" value={localFilters.startDate} onChange={e => handleFilterChange('startDate', e.target.value)} className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white"/>
+                                                <input type="date" value={localFilters.endDate} onChange={e => handleFilterChange('endDate', e.target.value)} className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white"/>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </motion.div>
+                            )}
+                            </AnimatePresence>
+                        </main>
+
+                        <footer className="p-4 border-t border-slate-700 flex justify-between items-center flex-shrink-0">
+                             <button onClick={handleReset} className="text-sm text-slate-400 hover:text-white hover:bg-slate-700/50 px-4 py-2 rounded-lg">
+                                Zurücksetzen
+                            </button>
+                            <button onClick={handleApply} className="bg-rose-600 hover:bg-rose-500 text-white font-semibold px-6 py-2 rounded-lg text-sm transition-colors">
+                                Filter anwenden
+                            </button>
+                        </footer>
+                    </motion.div>
                 </motion.div>
             )}
-            </AnimatePresence>
-        </div>
+        </AnimatePresence>
     );
-}
+};
+
 
 const TransactionsPage: FC = () => {
     const { transactions, tagMap } = useApp();
+    const [isFilterModalOpen, setFilterModalOpen] = useState(false);
 
-    const [filters, setFilters] = useState({
-        text: '',
-        tags: '',
-        categories: [] as string[],
-        minAmount: '',
-        maxAmount: '',
-        startDate: '',
-        endDate: '',
+    const [filters, setFilters] = useState(() => {
+        const now = new Date();
+        return {
+            text: '',
+            tags: '',
+            categories: [] as string[],
+            minAmount: '',
+            maxAmount: '',
+            startDate: format(startOfDay(now), 'yyyy-MM-dd'),
+            endDate: format(endOfDay(now), 'yyyy-MM-dd'),
+        };
     });
-    const [activeQuickFilter, setActiveQuickFilter] = useState<QuickFilterId | null>('all');
+    const [activeQuickFilter, setActiveQuickFilter] = useState<QuickFilterId | null>('today');
 
     const handleQuickFilter = (filter: QuickFilterId) => {
         setActiveQuickFilter(filter);
@@ -333,28 +414,51 @@ const TransactionsPage: FC = () => {
                 break; // a reset will set dates to ''
         }
         
-        setFilters(prevFilters => ({ ...prevFilters, startDate, endDate }));
+        // Reset advanced filters when using a quick filter
+        setFilters({
+            text: '',
+            tags: '',
+            categories: [],
+            minAmount: '',
+            maxAmount: '',
+            startDate,
+            endDate,
+        });
     };
 
     const handleAdvancedFilterChange = (newFilters: any) => {
         setFilters(newFilters);
         
-        const { startDate, endDate } = newFilters;
+        const { startDate, endDate, text, tags, categories, minAmount, maxAmount } = newFilters;
         const now = new Date();
-
+        
+        // Deselect quick filter if any advanced filter is active or dates don't match
+        const hasAdvancedFilters = text || tags || categories.length > 0 || minAmount || maxAmount;
         let correspondingQuickFilter: QuickFilterId | null = null;
-        if (startDate === format(startOfDay(now), 'yyyy-MM-dd') && endDate === format(endOfDay(now), 'yyyy-MM-dd')) {
-            correspondingQuickFilter = 'today';
-        } else if (startDate === format(getWeekInterval(now).start, 'yyyy-MM-dd') && endDate === format(getWeekInterval(now).end, 'yyyy-MM-dd')) {
-            correspondingQuickFilter = 'week';
-        } else if (startDate === format(getMonthInterval(now).start, 'yyyy-MM-dd') && endDate === format(getMonthInterval(now).end, 'yyyy-MM-dd')) {
-            correspondingQuickFilter = 'month';
-        } else if (!startDate && !endDate) {
-            correspondingQuickFilter = 'all';
+        
+        if (!hasAdvancedFilters) {
+            if (startDate === format(startOfDay(now), 'yyyy-MM-dd') && endDate === format(endOfDay(now), 'yyyy-MM-dd')) {
+                correspondingQuickFilter = 'today';
+            } else if (startDate === format(getWeekInterval(now).start, 'yyyy-MM-dd') && endDate === format(getWeekInterval(now).end, 'yyyy-MM-dd')) {
+                correspondingQuickFilter = 'week';
+            } else if (startDate === format(getMonthInterval(now).start, 'yyyy-MM-dd') && endDate === format(getMonthInterval(now).end, 'yyyy-MM-dd')) {
+                correspondingQuickFilter = 'month';
+            } else if (!startDate && !endDate) {
+                correspondingQuickFilter = 'all';
+            }
         }
         
         setActiveQuickFilter(correspondingQuickFilter);
     };
+
+    const isFilterActive = useMemo(() => {
+        return !!(filters.text || 
+               filters.tags || 
+               filters.categories.length > 0 || 
+               filters.minAmount || 
+               filters.maxAmount);
+    }, [filters]);
+
 
     const sortedTransactions = useMemo(() => 
         [...transactions].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()), 
@@ -410,15 +514,22 @@ const TransactionsPage: FC = () => {
     return (
         <div className="space-y-6">
             <h1 className="text-3xl font-bold text-white">Transaktionen</h1>
-            <TransactionFilters onFilterChange={handleAdvancedFilterChange} filters={filters} />
-            <div className="h-[calc(100vh-380px)]">
+            <div className="h-[calc(100vh-280px)]">
                 <TransactionList 
                     transactions={filteredTransactions}
                     showEmptyMessage={true}
                     activeQuickFilter={activeQuickFilter}
                     onQuickFilter={handleQuickFilter}
+                    onOpenFilters={() => setFilterModalOpen(true)}
+                    isFilterActive={isFilterActive}
                 />
             </div>
+            <FilterModal
+                isOpen={isFilterModalOpen}
+                onClose={() => setFilterModalOpen(false)}
+                onApplyFilters={handleAdvancedFilterChange}
+                initialFilters={filters}
+            />
         </div>
     );
 };

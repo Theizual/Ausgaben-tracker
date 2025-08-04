@@ -1,3 +1,4 @@
+
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { google } from 'googleapis';
 import { JWT } from 'google-auth-library';
@@ -63,22 +64,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Prepare data for upload
-    const categoryHeader = ['id', 'name', 'color', 'icon', 'budget', 'group'];
-    const transactionHeader = ['id', 'amount', 'description', 'categoryId', 'date', 'tagIds'];
-    const recurringHeader = ['id', 'amount', 'description', 'categoryId', 'frequency', 'startDate', 'lastProcessedDate'];
-    const tagHeader = ['id', 'name'];
+    const categoryHeader = ['id', 'name', 'color', 'icon', 'budget', 'group', 'lastModified', 'isDeleted'];
+    const transactionHeader = ['id', 'amount', 'description', 'categoryId', 'date', 'tagIds', 'lastModified', 'isDeleted'];
+    const recurringHeader = ['id', 'amount', 'description', 'categoryId', 'frequency', 'startDate', 'lastProcessedDate', 'lastModified', 'isDeleted'];
+    const tagHeader = ['id', 'name', 'lastModified', 'isDeleted'];
 
-    const categoryValues = [categoryHeader, ...categories.map((c: Category) => [c.id, c.name, c.color, c.icon, c.budget ? String(c.budget).replace('.', ',') : '', c.group])];
+    const categoryValues = [categoryHeader, ...categories.map((c: Category) => [c.id, c.name, c.color, c.icon, c.budget ? String(c.budget).replace('.', ',') : '', c.group, c.lastModified, c.isDeleted ? 'TRUE' : 'FALSE'])];
     const transactionValues = [transactionHeader, ...transactions.map((t: Transaction) => [
         String(t.id), 
         String(t.amount).replace('.', ','), 
         t.description, 
         t.categoryId, 
         t.date,
-        t.tagIds?.join(',') || ''
+        t.tagIds?.join(',') || '',
+        t.lastModified,
+        t.isDeleted ? 'TRUE' : 'FALSE',
     ])];
-    const recurringValues = [recurringHeader, ...recurringTransactions.map((r: RecurringTransaction) => [r.id, String(r.amount).replace('.',','), r.description, r.categoryId, r.frequency, r.startDate, r.lastProcessedDate || ''])];
-    const tagValues = [tagHeader, ...allAvailableTags.map((tag: Tag) => [tag.id, tag.name])];
+    const recurringValues = [recurringHeader, ...recurringTransactions.map((r: RecurringTransaction) => [r.id, String(r.amount).replace('.',','), r.description, r.categoryId, r.frequency, r.startDate, r.lastProcessedDate || '', r.lastModified, r.isDeleted ? 'TRUE' : 'FALSE'])];
+    const tagValues = [tagHeader, ...allAvailableTags.map((tag: Tag) => [tag.id, tag.name, tag.lastModified, tag.isDeleted ? 'TRUE' : 'FALSE'])];
 
     // Clear existing data
     await sheets.spreadsheets.values.batchClear({

@@ -1,32 +1,36 @@
-
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import type { FC } from 'react';
 import { motion } from 'framer-motion';
 import { useApp } from '../contexts/AppContext';
-import type { Transaction, Category } from '../types';
-import { formatCurrency } from '../utils/dateUtils';
+import type { Transaction } from '../types';
+import { formatCurrency, getMonthInterval, isWithinInterval, parseISO } from '../utils/dateUtils';
 import { iconMap, CheckCircle2 } from './Icons';
 
 interface ConfirmationModalProps {
     isOpen: boolean;
     onClose: () => void;
-    transaction: Transaction;
+    transactions: Transaction[];
     totalSpentBefore: number;
 }
 
 const ConfirmationModal: FC<ConfirmationModalProps> = ({
     isOpen,
     onClose,
-    transaction,
+    transactions: newTransactions,
     totalSpentBefore,
 }) => {
-    const { categoryMap, totalMonthlyBudget, totalSpentThisMonth } = useApp();
+    const { 
+        categoryMap, 
+        totalMonthlyBudget, 
+        totalSpentThisMonth,
+        transactions: allTransactions 
+    } = useApp();
 
     useEffect(() => {
         if (isOpen) {
             const timer = setTimeout(() => {
                 onClose();
-            }, 5000); // Auto-close after 5 seconds
+            }, 8000); // Auto-close after 8 seconds
 
             const handleKeyDown = (event: KeyboardEvent) => {
                 if (event.key === 'Escape') {
@@ -42,19 +46,44 @@ const ConfirmationModal: FC<ConfirmationModalProps> = ({
         }
     }, [isOpen, onClose]);
 
-    if (!isOpen) return null;
+    const firstTransaction = newTransactions.length > 0 ? newTransactions[0] : null;
+    const category = firstTransaction ? categoryMap.get(firstTransaction.categoryId) : null;
+    const hasCategoryBudget = !!(category?.budget && category.budget > 0);
+
+    const categoryBudgetStats = useMemo(() => {
+        if (!hasCategoryBudget || !category) return null;
+
+        const monthInterval = getMonthInterval(new Date());
+        
+        const allCategoryTransactionsInMonth = allTransactions
+            .filter(t => t.categoryId === category.id && isWithinInterval(parseISO(t.date), monthInterval));
+            
+        const categorySpentAfter = allCategoryTransactionsInMonth.reduce((sum, t) => sum + t.amount, 0);
+        const newAmountInThisConfirmation = newTransactions.reduce((sum, t) => sum + t.amount, 0);
+        const categorySpentBefore = categorySpentAfter - newAmountInThisConfirmation;
+
+        const percentageAfter = (categorySpentAfter / category.budget!) * 100;
+        const percentageBefore = (categorySpentBefore / category.budget!) * 100;
+
+        return {
+            budget: category.budget!,
+            spentAfter: categorySpentAfter,
+            percentageAfter,
+            percentageBefore,
+            color: category.color,
+            name: category.name,
+        };
+    }, [hasCategoryBudget, category, allTransactions, newTransactions]);
+
+    if (!isOpen || newTransactions.length === 0) return null;
     
-    const category = categoryMap.get(transaction.categoryId);
-    const Icon = category ? iconMap[category.icon] || iconMap.MoreHorizontal : iconMap.MoreHorizontal;
-    const color = category ? category.color : '#64748b';
+    const totalPercentageBefore = totalMonthlyBudget > 0 ? (totalSpentBefore / totalMonthlyBudget) * 100 : 0;
+    const totalPercentageAfter = totalMonthlyBudget > 0 ? (totalSpentThisMonth / totalMonthlyBudget) * 100 : 0;
 
-    const percentageBefore = totalMonthlyBudget > 0 ? (totalSpentBefore / totalMonthlyBudget) * 100 : 0;
-    const percentageAfter = totalMonthlyBudget > 0 ? (totalSpentThisMonth / totalMonthlyBudget) * 100 : 0;
-
-    const getTotalBarColor = (percentage: number) => {
+    const getBarColor = (percentage: number, defaultColor = '#22c55e') => {
         if (percentage > 100) return '#ef4444'; // red-500
         if (percentage > 85) return '#f97316'; // orange-500
-        return '#22c55e'; // green-500
+        return defaultColor;
     };
 
     return (
@@ -81,40 +110,82 @@ const ConfirmationModal: FC<ConfirmationModalProps> = ({
                     <CheckCircle2 className="h-16 w-16 text-green-400 mb-4" />
                 </motion.div>
                 
-                <h2 className="text-2xl font-bold text-white mb-2">Ausgabe hinzugefügt!</h2>
+                 <h2 className="text-2xl font-bold text-white mb-2">
+                    {newTransactions.length > 1 ? `${newTransactions.length} Ausgaben hinzugefügt!` : 'Ausgabe hinzugefügt!'}
+                </h2>
                 
-                <div className="bg-slate-700/50 p-4 rounded-lg my-6 w-full flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: color }}>
-                        <Icon className="h-5 w-5 text-white" />
-                    </div>
-                    <div className="flex-1 text-left min-w-0">
-                        <p className="font-medium text-white truncate">{transaction.description}</p>
-                        <p className="text-sm text-slate-400">{category?.name}</p>
-                    </div>
-                    <p className="font-bold text-white text-lg">{formatCurrency(transaction.amount)}</p>
+                <div className="bg-slate-700/50 p-4 rounded-lg my-6 w-full max-h-48 overflow-y-auto space-y-3">
+                    {newTransactions.map(transaction => {
+                        const currentCategory = categoryMap.get(transaction.categoryId);
+                        const Icon = currentCategory ? iconMap[currentCategory.icon] || iconMap.MoreHorizontal : iconMap.MoreHorizontal;
+                        const color = currentCategory ? currentCategory.color : '#64748b';
+                        
+                        return (
+                            <div key={transaction.id} className="flex items-center gap-4">
+                                <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: color }}>
+                                    <Icon className="h-5 w-5 text-white" />
+                                </div>
+                                <div className="flex-1 text-left min-w-0">
+                                    <p className="font-medium text-white truncate">{transaction.description}</p>
+                                    <p className="text-sm text-slate-400">{currentCategory?.name}</p>
+                                </div>
+                                <p className="font-bold text-white text-lg">{formatCurrency(transaction.amount)}</p>
+                            </div>
+                        );
+                    })}
                 </div>
                 
-                {totalMonthlyBudget > 0 && (
-                    <div className="w-full space-y-3">
-                        <h3 className="text-sm font-semibold text-slate-300">Budget-Auswirkung</h3>
-                        <div className="flex justify-between items-baseline text-sm">
-                             <p className="text-slate-300">
-                                <span className="font-semibold text-white">{formatCurrency(totalSpentThisMonth)}</span>
-                                <span className="text-slate-500"> / {formatCurrency(totalMonthlyBudget)}</span>
-                            </p>
-                            <p className="font-semibold" style={{color: getTotalBarColor(percentageAfter)}}>{percentageAfter.toFixed(0)}%</p>
+                <div className="w-full space-y-4">
+                    {/* Category Budget Section */}
+                    {hasCategoryBudget && categoryBudgetStats && (
+                        <div>
+                            <h3 className="text-sm font-semibold text-slate-300 text-left mb-2">
+                                Budget: <span style={{ color: categoryBudgetStats.color }}>{categoryBudgetStats.name}</span>
+                            </h3>
+                            <div className="flex justify-between items-baseline text-sm mb-1">
+                                <p className="text-slate-300">
+                                    <span className="font-semibold text-white">{formatCurrency(categoryBudgetStats.spentAfter)}</span>
+                                    <span className="text-slate-500"> / {formatCurrency(categoryBudgetStats.budget)}</span>
+                                </p>
+                                <p className="font-semibold" style={{color: getBarColor(categoryBudgetStats.percentageAfter, categoryBudgetStats.color)}}>
+                                    {categoryBudgetStats.percentageAfter.toFixed(0)}%
+                                </p>
+                            </div>
+                            <div className="w-full bg-slate-700 rounded-full h-2.5 overflow-hidden">
+                                <motion.div
+                                    className="h-2.5 rounded-full"
+                                    style={{ backgroundColor: getBarColor(categoryBudgetStats.percentageAfter, categoryBudgetStats.color) }}
+                                    initial={{ width: `${Math.min(categoryBudgetStats.percentageBefore, 100)}%` }}
+                                    animate={{ width: `${Math.min(categoryBudgetStats.percentageAfter, 100)}%` }}
+                                    transition={{ duration: 0.8, ease: "easeOut", delay: 0.3 }}
+                                />
+                            </div>
                         </div>
-                        <div className="w-full bg-slate-700 rounded-full h-2.5 overflow-hidden">
-                             <motion.div
-                                className="h-2.5 rounded-full"
-                                style={{ backgroundColor: getTotalBarColor(percentageAfter) }}
-                                initial={{ width: `${Math.min(percentageBefore, 100)}%` }}
-                                animate={{ width: `${Math.min(percentageAfter, 100)}%` }}
-                                transition={{ duration: 0.8, ease: "easeOut", delay: 0.3 }}
-                            />
+                    )}
+                    
+                    {/* Total Budget Section */}
+                    {totalMonthlyBudget > 0 && (
+                        <div>
+                            <h3 className="text-sm font-semibold text-slate-300 text-left mb-2">Gesamtbudget</h3>
+                            <div className="flex justify-between items-baseline text-sm mb-1">
+                                <p className="text-slate-300">
+                                    <span className="font-semibold text-white">{formatCurrency(totalSpentThisMonth)}</span>
+                                    <span className="text-slate-500"> / {formatCurrency(totalMonthlyBudget)}</span>
+                                </p>
+                                <p className="font-semibold" style={{color: getBarColor(totalPercentageAfter)}}>{totalPercentageAfter.toFixed(0)}%</p>
+                            </div>
+                            <div className="w-full bg-slate-700 rounded-full h-2.5 overflow-hidden">
+                                <motion.div
+                                    className="h-2.5 rounded-full"
+                                    style={{ backgroundColor: getBarColor(totalPercentageAfter) }}
+                                    initial={{ width: `${Math.min(totalPercentageBefore, 100)}%` }}
+                                    animate={{ width: `${Math.min(totalPercentageAfter, 100)}%` }}
+                                    transition={{ duration: 0.8, ease: "easeOut", delay: 0.3 }}
+                                />
+                            </div>
                         </div>
-                    </div>
-                )}
+                    )}
+                </div>
             </motion.div>
         </motion.div>
     );

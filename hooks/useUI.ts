@@ -1,18 +1,19 @@
 
+
 import { useState, useCallback } from 'react';
 import type { Transaction } from '../types';
 
 export const useUI = () => {
     const [activeTab, setActiveTab] = useState<'dashboard' | 'transactions' | 'statistics' | 'tags'>('dashboard');
-    const [selectedTagIdForAnalysis, setSelectedTagIdForAnalysis] = useState<string | null>(null);
+    const [selectedTagIdsForAnalysis, setSelectedTagIdsForAnalysis] = useState<string[]>([]);
     const [isSettingsOpen, setSettingsOpen] = useState(false);
-    const [confirmationData, setConfirmationData] = useState<{ transaction: Transaction; totalSpentBefore: number; } | null>(null);
+    const [confirmationData, setConfirmationData] = useState<{ transactions: Transaction[]; totalSpentBefore: number; } | null>(null);
     const [transactionForDetail, setTransactionForDetail] = useState<{ transaction: Transaction; mode: 'view' | 'edit' } | null>(null);
 
     const openSettings = useCallback(() => setSettingsOpen(true), []);
     const closeSettings = useCallback(() => setSettingsOpen(false), []);
     
-    const showConfirmation = useCallback((data: { transaction: Transaction; totalSpentBefore: number; }) => setConfirmationData(data), []);
+    const showConfirmation = useCallback((data: { transactions: Transaction[]; totalSpentBefore: number; }) => setConfirmationData(data), []);
     const closeConfirmation = useCallback(() => setConfirmationData(null), []);
 
     const showTransactionDetail = useCallback((transaction: Transaction, mode: 'view' | 'edit' = 'view') => {
@@ -22,14 +23,18 @@ export const useUI = () => {
 
     const handleTagAnalyticsClick = useCallback((tagId: string) => {
         setActiveTab('tags');
-        setSelectedTagIdForAnalysis(tagId);
+        setSelectedTagIdsForAnalysis([tagId]);
     }, []);
+    
+    const handleSelectTagForAnalysis = useCallback((tagIds: string[]) => {
+        setSelectedTagIdsForAnalysis(tagIds);
+    }, []);
+
 
     return {
         activeTab,
         setActiveTab,
-        selectedTagIdForAnalysis,
-        setSelectedTagIdForAnalysis,
+        selectedTagIdsForAnalysis,
         isSettingsOpen,
         openSettings,
         closeSettings,
@@ -40,6 +45,6 @@ export const useUI = () => {
         handleTransactionClick: showTransactionDetail,
         closeTransactionDetail,
         handleTagAnalyticsClick,
-        handleSelectTagForAnalysis: setSelectedTagIdForAnalysis,
+        handleSelectTagForAnalysis,
     };
 };

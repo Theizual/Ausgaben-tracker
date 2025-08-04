@@ -2,15 +2,19 @@
 export interface Tag {
   id: string;
   name: string;
+  lastModified: string; // ISO string
+  isDeleted?: boolean;
 }
 
 export interface Category {
-  id: string;
+  id:string;
   name: string;
   color: string;
   icon: string;
   budget?: number;
   group: string;
+  lastModified: string; // ISO string
+  isDeleted?: boolean;
 }
 
 export interface Transaction {
@@ -20,6 +24,8 @@ export interface Transaction {
   categoryId: string;
   date: string; // ISO string format
   tagIds?: string[];
+  lastModified: string; // ISO string
+  isDeleted?: boolean;
 }
 
 export interface RecurringTransaction {
@@ -30,6 +36,8 @@ export interface RecurringTransaction {
   frequency: 'monthly' | 'yearly';
   startDate: string; // ISO string
   lastProcessedDate?: string; // ISO string
+  lastModified: string; // ISO string
+  isDeleted?: boolean;
 }
 
 export type ViewMode = 'woche' | 'monat';

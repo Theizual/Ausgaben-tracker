@@ -1,110 +1,187 @@
 
-import React, { useState, useMemo, useEffect } from 'react';
+
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import type { FC } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useApp } from '../contexts/AppContext';
 import type { Transaction, Category, Tag } from '../types';
 import { format, parseISO, formatCurrency, de, isWithinInterval, addMonths, subMonths, addYears, subYears, getMonthInterval, getYearInterval } from '../utils/dateUtils';
-import { Search, Hash, Coins, BarChart2, CalendarDays, ChevronLeft, ChevronRight, ChevronDown, X, Edit, Trash2 } from './Icons';
+import { Hash, Coins, BarChart2, ChevronLeft, ChevronRight, X, Edit, Trash2, Plus, Search } from './Icons';
 import { iconMap } from './Icons';
 
-const TagList: FC<{
-    tags: Tag[],
-    transactions: Transaction[],
-    selectedTagId: string | null,
-    onTagSelect: (tagId: string) => void;
-}> = ({ tags, transactions, selectedTagId, onTagSelect }) => {
+const AllTagsModal: FC<{
+    allTags: Tag[];
+    selectedTagIds: string[];
+    onTagClick: (tagId: string) => void;
+    onClose: () => void;
+}> = ({ allTags, selectedTagIds, onTagClick, onClose }) => {
     const [searchTerm, setSearchTerm] = useState('');
-
-    const tagSpending = useMemo(() => {
-        const spendingMap = new Map<string, number>();
-        transactions.forEach(t => {
-            t.tagIds?.forEach(tagId => {
-                spendingMap.set(tagId, (spendingMap.get(tagId) || 0) + t.amount);
-            });
-        });
-        return spendingMap;
-    }, [transactions]);
     
-    const sortedAndFilteredTags = useMemo(() => {
-        return tags
-            .map(tag => ({...tag, total: tagSpending.get(tag.id) || 0}))
+    const filteredTags = useMemo(() => 
+        allTags
             .filter(tag => tag.name.toLowerCase().includes(searchTerm.toLowerCase()))
-            .sort((a,b) => b.total - a.total);
-    }, [tags, searchTerm, tagSpending]);
+            .sort((a,b) => a.name.localeCompare(b.name)),
+        [allTags, searchTerm]
+    );
 
     return (
-        <div className="h-full flex flex-col">
-            <div className="relative mb-4 px-4 pt-4">
-                <Search className="absolute left-7 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                <input
-                    type="text"
-                    placeholder="Tag suchen..."
-                    value={searchTerm}
-                    onChange={e => setSearchTerm(e.target.value)}
-                    className="w-full bg-slate-700 border border-slate-600 rounded-lg pl-9 pr-3 py-2 text-white placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500"
-                />
-            </div>
-            <div className="flex-grow overflow-y-auto space-y-2 px-4 pb-4">
-                {sortedAndFilteredTags.map(tag => (
-                    <button
-                        key={tag.id}
-                        onClick={() => onTagSelect(tag.id)}
-                        className={`w-full flex justify-between items-center p-3 rounded-lg text-left transition-colors ${
-                            selectedTagId === tag.id
-                                ? 'bg-rose-600/20 ring-1 ring-rose-500'
-                                : 'hover:bg-slate-700/70'
-                        }`}
-                    >
-                        <div>
-                            <p className={`font-semibold ${selectedTagId === tag.id ? 'text-rose-300' : 'text-white'}`}>#{tag.name}</p>
-                        </div>
-                        <p className={`text-sm font-bold ${selectedTagId === tag.id ? 'text-white' : 'text-slate-300'}`}>{formatCurrency(tag.total)}</p>
+        <motion.div
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50 p-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onClose}
+        >
+            <motion.div
+                className="bg-slate-800 rounded-2xl w-full max-w-md shadow-2xl border border-slate-700 flex flex-col max-h-[70vh]"
+                initial={{ scale: 0.95, y: 20 }}
+                animate={{ scale: 1, y: 0 }}
+                exit={{ scale: 0.95, y: 20 }}
+                onClick={(e) => e.stopPropagation()}
+            >
+                <header className="p-4 border-b border-slate-700 flex-shrink-0">
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                        <input
+                            type="text"
+                            placeholder="Weitere Tags suchen..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full bg-slate-700 border border-slate-600 rounded-md pl-8 pr-3 py-1.5 text-white placeholder-slate-500 text-sm"
+                            autoFocus
+                        />
+                    </div>
+                </header>
+                <main className="p-4 overflow-y-auto">
+                    <div className="flex flex-wrap gap-2">
+                         {filteredTags.map(tag => {
+                            const isSelected = selectedTagIds.includes(tag.id);
+                            return (
+                                <button
+                                    key={tag.id}
+                                    onClick={() => onTagClick(tag.id)}
+                                    className={`px-3 py-1.5 text-sm font-semibold rounded-full transition-colors ${
+                                        isSelected 
+                                            ? 'bg-rose-600 text-white' 
+                                            : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                                    }`}
+                                >
+                                    #{tag.name}
+                                </button>
+                            );
+                        })}
+                        {filteredTags.length === 0 && <p className="text-slate-500 text-center w-full">Keine passenden Tags gefunden.</p>}
+                    </div>
+                </main>
+                 <footer className="p-4 border-t border-slate-700 flex-shrink-0 text-right">
+                    <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm font-semibold text-white bg-slate-600 hover:bg-slate-500">
+                        Schließen
                     </button>
-                ))}
+                </footer>
+            </motion.div>
+        </motion.div>
+    );
+};
+
+const MultiTagPicker: FC<{
+    allTags: Tag[];
+    recentTags: Tag[];
+    selectedTagIds: string[];
+    onSelectionChange: (ids: string[]) => void;
+}> = ({ allTags, recentTags, selectedTagIds, onSelectionChange }) => {
+    const [isModalOpen, setIsModalOpen] = useState(false);
+
+    const handleTagClick = (tagId: string) => {
+        const newSelection = selectedTagIds.includes(tagId)
+            ? selectedTagIds.filter(id => id !== tagId)
+            : [...selectedTagIds, tagId];
+        onSelectionChange(newSelection);
+    };
+
+    const otherTags = useMemo(() => {
+        const recentTagIds = new Set(recentTags.map(t => t.id));
+        return allTags.filter(tag => !recentTagIds.has(tag.id));
+    }, [allTags, recentTags]);
+
+    return (
+        <div className="bg-slate-800/50 p-4 rounded-2xl border border-slate-700/50 space-y-3">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 ml-1">
+                Tags zur Analyse auswählen
+            </h4>
+            <div className="flex flex-wrap gap-2">
+                {recentTags.map(tag => {
+                    const isSelected = selectedTagIds.includes(tag.id);
+                    return (
+                        <button
+                            key={tag.id}
+                            onClick={() => handleTagClick(tag.id)}
+                            className={`px-3 py-1.5 text-sm font-semibold rounded-full transition-all duration-200 flex items-center gap-1.5 ${
+                                isSelected 
+                                    ? 'bg-rose-600 text-white shadow-md'
+                                    : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                            }`}
+                        >
+                            #{tag.name}
+                        </button>
+                    );
+                })}
+                {otherTags.length > 0 && (
+                     <button
+                        onClick={() => setIsModalOpen(true)}
+                        className="px-3 py-1.5 text-sm font-semibold rounded-full transition-colors bg-slate-700 text-slate-300 hover:bg-slate-600 flex items-center gap-1.5"
+                    >
+                        <Plus className="h-4 w-4" />
+                        Weitere
+                    </button>
+                )}
             </div>
+            
+            <AnimatePresence>
+                {isModalOpen && (
+                    <AllTagsModal
+                        allTags={otherTags}
+                        selectedTagIds={selectedTagIds}
+                        onTagClick={handleTagClick}
+                        onClose={() => setIsModalOpen(false)}
+                    />
+                )}
+            </AnimatePresence>
         </div>
     );
 };
 
+
 const TagsPage: FC = () => {
     const { 
-        transactions, 
-        allAvailableTags, 
-        tagMap, 
-        categoryMap,
-        selectedTagIdForAnalysis,
+        allAvailableTags,
+        transactions,
+        selectedTagIdsForAnalysis,
         handleSelectTagForAnalysis,
+        ...rest
     } = useApp();
 
     const [periodType, setPeriodType] = useState<'month' | 'year'>('month');
     const [currentDate, setCurrentDate] = useState(new Date());
-    const [isTagListModalOpen, setIsTagListModalOpen] = useState(false);
 
-    const activeTagId = selectedTagIdForAnalysis || (allAvailableTags.length > 0 ? allAvailableTags[0].id : null);
-    
-    useEffect(() => {
-        if (!selectedTagIdForAnalysis && allAvailableTags.length > 0) {
-            handleSelectTagForAnalysis(allAvailableTags[0].id);
-        }
-    }, [allAvailableTags, selectedTagIdForAnalysis, handleSelectTagForAnalysis]);
-    
-    useEffect(() => {
-        const handleKeyDown = (event: KeyboardEvent) => {
-            if (event.key === 'Escape') {
-                setIsTagListModalOpen(false);
+    const recentlyUsedTags = useMemo(() => {
+        const sortedTransactions = [...transactions].sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime());
+        const recentTagIds = new Set<string>();
+
+        for (const transaction of sortedTransactions) {
+            if (recentTagIds.size >= 20) break;
+            if (transaction.tagIds) {
+                for (const tagId of transaction.tagIds) {
+                    if (recentTagIds.size >= 20) break;
+                    recentTagIds.add(tagId);
+                }
             }
-        };
-
-        if (isTagListModalOpen) {
-            window.addEventListener('keydown', handleKeyDown);
         }
+        
+        const tagMap = new Map(allAvailableTags.map(t => [t.id, t]));
+        return Array.from(recentTagIds).map(id => tagMap.get(id)).filter((t): t is Tag => !!t);
+    }, [transactions, allAvailableTags]);
 
-        return () => {
-            window.removeEventListener('keydown', handleKeyDown);
-        };
-    }, [isTagListModalOpen]);
 
     if (allAvailableTags.length === 0) {
         return (
@@ -116,32 +193,17 @@ const TagsPage: FC = () => {
             </div>
         );
     }
-    
-    const activeTagName = activeTagId ? tagMap.get(activeTagId) || 'Unbekannt' : 'Tag auswählen';
-
-    const handleSelectTagAndCloseModal = (tagId: string) => {
-        handleSelectTagForAnalysis(tagId);
-        setIsTagListModalOpen(false);
-    };
 
     return (
         <div className="space-y-6">
             <h1 className="text-3xl font-bold text-white">Tag-Analyse</h1>
-
-            <div className="lg:hidden">
-                <button
-                    onClick={() => setIsTagListModalOpen(true)}
-                    className="w-full bg-slate-800/50 p-4 rounded-2xl border border-slate-700/50 flex justify-between items-center text-left min-h-[44px]"
-                >
-                    <div>
-                        <span className="text-xs text-slate-400">Ausgewählter Tag</span>
-                        <p className="font-bold text-white text-lg flex items-center gap-2">
-                           <Hash className="h-5 w-5 text-rose-400" /> {activeTagName}
-                        </p>
-                    </div>
-                    <ChevronDown className="h-6 w-6 text-slate-400" />
-                </button>
-            </div>
+            
+            <MultiTagPicker 
+                allTags={allAvailableTags}
+                recentTags={recentlyUsedTags}
+                selectedTagIds={selectedTagIdsForAnalysis}
+                onSelectionChange={handleSelectTagForAnalysis}
+            />
 
             <PeriodNavigator
                 periodType={periodType}
@@ -149,75 +211,29 @@ const TagsPage: FC = () => {
                 currentDate={currentDate}
                 setCurrentDate={setCurrentDate}
             />
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-                 <motion.div
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    className="hidden lg:block lg:col-span-1"
-                >
-                    <div className="bg-slate-800/50 rounded-2xl border border-slate-700/50 max-h-[calc(100vh-360px)]">
-                        <TagList
-                            tags={allAvailableTags}
-                            transactions={transactions}
-                            selectedTagId={activeTagId}
-                            onTagSelect={handleSelectTagForAnalysis}
-                        />
-                    </div>
-                </motion.div>
-                <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="lg:col-span-2">
-                    <AnimatePresence mode="wait">
-                        {activeTagId ? (
-                            <TagDetailView
-                                key={`${activeTagId}-${periodType}-${currentDate.toISOString()}`}
-                                tagId={activeTagId}
-                                transactions={transactions}
-                                tagMap={tagMap}
-                                categoryMap={categoryMap}
-                                periodType={periodType}
-                                currentDate={currentDate}
-                            />
-                        ) : (
-                            <div className="flex items-center justify-center h-96 bg-slate-800/50 rounded-2xl border border-slate-700/50">
-                                <p className="text-slate-500">Wählen Sie einen Tag aus, um die Details anzuzeigen.</p>
-                            </div>
-                        )}
-                    </AnimatePresence>
-                </motion.div>
-            </div>
-            
-            <AnimatePresence>
-                {isTagListModalOpen && (
+
+            <AnimatePresence mode="wait">
+                {selectedTagIdsForAnalysis.length > 0 ? (
                     <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-end md:items-center z-50"
-                        onClick={() => setIsTagListModalOpen(false)}
+                        key={selectedTagIdsForAnalysis.join('-')}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -20 }}
+                        transition={{ duration: 0.3 }}
                     >
-                         <motion.div
-                            initial={{ y: "100%" }}
-                            animate={{ y: 0 }}
-                            exit={{ y: "100%" }}
-                            transition={{ type: "spring", bounce: 0.3, duration: 0.4 }}
-                            className="bg-slate-800 rounded-t-2xl md:rounded-2xl w-full max-w-lg shadow-2xl border-t md:border border-slate-700 flex flex-col max-h-[85vh]"
-                            onClick={e => e.stopPropagation()}
-                        >
-                            <div className="flex justify-between items-center p-4 border-b border-slate-700 flex-shrink-0">
-                                <h3 className="text-lg font-bold text-white">Tag auswählen</h3>
-                                <button onClick={() => setIsTagListModalOpen(false)} className="p-2 rounded-full hover:bg-slate-700">
-                                    <X className="h-5 w-5" />
-                                </button>
-                            </div>
-                            <div className="flex-grow overflow-hidden">
-                               <TagList 
-                                    tags={allAvailableTags}
-                                    transactions={transactions}
-                                    selectedTagId={activeTagId} 
-                                    onTagSelect={handleSelectTagAndCloseModal}
-                                />
-                            </div>
-                        </motion.div>
+                        <TagDetailView
+                            tagIds={selectedTagIdsForAnalysis}
+                            periodType={periodType}
+                            currentDate={currentDate}
+                            appContext={{ ...rest, transactions }}
+                        />
                     </motion.div>
+                ) : (
+                     <div className="flex flex-col items-center justify-center h-96 bg-slate-800/50 rounded-2xl border border-slate-700/50 text-center">
+                         <Hash className="text-slate-600 h-12 w-12 mb-4" />
+                         <h2 className="text-xl font-bold text-white">Wählen Sie Tags zur Analyse aus</h2>
+                         <p className="text-slate-400">Klicken Sie oben auf einen Tag, um zu beginnen.</p>
+                    </div>
                 )}
             </AnimatePresence>
         </div>
@@ -269,16 +285,17 @@ const PeriodNavigator: FC<{
     );
 };
 
+// We pass the appContext down to avoid prop-drilling hell inside a memoized component
+type AppContextSubset = Omit<ReturnType<typeof useApp>, 'allAvailableTags' | 'selectedTagIdsForAnalysis' | 'handleSelectTagForAnalysis'>;
+
 const TagDetailView: FC<{
-    tagId: string,
-    transactions: Transaction[],
-    tagMap: Map<string, string>,
-    categoryMap: Map<string, Category>,
+    tagIds: string[],
     periodType: 'month' | 'year',
-    currentDate: Date
-}> = ({ tagId, transactions, tagMap, categoryMap, periodType, currentDate }) => {
-    const { handleTransactionClick, deleteTransaction } = useApp();
-    const tagName = tagMap.get(tagId);
+    currentDate: Date,
+    appContext: AppContextSubset
+}> = ({ tagIds, periodType, currentDate, appContext }) => {
+    const { transactions, tagMap, categoryMap, handleTransactionClick, deleteTransaction } = appContext;
+    const tagNames = tagIds.map(id => tagMap.get(id) || 'Unbekannt').join(', ');
 
     const relatedTransactions = useMemo(() => {
         const interval = periodType === 'month' 
@@ -286,9 +303,9 @@ const TagDetailView: FC<{
             : getYearInterval(currentDate);
 
         return transactions
-            .filter(t => t.tagIds?.includes(tagId) && isWithinInterval(parseISO(t.date), interval))
+            .filter(t => t.tagIds?.some(tagId => tagIds.includes(tagId)) && isWithinInterval(parseISO(t.date), interval))
             .sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime());
-    }, [tagId, transactions, periodType, currentDate]);
+    }, [tagIds, transactions, periodType, currentDate]);
     
     const stats = useMemo(() => {
         const total = relatedTransactions.reduce((sum, t) => sum + t.amount, 0);
@@ -297,19 +314,16 @@ const TagDetailView: FC<{
         return { total, count, average };
     }, [relatedTransactions]);
 
-    const mainCategory = useMemo(() => {
-        if (relatedTransactions.length === 0) return null;
+    const relatedCategoryNames = useMemo(() => {
+        if (relatedTransactions.length === 0) return 'Keine';
         
-        const spending = new Map<string, number>();
-        relatedTransactions.forEach(t => {
-            spending.set(t.categoryId, (spending.get(t.categoryId) || 0) + t.amount);
-        });
+        const categoryIds = new Set<string>();
+        relatedTransactions.forEach(t => categoryIds.add(t.categoryId));
         
-        if (spending.size === 0) return null;
-        const topEntry = [...spending.entries()].reduce((max, entry) => entry[1] > max[1] ? entry : max);
-        const category = categoryMap.get(topEntry[0]);
-
-        return category ? { ...category, amount: topEntry[1] } : null;
+        return Array.from(categoryIds)
+            .map(id => categoryMap.get(id)?.name)
+            .filter(Boolean)
+            .join(', ');
     }, [relatedTransactions, categoryMap]);
     
     const spendingOverTimeData = useMemo(() => {
@@ -340,29 +354,28 @@ const TagDetailView: FC<{
         }
     }, [relatedTransactions, periodType, currentDate]);
 
-    if (!tagName) return null;
-
     if (relatedTransactions.length === 0) {
         return (
              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col items-center justify-center h-96 bg-slate-800/50 rounded-2xl border border-slate-700/50 p-6 text-center">
                  <Hash className="text-slate-600 h-12 w-12 mb-4" />
-                 <h2 className="text-xl font-bold text-white">Keine Daten für #{tagName}</h2>
-                 <p className="text-slate-400">Für den gewählten Zeitraum gibt es keine Transaktionen mit diesem Tag.</p>
+                 <h2 className="text-xl font-bold text-white">Keine Daten für #{tagNames}</h2>
+                 <p className="text-slate-400">Für den gewählten Zeitraum gibt es keine Transaktionen mit diesen Tags.</p>
             </motion.div>
         )
     }
 
     return (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6">
-            <h2 className="text-3xl font-bold text-white flex items-center gap-2">
-                <Hash className="text-rose-400 h-7 w-7" />
-                <span>{tagName}</span>
-            </h2>
+            <div>
+                 <h2 className="text-2xl font-bold text-white flex items-center gap-2 flex-wrap">
+                    #{tagNames}
+                </h2>
+                <p className="text-sm text-slate-400 mt-1">Kategorien: {relatedCategoryNames}</p>
+            </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <StatCard icon={Coins} title="Gesamtausgaben" value={formatCurrency(stats.total)} />
                 <StatCard icon={BarChart2} title="Transaktionen" value={stats.count.toString()} />
-                {mainCategory && <StatCard icon={iconMap[mainCategory.icon] || BarChart2} title="Hauptkategorie" value={mainCategory.name} subValue={formatCurrency(mainCategory.amount)} />}
             </div>
 
             <div className="grid grid-cols-1 gap-6">

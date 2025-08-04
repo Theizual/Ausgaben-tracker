@@ -1,5 +1,7 @@
 
 
+
+
 import React, { useState, useMemo } from 'react';
 import type { FC } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -15,7 +17,7 @@ import { ChevronLeft, ChevronRight, X, iconMap, ChevronDown } from './Icons';
 import { formatCurrency, formatGermanDate } from '../utils/dateUtils';
 
 const Statistics: FC = () => {
-    const { transactions, categoryMap } = useApp();
+    const { transactions } = useApp();
     const [currentMonth, setCurrentMonth] = useState(new Date());
     const [selectedDay, setSelectedDay] = useState<Date | null>(new Date());
 
@@ -93,7 +95,7 @@ const DailyBreakdownView: FC<{
     transactions: Transaction[];
     onClose: () => void;
 }> = ({ date, transactions, onClose }) => {
-    const { categoryMap } = useApp();
+    const { categoryMap, handleTransactionClick } = useApp();
     const dailyTotal = useMemo(() => transactions.reduce((sum, t) => sum + t.amount, 0), [transactions]);
 
     const categoryBreakdown = useMemo(() => {
@@ -142,16 +144,20 @@ const DailyBreakdownView: FC<{
                              if (!category) return null;
                              const Icon = iconMap[category.icon] || iconMap.MoreHorizontal;
                              return (
-                                <div key={t.id} className="flex items-center gap-3 bg-slate-800/50 p-2 rounded-md">
+                                <button
+                                    key={t.id}
+                                    onClick={() => handleTransactionClick(t, 'view')}
+                                    className="w-full flex items-center gap-3 bg-slate-800/50 p-2 rounded-md hover:bg-slate-700/50 text-left"
+                                >
                                      <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: category.color }}>
                                          <Icon className="h-5 w-5 text-white" />
                                      </div>
-                                     <div className="flex-1 text-sm">
+                                     <div className="flex-1 text-sm min-w-0">
                                          <p className="font-medium text-white truncate">{t.description}</p>
                                          <p className="text-xs text-slate-400">{category.name}</p>
                                      </div>
-                                     <p className="font-semibold text-white text-sm">{formatCurrency(t.amount)}</p>
-                                 </div>
+                                     <p className="font-semibold text-white text-sm flex-shrink-0 pl-2">{formatCurrency(t.amount)}</p>
+                                 </button>
                              )
                          })}
                      </div>
@@ -261,7 +267,7 @@ const CalendarView: FC<{
 
 const MonthlySummary: FC<{ transactions: Transaction[], currentMonth: Date }> = ({ transactions, currentMonth }) => {
     const summary = useMemo(() => {
-        if (transactions.length === 0) return { total: 0, average: 0, topDay: { label: 'N/A', value: 0 } };
+        if (transactions.length === 0) return { total: 0, average: 0 };
 
         const total = transactions.reduce((acc, t) => acc + t.amount, 0);
 
@@ -270,53 +276,54 @@ const MonthlySummary: FC<{ transactions: Transaction[], currentMonth: Date }> = 
         const daysForAverage = isCurrentMonthView ? new Date().getDate() : daysInSelectedMonth;
         const average = daysForAverage > 0 ? total / daysForAverage : 0;
 
-        const daily = new Map<string, number>();
-        transactions.forEach(t => {
-            if (!t.date || typeof t.date !== 'string') return;
-            try {
-                const date = parseISO(t.date);
-                if (isNaN(date.getTime())) return;
-                const dayKey = format(date, 'yyyy-MM-dd');
-                daily.set(dayKey, (daily.get(dayKey) || 0) + t.amount);
-            } catch (e) { /* ignore */ }
-        });
-
-        const findMax = (map: Map<string, number>) => {
-            if (map.size === 0) return { label: 'N/A', value: 0 };
-            const [label, value] = [...map.entries()].reduce((max, entry) => entry[1] > max[1] ? entry : max);
-            return { label, value };
-        };
-        const maxDay = findMax(daily);
-
         return {
             total,
             average,
-            topDay: maxDay.label === 'N/A' ? maxDay : { label: format(parseISO(maxDay.label), 'd. MMM yyyy', { locale: de }), value: maxDay.value }
         };
 
     }, [transactions, currentMonth]);
 
+    const periodLabel = format(currentMonth, 'MMMM yyyy', { locale: de });
+
     return (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <HighlightCard title="Gesamtausgaben" label={format(currentMonth, 'MMMM yyyy', { locale: de })} value={summary.total} />
-            <HighlightCard title="Tagesdurchschnitt" label={format(currentMonth, 'MMMM yyyy', { locale: de })} value={summary.average} />
-            <HighlightCard title="Höchster Tageswert" label={summary.topDay.label} value={summary.topDay.value} />
-        </div>
+        <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="bg-slate-800 p-6 rounded-2xl border border-slate-700"
+        >
+             <div className="flex flex-row justify-around items-stretch">
+                {/* Total Expenses */}
+                <div className="text-center flex-1">
+                    <h3 className="text-slate-400 text-sm font-medium">Gesamtausgaben</h3>
+                    <p className="text-2xl font-bold text-white mt-2 truncate" title={formatCurrency(summary.total)}>
+                        {formatCurrency(summary.total)}
+                    </p>
+                    <p className="text-slate-500 text-xs mt-1 truncate" title={periodLabel}>
+                        {periodLabel}
+                    </p>
+                </div>
+
+                {/* Divider */}
+                <div className="w-px bg-slate-700/50 mx-4"></div>
+
+                {/* Daily Average */}
+                <div className="text-center flex-1">
+                    <h3 className="text-slate-400 text-sm font-medium">Tagesdurchschnitt</h3>
+                    <p className="text-2xl font-bold text-white mt-2 truncate" title={formatCurrency(summary.average)}>
+                        {formatCurrency(summary.average)}
+                    </p>
+                    <p className="text-slate-500 text-xs mt-1 truncate" title={periodLabel}>
+                        {periodLabel}
+                    </p>
+                </div>
+            </div>
+        </motion.div>
     );
 };
 
-const HighlightCard: FC<{ title: string, label: string, value: number }> = ({ title, label, value }) => (
-    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-slate-800 p-6 rounded-2xl border border-slate-700">
-        <h3 className="text-slate-400 text-sm font-medium">{title}</h3>
-        <p className="text-2xl font-bold text-white mt-2">
-            {formatCurrency(value)}
-        </p>
-        <p className="text-slate-500 text-xs mt-1">{label}</p>
-    </motion.div>
-);
-
 const MonthlyCategoryBreakdown: FC<{ transactions: Transaction[], currentMonth: Date }> = ({ transactions, currentMonth }) => {
-    const { categoryMap } = useApp();
+    const { categoryMap, handleTransactionClick } = useApp();
     const [expandedId, setExpandedId] = useState<string | null>(null);
 
     const categoryBreakdown = useMemo(() => {
@@ -385,15 +392,27 @@ const MonthlyCategoryBreakdown: FC<{ transactions: Transaction[], currentMonth: 
                                     <div className="ml-4 pl-4 border-l-2 border-slate-600/50 space-y-2">
                                         {transactions.filter(t => t.categoryId === category.id)
                                             .sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime())
-                                            .map(t => (
-                                                <div key={t.id} className="flex justify-between items-center text-sm p-2 rounded-md hover:bg-slate-700/50">
-                                                    <div>
-                                                        <p className="text-slate-300">{t.description}</p>
-                                                        <p className="text-xs text-slate-500">{format(parseISO(t.date), 'dd.MM, HH:mm')} Uhr</p>
-                                                    </div>
-                                                    <p className="font-semibold text-slate-200">{formatCurrency(t.amount)}</p>
-                                                </div>
-                                            ))
+                                            .map(t => {
+                                                const Icon = iconMap[category.icon] || iconMap.MoreHorizontal;
+                                                return (
+                                                    <button
+                                                        key={t.id}
+                                                        onClick={() => handleTransactionClick(t, 'view')}
+                                                        className="w-full flex items-center gap-3 text-sm p-2 rounded-md hover:bg-slate-700/50 text-left"
+                                                    >
+                                                        <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: category.color }}>
+                                                            <Icon className="h-5 w-5 text-white" />
+                                                        </div>
+                                                        <div className="flex-1 flex justify-between items-center min-w-0">
+                                                            <div className="min-w-0">
+                                                                <p className="text-slate-300 truncate">{t.description}</p>
+                                                                <p className="text-xs text-slate-500">{format(parseISO(t.date), 'dd.MM, HH:mm')} Uhr</p>
+                                                            </div>
+                                                            <p className="font-semibold text-slate-200 flex-shrink-0 pl-2">{formatCurrency(t.amount)}</p>
+                                                        </div>
+                                                    </button>
+                                                );
+                                            })
                                         }
                                     </div>
                                 </motion.div>

@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext } from 'react';
+import React, { createContext, useContext, useEffect, useRef } from 'react';
 import { useCategories } from '../hooks/useCategories';
 import { useTransactionData } from '../hooks/useTransactionData';
 import { useUI } from '../hooks/useUI';
@@ -14,29 +14,57 @@ type AppContextType =
 
 const AppContext = createContext<AppContextType | null>(null);
 
+// Debounce helper function
+function debounce(func: (...args: any[]) => void, delay: number) {
+    let timeout: ReturnType<typeof setTimeout>;
+    return (...args: any[]) => {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func(...args), delay);
+    };
+}
+
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     // Instantiate hooks in an order that resolves dependencies.
-    // UI and Categories are independent.
     const uiState = useUI();
     const categoriesState = useCategories();
-
-    // TransactionData depends on UI handlers for modals.
-    const transactionData = useTransactionData({
+    const transactionDataState = useTransactionData({
         showConfirmation: uiState.showConfirmation,
         closeTransactionDetail: uiState.closeTransactionDetail,
     });
     
     // Sync needs data and setters from all other domains.
-    const sync = useSync({
+    const syncState = useSync({
         ...categoriesState,
-        ...transactionData,
+        ...transactionDataState,
     });
+    
+    // Auto-sync logic
+    const debouncedSync = useRef(debounce(() => {
+        if (syncState.isAutoSyncEnabled && !syncState.isSyncing) {
+           syncState.syncData({ isAuto: true });
+        }
+    }, 2000)).current; // 2-second debounce delay
+    
+    // The initial sync is now handled by a prompt in useSync.ts
+    // The user's request for auto-sync after an entry is handled here:
+    useEffect(() => {
+        debouncedSync();
+    }, [
+        categoriesState.rawCategories, 
+        categoriesState.categoryGroups,
+        transactionDataState.rawTransactions, 
+        transactionDataState.rawRecurringTransactions, 
+        transactionDataState.rawAllAvailableTags,
+        debouncedSync
+    ]);
+
 
     const value: AppContextType = {
         ...uiState,
         ...categoriesState,
-        ...transactionData,
-        ...sync
+        ...transactionDataState,
+        addMultipleTransactions: transactionDataState.addMultipleTransactions,
+        ...syncState,
     };
 
     return (

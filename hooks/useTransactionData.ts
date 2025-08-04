@@ -1,87 +1,124 @@
 
+
 import { useCallback, useEffect, useMemo, useReducer } from 'react';
 import { toast } from 'react-hot-toast';
 import useLocalStorage from './useLocalStorage';
 import type { Transaction, RecurringTransaction, Tag } from '../types';
 import { addMonths, addYears, isSameDay, parseISO, getMonthInterval, isWithinInterval } from '../utils/dateUtils';
 
-// Action types for the reducer
-type Action =
-    | { type: 'SET_TRANSACTIONS'; payload: Transaction[] }
-    | { type: 'ADD_TRANSACTION'; payload: Transaction }
-    | { type: 'UPDATE_TRANSACTION'; payload: Transaction }
-    | { type: 'DELETE_TRANSACTION'; payload: string }
-    | { type: 'ADD_RECURRING'; payload: RecurringTransaction[] }
-    | { type: 'PROCESS_RECURRING'; payload: { transactions: Transaction[], recurring: RecurringTransaction[] } }
-    | { type: 'SET_TAGS'; payload: Tag[] }
-    | { type: 'ADD_TAGS'; payload: Tag[] }
-    | { type: 'UPDATE_TAG'; payload: { id: string, name: string } }
-    | { type: 'DELETE_TAG'; payload: string };
+// --- STATE MANAGEMENT ---
 
-// Reducer for transactions state
-const transactionsReducer = (state: Transaction[], action: Action): Transaction[] => {
+type DataState = {
+    transactions: Transaction[];
+    tags: Tag[];
+    recurring: RecurringTransaction[];
+};
+
+type Action =
+    | { type: 'SET_ALL_DATA'; payload: { transactions: Transaction[]; tags: Tag[]; recurring: RecurringTransaction[] } }
+    | { type: 'SET_TRANSACTIONS'; payload: Transaction[] }
+    | { type: 'SET_TAGS'; payload: Tag[] }
+    | { type: 'SET_RECURRING'; payload: RecurringTransaction[] }
+    | { type: 'ADD_TRANSACTION'; payload: Transaction }
+    | { type: 'ADD_MULTIPLE_TRANSACTIONS'; payload: Transaction[] }
+    | { type: 'UPDATE_TRANSACTION'; payload: Transaction }
+    | { type: 'ADD_RECURRING'; payload: RecurringTransaction }
+    | { type: 'UPDATE_RECURRING'; payload: RecurringTransaction }
+    | { type: 'ADD_TAGS'; payload: Tag[] }
+    | { type: 'UPDATE_TAG'; payload: Tag }
+    | { type: 'PROCESS_RECURRING_UPDATES'; payload: { newTransactions: Transaction[], updatedRecurring: RecurringTransaction[] } };
+
+const dataReducer = (state: DataState, action: Action): DataState => {
     switch (action.type) {
+        case 'SET_ALL_DATA':
+            return {
+                ...state,
+                transactions: action.payload.transactions,
+                tags: action.payload.tags,
+                recurring: action.payload.recurring,
+            };
         case 'SET_TRANSACTIONS':
-            return action.payload;
+            return { ...state, transactions: action.payload };
+        case 'SET_TAGS':
+            return { ...state, tags: action.payload };
+        case 'SET_RECURRING':
+            return { ...state, recurring: action.payload };
         case 'ADD_TRANSACTION':
-            return [...state, action.payload];
+            return { ...state, transactions: [...state.transactions, action.payload] };
+        case 'ADD_MULTIPLE_TRANSACTIONS':
+            return { ...state, transactions: [...state.transactions, ...action.payload] };
         case 'UPDATE_TRANSACTION':
-            return state.map(t => t.id === action.payload.id ? action.payload : t);
-        case 'DELETE_TRANSACTION':
-            return state.filter(t => t.id !== action.payload);
-        case 'DELETE_TAG':
-            return state.map(t => {
-                if (t.tagIds?.includes(action.payload)) {
-                    return { ...t, tagIds: t.tagIds.filter(id => id !== action.payload) };
+            return { ...state, transactions: state.transactions.map(t => t.id === action.payload.id ? action.payload : t) };
+        
+        case 'ADD_RECURRING':
+            return { ...state, recurring: [...state.recurring, action.payload] };
+        case 'UPDATE_RECURRING':
+            return { ...state, recurring: state.recurring.map(r => r.id === action.payload.id ? action.payload : r) };
+            
+        case 'ADD_TAGS': {
+             const newTags = action.payload.filter(newTag => !state.tags.some(existing => existing.id === newTag.id));
+             if (newTags.length === 0) return state;
+             return { ...state, tags: [...state.tags, ...newTags].sort((a,b) => a.name.localeCompare(b.name)) };
+        }
+        case 'UPDATE_TAG': {
+            const updatedTag = action.payload;
+            const transactionsWithUpdatedTag = state.transactions.map(t => {
+                if(t.tagIds?.includes(updatedTag.id) && updatedTag.isDeleted){
+                     return {...t, tagIds: t.tagIds.filter(id => id !== updatedTag.id), lastModified: new Date().toISOString() };
                 }
                 return t;
-            });
-        case 'PROCESS_RECURRING':
-            return [...state, ...action.payload.transactions];
+            })
+             return { 
+                ...state, 
+                tags: state.tags.map(t => t.id === updatedTag.id ? updatedTag : t),
+                transactions: transactionsWithUpdatedTag,
+            };
+        }
+        case 'PROCESS_RECURRING_UPDATES':
+            return {
+                ...state,
+                transactions: [...state.transactions, ...action.payload.newTransactions],
+                recurring: state.recurring.map(orig => action.payload.updatedRecurring.find(upd => upd.id === orig.id) || orig)
+            };
         default:
             return state;
     }
 };
 
-const tagsReducer = (state: Tag[], action: Action): Tag[] => {
-     switch (action.type) {
-        case 'SET_TAGS':
-            return action.payload;
-        case 'ADD_TAGS':
-            return [...state, ...action.payload].sort((a,b) => a.name.localeCompare(b.name));
-        case 'UPDATE_TAG':
-            return state
-                .map(t => t.id === action.payload.id ? { ...t, name: action.payload.name } : t)
-                .sort((a,b) => a.name.localeCompare(b.name));
-        case 'DELETE_TAG':
-            return state.filter(t => t.id !== action.payload);
-        default:
-            return state;
-     }
-}
+
+// --- HOOK IMPLEMENTATION ---
 
 interface useTransactionDataProps {
-    showConfirmation: (data: { transaction: Transaction; totalSpentBefore: number }) => void;
+    showConfirmation: (data: { transactions: Transaction[]; totalSpentBefore: number }) => void;
     closeTransactionDetail: () => void;
 }
 
 export const useTransactionData = ({ showConfirmation, closeTransactionDetail }: useTransactionDataProps) => {
-    const [transactions, dispatchTransactions] = useReducer(transactionsReducer, []);
-    const [allAvailableTags, dispatchTags] = useReducer(tagsReducer, []);
-
+    const [rawState, dispatch] = useReducer(dataReducer, { transactions: [], tags: [], recurring: [] });
+    
+    // Separate local storage for each data type
     const [storedTransactions, setStoredTransactions] = useLocalStorage<Transaction[]>('transactions', []);
     const [storedTags, setStoredTags] = useLocalStorage<Tag[]>('allAvailableTags', []);
-    const [recurringTransactions, setRecurringTransactions] = useLocalStorage<RecurringTransaction[]>('recurringTransactions', []);
-
+    const [storedRecurring, setStoredRecurring] = useLocalStorage<RecurringTransaction[]>('recurringTransactions', []);
+    
     // Load from local storage once on mount
     useEffect(() => {
-        dispatchTransactions({ type: 'SET_TRANSACTIONS', payload: storedTransactions });
-        dispatchTags({ type: 'SET_TAGS', payload: storedTags });
+        dispatch({ type: 'SET_ALL_DATA', payload: {
+            transactions: storedTransactions,
+            tags: storedTags,
+            recurring: storedRecurring
+        }});
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
+    
     // Persist to local storage on change
-    useEffect(() => setStoredTransactions(transactions), [transactions, setStoredTransactions]);
-    useEffect(() => setStoredTags(allAvailableTags), [allAvailableTags, setStoredTags]);
+    useEffect(() => setStoredTransactions(rawState.transactions), [rawState.transactions, setStoredTransactions]);
+    useEffect(() => setStoredTags(rawState.tags), [rawState.tags, setStoredTags]);
+    useEffect(() => setStoredRecurring(rawState.recurring), [rawState.recurring, setStoredRecurring]);
+
+    // Memoized "live" data, filtered to exclude soft-deleted items
+    const transactions = useMemo(() => rawState.transactions.filter(t => !t.isDeleted), [rawState.transactions]);
+    const allAvailableTags = useMemo(() => rawState.tags.filter(t => !t.isDeleted), [rawState.tags]);
+    const recurringTransactions = useMemo(() => rawState.recurring.filter(r => !r.isDeleted), [rawState.recurring]);
 
     const tagMap = useMemo(() => new Map(allAvailableTags.map(t => [t.id, t.name])), [allAvailableTags]);
 
@@ -94,134 +131,218 @@ export const useTransactionData = ({ showConfirmation, closeTransactionDetail }:
     
     const getOrCreateTagIds = useCallback((tagNames?: string[]): string[] => {
         if (!tagNames || tagNames.length === 0) return [];
-
+        
         const newTagsToCreate: Tag[] = [];
         const ids: string[] = [];
-        const currentTagMapByName = new Map(allAvailableTags.map(t => [t.name.toLowerCase(), t.id]));
-        const numericIds = allAvailableTags.map(t => parseInt(t.id, 10)).filter(id => !isNaN(id));
-        let nextIdCounter = numericIds.length > 0 ? Math.max(...numericIds) + 1 : 1;
+        const now = new Date().toISOString();
+        const currentTagMapByName = new Map(rawState.tags.map(t => [t.name.toLowerCase(), t]));
 
         tagNames.forEach(name => {
             const trimmedName = name.trim();
             if (!trimmedName) return;
 
-            const existingId = currentTagMapByName.get(trimmedName.toLowerCase());
-            if (existingId) {
-                if (!ids.includes(existingId)) ids.push(existingId);
+            const existingTag = currentTagMapByName.get(trimmedName.toLowerCase());
+            if (existingTag) {
+                if (existingTag.isDeleted) {
+                    // "Undelete" the tag
+                    const undeletedTag = { ...existingTag, isDeleted: false, lastModified: now };
+                    dispatch({ type: 'UPDATE_TAG', payload: undeletedTag });
+                    if (!ids.includes(undeletedTag.id)) ids.push(undeletedTag.id);
+                } else {
+                    if (!ids.includes(existingTag.id)) ids.push(existingTag.id);
+                }
             } else {
-                const newId = nextIdCounter.toString().padStart(4, '0');
-                const newTag: Tag = { id: newId, name: trimmedName };
+                const newTag: Tag = { 
+                    id: crypto.randomUUID(), 
+                    name: trimmedName,
+                    lastModified: now,
+                };
                 newTagsToCreate.push(newTag);
                 ids.push(newTag.id);
-                currentTagMapByName.set(trimmedName.toLowerCase(), newTag.id);
-                nextIdCounter++;
             }
         });
 
         if (newTagsToCreate.length > 0) {
-            dispatchTags({ type: 'ADD_TAGS', payload: newTagsToCreate });
+            dispatch({ type: 'ADD_TAGS', payload: newTagsToCreate });
         }
         return ids;
-    }, [allAvailableTags]);
+    }, [rawState.tags]);
     
-    const addTransaction = useCallback((transaction: Omit<Transaction, 'id' | 'date' | 'tagIds'> & { tags?: string[] }) => {
+    const addTransaction = useCallback((transaction: Omit<Transaction, 'id' | 'date' | 'tagIds' | 'lastModified'> & { tags?: string[] }) => {
         const totalSpentBefore = totalSpentThisMonth;
+        const now = new Date().toISOString();
         const tagIds = getOrCreateTagIds(transaction.tags);
         const newTransaction: Transaction = {
             ...transaction,
             id: crypto.randomUUID(),
-            date: new Date().toISOString(),
+            date: now,
+            lastModified: now,
             tagIds,
         };
-        dispatchTransactions({ type: 'ADD_TRANSACTION', payload: newTransaction });
-        showConfirmation({ transaction: newTransaction, totalSpentBefore });
+        dispatch({ type: 'ADD_TRANSACTION', payload: newTransaction });
+        showConfirmation({ transactions: [newTransaction], totalSpentBefore });
     }, [totalSpentThisMonth, getOrCreateTagIds, showConfirmation]);
+
+    const addMultipleTransactions = useCallback((
+        transactionsToCreate: Array<{amount: number, description: string}>,
+        commonData: { categoryId: string, tags?: string[] }
+    ) => {
+        const totalSpentBefore = totalSpentThisMonth;
+        const now = new Date().toISOString();
+        const tagIds = getOrCreateTagIds(commonData.tags);
+
+        const newTransactions: Transaction[] = transactionsToCreate.map(t => ({
+            ...t,
+            id: crypto.randomUUID(),
+            date: now,
+            lastModified: now,
+            categoryId: commonData.categoryId,
+            tagIds,
+        }));
+
+        dispatch({ type: 'ADD_MULTIPLE_TRANSACTIONS', payload: newTransactions });
+        showConfirmation({ transactions: newTransactions, totalSpentBefore });
+    }, [getOrCreateTagIds, totalSpentThisMonth, showConfirmation]);
 
     const updateTransaction = useCallback((transaction: Transaction, tags?: string[]) => {
         const tagIds = getOrCreateTagIds(tags);
-        const finalTransaction = { ...transaction, tagIds };
-        dispatchTransactions({ type: 'UPDATE_TRANSACTION', payload: finalTransaction });
+        const finalTransaction: Transaction = {
+            ...transaction,
+            tagIds,
+            lastModified: new Date().toISOString()
+        };
+        dispatch({ type: 'UPDATE_TRANSACTION', payload: finalTransaction });
     }, [getOrCreateTagIds]);
 
     const deleteTransaction = useCallback((id: string) => {
-        dispatchTransactions({ type: 'DELETE_TRANSACTION', payload: id });
-        closeTransactionDetail(); // Close modal if the detailed transaction was deleted
-        toast.success('Transaktion gelöscht!');
-    }, [closeTransactionDetail]);
+        const transaction = rawState.transactions.find(t => t.id === id);
+        if (transaction) {
+            const deletedTransaction = { ...transaction, isDeleted: true, lastModified: new Date().toISOString() };
+            dispatch({ type: 'UPDATE_TRANSACTION', payload: deletedTransaction });
+            closeTransactionDetail();
+            toast.success('Transaktion gelöscht!');
+        }
+    }, [rawState.transactions, closeTransactionDetail]);
+
+    const addRecurringTransaction = useCallback((item: Omit<RecurringTransaction, 'lastModified'>) => {
+        const newRec: RecurringTransaction = { ...item, lastModified: new Date().toISOString() };
+        dispatch({ type: 'ADD_RECURRING', payload: newRec });
+    }, []);
+    
+    const updateRecurringTransaction = useCallback((item: RecurringTransaction) => {
+        const updatedRec: RecurringTransaction = { ...item, lastModified: new Date().toISOString() };
+        dispatch({ type: 'UPDATE_RECURRING', payload: updatedRec });
+    }, []);
+
+    const deleteRecurringTransaction = useCallback((id: string) => {
+        const item = rawState.recurring.find(r => r.id === id);
+        if (item) {
+            const deletedItem = { ...item, isDeleted: true, lastModified: new Date().toISOString() };
+            dispatch({ type: 'UPDATE_RECURRING', payload: deletedItem });
+        }
+    }, [rawState.recurring]);
 
     const handleUpdateTag = useCallback((tagId: string, newName: string) => {
         const trimmedNewName = newName.trim();
         if (!trimmedNewName) return;
-        const isDuplicate = allAvailableTags.some(t => t.name.toLowerCase() === trimmedNewName.toLowerCase() && t.id !== tagId);
+        
+        const existingTag = rawState.tags.find(t => t.id === tagId);
+        if (!existingTag) return;
+
+        const isDuplicate = rawState.tags.some(t => t.name.toLowerCase() === trimmedNewName.toLowerCase() && t.id !== tagId && !t.isDeleted);
         if (isDuplicate) {
             toast.error(`Der Tag "${trimmedNewName}" existiert bereits.`);
             return;
         }
-        dispatchTags({ type: 'UPDATE_TAG', payload: { id: tagId, name: trimmedNewName } });
-    }, [allAvailableTags]);
+
+        const updatedTag: Tag = { ...existingTag, name: trimmedNewName, lastModified: new Date().toISOString() };
+        dispatch({ type: 'UPDATE_TAG', payload: updatedTag });
+        toast.success(`Tag umbenannt in "${trimmedNewName}"`);
+    }, [rawState.tags]);
 
     const handleDeleteTag = useCallback((tagId: string) => {
-        dispatchTags({ type: 'DELETE_TAG', payload: tagId });
-        dispatchTransactions({ type: 'DELETE_TAG', payload: tagId }); // Also clean up transactions
-    }, []);
+        const tag = rawState.tags.find(t => t.id === tagId);
+        if (tag) {
+            const deletedTag: Tag = { ...tag, isDeleted: true, lastModified: new Date().toISOString() };
+            dispatch({ type: 'UPDATE_TAG', payload: deletedTag });
+            toast.success(`Tag "${tag.name}" gelöscht`);
+        }
+    }, [rawState.tags]);
 
     // Effect for processing recurring transactions
     useEffect(() => {
         const newTransactions: Transaction[] = [];
-        const updatedRecurring = recurringTransactions.map(rec => {
+        const updatedRecurring: RecurringTransaction[] = [];
+        const now = new Date();
+
+        rawState.recurring.forEach(rec => {
+            if (rec.isDeleted) return;
+
             let lastDate = rec.lastProcessedDate ? parseISO(rec.lastProcessedDate) : parseISO(rec.startDate);
             let nextDueDate = lastDate;
-            const newRec = { ...rec };
+            let hasChanged = false;
             
             while (true) {
-                nextDueDate = newRec.frequency === 'monthly' ? addMonths(lastDate, 1) : addYears(lastDate, 1);
-                if (nextDueDate > new Date()) break;
+                nextDueDate = rec.frequency === 'monthly' ? addMonths(lastDate, 1) : addYears(lastDate, 1);
+                if (nextDueDate > now) break;
 
-                if (nextDueDate >= parseISO(newRec.startDate)) {
-                    const alreadyExists = transactions.some(t =>
-                        t.description.includes(`(Wiederkehrend) ${newRec.description}`) &&
-                        isSameDay(parseISO(t.date), nextDueDate)
+                if (nextDueDate >= parseISO(rec.startDate)) {
+                    // Check if a transaction for this recurring event on this day already exists
+                    const alreadyExists = rawState.transactions.some(t =>
+                        t.description.includes(`(Wiederkehrend) ${rec.description}`) && isSameDay(parseISO(t.date), nextDueDate)
                     );
                     if (!alreadyExists) {
-                        newTransactions.push({
+                         newTransactions.push({
                             id: crypto.randomUUID(),
-                            amount: newRec.amount,
-                            description: `(Wiederkehrend) ${newRec.description}`,
-                            categoryId: newRec.categoryId,
+                            amount: rec.amount,
+                            description: `(Wiederkehrend) ${rec.description}`,
+                            categoryId: rec.categoryId,
                             date: nextDueDate.toISOString(),
+                            lastModified: new Date().toISOString(),
                         });
                     }
                 }
                 lastDate = nextDueDate;
-                newRec.lastProcessedDate = lastDate.toISOString();
+                hasChanged = true;
             }
-            return newRec;
+
+            if (hasChanged) {
+                 updatedRecurring.push({ ...rec, lastProcessedDate: lastDate.toISOString(), lastModified: new Date().toISOString() });
+            }
         });
 
-        if (newTransactions.length > 0) {
-            dispatchTransactions({ type: 'PROCESS_RECURRING', payload: { transactions: newTransactions, recurring: updatedRecurring } });
-            setRecurringTransactions(updatedRecurring);
+        if (newTransactions.length > 0 || updatedRecurring.length > 0) {
+            dispatch({ type: 'PROCESS_RECURRING_UPDATES', payload: { newTransactions, updatedRecurring } });
         }
-    // Run only once on mount to catch up, and when recurring transactions change
-    }, [recurringTransactions, setRecurringTransactions]); // eslint-disable-line react-hooks/exhaustive-deps
-
-
-    const setAllTransactions = useCallback((data: Transaction[]) => dispatchTransactions({ type: 'SET_TRANSACTIONS', payload: data }), []);
-    const setAllTags = useCallback((data: Tag[]) => dispatchTags({ type: 'SET_TAGS', payload: data }), []);
-
+    }, [rawState.recurring, rawState.transactions]);
+    
     return {
+        // Live data (filtered for UI)
         transactions,
-        setTransactions: setAllTransactions,
         recurringTransactions,
-        setRecurringTransactions,
         allAvailableTags,
-        setAllAvailableTags: setAllTags,
         tagMap,
         totalSpentThisMonth,
+        
+        // Raw data (for sync)
+        rawTransactions: rawState.transactions,
+        rawRecurringTransactions: rawState.recurring,
+        rawAllAvailableTags: rawState.tags,
+
+        // Data setters (for sync) - names must match useSync props
+        setTransactions: (data: Transaction[]) => dispatch({type: 'SET_TRANSACTIONS', payload: data}),
+        setAllAvailableTags: (data: Tag[]) => dispatch({type: 'SET_TAGS', payload: data}),
+        setRecurringTransactions: (data: RecurringTransaction[]) => dispatch({type: 'SET_RECURRING', payload: data}),
+        
+        // Actions
         addTransaction,
+        addMultipleTransactions,
         updateTransaction,
         deleteTransaction,
+        addRecurringTransaction,
+        updateRecurringTransaction,
+        deleteRecurringTransaction,
         handleUpdateTag,
-        handleDeleteTag
+        handleDeleteTag,
     };
 };

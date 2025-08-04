@@ -1,4 +1,5 @@
 
+
 import React, { useState, useMemo } from 'react';
 import type { FC } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -6,7 +7,7 @@ import { toast } from 'react-hot-toast';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { useApp } from '../contexts/AppContext';
 import type { Transaction, Category, ViewMode, CategoryId, Tag } from '../types';
-import { format, parseISO, formatCurrency, de, endOfDay, isWithinInterval, startOfMonth, endOfMonth, getWeekInterval, getMonthInterval } from '../utils/dateUtils';
+import { format, parseISO, formatCurrency, de, endOfDay, isWithinInterval, startOfMonth, endOfMonth, getWeekInterval, getMonthInterval, isSameDay } from '../utils/dateUtils';
 import { iconMap, Plus, BarChart2, ChevronDown, Coins } from './Icons';
 import CategoryButtons from './CategoryButtons';
 import TagInput from './TagInput';
@@ -35,72 +36,88 @@ const Dashboard: FC = () => {
         totalMonthlyBudget,
         totalSpentThisMonth,
         allAvailableTags,
+        handleTransactionClick,
     } = useApp();
 
     const [viewMode, setViewMode] = useState<ViewMode>('woche');
     const [isCategoryBudgetOpen, setCategoryBudgetOpen] = useState(false);
     const [expandedBudgetId, setExpandedBudgetId] = useState<string | null>(null);
     
-    const { filteredTransactions, totalExpenses, dailyAverage, subtext, monthlyTransactions } = useMemo(() => {
+    const { filteredTransactions, totalExpenses, dailyAverage, totalExpensesLabel, dailyAverageLabel, monthlyTransactions } = useMemo(() => {
         const now = new Date();
         const weekInterval = getWeekInterval(now);
         const monthInterval = getMonthInterval(now);
-
-        const allMonthlyTransactions = transactions.filter(t => isWithinInterval(parseISO(t.date), monthInterval));
-
+    
+        const allMonthlyTransactions = transactions.filter(t => {
+            try { return isWithinInterval(parseISO(t.date), monthInterval); } catch { return false; }
+        });
+    
         const interval = viewMode === 'woche' ? weekInterval : monthInterval;
         
-        let subtext: string;
+        // Label for Total Expenses
+        let totalExpensesLabel: string;
         if (viewMode === 'woche') {
             const range = `${format(interval.start, 'd. MMM', { locale: de })} - ${format(interval.end, 'd. MMM', { locale: de })}`;
-            subtext = `Diese Woche (${range})`;
+            totalExpensesLabel = `Diese Woche (${range})`;
         } else {
             const range = format(interval.start, 'MMMM yyyy', { locale: de });
-            subtext = `Dieser Monat (${range})`;
+            totalExpensesLabel = `Dieser Monat (${range})`;
         }
-
-        const filtered = transactions.filter(t => {
+    
+        const filteredTransactions = transactions.filter(t => {
             if (!t.date || typeof t.date !== 'string') return false;
             try {
                 const date = parseISO(t.date);
-                if (isNaN(date.getTime())) return false; // Check for Invalid Date
-                return isWithinInterval(date, interval);
+                return !isNaN(date.getTime()) && isWithinInterval(date, interval);
             } catch {
                 return false;
             }
         });
-
-        const total = filtered.reduce((sum, t) => sum + t.amount, 0);
-
-        if (filtered.length === 0) {
-            return { filteredTransactions: filtered, totalExpenses: 0, dailyAverage: 0, subtext, monthlyTransactions: allMonthlyTransactions };
-        }
-
-        let daysInPeriod: number;
-        if (viewMode === 'woche') {
-            const dayOfWeek = now.getDay(); // Sunday = 0, Monday = 1...
-            // Our weeks start on Monday, so we adjust. Sunday (0) is the 7th day.
-            daysInPeriod = dayOfWeek === 0 ? 7 : dayOfWeek;
-        } else { // monat
-            daysInPeriod = now.getDate();
-        }
-        
+    
+        const totalExpenses = filteredTransactions.reduce((sum, t) => sum + t.amount, 0);
         const endOfToday = endOfDay(now);
-        const transactionsForAverage = filtered.filter(t => {
-            if (!t.date || typeof t.date !== 'string') return false;
+    
+        // Filter transactions up to today for average calculation
+        const transactionsForAverage = filteredTransactions.filter(t => {
             try {
                 const date = parseISO(t.date);
-                if (isNaN(date.getTime())) return false;
                 return date <= endOfToday;
             } catch {
                 return false;
             }
         });
-        const totalForAverage = transactionsForAverage.reduce((sum, t) => sum + t.amount, 0);
-
-        const average = daysInPeriod > 0 ? totalForAverage / daysInPeriod : 0;
-
-        return { filteredTransactions: filtered, totalExpenses: total, dailyAverage: average, subtext, monthlyTransactions: allMonthlyTransactions };
+    
+        let dailyAverage = 0;
+        let dailyAverageLabel = 'Kein Zeitraum';
+    
+        if (transactionsForAverage.length > 0) {
+            let daysInPeriod: number;
+            let startOfPeriodForAverage: Date;
+    
+            if (viewMode === 'woche') {
+                const dayOfWeek = now.getDay();
+                daysInPeriod = dayOfWeek === 0 ? 7 : dayOfWeek; // Days passed in the week
+                startOfPeriodForAverage = weekInterval.start;
+            } else { // monat
+                daysInPeriod = now.getDate(); // Days passed in the month
+                startOfPeriodForAverage = monthInterval.start;
+            }
+            
+            const totalForAverage = transactionsForAverage.reduce((sum, t) => sum + t.amount, 0);
+            dailyAverage = daysInPeriod > 0 ? totalForAverage / daysInPeriod : 0;
+            
+            const range = `${format(startOfPeriodForAverage, 'd. MMM', { locale: de })} - ${format(now, 'd. MMM', { locale: de })}`;
+            dailyAverageLabel = `Zeitraum: ${range}`;
+        }
+        
+        return { 
+            filteredTransactions, 
+            totalExpenses, 
+            dailyAverage, 
+            totalExpensesLabel,
+            dailyAverageLabel, 
+            monthlyTransactions: allMonthlyTransactions 
+        };
     }, [transactions, viewMode]);
 
     const { spendingByCategory, budgetedCategories } = useMemo(() => {
@@ -156,28 +173,29 @@ const Dashboard: FC = () => {
                         </div>
                         <div className="flex justify-between items-start">
                              <div className="w-[calc(50%-1rem)]">
-                                <div className="flex items-center text-slate-400 mb-2">
+                                <div className="flex items-center text-slate-400 mb-1">
                                     <Coins className="h-5 w-5 mr-2 flex-shrink-0" />
                                     <p className="font-medium text-sm">Gesamtausgaben</p>
                                 </div>
                                 <div>
                                     <p className="text-2xl font-bold text-white truncate" title={formatCurrency(totalExpenses)}>{formatCurrency(totalExpenses)}</p>
+                                    <p className="text-xs text-slate-500 truncate mt-0.5" title={totalExpensesLabel}>{totalExpensesLabel}</p>
                                 </div>
                             </div>
                             
                             <div className="w-px bg-slate-700/50 self-stretch mx-4"></div>
                             
                             <div className="w-[calc(50%-1rem)]">
-                                <div className="flex items-center text-slate-400 mb-2">
+                                <div className="flex items-center text-slate-400 mb-1">
                                     <BarChart2 className="h-5 w-5 mr-2 flex-shrink-0" />
                                     <p className="font-medium text-sm">Tagesdurchschnitt</p>
                                 </div>
                                 <div>
                                     <p className="text-2xl font-bold text-white truncate" title={formatCurrency(dailyAverage)}>{formatCurrency(dailyAverage)}</p>
+                                    <p className="text-xs text-slate-500 truncate mt-0.5" title={dailyAverageLabel}>{dailyAverageLabel}</p>
                                 </div>
                             </div>
                         </div>
-                         {subtext && <p className="text-sm text-slate-500 text-center mt-4 pt-4 border-t border-slate-700/50">{subtext}</p>}
                     </motion.div>
                     <motion.div
                         initial={{ opacity: 0, y: 10 }}
@@ -263,13 +281,22 @@ const Dashboard: FC = () => {
                                                                         {monthlyTransactions.filter(t => t.categoryId === category.id)
                                                                             .sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime())
                                                                             .map(t => (
-                                                                                <div key={t.id} className="flex justify-between items-center text-sm p-2 rounded-md hover:bg-slate-700/50">
-                                                                                    <div>
-                                                                                        <p className="text-slate-300">{t.description}</p>
-                                                                                        <p className="text-xs text-slate-500">{format(parseISO(t.date), 'dd.MM, HH:mm')} Uhr</p>
+                                                                                <button
+                                                                                    key={t.id}
+                                                                                    onClick={() => handleTransactionClick(t, 'view')}
+                                                                                    className="w-full flex items-center gap-3 text-sm p-2 rounded-md hover:bg-slate-700/50 text-left"
+                                                                                >
+                                                                                    <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: category.color }}>
+                                                                                        <Icon className="h-5 w-5 text-white" />
                                                                                     </div>
-                                                                                    <p className="font-semibold text-slate-200">{formatCurrency(t.amount)}</p>
-                                                                                </div>
+                                                                                    <div className="flex-1 flex justify-between items-center min-w-0">
+                                                                                        <div className="min-w-0">
+                                                                                            <p className="text-slate-300 truncate">{t.description}</p>
+                                                                                            <p className="text-xs text-slate-500">{format(parseISO(t.date), 'dd.MM, HH:mm')} Uhr</p>
+                                                                                        </div>
+                                                                                        <p className="font-semibold text-slate-200 flex-shrink-0 pl-2">{formatCurrency(t.amount)}</p>
+                                                                                    </div>
+                                                                                </button>
                                                                             ))
                                                                         }
                                                                          {monthlyTransactions.filter(t => t.categoryId === category.id).length === 0 && (
@@ -319,7 +346,8 @@ const ViewTabs: FC<{ viewMode: ViewMode; setViewMode: (mode: ViewMode) => void; 
 
 const QuickAddForm: FC = () => {
     const { 
-        addTransaction, 
+        addTransaction,
+        addMultipleTransactions,
         categories, 
         categoryGroups, 
         allAvailableTags, 
@@ -360,12 +388,34 @@ const QuickAddForm: FC = () => {
             return;
         }
         
-        addTransaction({ 
-            amount: numAmount, 
-            description, 
-            categoryId, 
-            tags,
-        });
+        const items = description.split(',').map(d => d.trim()).filter(Boolean);
+
+        if (items.length > 1) {
+            const totalCents = Math.round(numAmount * 100);
+            const itemCount = items.length;
+            const baseCents = Math.floor(totalCents / itemCount);
+            let remainderCents = totalCents % itemCount;
+
+            const transactionsToCreate = items.map(itemDesc => {
+                let itemCents = baseCents;
+                if (remainderCents > 0) {
+                    itemCents++;
+                    remainderCents--;
+                }
+                return {
+                    description: itemDesc,
+                    amount: itemCents / 100,
+                };
+            });
+            addMultipleTransactions(transactionsToCreate, { categoryId, tags });
+        } else {
+            addTransaction({ 
+                amount: numAmount, 
+                description, 
+                categoryId, 
+                tags,
+            });
+        }
         
         setAmount('');
         setDescription('');
@@ -398,15 +448,18 @@ const QuickAddForm: FC = () => {
                                 required
                             />
                         </div>
-                        <input
-                            id="description"
-                            type="text"
-                            value={description}
-                            onChange={e => setDescription(e.target.value)}
-                            placeholder="Beschreibung..."
-                            className="flex-grow bg-slate-700 border border-slate-600 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-rose-500"
-                            required
-                        />
+                        <div className="flex-grow">
+                            <input
+                                id="description"
+                                type="text"
+                                value={description}
+                                onChange={e => setDescription(e.target.value)}
+                                placeholder="Beschreibung..."
+                                className="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-rose-500"
+                                required
+                            />
+                             <p className="text-xs text-slate-400 mt-1.5 px-1">Tipp: Mehrere Artikel mit Komma trennen für eine Aufteilung.</p>
+                        </div>
                     </div>
                     
                     <div className="pt-2">

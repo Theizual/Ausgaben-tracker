@@ -199,15 +199,12 @@ const BudgetSettings: FC<{
     )
 }
 
-const RecurringSettings: FC<{
-    recurring: RecurringTransaction[];
-    setRecurring: (r: RecurringTransaction[] | ((prev: RecurringTransaction[]) => RecurringTransaction[])) => void;
-}> = () => {
-    const { categories, recurringTransactions, setRecurringTransactions } = useApp();
+const RecurringSettings: FC = () => {
+    const { categories, recurringTransactions, addRecurringTransaction, updateRecurringTransaction, deleteRecurringTransaction } = useApp();
     const [editingId, setEditingId] = useState<string | null>(null);
 
     const handleAdd = () => {
-        const newRecurring: RecurringTransaction = {
+        const newRecurring: Omit<RecurringTransaction, 'lastModified'> = {
             id: crypto.randomUUID(),
             amount: 0,
             description: '',
@@ -215,16 +212,19 @@ const RecurringSettings: FC<{
             frequency: 'monthly',
             startDate: new Date().toISOString().split('T')[0],
         };
-        setRecurringTransactions(prev => [...prev, newRecurring]);
+        addRecurringTransaction(newRecurring);
         setEditingId(newRecurring.id);
     };
 
     const handleUpdate = (id: string, field: keyof RecurringTransaction, value: any) => {
-        setRecurringTransactions(prev => prev.map(r => r.id === id ? { ...r, [field]: value } : r));
+        const itemToUpdate = recurringTransactions.find(r => r.id === id);
+        if (itemToUpdate) {
+            updateRecurringTransaction({ ...itemToUpdate, [field]: value });
+        }
     };
 
     const handleDelete = (id: string) => {
-        setRecurringTransactions(prev => prev.filter(r => r.id !== id));
+        deleteRecurringTransaction(id);
     };
     
     return (
@@ -324,8 +324,9 @@ const SettingsModal: React.FC<{
         if (isOpen) {
             window.addEventListener('keydown', handleKeyDown);
             setActiveSettingsTab('general');
-            setEditableGroups(categoryGroups);
-            setEditableCategories(categories);
+            // Deep copy to avoid direct mutation before saving
+            setEditableGroups(JSON.parse(JSON.stringify(categoryGroups)));
+            setEditableCategories(JSON.parse(JSON.stringify(categories)));
         }
 
         return () => {
@@ -335,7 +336,7 @@ const SettingsModal: React.FC<{
 
     const handleCategoryChange = (id: string, field: keyof Category, value: any) => {
         setEditableCategories(current =>
-            current.map(cat => cat.id === id ? { ...cat, [field]: value } : cat)
+            current.map(cat => cat.id === id ? { ...cat, [field]: value, lastModified: new Date().toISOString() } : cat)
         );
     };
 
@@ -346,9 +347,11 @@ const SettingsModal: React.FC<{
     };
 
     const handleGroupChange = (oldName: string, newName: string) => {
-      if (oldName === newName || !newName.trim()) return;
-      setEditableGroups(current => current.map(g => g === oldName ? newName : g));
-      setEditableCategories(current => current.map(cat => cat.group === oldName ? { ...cat, group: newName } : cat));
+      const trimmedNewName = newName.trim();
+      if (oldName === trimmedNewName || !trimmedNewName) return;
+      const now = new Date().toISOString();
+      setEditableGroups(current => current.map(g => g === oldName ? trimmedNewName : g));
+      setEditableCategories(current => current.map(cat => cat.group === oldName ? { ...cat, group: trimmedNewName, lastModified: now } : cat));
     };
 
     const handleAddGroup = () => {
@@ -362,8 +365,16 @@ const SettingsModal: React.FC<{
             toast.error("Die letzte Gruppe kann nicht gelöscht werden.");
             return;
         }
+        const now = new Date().toISOString();
         const fallbackGroup = editableGroups.find(g => g !== groupName) || '';
-        setEditableCategories(current => current.map(cat => cat.group === groupName ? { ...cat, group: fallbackGroup } : cat));
+        // Mark categories in deleted group as isDeleted: true
+        setEditableCategories(current => current.map(cat => {
+            if (cat.group === groupName) {
+                return { ...cat, isDeleted: true, lastModified: now };
+            }
+            return cat;
+        }));
+        // Remove group from list
         setEditableGroups(current => current.filter(g => g !== groupName));
     };
 
@@ -385,18 +396,26 @@ const SettingsModal: React.FC<{
             name: "Neue Kategorie",
             color: "#8b5cf6",
             icon: "Plus",
-            group: groupName
+            group: groupName,
+            lastModified: new Date().toISOString(),
         };
         setEditableCategories(current => [...current, newCategory]);
     };
     
     const handleDeleteCategory = (id: string) => {
-        setEditableCategories(current => current.filter(cat => cat.id !== id));
+         setEditableCategories(current => current.map(cat => 
+            cat.id === id ? { ...cat, isDeleted: true, lastModified: new Date().toISOString() } : cat
+        ));
     };
 
     const handleSave = () => {
+        // Filter out any truly deleted (not just soft-deleted) groups before saving
+        const activeCategories = editableCategories.filter(c => !c.isDeleted);
+        const activeGroupNames = new Set(activeCategories.map(c => c.group));
+        const finalGroups = editableGroups.filter(g => activeGroupNames.has(g));
+
         setCategories(editableCategories);
-        setCategoryGroups(editableGroups);
+        setCategoryGroups(finalGroups);
         onClose();
     };
 
@@ -409,6 +428,8 @@ const SettingsModal: React.FC<{
         { id: 'tags', label: 'Tags', icon: TagIcon },
         { id: 'recurring', label: 'Wiederkehrende Ausgaben', icon: History }
     ];
+    
+    const liveEditableCategories = editableCategories.filter(c => !c.isDeleted);
 
     return (
         <AnimatePresence>
@@ -467,8 +488,8 @@ const SettingsModal: React.FC<{
                                         </h3>
                                         <div className="flex items-center justify-between pt-4 mt-4 border-t border-slate-700/50">
                                             <div>
-                                                <label htmlFor="auto-sync-toggle" className="block text-sm font-medium text-slate-300">Automatische Synchronisierung</label>
-                                                <p className="text-xs text-slate-400 mt-1">Speichert Änderungen alle 5 Minuten im Hintergrund.</p>
+                                                <label htmlFor="auto-sync-toggle" className="block text-sm font-medium text-slate-300">Automatische Hintergrund-Synchronisierung</label>
+                                                <p className="text-xs text-slate-400 mt-1">Speichert Änderungen nach kurzer Inaktivität automatisch.</p>
                                             </div>
                                             <ToggleSwitch id="auto-sync-toggle" enabled={isAutoSyncEnabled} setEnabled={setIsAutoSyncEnabled} />
                                         </div>
@@ -478,7 +499,7 @@ const SettingsModal: React.FC<{
                             
                             {activeSettingsTab === 'budget' && (
                                 <BudgetSettings 
-                                    categories={editableCategories}
+                                    categories={liveEditableCategories}
                                     onBudgetChange={handleCategoryBudgetChange}
                                 />
                             )}
@@ -501,7 +522,7 @@ const SettingsModal: React.FC<{
                                     </div>
                                     <div className="space-y-4">
                                         {editableGroups.map((groupName, index) => {
-                                            const groupCategories = editableCategories.filter(c => c.group === groupName);
+                                            const groupCategories = liveEditableCategories.filter(c => c.group === groupName);
                                             return (
                                             <div key={groupName} className="bg-slate-700/40 p-4 rounded-lg">
                                                 <div className="flex items-center gap-3 mb-4">
@@ -536,7 +557,7 @@ const SettingsModal: React.FC<{
                                                     axis="y"
                                                     values={groupCategories}
                                                     onReorder={(newOrder) => {
-                                                        const otherCategories = editableCategories.filter(c => c.group !== groupName);
+                                                        const otherCategories = liveEditableCategories.filter(c => c.group !== groupName);
                                                         setEditableCategories([...otherCategories, ...newOrder]);
                                                     }}
                                                     className="space-y-2 ml-4 pl-4 border-l-2 border-slate-600"
@@ -600,10 +621,7 @@ const SettingsModal: React.FC<{
                             )}
 
                              {activeSettingsTab === 'recurring' && (
-                                <RecurringSettings
-                                    recurring={[]}
-                                    setRecurring={() => {}}
-                                />
+                                <RecurringSettings />
                             )}
                         </AnimatePresence>
                     </div>

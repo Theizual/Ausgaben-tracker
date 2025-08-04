@@ -21,6 +21,8 @@ async function getAuthClient() {
   return auth;
 }
 
+const now = new Date().toISOString();
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
@@ -39,7 +41,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const response = await sheets.spreadsheets.values.batchGet({
       spreadsheetId: sheetId,
-      ranges: ['Categories!A2:F', 'Transactions!A2:F', 'Recurring!A2:G', 'Tags!A2:B'],
+      ranges: ['Categories!A2:H', 'Transactions!A2:H', 'Recurring!A2:I', 'Tags!A2:D'],
     });
 
     const valueRanges = response.data.valueRanges || [];
@@ -54,6 +56,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         icon: row[3],
         budget: budget && !isNaN(budget) && budget > 0 ? budget : undefined,
         group: row[5] || 'Sonstiges',
+        lastModified: row[6] || now,
+        isDeleted: row[7] === 'TRUE',
       };
     }).filter(c => c.id && c.name && c.color && c.icon);
 
@@ -65,6 +69,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       categoryId: row[3],
       date: row[4],
       tagIds: row[5] ? row[5].split(',').map(tagId => tagId.trim()).filter(Boolean) : [],
+      lastModified: row[6] || now,
+      isDeleted: row[7] === 'TRUE',
     })).filter(t => t.id && t.amount > 0 && t.categoryId && t.date);
 
     const recurringValues = valueRanges.find(r => r.range?.startsWith('Recurring'))?.values || [];
@@ -76,12 +82,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         frequency: row[4] as 'monthly' | 'yearly',
         startDate: row[5],
         lastProcessedDate: row[6],
+        lastModified: row[7] || now,
+        isDeleted: row[8] === 'TRUE',
     })).filter(r => r.id && r.amount > 0 && r.categoryId && r.frequency && r.startDate);
 
     const tagValues = valueRanges.find(r => r.range?.startsWith('Tags'))?.values || [];
     const allAvailableTags: Tag[] = tagValues.map((row: string[]) => ({
         id: row[0],
         name: row[1],
+        lastModified: row[2] || now,
+        isDeleted: row[3] === 'TRUE',
     })).filter(t => t.id && t.name);
 
     return res.status(200).json({ categories, transactions, recurringTransactions, allAvailableTags });

@@ -1,7 +1,7 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
-function useLocalStorage<T,>(key: string, initialValue: T | (() => T)): [T, (value: T | ((val: T) => T)) => void] {
+function useLocalStorage<T>(key: string, initialValue: T | (() => T)): [T, React.Dispatch<React.SetStateAction<T>>] {
     const [storedValue, setStoredValue] = useState<T>(() => {
         try {
             const item = window.localStorage.getItem(key);
@@ -17,7 +17,8 @@ function useLocalStorage<T,>(key: string, initialValue: T | (() => T)): [T, (val
 
     useEffect(() => {
         try {
-            window.localStorage.setItem(key, JSON.stringify(storedValue));
+            const serializedState = JSON.stringify(storedValue);
+            window.localStorage.setItem(key, serializedState);
         } catch (error) {
             console.error(error);
         }
