@@ -168,10 +168,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
 
     // 3. Detect conflicts
-    const conflictCategories = findConflicts(clientData.categories, serverCategories);
-    const conflictTransactions = findConflicts(clientData.transactions, serverTransactions);
-    const conflictRecurring = findConflicts(clientData.recurringTransactions, serverRecurring);
-    const conflictTags = findConflicts(clientData.allAvailableTags, serverTags);
+    const conflictCategories = findConflicts<Category>(clientData.categories, serverCategories);
+    const conflictTransactions = findConflicts<Transaction>(clientData.transactions, serverTransactions);
+    const conflictRecurring = findConflicts<RecurringTransaction>(clientData.recurringTransactions, serverRecurring);
+    const conflictTags = findConflicts<Tag>(clientData.allAvailableTags, serverTags);
     
     const allConflicts = [
         ...conflictCategories, ...conflictTransactions, ...conflictRecurring, ...conflictTags
@@ -190,10 +190,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // 4. No conflicts, merge data and write
-    const mergedCategories = mergeData(clientData.categories, serverCategories);
-    const mergedTransactions = mergeData(clientData.transactions, serverTransactions);
-    const mergedRecurring = mergeData(clientData.recurringTransactions, serverRecurring);
-    const mergedTags = mergeData(clientData.allAvailableTags, serverTags);
+    const mergedCategories = mergeData<Category>(clientData.categories, serverCategories);
+    const mergedTransactions = mergeData<Transaction>(clientData.transactions, serverTransactions);
+    const mergedRecurring = mergeData<RecurringTransaction>(clientData.recurringTransactions, serverRecurring);
+    const mergedTags = mergeData<Tag>(clientData.allAvailableTags, serverTags);
 
     const headers = {
         categories: ['id', 'name', 'color', 'icon', 'budget', 'group', 'lastModified', 'isDeleted', 'version'],
