@@ -63,7 +63,7 @@ const App: React.FC = () => {
                 }}
             />
 
-            {/* Sticky Header */}
+            {/* Sticky Header & Desktop Nav */}
             <div className="sticky top-0 z-30 bg-slate-900/95 backdrop-blur-sm border-b border-slate-700">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <Header 
@@ -72,15 +72,14 @@ const App: React.FC = () => {
                         syncOperation={syncOperation}
                         lastSync={lastSync}
                     />
+                    {/* Desktop Tabs are now part of the sticky container */}
+                    <div className="hidden md:block">
+                        <MainTabs activeTab={activeTab} setActiveTab={setActiveTab} isMobile={false} />
+                    </div>
                 </div>
             </div>
             
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-24 md:pb-6">
-                {/* Desktop Tabs */}
-                <div className="hidden md:block">
-                    <MainTabs activeTab={activeTab} setActiveTab={setActiveTab} isMobile={false} />
-                </div>
-                
                 <main className="mt-6">
                     <AnimatePresence mode="wait">
                         <motion.div
@@ -212,7 +211,7 @@ const MainTabs: React.FC<{
     }
 
     return (
-        <div className="mt-6 flex items-center space-x-2">
+        <div className="pb-3 flex items-center space-x-2">
             {tabs.map(tab => (
                 <button
                     key={tab.id}

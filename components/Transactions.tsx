@@ -1,12 +1,12 @@
 
+
 import React, { useState, useMemo, useRef, useEffect, FC } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useApp } from '../contexts/AppContext';
-import type { Transaction, Category, Tag } from '../types';
+import type { Transaction, Category, Tag, QuickFilterId } from '../types';
 import { format, parseISO, formatCurrency, endOfDay, startOfDay, getWeekInterval, getMonthInterval } from '../utils/dateUtils';
 import { iconMap, Search, SlidersHorizontal, ChevronDown, Tag as TagIcon, Edit, Trash2, X } from './Icons';
 
-type QuickFilterId = 'today' | 'week' | 'month' | 'all';
 const quickFilterButtons: { id: QuickFilterId; label: string }[] = [
     { id: 'today', label: 'Heute' },
     { id: 'week', label: 'Diese Woche' },
@@ -371,25 +371,18 @@ const FilterModal: FC<{
 
 
 const TransactionsPage: FC = () => {
-    const { transactions, tagMap } = useApp();
+    const { 
+        transactions, 
+        tagMap, 
+        transactionFilters, 
+        setTransactionFilters, 
+        transactionActiveQuickFilter, 
+        setTransactionActiveQuickFilter 
+    } = useApp();
     const [isFilterModalOpen, setFilterModalOpen] = useState(false);
 
-    const [filters, setFilters] = useState(() => {
-        const now = new Date();
-        return {
-            text: '',
-            tags: '',
-            categories: [] as string[],
-            minAmount: '',
-            maxAmount: '',
-            startDate: format(startOfDay(now), 'yyyy-MM-dd'),
-            endDate: format(endOfDay(now), 'yyyy-MM-dd'),
-        };
-    });
-    const [activeQuickFilter, setActiveQuickFilter] = useState<QuickFilterId | null>('today');
-
     const handleQuickFilter = (filter: QuickFilterId) => {
-        setActiveQuickFilter(filter);
+        setTransactionActiveQuickFilter(filter);
         
         let startDate = '';
         let endDate = '';
@@ -415,7 +408,7 @@ const TransactionsPage: FC = () => {
         }
         
         // Reset advanced filters when using a quick filter
-        setFilters({
+        setTransactionFilters({
             text: '',
             tags: '',
             categories: [],
@@ -427,7 +420,7 @@ const TransactionsPage: FC = () => {
     };
 
     const handleAdvancedFilterChange = (newFilters: any) => {
-        setFilters(newFilters);
+        setTransactionFilters(newFilters);
         
         const { startDate, endDate, text, tags, categories, minAmount, maxAmount } = newFilters;
         const now = new Date();
@@ -448,16 +441,16 @@ const TransactionsPage: FC = () => {
             }
         }
         
-        setActiveQuickFilter(correspondingQuickFilter);
+        setTransactionActiveQuickFilter(correspondingQuickFilter);
     };
 
     const isFilterActive = useMemo(() => {
-        return !!(filters.text || 
-               filters.tags || 
-               filters.categories.length > 0 || 
-               filters.minAmount || 
-               filters.maxAmount);
-    }, [filters]);
+        return !!(transactionFilters.text || 
+               transactionFilters.tags || 
+               transactionFilters.categories.length > 0 || 
+               transactionFilters.minAmount || 
+               transactionFilters.maxAmount);
+    }, [transactionFilters]);
 
 
     const sortedTransactions = useMemo(() => 
@@ -466,10 +459,10 @@ const TransactionsPage: FC = () => {
 
     const filteredTransactions = useMemo(() => {
         return sortedTransactions.filter(t => {
-            if (filters.text && !t.description.toLowerCase().includes(filters.text.toLowerCase())) return false;
+            if (transactionFilters.text && !t.description.toLowerCase().includes(transactionFilters.text.toLowerCase())) return false;
             
-            if (filters.tags) {
-                const searchTags = filters.tags.toLowerCase().split(',').map(tag => tag.trim()).filter(Boolean);
+            if (transactionFilters.tags) {
+                const searchTags = transactionFilters.tags.toLowerCase().split(',').map(tag => tag.trim()).filter(Boolean);
                 if (searchTags.length > 0) {
                     const transactionTagNames = (t.tagIds || []).map(id => tagMap.get(id)?.toLowerCase());
                     if (!searchTags.every(st => transactionTagNames.some(ttn => ttn?.includes(st)))) {
@@ -478,12 +471,12 @@ const TransactionsPage: FC = () => {
                 }
             }
 
-            if (filters.categories.length > 0 && !filters.categories.includes(t.categoryId)) return false;
+            if (transactionFilters.categories.length > 0 && !transactionFilters.categories.includes(t.categoryId)) return false;
             
-            const min = parseFloat(filters.minAmount);
+            const min = parseFloat(transactionFilters.minAmount);
             if (!isNaN(min) && t.amount < min) return false;
             
-            const max = parseFloat(filters.maxAmount);
+            const max = parseFloat(transactionFilters.maxAmount);
             if (!isNaN(max) && t.amount > max) return false;
             
             try {
@@ -491,24 +484,24 @@ const TransactionsPage: FC = () => {
                 const tDate = parseISO(t.date);
                 if (isNaN(tDate.getTime())) return false; // Guard against invalid date string
                 
-                if (filters.startDate) {
-                    const startDate = startOfDay(parseISO(filters.startDate));
+                if (transactionFilters.startDate) {
+                    const startDate = startOfDay(parseISO(transactionFilters.startDate));
                     if (isNaN(startDate.getTime())) return true; // Ignore invalid filter
                     if (tDate < startDate) return false;
                 }
-                if (filters.endDate) {
-                    const endDate = endOfDay(parseISO(filters.endDate));
+                if (transactionFilters.endDate) {
+                    const endDate = endOfDay(parseISO(transactionFilters.endDate));
                     if (isNaN(endDate.getTime())) return true; // Ignore invalid filter
                     if (tDate > endDate) return false;
                 }
             } catch (e) { 
-                console.error("Date parsing error for transaction:", t, "or filter:", filters, e);
+                console.error("Date parsing error for transaction:", t, "or filter:", transactionFilters, e);
                 return true; // Don't filter out item on parsing error
             }
 
             return true;
         });
-    }, [sortedTransactions, filters, tagMap]);
+    }, [sortedTransactions, transactionFilters, tagMap]);
 
 
     return (
@@ -518,7 +511,7 @@ const TransactionsPage: FC = () => {
                 <TransactionList 
                     transactions={filteredTransactions}
                     showEmptyMessage={true}
-                    activeQuickFilter={activeQuickFilter}
+                    activeQuickFilter={transactionActiveQuickFilter}
                     onQuickFilter={handleQuickFilter}
                     onOpenFilters={() => setFilterModalOpen(true)}
                     isFilterActive={isFilterActive}
@@ -528,7 +521,7 @@ const TransactionsPage: FC = () => {
                 isOpen={isFilterModalOpen}
                 onClose={() => setFilterModalOpen(false)}
                 onApplyFilters={handleAdvancedFilterChange}
-                initialFilters={filters}
+                initialFilters={transactionFilters}
             />
         </div>
     );

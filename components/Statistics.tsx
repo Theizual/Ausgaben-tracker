@@ -1,7 +1,6 @@
 
 
 
-
 import React, { useState, useMemo } from 'react';
 import type { FC } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -17,13 +16,17 @@ import { ChevronLeft, ChevronRight, X, iconMap, ChevronDown } from './Icons';
 import { formatCurrency, formatGermanDate } from '../utils/dateUtils';
 
 const Statistics: FC = () => {
-    const { transactions } = useApp();
-    const [currentMonth, setCurrentMonth] = useState(new Date());
-    const [selectedDay, setSelectedDay] = useState<Date | null>(new Date());
+    const { 
+        transactions,
+        statisticsCurrentMonth,
+        setStatisticsCurrentMonth,
+        statisticsSelectedDay,
+        setStatisticsSelectedDay
+    } = useApp();
 
     const monthlyTransactions = useMemo(() => {
-        const start = startOfMonth(currentMonth);
-        const end = endOfMonth(currentMonth);
+        const start = startOfMonth(statisticsCurrentMonth);
+        const end = endOfMonth(statisticsCurrentMonth);
         return transactions.filter(t => {
             if (!t.date || typeof t.date !== 'string') return false;
             try {
@@ -34,34 +37,34 @@ const Statistics: FC = () => {
                 return false;
             }
         });
-    }, [transactions, currentMonth]);
+    }, [transactions, statisticsCurrentMonth]);
 
     const transactionsForSelectedDay = useMemo(() => {
-        if (!selectedDay) return [];
+        if (!statisticsSelectedDay) return [];
         return transactions.filter(t => {
             if (!t.date || typeof t.date !== 'string') return false;
             try {
                 const date = parseISO(t.date);
                 if (isNaN(date.getTime())) return false;
-                return isSameDay(date, selectedDay);
+                return isSameDay(date, statisticsSelectedDay);
             } catch {
                 return false;
             }
         });
-    }, [transactions, selectedDay]);
+    }, [transactions, statisticsSelectedDay]);
 
     return (
         <div className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
                 <CalendarView
                     transactions={transactions}
-                    currentMonth={currentMonth}
-                    setCurrentMonth={setCurrentMonth}
-                    onDayClick={(day) => setSelectedDay(prev => prev && isSameDay(prev, day) ? null : day)}
-                    selectedDay={selectedDay}
+                    currentMonth={statisticsCurrentMonth}
+                    setCurrentMonth={setStatisticsCurrentMonth}
+                    onDayClick={(day) => setStatisticsSelectedDay(prev => prev && isSameDay(prev, day) ? null : day)}
+                    selectedDay={statisticsSelectedDay}
                 />
                 <AnimatePresence>
-                    {selectedDay && transactionsForSelectedDay.length > 0 && (
+                    {statisticsSelectedDay && transactionsForSelectedDay.length > 0 && (
                         <motion.div
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
@@ -69,9 +72,9 @@ const Statistics: FC = () => {
                             transition={{ duration: 0.3 }}
                         >
                             <DailyBreakdownView
-                                date={selectedDay}
+                                date={statisticsSelectedDay}
                                 transactions={transactionsForSelectedDay}
-                                onClose={() => setSelectedDay(null)}
+                                onClose={() => setStatisticsSelectedDay(null)}
                             />
                         </motion.div>
                     )}
@@ -79,11 +82,11 @@ const Statistics: FC = () => {
             </div>
             <MonthlySummary
                 transactions={monthlyTransactions}
-                currentMonth={currentMonth}
+                currentMonth={statisticsCurrentMonth}
             />
             <MonthlyCategoryBreakdown
                 transactions={monthlyTransactions}
-                currentMonth={currentMonth}
+                currentMonth={statisticsCurrentMonth}
             />
         </div>
     );
