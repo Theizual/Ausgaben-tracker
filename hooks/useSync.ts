@@ -52,9 +52,17 @@ function mergeItems<T extends Mergeable>(localItems: T[], remoteItems: T[], conf
         // If the winning item is the one from the conflict list, mark it.
         return { ...item, conflicted: true };
     }
-    // Otherwise, remove any pre-existing conflict flag.
-    const { conflicted, ...rest } = item;
-    return rest as T;
+    
+    // For non-conflicting items, if they have a `conflicted` flag from a previous
+    // merge operation (e.g. from local state), we need to remove it.
+    // This is a safer way to create a clean copy.
+    if ('conflicted' in item) {
+      const cleanItem = { ...item };
+      delete (cleanItem as Partial<T>).conflicted;
+      return cleanItem;
+    }
+    
+    return item;
   });
 }
 
