@@ -10,7 +10,7 @@ import type { Category, Transaction, RecurringTransaction, Tag } from '../types'
 import { RefreshCw, X } from '../components/Icons';
 
 
-export interface SyncProps {
+interface SyncProps {
     rawCategories: Category[];
     rawTransactions: Transaction[];
     rawRecurringTransactions: RecurringTransaction[];
@@ -24,37 +24,38 @@ export interface SyncProps {
 
 type Mergeable = Category | Transaction | RecurringTransaction | Tag;
 
-// Generic function to merge local and remote data based on version number
-function mergeItems<T extends Mergeable>(localItems: T[], remoteItems: T[], conflicts: T[] = []): T[] {
+// Generic function to merge local and sheet data
+function mergeItems<T extends Mergeable>(localItems: T[], sheetItems: T[]): T[] {
   const allItems = new Map<string, T>();
 
-  const processItem = (item: T) => {
-      if (!item.id) return;
-      const existing = allItems.get(item.id);
-      if (!existing || item.version > existing.version) {
-          allItems.set(item.id, item);
-      }
-  };
-
-  // Process all three lists. Order matters: conflicts first, then remote, then local.
-  conflicts.forEach(processItem);
-  remoteItems.forEach(processItem);
-  localItems.forEach(processItem);
-  
-  // Mark conflicts
-  const conflictMap = new Map(conflicts.map(c => [c.id, c]));
-  const finalItems = Array.from(allItems.values());
-
-  return finalItems.map(item => {
-    const conflictSource = conflictMap.get(item.id);
-    if (conflictSource && item.version === conflictSource.version) {
-        // If the winning item is the one from the conflict list, mark it.
-        return { ...item, conflicted: true };
+  // Process sheet items first
+  for (const item of sheetItems) {
+    if (item.id) {
+      allItems.set(item.id, item);
     }
-    // Otherwise, remove any pre-existing conflict flag.
-    const { conflicted, ...rest } = item;
-    return rest as T;
-  });
+  }
+
+  // Process local items, potentially overwriting sheet items if local is newer
+  for (const item of localItems) {
+    if (!item.id) continue; // Skip items without ID
+
+    const existingItem = allItems.get(item.id);
+
+    if (!existingItem) {
+      // New item, only exists locally
+      allItems.set(item.id, item);
+    } else {
+      // Item exists in both. Compare timestamps.
+      const localDate = new Date(item.lastModified);
+      const sheetDate = new Date(existingItem.lastModified);
+
+      if (localDate > sheetDate) {
+        allItems.set(item.id, item);
+      }
+    }
+  }
+
+  return Array.from(allItems.values());
 }
 
 interface SyncPromptToastProps {
@@ -70,7 +71,7 @@ const SyncPromptToast: FC<SyncPromptToastProps> = ({ lastSync, onSync, onDismiss
         : 'Möchten Sie auf den neuesten Stand aktualisieren?';
 
 
-    return React.createElement(motion('div'), {
+    return React.createElement(motion.div, {
         initial: { opacity: 0, y: 50 },
         animate: { opacity: 1, y: 0 },
         exit: { opacity: 0, y: 50, transition: { duration: 0.2 } },
@@ -101,24 +102,6 @@ const SyncPromptToast: FC<SyncPromptToastProps> = ({ lastSync, onSync, onDismiss
     );
 };
 
-// --- API Response Type Definitions ---
-interface ReadApiResponse {
-    categories: Category[];
-    transactions: Transaction[];
-    recurringTransactions: RecurringTransaction[];
-    allAvailableTags: Tag[];
-}
-interface ConflictData {
-    categories: Category[];
-    transactions: Transaction[];
-    recurring: RecurringTransaction[];
-    tags: Tag[];
-}
-interface WriteErrorResponse {
-    error: string;
-    conflicts?: ConflictData;
-}
-
 
 export const useSync = (props: SyncProps) => {
     const {
@@ -131,96 +114,62 @@ export const useSync = (props: SyncProps) => {
     const isSyncing = syncOperation !== null;
     const [isAutoSyncEnabled, setIsAutoSyncEnabled] = useLocalStorage<boolean>('autoSyncEnabled', false);
 
-    const syncData = useCallback(async (options: { isAuto?: boolean; isConflictResolution?: boolean } = {}) => {
-        const { isAuto = false, isConflictResolution = false } = options;
+    const syncData = useCallback(async (options: { isAuto?: boolean } = {}) => {
+        const { isAuto = false } = options;
         if (isSyncing) return;
         
+        // Don't show manual spinner for auto-syncs, but still show for user-initiated syncs
         if (!isAuto) {
             setSyncOperation('sync');
         }
 
         const syncPromise = new Promise<string>(async (resolve, reject) => {
             try {
-                // 1. Write local data to sheet, which performs the version check
+                 // 1. Fetch remote data
+                const readResponse = await fetch('/api/sheets/read', { method: 'POST' });
+                if (!readResponse.ok) {
+                    const errorData = await readResponse.json();
+                    throw new Error(errorData.error || `Fehler beim Laden (${readResponse.status})`);
+                }
+                const remoteData = await readResponse.json();
+                const sheetCategories: Category[] = remoteData.categories || [];
+                const sheetTransactions: Transaction[] = remoteData.transactions || [];
+                const sheetRecurring: RecurringTransaction[] = remoteData.recurringTransactions || [];
+                const sheetTags: Tag[] = remoteData.allAvailableTags || [];
+
+                // 2. Merge data
+                const mergedCategories = mergeItems(rawCategories, sheetCategories);
+                const mergedTransactions = mergeItems(rawTransactions, sheetTransactions);
+                const mergedRecurring = mergeItems(rawRecurringTransactions, sheetRecurring);
+                const mergedTags = mergeItems(rawAllAvailableTags, sheetTags);
+
+                // 3. Update local state with merged data
+                setCategories(mergedCategories);
+                const newGroups = [...new Set(mergedCategories.filter(c => !c.isDeleted).map(c => c.group))];
+                setCategoryGroups(newGroups);
+                setTransactions(mergedTransactions);
+                setRecurringTransactions(mergedRecurring);
+                setAllAvailableTags(mergedTags);
+                
+                // 4. Write merged data back to sheet
                 const writeResponse = await fetch('/api/sheets/write', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        categories: rawCategories,
-                        transactions: rawTransactions,
-                        recurringTransactions: rawRecurringTransactions,
-                        allAvailableTags: rawAllAvailableTags,
+                        categories: mergedCategories,
+                        transactions: mergedTransactions,
+                        recurringTransactions: mergedRecurring,
+                        allAvailableTags: mergedTags,
                     }),
                 });
 
                 if (!writeResponse.ok) {
-                    const errorBody = await writeResponse.text();
-                    let errorJson: WriteErrorResponse | null = null;
-                    try {
-                        errorJson = JSON.parse(errorBody);
-                    } catch(e) {
-                        // Not a JSON response, throw with the raw text.
-                        throw new Error(errorBody || `Fehler beim Speichern (${writeResponse.status})`);
-                    }
-
-                    if (writeResponse.status === 409 && errorJson?.conflicts) {
-                         // CONFLICT DETECTED
-                        console.warn("Sync conflict detected. Merging server data and re-syncing.");
-                        
-                        const mergedCategories = mergeItems(rawCategories, [], errorJson.conflicts.categories);
-                        const mergedTransactions = mergeItems(rawTransactions, [], errorJson.conflicts.transactions);
-                        const mergedRecurring = mergeItems(rawRecurringTransactions, [], errorJson.conflicts.recurring);
-                        const mergedTags = mergeItems(rawAllAvailableTags, [], errorJson.conflicts.tags);
-                        
-                        // Update local state
-                        setCategories(mergedCategories);
-                        const newGroups = [...new Set(mergedCategories.filter(c => !c.isDeleted).map(c => c.group))];
-                        setCategoryGroups(newGroups);
-                        setTransactions(mergedTransactions);
-                        setRecurringTransactions(mergedRecurring);
-                        setAllAvailableTags(mergedTags);
-                        
-                        // Immediately trigger a new sync to push the resolved state
-                        setTimeout(() => syncData({ isAuto, isConflictResolution: true }), 100);
-
-                        resolve('Konflikt gelöst. Erneute Synchronisierung...');
-                        return;
-                    }
-                    throw new Error(errorJson?.error || `Fehler beim Speichern (${writeResponse.status})`);
-                }
-                
-                // If write was successful, read back the canonical state from the sheet.
-                const readResponse = await fetch('/api/sheets/read', { method: 'POST' });
-                const responseBody = await readResponse.text();
-
-                if (!readResponse.ok) {
-                    let errorJson: { error?: string } | null = null;
-                    try {
-                        errorJson = JSON.parse(responseBody);
-                    } catch(e) {
-                        throw new Error(responseBody || `Fehler beim Laden (${readResponse.status})`);
-                    }
-                    throw new Error(errorJson?.error || `Fehler beim Laden nach Speichern (${readResponse.status})`);
+                    const errorData = await writeResponse.json();
+                    throw new Error(errorData.error || `Fehler beim Speichern (${writeResponse.status})`);
                 }
 
-                const remoteData = JSON.parse(responseBody) as ReadApiResponse;
-
-                // Set local state to exactly match the remote state
-                setCategories(remoteData.categories || []);
-                const newGroups = [...new Set((remoteData.categories || []).filter((c: Category) => !c.isDeleted).map((c: Category) => c.group))];
-                setCategoryGroups(newGroups);
-                setTransactions(remoteData.transactions || []);
-                setRecurringTransactions(remoteData.recurringTransactions || []);
-                setAllAvailableTags(remoteData.allAvailableTags || []);
-                
                 setLastSync(new Date().toISOString());
-                
-                if(isConflictResolution) {
-                    resolve('Konflikt erfolgreich behoben und synchronisiert!');
-                } else {
-                    resolve('Daten erfolgreich synchronisiert!');
-                }
-
+                resolve('Daten erfolgreich synchronisiert!');
             } catch (error: any) {
                 console.error('Sync Error:', error);
                 reject(error);

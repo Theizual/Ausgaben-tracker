@@ -4,9 +4,6 @@ import { AnimatePresence, motion } from 'framer-motion';
 import type { Category, CategoryId } from '../types';
 import { iconMap } from './Icons';
 
-const MotionButton = motion('button');
-const MotionSpan = motion('span');
-
 const CategoryButtons: FC<{
     categories: Category[];
     categoryGroups: string[];
@@ -40,7 +37,7 @@ const CategoryButtons: FC<{
                             const Icon = iconMap[category.icon] || iconMap.MoreHorizontal;
                             const isSelected = selectedCategoryId === category.id;
                             return (
-                                <MotionButton
+                                <motion.button
                                     key={category.id}
                                     type="button"
                                     onClick={() => onSelectCategory(category.id)}
@@ -61,7 +58,7 @@ const CategoryButtons: FC<{
                                     <Icon className="h-6 w-6 shrink-0" style={{ color: isSelected ? 'white' : category.color }} />
                                     <AnimatePresence>
                                         {isSelected && (
-                                            <MotionSpan
+                                            <motion.span
                                                 initial={{ opacity: 0, width: 0 }}
                                                 animate={{ opacity: 1, width: 'auto' }}
                                                 exit={{ opacity: 0, width: 0 }}
@@ -69,10 +66,10 @@ const CategoryButtons: FC<{
                                                 className="whitespace-nowrap overflow-hidden text-sm"
                                             >
                                                 {category.name}
-                                            </MotionSpan>
+                                            </motion.span>
                                         )}
                                     </AnimatePresence>
-                                </MotionButton>
+                                </motion.button>
                             );
                         })}
                     </div>

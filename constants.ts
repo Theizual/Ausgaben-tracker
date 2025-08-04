@@ -1,9 +1,8 @@
 
-
 import type { Category } from './types';
 
 // This is the source of truth for the initial setup.
-const initialSetup: { name: string; categories: Omit<Category, 'group' | 'lastModified' | 'version'>[] }[] = [
+const initialSetup: { name: string; categories: Omit<Category, 'group' | 'lastModified'>[] }[] = [
   {
     name: 'Einkauf Lebensmittel',
     categories: [
@@ -34,7 +33,6 @@ export const INITIAL_CATEGORIES: Category[] = initialSetup.flatMap(group =>
     group.categories.map(category => ({
         ...category,
         group: group.name,
-        lastModified: now,
-        version: 1,
+        lastModified: now
     }))
 );

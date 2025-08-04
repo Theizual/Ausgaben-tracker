@@ -24,8 +24,6 @@ import {
     getDaysInMonth,
     addYears,
     subYears,
-    addDays,
-    isValid,
 } from 'date-fns';
 import { de } from 'date-fns/locale';
 import type { Transaction } from '../types';
@@ -90,6 +88,4 @@ export {
     isWithinInterval,
     addYears,
     subYears,
-    addDays,
-    isValid,
 };

@@ -2,9 +2,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { google } from 'googleapis';
 import { JWT } from 'google-auth-library';
-import { z } from 'zod';
 import type { Category, Transaction, RecurringTransaction, Tag } from '../../types';
-import { withRetry } from './utils';
 
 async function getAuthClient() {
   const serviceAccountEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
@@ -23,130 +21,14 @@ async function getAuthClient() {
   return auth;
 }
 
-// --- ZOD SCHEMAS & PARSING ---
-
-// A function to create the schemas, so `now` is not stale.
-const createSchemas = (now: string) => {
-  // Common Preprocessors & Transformers
-  const stringToPositiveFloatOptional = z.preprocess(
-    (val) => (val && typeof val === 'string' && val.trim() !== '') ? parseFloat(val.replace(',', '.')) : undefined,
-    z.number().positive().optional()
-  );
-
-  const stringToPositiveFloatRequired = z.preprocess(
-    (val) => (val && typeof val === 'string' && val.trim() !== '') ? parseFloat(val.replace(',', '.')) : undefined,
-    z.number().positive()
-  );
-
-  const stringToBoolean = z.preprocess((val) => String(val).toUpperCase() === 'TRUE', z.boolean());
-
-  const stringToOptionalDatetime = z.string().datetime().optional().transform(val => val || undefined);
-  
-  const lastModifiedTransformer = z.string().datetime().or(z.literal('')).transform(val => val || now);
-  
-  const versionTransformer = z.preprocess(v => parseInt(String(v), 10) || 1, z.number().int().positive());
-
-  // Schemas for row objects
-  const categorySchema = z.object({
-    id: z.string().min(1),
-    name: z.string().min(1),
-    color: z.string().min(1),
-    icon: z.string().min(1),
-    budget: stringToPositiveFloatOptional,
-    group: z.string().default('Sonstiges'),
-    lastModified: lastModifiedTransformer,
-    isDeleted: stringToBoolean,
-    version: versionTransformer,
-  });
-
-  const transactionSchema = z.object({
-    id: z.string().min(1),
-    amount: stringToPositiveFloatRequired,
-    description: z.string().default(''),
-    categoryId: z.string().min(1),
-    date: z.string().datetime(),
-    tagIds: z.preprocess((val) => String(val || '').split(',').map(tag => tag.trim()).filter(Boolean), z.array(z.string())),
-    lastModified: lastModifiedTransformer,
-    isDeleted: stringToBoolean,
-    recurringId: z.string().optional().transform(val => val || undefined),
-    version: versionTransformer,
-  });
-
-  const recurringTransactionSchema = z.object({
-    id: z.string().min(1),
-    amount: stringToPositiveFloatRequired,
-    description: z.string().default(''),
-    categoryId: z.string().min(1),
-    frequency: z.enum(['monthly', 'yearly']),
-    startDate: z.string().datetime(),
-    lastProcessedDate: stringToOptionalDatetime,
-    lastModified: lastModifiedTransformer,
-    isDeleted: stringToBoolean,
-    version: versionTransformer,
-  });
-
-  const tagSchema = z.object({
-    id: z.string().min(1),
-    name: z.string().min(1),
-    lastModified: lastModifiedTransformer,
-    isDeleted: stringToBoolean,
-    version: versionTransformer,
-  });
-
-  return { categorySchema, transactionSchema, recurringTransactionSchema, tagSchema };
-};
-
-function parseSheetData<T_Schema extends z.ZodType<any, any, any>>({
-    rows,
-    schema,
-    headers,
-    entityName,
-}: {
-    rows: any[][];
-    schema: T_Schema;
-    headers: string[];
-    entityName: string;
-}): z.infer<T_Schema>[] {
-    const parsedData: z.infer<T_Schema>[] = [];
-    if (!rows || rows.length === 0) {
-        return parsedData;
-    }
-
-    rows.forEach((row, index) => {
-        if (row.every(cell => cell === '')) {
-            return;
-        }
-
-        const rowObject = headers.reduce((obj, header, i) => {
-            obj[header] = row[i];
-            return obj;
-        }, {} as { [key: string]: any });
-
-        const result = schema.safeParse(rowObject);
-
-        if (result.success) {
-            parsedData.push(result.data);
-        } else {
-            const simplifiedErrors = result.error.issues
-                .map(issue => `Field '${issue.path.join('.')}': ${issue.message}`)
-                .join('; ');
-            console.warn(`[Sheet Read] Skipping invalid ${entityName} at row ${index + 2}: ${simplifiedErrors}`);
-        }
-    });
-
-    return parsedData;
-}
-
-
-// --- API HANDLER ---
+const now = new Date().toISOString();
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
     return res.status(405).end('Method Not Allowed');
   }
-  
-  const now = new Date().toISOString();
+
   const sheetId = process.env.GOOGLE_SHEET_ID;
 
   if (!sheetId || typeof sheetId !== 'string') {
@@ -157,52 +39,66 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const auth = await getAuthClient();
     const sheets = google.sheets({ version: 'v4', auth });
 
-    const response = await withRetry(() => sheets.spreadsheets.values.batchGet({
+    const response = await sheets.spreadsheets.values.batchGet({
       spreadsheetId: sheetId,
-      ranges: ['Categories!A2:I', 'Transactions!A2:J', 'Recurring!A2:J', 'Tags!A2:E'],
-    }));
-
-    const valueRanges = (response as any).data.valueRanges || [];
-    const { categorySchema, transactionSchema, recurringTransactionSchema, tagSchema } = createSchemas(now);
-
-    const categoryRows = valueRanges.find(r => r.range?.startsWith('Categories'))?.values || [];
-    const transactionRows = valueRanges.find(r => r.range?.startsWith('Transactions'))?.values || [];
-    const recurringRows = valueRanges.find(r => r.range?.startsWith('Recurring'))?.values || [];
-    const tagRows = valueRanges.find(r => r.range?.startsWith('Tags'))?.values || [];
-
-    const categories = parseSheetData({
-        rows: categoryRows,
-        schema: categorySchema,
-        headers: ['id', 'name', 'color', 'icon', 'budget', 'group', 'lastModified', 'isDeleted', 'version'],
-        entityName: 'Category',
+      ranges: ['Categories!A2:H', 'Transactions!A2:H', 'Recurring!A2:I', 'Tags!A2:D'],
     });
 
-    const transactions = parseSheetData({
-        rows: transactionRows,
-        schema: transactionSchema,
-        headers: ['id', 'amount', 'description', 'categoryId', 'date', 'tagIds', 'lastModified', 'isDeleted', 'recurringId', 'version'],
-        entityName: 'Transaction',
-    });
+    const valueRanges = response.data.valueRanges || [];
 
-    const recurringTransactions = parseSheetData({
-        rows: recurringRows,
-        schema: recurringTransactionSchema,
-        headers: ['id', 'amount', 'description', 'categoryId', 'frequency', 'startDate', 'lastProcessedDate', 'lastModified', 'isDeleted', 'version'],
-        entityName: 'RecurringTransaction',
-    });
+    const categoryValues = valueRanges.find(r => r.range?.startsWith('Categories'))?.values || [];
+    const categories: Category[] = categoryValues.map((row: string[]) => {
+      const budget = row[4] ? parseFloat(row[4].replace(',', '.')) : undefined;
+      return {
+        id: row[0],
+        name: row[1],
+        color: row[2],
+        icon: row[3],
+        budget: budget && !isNaN(budget) && budget > 0 ? budget : undefined,
+        group: row[5] || 'Sonstiges',
+        lastModified: row[6] || now,
+        isDeleted: row[7] === 'TRUE',
+      };
+    }).filter(c => c.id && c.name && c.color && c.icon);
 
-    const allAvailableTags = parseSheetData({
-        rows: tagRows,
-        schema: tagSchema,
-        headers: ['id', 'name', 'lastModified', 'isDeleted', 'version'],
-        entityName: 'Tag',
-    });
+    const transactionValues = valueRanges.find(r => r.range?.startsWith('Transactions'))?.values || [];
+    const transactions: Transaction[] = transactionValues.map((row: string[]) => ({
+      id: row[0],
+      amount: parseFloat(row[1]?.replace(',', '.')) || 0,
+      description: row[2],
+      categoryId: row[3],
+      date: row[4],
+      tagIds: row[5] ? row[5].split(',').map(tagId => tagId.trim()).filter(Boolean) : [],
+      lastModified: row[6] || now,
+      isDeleted: row[7] === 'TRUE',
+    })).filter(t => t.id && t.amount > 0 && t.categoryId && t.date);
+
+    const recurringValues = valueRanges.find(r => r.range?.startsWith('Recurring'))?.values || [];
+    const recurringTransactions: RecurringTransaction[] = recurringValues.map((row: string[]) => ({
+        id: row[0],
+        amount: parseFloat(row[1]?.replace(',', '.')) || 0,
+        description: row[2],
+        categoryId: row[3],
+        frequency: row[4] as 'monthly' | 'yearly',
+        startDate: row[5],
+        lastProcessedDate: row[6],
+        lastModified: row[7] || now,
+        isDeleted: row[8] === 'TRUE',
+    })).filter(r => r.id && r.amount > 0 && r.categoryId && r.frequency && r.startDate);
+
+    const tagValues = valueRanges.find(r => r.range?.startsWith('Tags'))?.values || [];
+    const allAvailableTags: Tag[] = tagValues.map((row: string[]) => ({
+        id: row[0],
+        name: row[1],
+        lastModified: row[2] || now,
+        isDeleted: row[3] === 'TRUE',
+    })).filter(t => t.id && t.name);
 
     return res.status(200).json({ categories, transactions, recurringTransactions, allAvailableTags });
 
-  } catch (error: unknown) {
+  } catch (error: any) {
     console.error('Error reading from Google Sheet:', error);
-    const errorMessage = (error as any)?.response?.data?.error?.message || (error as Error)?.message || 'An unknown error occurred.';
+    const errorMessage = error.response?.data?.error?.message || error.message || 'An unknown error occurred.';
     return res.status(500).json({ error: `Failed to read from sheet. Details: ${errorMessage}` });
   }
 }

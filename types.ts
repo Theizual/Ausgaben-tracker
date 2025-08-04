@@ -1,12 +1,9 @@
 
-
 export interface Tag {
   id: string;
   name: string;
   lastModified: string; // ISO string
   isDeleted?: boolean;
-  version: number;
-  conflicted?: boolean;
 }
 
 export interface Category {
@@ -18,8 +15,6 @@ export interface Category {
   group: string;
   lastModified: string; // ISO string
   isDeleted?: boolean;
-  version: number;
-  conflicted?: boolean;
 }
 
 export interface Transaction {
@@ -29,11 +24,8 @@ export interface Transaction {
   categoryId: string;
   date: string; // ISO string format
   tagIds?: string[];
-  recurringId?: string; // Verknüpfung zur wiederkehrenden Ausgabe
   lastModified: string; // ISO string
   isDeleted?: boolean;
-  version: number;
-  conflicted?: boolean;
 }
 
 export interface RecurringTransaction {
@@ -46,11 +38,8 @@ export interface RecurringTransaction {
   lastProcessedDate?: string; // ISO string
   lastModified: string; // ISO string
   isDeleted?: boolean;
-  version: number;
-  conflicted?: boolean;
 }
 
 export type ViewMode = 'woche' | 'monat';
-export type PeriodType = 'last3Months' | 'month' | 'year' | 'custom';
-export type QuickFilterId = 'today' | 'week' | 'month' | 'all';
+
 export type CategoryId = string;

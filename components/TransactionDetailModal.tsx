@@ -9,9 +9,6 @@ import CategoryButtons from './CategoryButtons';
 import TagInput from './TagInput';
 import AvailableTags from './AvailableTags';
 
-const MotionDiv = motion('div');
-const MotionButton = motion('button');
-
 interface TransactionDetailModalProps {
     isOpen: boolean;
     onClose: () => void;
@@ -162,7 +159,7 @@ const TransactionDetailModal: FC<TransactionDetailModalProps> = ({
                  <button onClick={onClose} className="absolute top-4 right-4 p-2 rounded-full hover:bg-slate-700 transition-colors z-10">
                     <X className="h-5 w-5" />
                 </button>
-                <MotionButton 
+                <motion.button 
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => setIsPickingCategory(true)}
@@ -171,10 +168,10 @@ const TransactionDetailModal: FC<TransactionDetailModalProps> = ({
                     title="Kategorie ändern"
                 >
                     <Icon className="h-8 w-8 text-white" />
-                </MotionButton>
+                </motion.button>
                 
                 {isEditingAmount ? (
-                    <MotionDiv initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }}>
+                    <motion.div initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }}>
                          <input
                             type="text"
                             inputMode="decimal"
@@ -185,7 +182,7 @@ const TransactionDetailModal: FC<TransactionDetailModalProps> = ({
                             className="w-48 text-center bg-slate-700 border border-slate-600 rounded-lg py-2 text-4xl font-bold text-white focus:outline-none focus:ring-2 focus:ring-rose-500"
                             autoFocus
                         />
-                    </MotionDiv>
+                    </motion.div>
                 ) : (
                     <button onClick={() => {
                         setAmountValue(String(formState.amount).replace('.', ','));
@@ -297,14 +294,14 @@ const TransactionDetailModal: FC<TransactionDetailModalProps> = ({
         <>
             <AnimatePresence>
                 {isOpen && (
-                    <MotionDiv
+                    <motion.div
                         className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-end md:items-center z-50"
                         onClick={onClose}
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                     >
-                        <MotionDiv
+                        <motion.div
                             className="bg-slate-800 rounded-t-2xl md:rounded-2xl w-full max-w-lg shadow-2xl border-t md:border border-slate-700 flex flex-col overflow-hidden max-h-[90vh]"
                             onClick={e => e.stopPropagation()}
                             initial={{ y: "100%" }}
@@ -316,7 +313,7 @@ const TransactionDetailModal: FC<TransactionDetailModalProps> = ({
                             
                             <div className="overflow-y-auto">
                                 <AnimatePresence mode="wait">
-                                    <MotionDiv
+                                    <motion.div
                                         key={isEditing ? 'edit' : 'view'}
                                         initial={{ opacity: 0, x: isEditing ? 50 : -50 }}
                                         animate={{ opacity: 1, x: 0 }}
@@ -324,23 +321,23 @@ const TransactionDetailModal: FC<TransactionDetailModalProps> = ({
                                         transition={{ duration: 0.2 }}
                                     >
                                         {isEditing ? renderEditMode() : renderViewMode()}
-                                    </MotionDiv>
+                                    </motion.div>
                                 </AnimatePresence>
                             </div>
-                        </MotionDiv>
-                    </MotionDiv>
+                        </motion.div>
+                    </motion.div>
                 )}
             </AnimatePresence>
              <AnimatePresence>
                 {isPickingCategory && (
-                     <MotionDiv
+                     <motion.div
                         className="fixed inset-0 bg-black/70 backdrop-blur-sm flex justify-center items-end md:items-center z-[60] p-4"
                         onClick={() => setIsPickingCategory(false)}
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                     >
-                        <MotionDiv
+                        <motion.div
                             className="bg-slate-900 rounded-2xl w-full max-w-2xl shadow-2xl border border-slate-700 flex flex-col max-h-[80vh]"
                             onClick={e => e.stopPropagation()}
                             initial={{ scale: 0.95, opacity: 0 }}
@@ -359,8 +356,8 @@ const TransactionDetailModal: FC<TransactionDetailModalProps> = ({
                                     onSelectCategory={handleCategoryUpdate}
                                 />
                             </div>
-                        </MotionDiv>
-                    </MotionDiv>
+                        </motion.div>
+                    </motion.div>
                 )}
             </AnimatePresence>
         </>

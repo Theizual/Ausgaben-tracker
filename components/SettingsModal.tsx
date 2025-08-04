@@ -1,5 +1,4 @@
 
-
 import React, { useState, useMemo, useCallback, useEffect, FC } from 'react';
 import { AnimatePresence, motion, Reorder } from 'framer-motion';
 import { toast } from 'react-hot-toast';
@@ -9,9 +8,6 @@ import { format, parseISO, formatCurrency } from '../utils/dateUtils';
 import { iconMap, Settings, Loader2, X, TrendingDown, LayoutGrid, BarChart2, Sheet, Save, DownloadCloud, Target, Edit, Trash2, Plus, GripVertical, Wallet, SlidersHorizontal, Repeat, History, Tag as TagIcon, ChevronUp, ChevronDown } from './Icons';
 import type { LucideProps } from 'lucide-react';
 
-const MotionDiv = motion('div');
-const MotionSpan = motion('span');
-
 // Icon Picker Component
 const IconPicker: FC<{
   onSelect: (iconName: string) => void;
@@ -19,14 +15,14 @@ const IconPicker: FC<{
 }> = ({ onSelect, onClose }) => {
     const iconList = Object.keys(iconMap);
     return (
-        <MotionDiv
+        <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-[60] p-4"
             onClick={onClose}
         >
-            <MotionDiv
+            <motion.div
                 initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.9, opacity: 0 }}
@@ -55,8 +51,8 @@ const IconPicker: FC<{
                         );
                     })}
                 </div>
-            </MotionDiv>
-        </MotionDiv>
+            </motion.div>
+        </motion.div>
     );
 };
 
@@ -75,7 +71,7 @@ const ToggleSwitch: React.FC<{
             className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-800 focus:ring-rose-500 ${enabled ? 'bg-rose-600' : 'bg-slate-600'}`}
         >
             <span className="sr-only">Automatische Synchronisierung aktivieren</span>
-            <MotionSpan
+            <motion.span
                 layout
                 transition={{ type: 'spring', stiffness: 700, damping: 30 }}
                 className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${enabled ? 'translate-x-6' : 'translate-x-1'}`}
@@ -97,7 +93,7 @@ const TagSettings: FC = () => {
     };
     
     return (
-         <MotionDiv
+         <motion.div
             key="tags"
             initial={{ opacity: 0, x: 10 }}
             animate={{ opacity: 1, x: 0 }}
@@ -140,7 +136,7 @@ const TagSettings: FC = () => {
                     <p className="text-center text-slate-500 py-4">Keine Tags vorhanden. Fügen Sie bei einer Transaktion einen neuen Tag hinzu.</p>
                 )}
             </div>
-        </MotionDiv>
+        </motion.div>
     )
 }
 
@@ -154,7 +150,7 @@ const BudgetSettings: FC<{
     }, [categories]);
     
     return (
-        <MotionDiv
+        <motion.div
             key="budget"
             initial={{ opacity: 0, x: 10 }}
             animate={{ opacity: 1, x: 0 }}
@@ -189,8 +185,8 @@ const BudgetSettings: FC<{
                                 <input
                                     type="text"
                                     inputMode="decimal"
-                                    defaultValue={category.budget?.toString().replace('.', ',') || ''}
-                                    onBlur={e => onBudgetChange(category.id, e.target.value)}
+                                    value={category.budget?.toString().replace('.', ',') || ''}
+                                    onChange={e => onBudgetChange(category.id, e.target.value)}
                                     placeholder="Budget"
                                     className="bg-slate-700 border border-slate-600 rounded-md py-1.5 pl-7 pr-2 text-white placeholder-slate-400 w-full focus:outline-none focus:ring-2 focus:ring-rose-500"
                                 />
@@ -199,7 +195,7 @@ const BudgetSettings: FC<{
                     );
                 })}
             </div>
-        </MotionDiv>
+        </motion.div>
     )
 }
 
@@ -208,7 +204,7 @@ const RecurringSettings: FC = () => {
     const [editingId, setEditingId] = useState<string | null>(null);
 
     const handleAdd = () => {
-        const newRecurring: Omit<RecurringTransaction, 'lastModified' | 'version'> = {
+        const newRecurring: Omit<RecurringTransaction, 'lastModified'> = {
             id: crypto.randomUUID(),
             amount: 0,
             description: '',
@@ -228,13 +224,11 @@ const RecurringSettings: FC = () => {
     };
 
     const handleDelete = (id: string) => {
-        if(window.confirm('Möchten Sie diese wiederkehrende Ausgabe wirklich löschen? Zukünftige Transaktionen werden nicht mehr erstellt.')) {
-            deleteRecurringTransaction(id);
-        }
+        deleteRecurringTransaction(id);
     };
     
     return (
-        <MotionDiv
+        <motion.div
             key="recurring"
             initial={{ opacity: 0, x: 10 }}
             animate={{ opacity: 1, x: 0 }}
@@ -296,7 +290,7 @@ const RecurringSettings: FC = () => {
                 })}
                  {recurringTransactions.length === 0 && <p className="text-center text-slate-500 py-4">Keine wiederkehrenden Ausgaben festgelegt.</p>}
             </div>
-        </MotionDiv>
+        </motion.div>
     )
 };
 
@@ -307,19 +301,17 @@ const SettingsModal: React.FC<{
 }> = ({ isOpen, onClose }) => {
     const {
         categories,
+        setCategories,
         categoryGroups,
-        updateCategory,
-        addCategory,
-        deleteCategory,
-        addGroup,
-        updateGroupName,
-        reorderGroups,
-        deleteGroup,
+        setCategoryGroups,
         isAutoSyncEnabled,
         setIsAutoSyncEnabled,
     } = useApp();
 
     const [activeSettingsTab, setActiveSettingsTab] = useState<'general' | 'budget' | 'categories' | 'tags' | 'recurring'>('general');
+    // Local state for edits
+    const [editableGroups, setEditableGroups] = useState(categoryGroups);
+    const [editableCategories, setEditableCategories] = useState(categories);
     const [pickingIconFor, setPickingIconFor] = useState<string | null>(null);
 
     useEffect(() => {
@@ -332,29 +324,101 @@ const SettingsModal: React.FC<{
         if (isOpen) {
             window.addEventListener('keydown', handleKeyDown);
             setActiveSettingsTab('general');
+            // Deep copy to avoid direct mutation before saving
+            setEditableGroups(JSON.parse(JSON.stringify(categoryGroups)));
+            setEditableCategories(JSON.parse(JSON.stringify(categories)));
         }
 
         return () => {
             window.removeEventListener('keydown', handleKeyDown);
         };
-    }, [isOpen, onClose]);
+    }, [isOpen, onClose, categories, categoryGroups]);
+
+    const handleCategoryChange = (id: string, field: keyof Category, value: any) => {
+        setEditableCategories(current =>
+            current.map(cat => cat.id === id ? { ...cat, [field]: value, lastModified: new Date().toISOString() } : cat)
+        );
+    };
 
     const handleCategoryBudgetChange = (id: string, value: string) => {
         const budgetValue = parseFloat(value.replace(',', '.'));
         const newBudgetValue = isNaN(budgetValue) || budgetValue < 0 ? undefined : budgetValue;
-        updateCategory(id, { budget: newBudgetValue });
+        handleCategoryChange(id, 'budget', newBudgetValue);
     };
 
-    const handleReorderCategories = (groupName: string, newOrderInGroup: Category[]) => {
-        const otherCategories = categories.filter(c => c.group !== groupName);
-        const finalOrder = [...otherCategories, ...newOrderInGroup];
-        // This is a bit tricky. A full reorder action in the reducer would be better.
-        // For now, let's just update the groups based on the new order.
-        // A direct mutation like this isn't ideal but works for reordering within a group.
-        // Note: This does not update version numbers, which is a limitation.
-        console.warn("Reordering categories is not fully implemented with versioning yet.");
+    const handleGroupChange = (oldName: string, newName: string) => {
+      const trimmedNewName = newName.trim();
+      if (oldName === trimmedNewName || !trimmedNewName) return;
+      const now = new Date().toISOString();
+      setEditableGroups(current => current.map(g => g === oldName ? trimmedNewName : g));
+      setEditableCategories(current => current.map(cat => cat.group === oldName ? { ...cat, group: trimmedNewName, lastModified: now } : cat));
+    };
+
+    const handleAddGroup = () => {
+        const newGroupName = `Neue Gruppe ${editableGroups.length + 1}`;
+        if (editableGroups.includes(newGroupName)) return;
+        setEditableGroups(current => [...current, newGroupName]);
+    };
+
+    const handleDeleteGroup = (groupName: string) => {
+        if (editableGroups.length <= 1) {
+            toast.error("Die letzte Gruppe kann nicht gelöscht werden.");
+            return;
+        }
+        const now = new Date().toISOString();
+        const fallbackGroup = editableGroups.find(g => g !== groupName) || '';
+        // Mark categories in deleted group as isDeleted: true
+        setEditableCategories(current => current.map(cat => {
+            if (cat.group === groupName) {
+                return { ...cat, isDeleted: true, lastModified: now };
+            }
+            return cat;
+        }));
+        // Remove group from list
+        setEditableGroups(current => current.filter(g => g !== groupName));
+    };
+
+    const handleMoveGroup = (index: number, direction: 'up' | 'down') => {
+        setEditableGroups(current => {
+            const newGroups = [...current];
+            const otherIndex = direction === 'up' ? index - 1 : index + 1;
+            if (otherIndex < 0 || otherIndex >= newGroups.length) {
+                return newGroups;
+            }
+            [newGroups[index], newGroups[otherIndex]] = [newGroups[otherIndex], newGroups[index]];
+            return newGroups;
+        });
     };
     
+    const handleAddCategory = (groupName: string) => {
+        const newCategory: Category = {
+            id: crypto.randomUUID(),
+            name: "Neue Kategorie",
+            color: "#8b5cf6",
+            icon: "Plus",
+            group: groupName,
+            lastModified: new Date().toISOString(),
+        };
+        setEditableCategories(current => [...current, newCategory]);
+    };
+    
+    const handleDeleteCategory = (id: string) => {
+         setEditableCategories(current => current.map(cat => 
+            cat.id === id ? { ...cat, isDeleted: true, lastModified: new Date().toISOString() } : cat
+        ));
+    };
+
+    const handleSave = () => {
+        // Filter out any truly deleted (not just soft-deleted) groups before saving
+        const activeCategories = editableCategories.filter(c => !c.isDeleted);
+        const activeGroupNames = new Set(activeCategories.map(c => c.group));
+        const finalGroups = editableGroups.filter(g => activeGroupNames.has(g));
+
+        setCategories(editableCategories);
+        setCategoryGroups(finalGroups);
+        onClose();
+    };
+
     if (!isOpen) return null;
 
     const settingsTabs = [
@@ -364,17 +428,19 @@ const SettingsModal: React.FC<{
         { id: 'tags', label: 'Tags', icon: TagIcon },
         { id: 'recurring', label: 'Wiederkehrende Ausgaben', icon: History }
     ];
+    
+    const liveEditableCategories = editableCategories.filter(c => !c.isDeleted);
 
     return (
         <AnimatePresence>
-            <MotionDiv
+            <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-end md:items-center z-50"
                 onClick={onClose}
             >
-                <MotionDiv
+                <motion.div
                     initial={{ y: "100%" }}
                     animate={{ y: 0 }}
                     exit={{ y: "100%" }}
@@ -407,7 +473,7 @@ const SettingsModal: React.FC<{
                     <div className="p-6 flex-grow overflow-y-auto space-y-8">
                         <AnimatePresence mode="wait">
                             {activeSettingsTab === 'general' && (
-                                <MotionDiv
+                                <motion.div
                                     key="general"
                                     initial={{ opacity: 0, x: -10 }}
                                     animate={{ opacity: 1, x: 0 }}
@@ -428,12 +494,12 @@ const SettingsModal: React.FC<{
                                             <ToggleSwitch id="auto-sync-toggle" enabled={isAutoSyncEnabled} setEnabled={setIsAutoSyncEnabled} />
                                         </div>
                                     </div>
-                                </MotionDiv>
+                                </motion.div>
                             )}
                             
                             {activeSettingsTab === 'budget' && (
                                 <BudgetSettings 
-                                    categories={categories}
+                                    categories={liveEditableCategories}
                                     onBudgetChange={handleCategoryBudgetChange}
                                 />
                             )}
@@ -443,7 +509,7 @@ const SettingsModal: React.FC<{
                              )}
 
                             {activeSettingsTab === 'categories' && (
-                                 <MotionDiv
+                                 <motion.div
                                     key="categories"
                                     initial={{ opacity: 0, x: 10 }}
                                     animate={{ opacity: 1, x: 0 }}
@@ -452,17 +518,17 @@ const SettingsModal: React.FC<{
                                 >
                                     <div className="flex justify-between items-center mb-4">
                                         <h3 className="text-lg font-semibold text-white">Kategorien & Gruppen</h3>
-                                        <button onClick={addGroup} className="flex items-center gap-2 text-sm bg-slate-700 hover:bg-slate-600 px-3 py-2 rounded-md font-semibold"><Plus className="h-4 w-4"/>Neue Gruppe</button>
+                                        <button onClick={handleAddGroup} className="flex items-center gap-2 text-sm bg-slate-700 hover:bg-slate-600 px-3 py-2 rounded-md font-semibold"><Plus className="h-4 w-4"/>Neue Gruppe</button>
                                     </div>
                                     <div className="space-y-4">
-                                        {categoryGroups.map((groupName, index) => {
-                                            const groupCategories = categories.filter(c => c.group === groupName);
+                                        {editableGroups.map((groupName, index) => {
+                                            const groupCategories = liveEditableCategories.filter(c => c.group === groupName);
                                             return (
                                             <div key={groupName} className="bg-slate-700/40 p-4 rounded-lg">
                                                 <div className="flex items-center gap-3 mb-4">
                                                     <div className="flex flex-col -my-2">
                                                         <button
-                                                            onClick={() => reorderGroups(categoryGroups.map((g, i) => i === index - 1 ? groupName : i === index ? categoryGroups[index - 1] : g))}
+                                                            onClick={() => handleMoveGroup(index, 'up')}
                                                             disabled={index === 0}
                                                             className="p-2 rounded-full text-slate-500 hover:bg-slate-600 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
                                                             title="Gruppe nach oben verschieben"
@@ -470,8 +536,8 @@ const SettingsModal: React.FC<{
                                                             <ChevronUp className="h-5 w-5" />
                                                         </button>
                                                         <button
-                                                            onClick={() => reorderGroups(categoryGroups.map((g, i) => i === index + 1 ? groupName : i === index ? categoryGroups[index + 1] : g))}
-                                                            disabled={index === categoryGroups.length - 1}
+                                                            onClick={() => handleMoveGroup(index, 'down')}
+                                                            disabled={index === editableGroups.length - 1}
                                                             className="p-2 rounded-full text-slate-500 hover:bg-slate-600 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
                                                             title="Gruppe nach unten verschieben"
                                                         >
@@ -480,19 +546,28 @@ const SettingsModal: React.FC<{
                                                     </div>
                                                     <input
                                                         type="text"
-                                                        defaultValue={groupName}
-                                                        onBlur={(e) => updateGroupName(groupName, e.target.value)}
+                                                        value={groupName}
+                                                        onBlur={(e) => handleGroupChange(groupName, e.target.value)}
+                                                        onChange={(e) => setEditableGroups(current => current.map(g => g === groupName ? e.target.value : g))}
                                                         className="bg-transparent text-lg font-bold text-white w-full focus:outline-none focus:bg-slate-600/50 rounded px-2"
                                                     />
-                                                    <button onClick={() => deleteGroup(groupName)} className="p-3 rounded-full hover:bg-red-500/20 text-slate-500 hover:text-red-400"><Trash2 className="h-5 w-5"/></button>
+                                                    <button onClick={() => handleDeleteGroup(groupName)} className="p-3 rounded-full hover:bg-red-500/20 text-slate-500 hover:text-red-400"><Trash2 className="h-5 w-5"/></button>
                                                 </div>
-                                                <div className="space-y-2 ml-4 pl-4 border-l-2 border-slate-600">
+                                                <Reorder.Group
+                                                    axis="y"
+                                                    values={groupCategories}
+                                                    onReorder={(newOrder) => {
+                                                        const otherCategories = liveEditableCategories.filter(c => c.group !== groupName);
+                                                        setEditableCategories([...otherCategories, ...newOrder]);
+                                                    }}
+                                                    className="space-y-2 ml-4 pl-4 border-l-2 border-slate-600"
+                                                >
                                                     {groupCategories.map(cat => {
                                                         const Icon = iconMap[cat.icon] || iconMap['MoreHorizontal'];
                                                         return (
-                                                            <div key={cat.id} className="bg-slate-700/50 p-3 rounded-lg">
+                                                            <Reorder.Item key={cat.id} value={cat} as="div" className="bg-slate-700/50 p-3 rounded-lg">
                                                                 <div className="flex items-start gap-3 w-full">
-                                                                    <div className="text-slate-500 pt-1"><GripVertical className="h-5 w-5" /></div>
+                                                                    <div className="text-slate-500 cursor-grab pt-1"><GripVertical className="h-5 w-5" /></div>
                                                                     
                                                                     <div className="flex-1 flex flex-col gap-3">
                                                                         <div className="flex items-center gap-3">
@@ -507,8 +582,8 @@ const SettingsModal: React.FC<{
                                                                             </button>
                                                                              <input
                                                                                 type="text"
-                                                                                defaultValue={cat.name}
-                                                                                onBlur={e => updateCategory(cat.id, { name: e.target.value })}
+                                                                                value={cat.name}
+                                                                                onChange={e => handleCategoryChange(cat.id, 'name', e.target.value)}
                                                                                 className="bg-transparent font-medium text-white w-full focus:outline-none"
                                                                             />
                                                                         </div>
@@ -516,33 +591,33 @@ const SettingsModal: React.FC<{
                                                                             <input
                                                                                 type="color"
                                                                                 value={cat.color}
-                                                                                onChange={e => updateCategory(cat.id, { color: e.target.value })}
+                                                                                onChange={e => handleCategoryChange(cat.id, 'color', e.target.value)}
                                                                                 className="w-10 h-10 p-0 border-none rounded-md bg-transparent cursor-pointer"
                                                                                 title="Farbe ändern"
                                                                             />
                                                                             <select
                                                                                 value={cat.group}
-                                                                                onChange={e => updateCategory(cat.id, { group: e.target.value })}
+                                                                                onChange={e => handleCategoryChange(cat.id, 'group', e.target.value)}
                                                                                 className="bg-slate-600 text-sm rounded-md border-slate-500 p-1.5 focus:outline-none focus:ring-2 focus:ring-rose-500"
                                                                             >
-                                                                                {categoryGroups.map(g => <option key={g} value={g}>{g}</option>)}
+                                                                                {editableGroups.map(g => <option key={g} value={g}>{g}</option>)}
                                                                             </select>
                                                                         </div>
                                                                     </div>
-                                                                     <button onClick={() => deleteCategory(cat.id)} className="p-3 rounded-full hover:bg-red-500/20 text-slate-500 hover:text-red-400">
+                                                                     <button onClick={() => handleDeleteCategory(cat.id)} className="p-3 rounded-full hover:bg-red-500/20 text-slate-500 hover:text-red-400">
                                                                         <Trash2 className="h-5 w-5"/>
                                                                     </button>
                                                                 </div>
-                                                            </div>
+                                                            </Reorder.Item>
                                                         )
                                                     })}
-                                                </div>
-                                                <button onClick={() => addCategory(groupName)} className="flex items-center gap-2 text-sm text-slate-400 hover:text-white mt-3 ml-8"><Plus className="h-4 w-4"/>Kategorie hinzufügen</button>
+                                                </Reorder.Group>
+                                                <button onClick={() => handleAddCategory(groupName)} className="flex items-center gap-2 text-sm text-slate-400 hover:text-white mt-3 ml-8"><Plus className="h-4 w-4"/>Kategorie hinzufügen</button>
                                             </div>
                                             )
                                         })}
                                     </div>
-                                </MotionDiv>
+                                </motion.div>
                             )}
 
                              {activeSettingsTab === 'recurring' && (
@@ -551,18 +626,18 @@ const SettingsModal: React.FC<{
                         </AnimatePresence>
                     </div>
                     <div className="p-6 border-t border-slate-700 flex justify-end">
-                         <button onClick={onClose} className="flex items-center justify-center gap-2 bg-gradient-to-r from-rose-500 to-red-600 text-white font-semibold px-6 py-3 rounded-lg shadow-md hover:opacity-90 transition-opacity">
-                            <Save className="h-4 w-4" /> Schließen
+                         <button onClick={handleSave} className="flex items-center justify-center gap-2 bg-gradient-to-r from-rose-500 to-red-600 text-white font-semibold px-6 py-3 rounded-lg shadow-md hover:opacity-90 transition-opacity">
+                            <Save className="h-4 w-4" /> Speichern & Schließen
                         </button>
                     </div>
-                </MotionDiv>
-            </MotionDiv>
+                </motion.div>
+            </motion.div>
             {pickingIconFor && (
                 <IconPicker
                     onClose={() => setPickingIconFor(null)}
                     onSelect={(iconName) => {
                         if (pickingIconFor) {
-                             updateCategory(pickingIconFor, { icon: iconName });
+                             handleCategoryChange(pickingIconFor, 'icon', iconName);
                         }
                         setPickingIconFor(null);
                     }}

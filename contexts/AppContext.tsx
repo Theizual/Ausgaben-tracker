@@ -1,10 +1,9 @@
 
-
-import React, { createContext, useContext, useEffect, useRef, useMemo } from 'react';
+import React, { createContext, useContext, useEffect, useRef } from 'react';
 import { useCategories } from '../hooks/useCategories';
 import { useTransactionData } from '../hooks/useTransactionData';
 import { useUI } from '../hooks/useUI';
-import { useSync, type SyncProps } from '../hooks/useSync';
+import { useSync } from '../hooks/useSync';
 
 // Combine the return types of all hooks to define the shape of the context
 type AppContextType = 
@@ -35,44 +34,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     
     // Sync needs data and setters from all other domains.
     const syncState = useSync({
-        rawCategories: categoriesState.rawCategories,
-        rawTransactions: transactionDataState.rawTransactions,
-        rawRecurringTransactions: transactionDataState.rawRecurringTransactions,
-        rawAllAvailableTags: transactionDataState.rawAllAvailableTags,
-        setCategories: categoriesState.setCategories,
-        setCategoryGroups: categoriesState.setCategoryGroups,
-        setTransactions: transactionDataState.setTransactions,
-        setRecurringTransactions: transactionDataState.setRecurringTransactions,
-        setAllAvailableTags: transactionDataState.setAllAvailableTags,
+        ...categoriesState,
+        ...transactionDataState,
     });
     
-    // --- Auto-sync logic with stale closure fix ---
-
-    // 1. Ref Latch: This ref will always hold the most current syncState.
-    const syncStateRef = useRef(syncState);
-    useEffect(() => {
-        syncStateRef.current = syncState;
-    });
-
-    // 2. Stable debounced function: Created once with useMemo.
-    // It reads from the ref at execution time, getting the latest state.
-    const debouncedSync = useMemo(() => debounce(() => {
-        const { isAutoSyncEnabled, isSyncing, syncData } = syncStateRef.current;
-        if (isAutoSyncEnabled && !isSyncing) {
-           syncData({ isAuto: true });
+    // Auto-sync logic
+    const debouncedSync = useRef(debounce(() => {
+        if (syncState.isAutoSyncEnabled && !syncState.isSyncing) {
+           syncState.syncData({ isAuto: true });
         }
-    }, 2000), []); // Empty dependency array ensures this function is stable
-
-    // 3. Effect trigger: Runs on data changes, but skips the initial mount.
-    const isInitialMount = useRef(true);
+    }, 2000)).current; // 2-second debounce delay
     
+    // The initial sync is now handled by a prompt in useSync.ts
+    // The user's request for auto-sync after an entry is handled here:
     useEffect(() => {
-        // Don't trigger sync on the very first render when data is hydrated
-        if (isInitialMount.current) {
-            isInitialMount.current = false;
-            return;
-        }
-        
         debouncedSync();
     }, [
         categoriesState.rawCategories, 
@@ -80,7 +55,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         transactionDataState.rawTransactions, 
         transactionDataState.rawRecurringTransactions, 
         transactionDataState.rawAllAvailableTags,
-        debouncedSync // This is stable, but good practice to include
+        debouncedSync
     ]);
 
 
@@ -89,7 +64,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         ...categoriesState,
         ...transactionDataState,
         addMultipleTransactions: transactionDataState.addMultipleTransactions,
-        selectTotalSpentForMonth: transactionDataState.selectTotalSpentForMonth,
         ...syncState,
     };
 
