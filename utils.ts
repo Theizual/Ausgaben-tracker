@@ -152,3 +152,163 @@ export function parseSheetData<T_Schema extends z.ZodType<any, any, any>>({
 
     return parsedData;
 }
+// Fügen Sie diese Funktionen zu Ihrer utils.js hinzu
+
+// Robuste Zahlenkonvertierung für verschiedene Locales
+function parseNumberSafely(value, fieldName = 'unknown') {
+  // Null/undefined/empty string handling
+  if (value === null || value === undefined || value === '') {
+    console.log(`${fieldName}: Empty value, defaulting to 0`);
+    return 0;
+  }
+  
+  // Bereits eine Zahl
+  if (typeof value === 'number') {
+    if (isNaN(value)) {
+      console.warn(`${fieldName}: Number is NaN, defaulting to 0`);
+      return 0;
+    }
+    return value;
+  }
+  
+  // String-Konvertierung
+  let stringValue = String(value).trim();
+  
+  // Deutsche Zahlenformate handhaben (Komma als Dezimaltrennzeichen)
+  // z.B. "1.234,56" -> "1234.56" oder "12,50" -> "12.50"
+  if (stringValue.includes(',')) {
+    // Prüfe ob es deutsche Formatierung ist (1.234,56)
+    const lastCommaIndex = stringValue.lastIndexOf(',');
+    const lastDotIndex = stringValue.lastIndexOf('.');
+    
+    if (lastCommaIndex > lastDotIndex) {
+      // Deutsche Formatierung: ersetze alle Punkte (Tausendertrennzeichen) und Komma durch Punkt
+      stringValue = stringValue.replace(/\./g, '').replace(',', '.');
+    }
+  }
+  
+  // Entferne alle nicht-numerischen Zeichen außer Punkt und Minus
+  stringValue = stringValue.replace(/[^\d.-]/g, '');
+  
+  // Fallback: Versuche verschiedene Parsing-Methoden
+  let result;
+  
+  // Methode 1: Standard parseFloat
+  result = parseFloat(stringValue);
+  if (!isNaN(result)) {
+    console.log(`${fieldName}: "${value}" -> ${result} (standard)`);
+    return result;
+  }
+  
+  // Methode 2: Number constructor
+  result = Number(stringValue);
+  if (!isNaN(result)) {
+    console.log(`${fieldName}: "${value}" -> ${result} (Number constructor)`);
+    return result;
+  }
+  
+  // Methode 3: Manual parsing für Edge Cases
+  if (stringValue.match(/^-?\d+(\.\d+)?$/)) {
+    result = parseFloat(stringValue);
+    if (!isNaN(result)) {
+      console.log(`${fieldName}: "${value}" -> ${result} (regex match)`);
+      return result;
+    }
+  }
+  
+  // Wenn alles fehlschlägt
+  console.warn(`${fieldName}: Could not parse "${value}" as number, defaulting to 0`);
+  return 0;
+}
+
+// Verbesserte parseSheetData Funktion
+function parseSheetDataRobust({ rows, schema, headers, entityName }) {
+  console.log(`\n🔄 Parsing ${entityName} data...`);
+  console.log(`Input rows: ${rows.length}`);
+  console.log(`Headers: ${JSON.stringify(headers)}`);
+  
+  if (!Array.isArray(rows) || rows.length === 0) {
+    console.log(`${entityName} has no data, returning empty array`);
+    return [];
+  }
+
+  const results = [];
+  const errors = [];
+
+  rows.forEach((row, rowIndex) => {
+    try {
+      // Konvertiere Array zu Objekt basierend auf Headers
+      const rawObject = {};
+      headers.forEach((header, colIndex) => {
+        rawObject[header] = row[colIndex] || '';
+      });
+
+      // Spezielle Behandlung für bekannte Zahlenfelder
+      const numberFields = ['amount', 'budget', 'version'];
+      numberFields.forEach(field => {
+        if (rawObject[field] !== undefined) {
+          const originalValue = rawObject[field];
+          rawObject[field] = parseNumberSafely(originalValue, `${entityName}[${rowIndex}].${field}`);
+        }
+      });
+
+      // Boolean-Felder behandeln
+      if (rawObject.isDeleted !== undefined) {
+        const original = rawObject.isDeleted;
+        rawObject.isDeleted = original === 'true' || original === true || original === '1';
+        console.log(`${entityName}[${rowIndex}].isDeleted: "${original}" -> ${rawObject.isDeleted}`);
+      }
+
+      // Schema-Validierung mit detailliertem Error-Handling
+      const parseResult = schema.safeParse(rawObject);
+      
+      if (!parseResult.success) {
+        console.error(`❌ ${entityName} row ${rowIndex} validation failed:`);
+        console.error(`Raw data:`, rawObject);
+        console.error(`Validation errors:`, parseResult.error.errors);
+        
+        // Sammle Fehler statt sofort zu werfen
+        errors.push({
+          row: rowIndex,
+          data: rawObject,
+          errors: parseResult.error.errors
+        });
+      } else {
+        results.push(parseResult.data);
+        console.log(`✅ ${entityName} row ${rowIndex} parsed successfully`);
+      }
+      
+    } catch (error) {
+      console.error(`💥 ${entityName} row ${rowIndex} parsing error:`, error);
+      errors.push({
+        row: rowIndex,
+        data: row,
+        error: error.message
+      });
+    }
+  });
+
+  if (errors.length > 0) {
+    console.error(`\n❌ ${entityName} parsing summary:`);
+    console.error(`Successful: ${results.length}`);
+    console.error(`Failed: ${errors.length}`);
+    console.error(`Error details:`, errors);
+    
+    // Entscheide ob du einen Fehler werfen oder teilweise Ergebnisse zurückgeben willst
+    if (results.length === 0) {
+      throw new Error(`All ${entityName} rows failed validation. First error: ${JSON.stringify(errors[0], null, 2)}`);
+    } else {
+      console.warn(`⚠️  ${entityName}: ${errors.length} rows failed, continuing with ${results.length} valid rows`);
+    }
+  }
+
+  console.log(`✅ ${entityName} parsing completed: ${results.length} items`);
+  return results;
+}
+
+// Export für die utils.js
+module.exports = {
+  parseNumberSafely,
+  parseSheetDataRobust,
+  // ... andere bestehende Exports
+};
