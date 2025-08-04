@@ -7,7 +7,7 @@ import type { Category, Transaction, RecurringTransaction, Tag } from '../../typ
 
 async function getAuthClient() {
   const serviceAccountEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
-  const privateKey = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n');
+  const privateKey = process.env.GOOGLE_PRIVATE_KEY?.replace(/\n/g, '\n').replace(/\\n/g, '\n');
 
   if (!serviceAccountEmail || !privateKey) {
     throw new Error('Google service account credentials are not set in environment variables.');
@@ -22,7 +22,7 @@ async function getAuthClient() {
   return auth;
 }
 
-// --- ZOD SCHEMA FOR REQUEST BODY ---
+// --- STRICT BASE SCHEMAS ---
 const CategorySchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -30,81 +30,78 @@ const CategorySchema = z.object({
   icon: z.string(),
   budget: z.number().optional(),
   group: z.string(),
-  lastModified: z.string().datetime(),
+  lastModified: z.string(),
   isDeleted: z.boolean().optional(),
-  version: z.number().int().positive(),
+  version: z.number(),
 });
 const TransactionSchema = z.object({
   id: z.string(),
-  amount: z.number().positive(),
+  amount: z.number(),
   description: z.string(),
   categoryId: z.string(),
-  date: z.string().datetime(),
+  date: z.string(),
   tagIds: z.array(z.string()).optional(),
   recurringId: z.string().optional(),
-  lastModified: z.string().datetime(),
+  lastModified: z.string(),
   isDeleted: z.boolean().optional(),
-  version: z.number().int().positive(),
+  version: z.number(),
 });
 const RecurringTransactionSchema = z.object({
   id: z.string(),
-  amount: z.number().positive(),
+  amount: z.number(),
   description: z.string(),
   categoryId: z.string(),
   frequency: z.enum(['monthly', 'yearly']),
-  startDate: z.string().datetime(),
-  lastProcessedDate: z.string().datetime().optional(),
-  lastModified: z.string().datetime(),
+  startDate: z.string(),
+  lastProcessedDate: z.string().optional(),
+  lastModified: z.string(),
   isDeleted: z.boolean().optional(),
-  version: z.number().int().positive(),
+  version: z.number(),
 });
 const TagSchema = z.object({
   id: z.string(),
   name: z.string(),
-  lastModified: z.string().datetime(),
+  lastModified: z.string(),
   isDeleted: z.boolean().optional(),
-  version: z.number().int().positive(),
+  version: z.number(),
 });
 
-const WriteBodySchema = z.object({
-    categories: z.array(CategorySchema),
-    transactions: z.array(TransactionSchema),
-    recurringTransactions: z.array(RecurringTransactionSchema),
-    allAvailableTags: z.array(TagSchema),
+// --- LENIENT WRAPPER SCHEMAS ---
+const DateString = z.string().refine(v => !Number.isNaN(Date.parse(v)), 'Invalid datetime');
+const CategorySchema2 = CategorySchema.extend({ budget: z.coerce.number().optional(), lastModified: DateString, version: z.coerce.number() });
+const TransactionSchema2 = TransactionSchema.extend({ amount: z.coerce.number(), date: DateString, lastModified: DateString, version: z.coerce.number() });
+const RecurringTransactionSchema2 = RecurringTransactionSchema.extend({ amount: z.coerce.number(), startDate: DateString, lastProcessedDate: DateString.optional(), lastModified: DateString, version: z.coerce.number() });
+const TagSchema2 = TagSchema.extend({ lastModified: DateString, version: z.coerce.number() });
+
+const WriteBodySchema2 = z.object({
+  categories: z.array(CategorySchema2).optional().default([]),
+  transactions: z.array(TransactionSchema2).optional().default([]),
+  recurringTransactions: z.array(RecurringTransactionSchema2).optional().default([]),
+  allAvailableTags: z.array(TagSchema2).optional().default([]),
 });
 
-type Mergeable = Category | Transaction | RecurringTransaction | Tag;
-
-// This constraint ensures that TypeScript preserves all properties during spread operations.
-type FullObjectWithVersion = { id: string; version: number; [key: string]: any };
-
-function findConflicts<T extends FullObjectWithVersion>(clientItems: T[], serverItems: T[]): T[] {
-    const serverMap = new Map(serverItems.map(item => [item.id, item]));
-    const conflicts: T[] = [];
-
-    for(const clientItem of clientItems) {
-        const serverItem = serverMap.get(clientItem.id);
-        if(serverItem && clientItem.version < serverItem.version) {
-            // Server is newer, this is a conflict. Send server version back.
-            conflicts.push(serverItem);
-        }
+function normalizeArray(input: any): any[] {
+  if (!Array.isArray(input)) return [];
+  const out: any[] = [];
+  for (const item of input) {
+    if (item == null) continue;
+    if (typeof item === 'string') {
+      try {
+        const parsed = JSON.parse(item);
+        if (parsed && typeof parsed === 'object') { out.push(parsed); continue; }
+        else continue;
+      } catch { continue; }
     }
-    return conflicts;
+    if (typeof item === 'object') {
+      // filter out empty objects like {} (no id)
+      if (Object.keys(item).length === 0) continue;
+      out.push(item);
+      continue;
+    }
+    // ignore other primitive types
+  }
+  return out;
 }
-
-function mergeData<T extends FullObjectWithVersion>(clientItems: T[], serverItems: T[]): T[] {
-    const allItems = new Map<string, T>();
-    
-    [...serverItems, ...clientItems].forEach(item => {
-        const existing = allItems.get(item.id);
-        if(!existing || item.version > existing.version) {
-            allItems.set(item.id, item);
-        }
-    });
-
-    return Array.from(allItems.values());
-}
-
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
@@ -117,152 +114,132 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(500).json({ error: 'Die Google Sheet ID ist auf dem Server nicht konfiguriert.' });
   }
 
-  // 0. Robustly parse JSON body (handles cases where req.body is a string or Buffer)
+  // CORS (optional; harmless if same origin)
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  if (req.method === 'OPTIONS') return res.status(200).end();
+
+  // 0) Robustly parse JSON
   const contentType = (req.headers['content-type'] || '').toString().toLowerCase();
   let parsedBody: any = (req as any).body;
-
   try {
-    if (typeof parsedBody === 'string') {
-      parsedBody = JSON.parse(parsedBody);
-    } else if (parsedBody && typeof parsedBody === 'object') {
-      // already parsed
-    } else if (parsedBody instanceof Buffer) {
-      parsedBody = JSON.parse(parsedBody.toString('utf8'));
-    }
-  } catch (e) {
+    if (typeof parsedBody === 'string') parsedBody = JSON.parse(parsedBody);
+    else if (parsedBody instanceof Buffer) parsedBody = JSON.parse(parsedBody.toString('utf8'));
+    else if (!parsedBody || typeof parsedBody !== 'object') parsedBody = {};
+  } catch {
     return res.status(400).json({ error: 'Invalid JSON body (parse failed)' });
   }
 
-  if (!parsedBody || typeof parsedBody !== 'object') {
-    return res.status(400).json({ error: 'Invalid JSON body', contentType });
-  }
+  // 1) Normalize possibly weird arrays from some mobile stacks
+  parsedBody = {
+    categories: normalizeArray(parsedBody.categories),
+    transactions: normalizeArray(parsedBody.transactions),
+    recurringTransactions: normalizeArray(parsedBody.recurringTransactions),
+    allAvailableTags: normalizeArray(parsedBody.allAvailableTags),
+  };
 
-  // --- UPDATED ZOD SCHEMAS (coercion, relaxed datetime) ---
-  const DateString = z.string().refine(v => !Number.isNaN(Date.parse(v)), 'Invalid datetime');
-
-  const CategorySchema2 = CategorySchema.extend({
-    budget: z.coerce.number().optional(),
-    lastModified: DateString,
-  });
-
-  const TransactionSchema2 = TransactionSchema.extend({
-    amount: z.coerce.number().positive(),
-    date: DateString,
-    lastModified: DateString,
-  });
-
-  const RecurringTransactionSchema2 = RecurringTransactionSchema.extend({
-    amount: z.coerce.number().positive(),
-    startDate: DateString,
-    lastProcessedDate: DateString.optional(),
-    lastModified: DateString,
-  });
-
-  const TagSchema2 = TagSchema.extend({
-    lastModified: DateString,
-  });
-
-  const WriteBodySchema2 = z.object({
-      categories: z.array(CategorySchema2).optional().default([]),
-      transactions: z.array(TransactionSchema2).optional().default([]),
-      recurringTransactions: z.array(RecurringTransactionSchema2).optional().default([]),
-      allAvailableTags: z.array(TagSchema2).optional().default([]),
-  });
-
-  // 1. Validate incoming data (uses the lenient schema)
+  // 2) Validate with lenient schema
   const validationResult = WriteBodySchema2.safeParse(parsedBody);
   if (!validationResult.success) {
-      console.error("Invalid write request body:", JSON.stringify(validationResult.error.flatten(), null, 2));
-      return res.status(400).json(validationResult.error.flatten());
+    console.error("Invalid write request body:", JSON.stringify(validationResult.error.flatten(), null, 2));
+    return res.status(400).json(validationResult.error.flatten());
   }
   const clientData = validationResult.data;
 
   try {
     const auth = await getAuthClient();
     const sheets = google.sheets({ version: 'v4', auth });
-    
-    // 2. Read current server state
+
+    // Read server state
     const readResponse = await withRetry(() => sheets.spreadsheets.values.batchGet({
-        spreadsheetId: sheetId,
-        ranges: ['Categories!A2:I', 'Transactions!A2:J', 'Recurring!A2:J', 'Tags!A2:E'],
+      spreadsheetId: sheetId,
+      ranges: ['Categories!A2:I', 'Transactions!A2:J', 'Recurring!A2:J', 'Tags!A2:E'],
     }));
 
     const now = new Date().toISOString();
-    const { 
-        categorySchema, 
-        transactionSchema, 
-        recurringTransactionSchema, 
-        tagSchema 
-    } = createSchemas(now);
+    const { categorySchema, transactionSchema, recurringTransactionSchema, tagSchema } = createSchemas(now);
 
     const serverValues = (readResponse as any).data.valueRanges || [];
     const serverCategories = parseSheetData({
-        rows: serverValues.find((r: any) => r.range?.startsWith('Categories'))?.values || [],
-        schema: categorySchema,
-        headers: ['id', 'name', 'color', 'icon', 'budget', 'group', 'lastModified', 'isDeleted', 'version'],
-        entityName: 'Category',
+      rows: serverValues.find((r: any) => r.range?.startsWith('Categories'))?.values || [],
+      schema: categorySchema,
+      headers: ['id', 'name', 'color', 'icon', 'budget', 'group', 'lastModified', 'isDeleted', 'version'],
+      entityName: 'Category',
     });
     const serverTransactions = parseSheetData({
-        rows: serverValues.find((r: any) => r.range?.startsWith('Transactions'))?.values || [],
-        schema: transactionSchema,
-        headers: ['id', 'amount', 'description', 'categoryId', 'date', 'tagIds', 'lastModified', 'isDeleted', 'recurringId', 'version'],
-        entityName: 'Transaction',
+      rows: serverValues.find((r: any) => r.range?.startsWith('Transactions'))?.values || [],
+      schema: transactionSchema,
+      headers: ['id', 'amount', 'description', 'categoryId', 'date', 'tagIds', 'lastModified', 'isDeleted', 'recurringId', 'version'],
+      entityName: 'Transaction',
     });
     const serverRecurring = parseSheetData({
-        rows: serverValues.find((r: any) => r.range?.startsWith('Recurring'))?.values || [],
-        schema: recurringTransactionSchema,
-        headers: ['id', 'amount', 'description', 'categoryId', 'frequency', 'startDate', 'lastProcessedDate', 'lastModified', 'isDeleted', 'version'],
-        entityName: 'RecurringTransaction',
+      rows: serverValues.find((r: any) => r.range?.startsWith('Recurring'))?.values || [],
+      schema: recurringTransactionSchema,
+      headers: ['id', 'amount', 'description', 'categoryId', 'frequency', 'startDate', 'lastProcessedDate', 'lastModified', 'isDeleted', 'version'],
+      entityName: 'RecurringTransaction',
     });
     const serverTags = parseSheetData({
-        rows: serverValues.find((r: any) => r.range?.startsWith('Tags'))?.values || [],
-        schema: tagSchema,
-        headers: ['id', 'name', 'lastModified', 'isDeleted', 'version'],
-        entityName: 'Tag',
+      rows: serverValues.find((r: any) => r.range?.startsWith('Tags'))?.values || [],
+      schema: tagSchema,
+      headers: ['id', 'name', 'lastModified', 'isDeleted', 'version'],
+      entityName: 'Tag',
     });
 
-
-    // 3. Detect conflicts
+    // Conflicts
+    function findConflicts(itemsA: any[], itemsB: any[]) {
+      const mapB = new Map(itemsB.map(x => [x.id, x]));
+      const conflicts: any[] = [];
+      for (const a of itemsA) {
+        const b = mapB.get(a.id);
+        if (b && Number(a.version) < Number(b.version)) conflicts.push(b);
+      }
+      return conflicts;
+    }
     const conflictCategories = findConflicts(clientData.categories, serverCategories);
     const conflictTransactions = findConflicts(clientData.transactions, serverTransactions);
     const conflictRecurring = findConflicts(clientData.recurringTransactions, serverRecurring);
     const conflictTags = findConflicts(clientData.allAvailableTags, serverTags);
-    
-    const allConflicts = [
-        ...conflictCategories, ...conflictTransactions, ...conflictRecurring, ...conflictTags
-    ];
 
-    if (allConflicts.length > 0) {
-        return res.status(409).json({
-            error: 'Conflict: Newer versions of some items were found on the server.',
-            conflicts: {
-                categories: conflictCategories,
-                transactions: conflictTransactions,
-                recurring: conflictRecurring,
-                tags: conflictTags,
-            },
-        });
+    const anyConflicts = conflictCategories.length + conflictTransactions.length + conflictRecurring.length + conflictTags.length > 0;
+    if (anyConflicts) {
+      return res.status(409).json({
+        error: 'Conflict: Newer versions of some items were found on the server.',
+        conflicts: {
+          categories: conflictCategories,
+          transactions: conflictTransactions,
+          recurring: conflictRecurring,
+          tags: conflictTags,
+        },
+      });
     }
 
-    // 4. No conflicts, merge data and write
+    // Merge (favor higher version)
+    function mergeData(a: any[], b: any[]) {
+      const m = new Map<string, any>();
+      for (const it of [...b, ...a]) {
+        const ex = m.get(it.id);
+        if (!ex || Number(it.version) > Number(ex.version)) m.set(it.id, it);
+      }
+      return Array.from(m.values());
+    }
     const mergedCategories = mergeData(clientData.categories, serverCategories);
     const mergedTransactions = mergeData(clientData.transactions, serverTransactions);
     const mergedRecurring = mergeData(clientData.recurringTransactions, serverRecurring);
     const mergedTags = mergeData(clientData.allAvailableTags, serverTags);
 
     const headers = {
-        categories: ['id', 'name', 'color', 'icon', 'budget', 'group', 'lastModified', 'isDeleted', 'version'],
-        transactions: ['id', 'amount', 'description', 'categoryId', 'date', 'tagIds', 'lastModified', 'isDeleted', 'recurringId', 'version'],
-        recurring: ['id', 'amount', 'description', 'categoryId', 'frequency', 'startDate', 'lastProcessedDate', 'lastModified', 'isDeleted', 'version'],
-        tags: ['id', 'name', 'lastModified', 'isDeleted', 'version'],
+      categories: ['id', 'name', 'color', 'icon', 'budget', 'group', 'lastModified', 'isDeleted', 'version'],
+      transactions: ['id', 'amount', 'description', 'categoryId', 'date', 'tagIds', 'lastModified', 'isDeleted', 'recurringId', 'version'],
+      recurring: ['id', 'amount', 'description', 'categoryId', 'frequency', 'startDate', 'lastProcessedDate', 'lastModified', 'isDeleted', 'version'],
+      tags: ['id', 'name', 'lastModified', 'isDeleted', 'version'],
     };
 
-    const categoryValues = [headers.categories, ...mergedCategories.map((c: Category) => [c.id, c.name, c.color, c.icon, c.budget != null ? String(c.budget).replace('.', ',') : '', c.group, c.lastModified, c.isDeleted ? 'TRUE' : 'FALSE', c.version])];
-    const transactionValues = [headers.transactions, ...mergedTransactions.map((t: Transaction) => [t.id, String(t.amount).replace('.', ','), t.description, t.categoryId, t.date, t.tagIds?.join(',') || '', t.lastModified, t.isDeleted ? 'TRUE' : 'FALSE', t.recurringId || '', t.version])];
-    const recurringValues = [headers.recurring, ...mergedRecurring.map((r: RecurringTransaction) => [r.id, String(r.amount).replace('.',','), r.description, r.categoryId, r.frequency, r.startDate, r.lastProcessedDate || '', r.lastModified, r.isDeleted ? 'TRUE' : 'FALSE', r.version])];
-    const tagValues = [headers.tags, ...mergedTags.map((tag: Tag) => [tag.id, tag.name, tag.lastModified, tag.isDeleted ? 'TRUE' : 'FALSE', tag.version])];
+    const categoryValues = [headers.categories, ...mergedCategories.map((c: any) => [c.id, c.name, c.color, c.icon, c.budget != null ? String(c.budget).replace('.', ',') : '', c.group, c.lastModified, c.isDeleted ? 'TRUE' : 'FALSE', c.version])];
+    const transactionValues = [headers.transactions, ...mergedTransactions.map((t: any) => [t.id, String(t.amount).replace('.', ','), t.description, t.categoryId, t.date, Array.isArray(t.tagIds) ? t.tagIds.join(',') : '', t.lastModified, t.isDeleted ? 'TRUE' : 'FALSE', t.recurringId || '', t.version])];
+    const recurringValues = [headers.recurring, ...mergedRecurring.map((r: any) => [r.id, String(r.amount).replace('.',','), r.description, r.categoryId, r.frequency, r.startDate, r.lastProcessedDate || '', r.lastModified, r.isDeleted ? 'TRUE' : 'FALSE', r.version])];
+    const tagValues = [headers.tags, ...mergedTags.map((tag: any) => [tag.id, tag.name, tag.lastModified, tag.isDeleted ? 'TRUE' : 'FALSE', tag.version])];
 
-    // 5. Clear ALL sheets and then write. This is simpler than calculating diffs.
     await withRetry(() => sheets.spreadsheets.values.batchClear({
       spreadsheetId: sheetId,
       requestBody: { ranges: ['Categories!A1:Z', 'Transactions!A1:Z', 'Recurring!A1:Z', 'Tags!A1:Z'] },
@@ -282,10 +259,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }));
 
     return res.status(200).json({ message: 'Data successfully written to sheet.' });
-
-  } catch (error: unknown) {
+  } catch (error: any) {
     console.error('Error writing to Google Sheet:', error);
-    const errorMessage = (error as any)?.response?.data?.error?.message || (error as Error)?.message || 'An unknown error occurred.';
+    const errorMessage = error?.response?.data?.error?.message || error?.message || 'An unknown error occurred.';
     return res.status(500).json({ error: `Failed to write to sheet. Details: ${errorMessage}` });
   }
 }
