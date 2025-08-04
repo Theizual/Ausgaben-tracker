@@ -25,6 +25,189 @@ interface Mergeable {
     version: number;
     conflicted?: boolean;
 }
+// Fügen Sie diese Funktionen zu Ihrem useSync Hook hinzu
+
+// Detect mobile device
+const isMobile = () => {
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+};
+
+// Improved fetch with mobile-specific timeouts
+const fetchWithMobileTimeout = async (url: string, options: RequestInit = {}) => {
+  const timeoutMs = isMobile() ? 15000 : 8000; // Längere Timeouts für mobile
+  
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': navigator.userAgent, // Explizit User-Agent senden
+        ...options.headers,
+      },
+    });
+    
+    clearTimeout(timeoutId);
+    return response;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    if (error.name === 'AbortError') {
+      throw new Error('Request timeout - please try again');
+    }
+    throw error;
+  }
+};
+
+// Verbesserte loadFromSheet Funktion
+const loadFromSheet = async () => {
+  if (isLoading) {
+    console.log('Load already in progress, skipping...');
+    return;
+  }
+  
+  setIsLoading(true);
+  setError(null);
+  
+  const maxRetries = isMobile() ? 3 : 2;
+  let lastError: Error | null = null;
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(`Loading attempt ${attempt}/${maxRetries}${isMobile() ? ' (mobile)' : ''}`);
+      
+      const response = await fetchWithMobileTimeout('/api/sheets/read', {
+        method: 'POST',
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      
+      // Validierung der empfangenen Daten
+      if (!data || typeof data !== 'object') {
+        throw new Error('Invalid response format');
+      }
+      
+      const { categories, transactions, recurringTransactions, allAvailableTags } = data;
+      
+      // Prüfe ob kritische Daten vorhanden sind
+      if (!Array.isArray(categories)) {
+        throw new Error('Categories data is missing or invalid');
+      }
+      
+      if (!Array.isArray(transactions)) {
+        throw new Error('Transactions data is missing or invalid');
+      }
+      
+      if (!Array.isArray(allAvailableTags)) {
+        throw new Error('Tags data is missing or invalid');
+      }
+      
+      if (!Array.isArray(recurringTransactions)) {
+        throw new Error('Recurring transactions data is missing or invalid');
+      }
+      
+      // Erfolgreiche Daten verarbeiten
+      console.log('Data loaded successfully:', {
+        categories: categories.length,
+        transactions: transactions.length,
+        recurringTransactions: recurringTransactions.length,
+        allAvailableTags: allAvailableTags.length,
+      });
+      
+      // Update der lokalen Daten
+      setCategories(categories);
+      setTransactions(transactions);
+      setRecurringTransactions(recurringTransactions);
+      setAllAvailableTags(allAvailableTags);
+      
+      // Erfolg - kein weiterer Retry nötig
+      setIsLoading(false);
+      toast.success('Daten erfolgreich geladen!');
+      return;
+      
+    } catch (error) {
+      lastError = error as Error;
+      console.error(`Attempt ${attempt} failed:`, error);
+      
+      if (attempt < maxRetries) {
+        const delay = 1000 * attempt; // 1s, 2s, 3s delays
+        console.log(`Retrying in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+  
+  // Alle Versuche fehlgeschlagen
+  setIsLoading(false);
+  const errorMessage = lastError?.message || 'Unbekannter Fehler beim Laden der Daten';
+  setError(errorMessage);
+  
+  // Spezielle Fehlermeldungen für mobile Geräte
+  if (isMobile()) {
+    if (errorMessage.includes('timeout')) {
+      toast.error('Timeout - Bitte überprüfen Sie Ihre Internetverbindung und versuchen Sie es erneut.');
+    } else if (errorMessage.includes('network')) {
+      toast.error('Netzwerkfehler - Bitte überprüfen Sie Ihre Internetverbindung.');
+    } else {
+      toast.error(`Fehler beim Laden: ${errorMessage}`);
+    }
+  } else {
+    toast.error(`Fehler beim Laden der Daten: ${errorMessage}`);
+  }
+};
+
+// Optimierte Auto-Load Logik
+useEffect(() => {
+  // Auf mobilen Geräten weniger aggressive Auto-Loads
+  const autoLoadInterval = isMobile() ? 300000 : 180000; // 5min mobile, 3min desktop
+  
+  if (shouldAutoLoad) {
+    const intervalId = setInterval(() => {
+      // Nur laden wenn die App im Fokus ist (auf mobile wichtig für Batterie)
+      if (document.visibilityState === 'visible') {
+        loadFromSheet();
+      }
+    }, autoLoadInterval);
+    
+    return () => clearInterval(intervalId);
+  }
+}, [shouldAutoLoad]);
+
+// Verbesserte Connectivity-Erkennung für mobile
+useEffect(() => {
+  const handleOnline = () => {
+    console.log('Back online, attempting to load data...');
+    if (isMobile()) {
+      // Auf mobilen Geräten kurz warten bis die Verbindung stabil ist
+      setTimeout(loadFromSheet, 2000);
+    } else {
+      loadFromSheet();
+    }
+  };
+  
+  const handleOffline = () => {
+    console.log('Gone offline');
+    toast.error('Keine Internetverbindung');
+  };
+  
+  window.addEventListener('online', handleOnline);
+  window.addEventListener('offline', handleOffline);
+  
+  return () => {
+    window.removeEventListener('online', handleOnline);
+    window.removeEventListener('offline', handleOffline);
+  };
+}, []);
+
+// Export der verbesserten Funktionen
+export { loadFromSheet, isMobile, fetchWithMobileTimeout };
 
 // Generic function to merge local and remote data based on version number
 function mergeItems<T extends Mergeable>(localItems: T[], remoteItems: T[], conflicts: T[] = []): T[] {
