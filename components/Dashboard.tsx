@@ -13,9 +13,11 @@ import CategoryButtons from './CategoryButtons';
 import TagInput from './TagInput';
 import AvailableTags from './AvailableTags';
 
+const MotionDiv = motion('div');
+
 const ProgressBar: FC<{ percentage: number; color: string; }> = ({ percentage, color }) => (
     <div className="w-full bg-slate-700 rounded-full h-2">
-        <motion.div
+        <MotionDiv
             className="h-2 rounded-full"
             style={{ backgroundColor: color }}
             initial={{ width: 0 }}
@@ -162,7 +164,7 @@ const Dashboard: FC = () => {
                 
                 {/* Right Column */}
                 <div className="space-y-6">
-                    <motion.div
+                    <MotionDiv
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.1 }}
@@ -197,8 +199,8 @@ const Dashboard: FC = () => {
                                 </div>
                             </div>
                         </div>
-                    </motion.div>
-                    <motion.div
+                    </MotionDiv>
+                    <MotionDiv
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         className="bg-slate-800/50 p-6 rounded-2xl border border-slate-700/50 flex flex-col"
@@ -236,7 +238,7 @@ const Dashboard: FC = () => {
                                 </button>
                                 <AnimatePresence>
                                 {isCategoryBudgetOpen && (
-                                     <motion.div
+                                     <MotionDiv
                                         initial={{ height: 0, opacity: 0 }}
                                         animate={{ height: 'auto', opacity: 1 }}
                                         exit={{ height: 0, opacity: 0 }}
@@ -272,7 +274,7 @@ const Dashboard: FC = () => {
                                                         </div>
                                                          <AnimatePresence>
                                                             {isExpanded && (
-                                                                <motion.div
+                                                                <MotionDiv
                                                                     initial={{ opacity: 0, height: 0, marginTop: 0 }}
                                                                     animate={{ opacity: 1, height: 'auto', marginTop: '1rem' }}
                                                                     exit={{ opacity: 0, height: 0, marginTop: 0 }}
@@ -304,19 +306,19 @@ const Dashboard: FC = () => {
                                                                             <p className="text-slate-500 text-sm p-2">Keine Ausgaben diesen Monat.</p>
                                                                         )}
                                                                     </div>
-                                                                </motion.div>
+                                                                </MotionDiv>
                                                             )}
                                                         </AnimatePresence>
                                                     </div>
                                                 );
                                             })}
                                         </div>
-                                    </motion.div>
+                                    </MotionDiv>
                                 )}
                                 </AnimatePresence>
                             </div>
                         )}
-                    </motion.div>
+                    </MotionDiv>
                 </div>
             </div>
         </div>
@@ -431,7 +433,7 @@ const QuickAddForm: FC = () => {
     };
 
     return (
-        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+        <MotionDiv initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
             <div className="bg-slate-800/50 p-6 rounded-2xl border border-slate-700/50">
                 <h3 className="text-lg font-bold text-white mb-4">Ausgabe hinzufügen</h3>
                 <form onSubmit={handleSubmit} className="space-y-4">
@@ -500,7 +502,7 @@ const QuickAddForm: FC = () => {
                     </div>
                 </form>
             </div>
-        </motion.div>
+        </MotionDiv>
     );
 };
 

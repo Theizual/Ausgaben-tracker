@@ -15,6 +15,8 @@ import { de, addMonths, subMonths } from '../utils/dateUtils';
 import { ChevronLeft, ChevronRight, X, iconMap, ChevronDown } from './Icons';
 import { formatCurrency, formatGermanDate } from '../utils/dateUtils';
 
+const MotionDiv = motion('div');
+
 const Statistics: FC = () => {
     const { 
         transactions,
@@ -65,7 +67,7 @@ const Statistics: FC = () => {
                 />
                 <AnimatePresence>
                     {statisticsSelectedDay && transactionsForSelectedDay.length > 0 && (
-                        <motion.div
+                        <MotionDiv
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -20 }}
@@ -76,7 +78,7 @@ const Statistics: FC = () => {
                                 transactions={transactionsForSelectedDay}
                                 onClose={() => setStatisticsSelectedDay(null)}
                             />
-                        </motion.div>
+                        </MotionDiv>
                     )}
                 </AnimatePresence>
             </div>
@@ -129,7 +131,7 @@ const DailyBreakdownView: FC<{
                     <div>
                         <div className="flex h-3 w-full rounded-full overflow-hidden bg-slate-700 my-2">
                              {categoryBreakdown.map(({ category, amount }) => (
-                                <motion.div
+                                <MotionDiv
                                     key={category.id}
                                     className="h-full"
                                     style={{ backgroundColor: category.color }}
@@ -227,7 +229,7 @@ const CalendarView: FC<{
     const startOffset = (firstDayOfMonth === 0 ? 6 : firstDayOfMonth - 1);
 
     return (
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-slate-800 p-6 rounded-2xl border border-slate-700">
+        <MotionDiv initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-slate-800 p-6 rounded-2xl border border-slate-700">
             <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-bold text-white">{format(currentMonth, 'MMMM yyyy', { locale: de })}</h3>
                 <div className="flex gap-2">
@@ -263,7 +265,7 @@ const CalendarView: FC<{
                     );
                 })}
             </div>
-        </motion.div>
+        </MotionDiv>
     );
 };
 
@@ -289,7 +291,7 @@ const MonthlySummary: FC<{ transactions: Transaction[], currentMonth: Date }> = 
     const periodLabel = format(currentMonth, 'MMMM yyyy', { locale: de });
 
     return (
-        <motion.div
+        <MotionDiv
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
@@ -321,7 +323,7 @@ const MonthlySummary: FC<{ transactions: Transaction[], currentMonth: Date }> = 
                     </p>
                 </div>
             </div>
-        </motion.div>
+        </MotionDiv>
     );
 };
 
@@ -355,7 +357,7 @@ const MonthlyCategoryBreakdown: FC<{ transactions: Transaction[], currentMonth: 
     }, [transactions, categoryMap]);
 
     return (
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-slate-800 p-6 rounded-2xl border border-slate-700">
+        <MotionDiv initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-slate-800 p-6 rounded-2xl border border-slate-700">
             <h3 className="text-lg font-bold text-white mb-4">Kategorienübersicht ({format(currentMonth, 'MMMM', { locale: de })})</h3>
             <div className="space-y-2">
                 {categoryBreakdown.length > 0 ? categoryBreakdown.map(({ category, amount, percentage }) => (
@@ -373,7 +375,7 @@ const MonthlyCategoryBreakdown: FC<{ transactions: Transaction[], currentMonth: 
                                     <span className="font-bold text-white flex-shrink-0 pl-2">{formatCurrency(amount)}</span>
                                 </div>
                                 <div className="w-full bg-slate-700 rounded-full h-2.5 ml-7">
-                                    <motion.div
+                                    <MotionDiv
                                         className="h-2.5 rounded-full"
                                         style={{ backgroundColor: category.color }}
                                         initial={{ width: 0 }}
@@ -386,7 +388,7 @@ const MonthlyCategoryBreakdown: FC<{ transactions: Transaction[], currentMonth: 
 
                         <AnimatePresence>
                             {expandedId === category.id && (
-                                <motion.div
+                                <MotionDiv
                                     initial={{ opacity: 0, height: 0, marginTop: 0 }}
                                     animate={{ opacity: 1, height: 'auto', marginTop: '1rem' }}
                                     exit={{ opacity: 0, height: 0, marginTop: 0 }}
@@ -418,13 +420,13 @@ const MonthlyCategoryBreakdown: FC<{ transactions: Transaction[], currentMonth: 
                                             })
                                         }
                                     </div>
-                                </motion.div>
+                                </MotionDiv>
                             )}
                         </AnimatePresence>
                     </div>
                 )) : <p className="text-slate-500 text-center py-4">Keine Ausgaben in diesem Monat.</p>}
             </div>
-        </motion.div>
+        </MotionDiv>
     );
 }
 

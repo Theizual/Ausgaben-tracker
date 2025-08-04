@@ -9,6 +9,9 @@ import { format, parseISO, formatCurrency } from '../utils/dateUtils';
 import { iconMap, Settings, Loader2, X, TrendingDown, LayoutGrid, BarChart2, Sheet, Save, DownloadCloud, Target, Edit, Trash2, Plus, GripVertical, Wallet, SlidersHorizontal, Repeat, History, Tag as TagIcon, ChevronUp, ChevronDown } from './Icons';
 import type { LucideProps } from 'lucide-react';
 
+const MotionDiv = motion('div');
+const MotionSpan = motion('span');
+
 // Icon Picker Component
 const IconPicker: FC<{
   onSelect: (iconName: string) => void;
@@ -16,14 +19,14 @@ const IconPicker: FC<{
 }> = ({ onSelect, onClose }) => {
     const iconList = Object.keys(iconMap);
     return (
-        <motion.div
+        <MotionDiv
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-[60] p-4"
             onClick={onClose}
         >
-            <motion.div
+            <MotionDiv
                 initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.9, opacity: 0 }}
@@ -52,8 +55,8 @@ const IconPicker: FC<{
                         );
                     })}
                 </div>
-            </motion.div>
-        </motion.div>
+            </MotionDiv>
+        </MotionDiv>
     );
 };
 
@@ -72,7 +75,7 @@ const ToggleSwitch: React.FC<{
             className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-800 focus:ring-rose-500 ${enabled ? 'bg-rose-600' : 'bg-slate-600'}`}
         >
             <span className="sr-only">Automatische Synchronisierung aktivieren</span>
-            <motion.span
+            <MotionSpan
                 layout
                 transition={{ type: 'spring', stiffness: 700, damping: 30 }}
                 className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${enabled ? 'translate-x-6' : 'translate-x-1'}`}
@@ -94,7 +97,7 @@ const TagSettings: FC = () => {
     };
     
     return (
-         <motion.div
+         <MotionDiv
             key="tags"
             initial={{ opacity: 0, x: 10 }}
             animate={{ opacity: 1, x: 0 }}
@@ -137,7 +140,7 @@ const TagSettings: FC = () => {
                     <p className="text-center text-slate-500 py-4">Keine Tags vorhanden. Fügen Sie bei einer Transaktion einen neuen Tag hinzu.</p>
                 )}
             </div>
-        </motion.div>
+        </MotionDiv>
     )
 }
 
@@ -151,7 +154,7 @@ const BudgetSettings: FC<{
     }, [categories]);
     
     return (
-        <motion.div
+        <MotionDiv
             key="budget"
             initial={{ opacity: 0, x: 10 }}
             animate={{ opacity: 1, x: 0 }}
@@ -196,7 +199,7 @@ const BudgetSettings: FC<{
                     );
                 })}
             </div>
-        </motion.div>
+        </MotionDiv>
     )
 }
 
@@ -231,7 +234,7 @@ const RecurringSettings: FC = () => {
     };
     
     return (
-        <motion.div
+        <MotionDiv
             key="recurring"
             initial={{ opacity: 0, x: 10 }}
             animate={{ opacity: 1, x: 0 }}
@@ -293,7 +296,7 @@ const RecurringSettings: FC = () => {
                 })}
                  {recurringTransactions.length === 0 && <p className="text-center text-slate-500 py-4">Keine wiederkehrenden Ausgaben festgelegt.</p>}
             </div>
-        </motion.div>
+        </MotionDiv>
     )
 };
 
@@ -364,14 +367,14 @@ const SettingsModal: React.FC<{
 
     return (
         <AnimatePresence>
-            <motion.div
+            <MotionDiv
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-end md:items-center z-50"
                 onClick={onClose}
             >
-                <motion.div
+                <MotionDiv
                     initial={{ y: "100%" }}
                     animate={{ y: 0 }}
                     exit={{ y: "100%" }}
@@ -404,7 +407,7 @@ const SettingsModal: React.FC<{
                     <div className="p-6 flex-grow overflow-y-auto space-y-8">
                         <AnimatePresence mode="wait">
                             {activeSettingsTab === 'general' && (
-                                <motion.div
+                                <MotionDiv
                                     key="general"
                                     initial={{ opacity: 0, x: -10 }}
                                     animate={{ opacity: 1, x: 0 }}
@@ -425,7 +428,7 @@ const SettingsModal: React.FC<{
                                             <ToggleSwitch id="auto-sync-toggle" enabled={isAutoSyncEnabled} setEnabled={setIsAutoSyncEnabled} />
                                         </div>
                                     </div>
-                                </motion.div>
+                                </MotionDiv>
                             )}
                             
                             {activeSettingsTab === 'budget' && (
@@ -440,7 +443,7 @@ const SettingsModal: React.FC<{
                              )}
 
                             {activeSettingsTab === 'categories' && (
-                                 <motion.div
+                                 <MotionDiv
                                     key="categories"
                                     initial={{ opacity: 0, x: 10 }}
                                     animate={{ opacity: 1, x: 0 }}
@@ -539,7 +542,7 @@ const SettingsModal: React.FC<{
                                             )
                                         })}
                                     </div>
-                                </motion.div>
+                                </MotionDiv>
                             )}
 
                              {activeSettingsTab === 'recurring' && (
@@ -552,8 +555,8 @@ const SettingsModal: React.FC<{
                             <Save className="h-4 w-4" /> Schließen
                         </button>
                     </div>
-                </motion.div>
-            </motion.div>
+                </MotionDiv>
+            </MotionDiv>
             {pickingIconFor && (
                 <IconPicker
                     onClose={() => setPickingIconFor(null)}

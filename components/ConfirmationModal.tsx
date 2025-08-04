@@ -6,6 +6,8 @@ import type { Transaction } from '../types';
 import { formatCurrency, getMonthInterval, isWithinInterval, parseISO } from '../utils/dateUtils';
 import { iconMap, CheckCircle2 } from './Icons';
 
+const MotionDiv = motion('div');
+
 interface ConfirmationModalProps {
     isOpen: boolean;
     onClose: () => void;
@@ -87,14 +89,14 @@ const ConfirmationModal: FC<ConfirmationModalProps> = ({
     };
 
     return (
-        <motion.div
+        <MotionDiv
             className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-end md:items-center z-50 p-4"
             onClick={onClose}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
         >
-            <motion.div
+            <MotionDiv
                 className="bg-slate-800 rounded-t-2xl md:rounded-2xl w-full max-w-md shadow-2xl border-t md:border border-slate-700 flex flex-col items-center text-center p-8"
                 onClick={e => e.stopPropagation()}
                 initial={{ y: "100%" }}
@@ -102,13 +104,13 @@ const ConfirmationModal: FC<ConfirmationModalProps> = ({
                 exit={{ y: "100%" }}
                 transition={{ type: 'spring', bounce: 0.4, duration: 0.5 }}
             >
-                <motion.div
+                <MotionDiv
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
                     transition={{ delay: 0.2, type: 'spring', stiffness: 260, damping: 20 }}
                 >
                     <CheckCircle2 className="h-16 w-16 text-green-400 mb-4" />
-                </motion.div>
+                </MotionDiv>
                 
                  <h2 className="text-2xl font-bold text-white mb-2">
                     {newTransactions.length > 1 ? `${newTransactions.length} Ausgaben hinzugefügt!` : 'Ausgabe hinzugefügt!'}
@@ -152,7 +154,7 @@ const ConfirmationModal: FC<ConfirmationModalProps> = ({
                                 </p>
                             </div>
                             <div className="w-full bg-slate-700 rounded-full h-2.5 overflow-hidden">
-                                <motion.div
+                                <MotionDiv
                                     className="h-2.5 rounded-full"
                                     style={{ backgroundColor: getBarColor(categoryBudgetStats.percentageAfter, categoryBudgetStats.color) }}
                                     initial={{ width: `${Math.min(categoryBudgetStats.percentageBefore, 100)}%` }}
@@ -175,7 +177,7 @@ const ConfirmationModal: FC<ConfirmationModalProps> = ({
                                 <p className="font-semibold" style={{color: getBarColor(totalPercentageAfter)}}>{totalPercentageAfter.toFixed(0)}%</p>
                             </div>
                             <div className="w-full bg-slate-700 rounded-full h-2.5 overflow-hidden">
-                                <motion.div
+                                <MotionDiv
                                     className="h-2.5 rounded-full"
                                     style={{ backgroundColor: getBarColor(totalPercentageAfter) }}
                                     initial={{ width: `${Math.min(totalPercentageBefore, 100)}%` }}
@@ -186,8 +188,8 @@ const ConfirmationModal: FC<ConfirmationModalProps> = ({
                         </div>
                     )}
                 </div>
-            </motion.div>
-        </motion.div>
+            </MotionDiv>
+        </MotionDiv>
     );
 };
 

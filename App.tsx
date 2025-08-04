@@ -17,6 +17,8 @@ import { formatDistanceToNow } from 'date-fns';
 import { de } from 'date-fns/locale';
 import Logo from './components/Logo';
 
+const MotionDiv = motion('div');
+
 // Main App Component (now a clean layout/composition root)
 const App: React.FC = () => {
     const {
@@ -82,7 +84,7 @@ const App: React.FC = () => {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-24 md:pb-6">
                 <main className="mt-6">
                     <AnimatePresence mode="wait">
-                        <motion.div
+                        <MotionDiv
                             key={activeTab}
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
@@ -90,7 +92,7 @@ const App: React.FC = () => {
                             transition={{ duration: 0.3 }}
                         >
                             {renderContent()}
-                        </motion.div>
+                        </MotionDiv>
                     </AnimatePresence>
                 </main>
             </div>
@@ -201,7 +203,7 @@ const MainTabs: React.FC<{
                             <tab.icon className="h-6 w-6" />
                             <span className="text-xs font-medium">{tab.label}</span>
                              {activeTab === tab.id && (
-                                <motion.div className="absolute bottom-0 h-1 w-8 bg-rose-400 rounded-t-full" layoutId="underline" />
+                                <MotionDiv className="absolute bottom-0 h-1 w-8 bg-rose-400 rounded-t-full" layoutId="underline" />
                             )}
                         </button>
                     ))}

@@ -7,6 +7,9 @@ import type { Transaction, Category, Tag, QuickFilterId } from '../types';
 import { format, parseISO, formatCurrency, endOfDay, startOfDay, getWeekInterval, getMonthInterval } from '../utils/dateUtils';
 import { iconMap, Search, SlidersHorizontal, ChevronDown, Tag as TagIcon, Edit, Trash2, X } from './Icons';
 
+const MotionDiv = motion('div');
+const MotionButton = motion('button');
+
 const quickFilterButtons: { id: QuickFilterId; label: string }[] = [
     { id: 'today', label: 'Heute' },
     { id: 'week', label: 'Diese Woche' },
@@ -48,7 +51,7 @@ const TransactionList: FC<{
     const { categoryMap, tagMap, handleTagAnalyticsClick, handleTransactionClick, deleteTransaction } = useApp();
     
     return (
-        <motion.div
+        <MotionDiv
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
@@ -56,7 +59,7 @@ const TransactionList: FC<{
         >
             <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
                 <QuickFilters activeQuickFilter={activeQuickFilter} onQuickFilter={onQuickFilter} />
-                <motion.button
+                <MotionButton
                     layout
                     onClick={onOpenFilters}
                     className={`relative p-2 rounded-full transition-colors ${
@@ -68,14 +71,14 @@ const TransactionList: FC<{
                 >
                     <Search className="h-5 w-5" />
                     {isFilterActive && (
-                        <motion.div layoutId="filter-dot" className="absolute top-1 right-1 h-2 w-2 bg-rose-400 rounded-full" />
+                        <MotionDiv layoutId="filter-dot" className="absolute top-1 right-1 h-2 w-2 bg-rose-400 rounded-full" />
                     )}
-                </motion.button>
+                </MotionButton>
             </div>
             <div className="flex-grow space-y-3 overflow-y-auto -mr-4 pr-4">
                 <AnimatePresence>
                 {transactions.length > 0 ? transactions.map(t => (
-                    <motion.div 
+                    <MotionDiv 
                         key={t.id} 
                         layout
                         initial={{ opacity: 0, y: 10 }} 
@@ -91,13 +94,13 @@ const TransactionList: FC<{
                             onTransactionClick={handleTransactionClick}
                             deleteTransaction={deleteTransaction}
                         />
-                    </motion.div>
+                    </MotionDiv>
                 )) : (
                     showEmptyMessage && <p className="text-slate-500 text-center py-4">Keine Transaktionen gefunden.</p>
                 )}
                 </AnimatePresence>
             </div>
-        </motion.div>
+        </MotionDiv>
     );
 };
 
@@ -225,14 +228,14 @@ const MultiCategoryPicker: FC<{
             </button>
             <AnimatePresence>
             {isOpen && (
-                <motion.div initial={{opacity: 0, y: -5}} animate={{opacity: 1, y: 0}} exit={{opacity: 0, y: -5}} className="absolute z-10 top-full mt-2 w-full bg-slate-800 border border-slate-600 rounded-lg shadow-xl max-h-60 overflow-y-auto">
+                <MotionDiv initial={{opacity: 0, y: -5}} animate={{opacity: 1, y: 0}} exit={{opacity: 0, y: -5}} className="absolute z-10 top-full mt-2 w-full bg-slate-800 border border-slate-600 rounded-lg shadow-xl max-h-60 overflow-y-auto">
                     {allCategories.map(category => (
                         <label key={category.id} className="flex items-center gap-3 p-3 hover:bg-slate-700/50 cursor-pointer">
                             <input type="checkbox" checked={selected.includes(category.id)} onChange={() => toggleCategory(category.id)} className="w-4 h-4 rounded text-rose-500 bg-slate-600 border-slate-500 focus:ring-rose-500"/>
                             <span className="text-white text-sm font-medium">{category.name}</span>
                         </label>
                     ))}
-                </motion.div>
+                </MotionDiv>
             )}
             </AnimatePresence>
         </div>
@@ -275,14 +278,14 @@ const FilterModal: FC<{
     return (
         <AnimatePresence>
             {isOpen && (
-                <motion.div
+                <MotionDiv
                     className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-end md:items-center z-50"
                     onClick={onClose}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                 >
-                    <motion.div
+                    <MotionDiv
                         className="bg-slate-800 rounded-t-2xl md:rounded-2xl w-full max-w-2xl shadow-2xl border-t md:border border-slate-700 flex flex-col max-h-[90vh]"
                         onClick={e => e.stopPropagation()}
                         initial={{ y: "100%", opacity: 0 }}
@@ -328,7 +331,7 @@ const FilterModal: FC<{
 
                             <AnimatePresence>
                             {showAdvanced && (
-                                <motion.div initial={{opacity: 0, height: 0}} animate={{opacity: 1, height: 'auto'}} exit={{opacity: 0, height: 0}} className="overflow-hidden">
+                                <MotionDiv initial={{opacity: 0, height: 0}} animate={{opacity: 1, height: 'auto'}} exit={{opacity: 0, height: 0}} className="overflow-hidden">
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4">
                                         <div className="md:col-span-2">
                                             <p className="text-sm font-medium text-slate-300 mb-2">Kategorien</p>
@@ -349,7 +352,7 @@ const FilterModal: FC<{
                                             </div>
                                         </div>
                                     </div>
-                                </motion.div>
+                                </MotionDiv>
                             )}
                             </AnimatePresence>
                         </main>
@@ -362,8 +365,8 @@ const FilterModal: FC<{
                                 Filter anwenden
                             </button>
                         </footer>
-                    </motion.div>
-                </motion.div>
+                    </MotionDiv>
+                </MotionDiv>
             )}
         </AnimatePresence>
     );

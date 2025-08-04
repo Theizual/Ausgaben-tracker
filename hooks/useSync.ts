@@ -70,7 +70,7 @@ const SyncPromptToast: FC<SyncPromptToastProps> = ({ lastSync, onSync, onDismiss
         : 'Möchten Sie auf den neuesten Stand aktualisieren?';
 
 
-    return React.createElement(motion.div, {
+    return React.createElement(motion('div'), {
         initial: { opacity: 0, y: 50 },
         animate: { opacity: 1, y: 0 },
         exit: { opacity: 0, y: 50, transition: { duration: 0.2 } },
@@ -154,16 +154,23 @@ export const useSync = (props: SyncProps) => {
                 });
 
                 if (!writeResponse.ok) {
-                    const errorData = await writeResponse.json() as WriteErrorResponse;
-                    if (writeResponse.status === 409 && errorData.conflicts) {
+                    const errorBody = await writeResponse.text();
+                    let errorJson: WriteErrorResponse | null = null;
+                    try {
+                        errorJson = JSON.parse(errorBody);
+                    } catch(e) {
+                        // Not a JSON response, throw with the raw text.
+                        throw new Error(errorBody || `Fehler beim Speichern (${writeResponse.status})`);
+                    }
+
+                    if (writeResponse.status === 409 && errorJson?.conflicts) {
                          // CONFLICT DETECTED
                         console.warn("Sync conflict detected. Merging server data and re-syncing.");
                         
-                        // Merge server's conflicting items into local state. The server item always wins.
-                        const mergedCategories = mergeItems(rawCategories, [], errorData.conflicts.categories);
-                        const mergedTransactions = mergeItems(rawTransactions, [], errorData.conflicts.transactions);
-                        const mergedRecurring = mergeItems(rawRecurringTransactions, [], errorData.conflicts.recurring);
-                        const mergedTags = mergeItems(rawAllAvailableTags, [], errorData.conflicts.tags);
+                        const mergedCategories = mergeItems(rawCategories, [], errorJson.conflicts.categories);
+                        const mergedTransactions = mergeItems(rawTransactions, [], errorJson.conflicts.transactions);
+                        const mergedRecurring = mergeItems(rawRecurringTransactions, [], errorJson.conflicts.recurring);
+                        const mergedTags = mergeItems(rawAllAvailableTags, [], errorJson.conflicts.tags);
                         
                         // Update local state
                         setCategories(mergedCategories);
@@ -179,16 +186,24 @@ export const useSync = (props: SyncProps) => {
                         resolve('Konflikt gelöst. Erneute Synchronisierung...');
                         return;
                     }
-                    throw new Error(errorData.error || `Fehler beim Speichern (${writeResponse.status})`);
+                    throw new Error(errorJson?.error || `Fehler beim Speichern (${writeResponse.status})`);
                 }
                 
                 // If write was successful, read back the canonical state from the sheet.
                 const readResponse = await fetch('/api/sheets/read', { method: 'POST' });
+                const responseBody = await readResponse.text();
+
                 if (!readResponse.ok) {
-                    const errorData = await readResponse.json();
-                    throw new Error(errorData.error || `Fehler beim Laden nach Speichern (${readResponse.status})`);
+                    let errorJson: { error?: string } | null = null;
+                    try {
+                        errorJson = JSON.parse(responseBody);
+                    } catch(e) {
+                        throw new Error(responseBody || `Fehler beim Laden (${readResponse.status})`);
+                    }
+                    throw new Error(errorJson?.error || `Fehler beim Laden nach Speichern (${readResponse.status})`);
                 }
-                const remoteData = await readResponse.json() as ReadApiResponse;
+
+                const remoteData = JSON.parse(responseBody) as ReadApiResponse;
 
                 // Set local state to exactly match the remote state
                 setCategories(remoteData.categories || []);

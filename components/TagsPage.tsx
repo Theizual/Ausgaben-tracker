@@ -13,6 +13,8 @@ import {
 import { Hash, Coins, BarChart2, ChevronLeft, ChevronRight, X, Edit, Trash2, Plus, Search } from './Icons';
 import { iconMap } from './Icons';
 
+const MotionDiv = motion('div');
+
 const AllTagsModal: FC<{
     allTags: Tag[];
     selectedTagIds: string[];
@@ -29,14 +31,14 @@ const AllTagsModal: FC<{
     );
 
     return (
-        <motion.div
+        <MotionDiv
             className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50 p-4"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
         >
-            <motion.div
+            <MotionDiv
                 className="bg-slate-800 rounded-2xl w-full max-w-md shadow-2xl border border-slate-700 flex flex-col max-h-[70vh]"
                 initial={{ scale: 0.95, y: 20 }}
                 animate={{ scale: 1, y: 0 }}
@@ -82,8 +84,8 @@ const AllTagsModal: FC<{
                         Schließen
                     </button>
                 </footer>
-            </motion.div>
-        </motion.div>
+            </MotionDiv>
+        </MotionDiv>
     );
 };
 
@@ -211,7 +213,7 @@ const PeriodNavigator: FC<{
             
             <AnimatePresence mode="wait">
                 {periodType === 'custom' ? (
-                    <motion.div 
+                    <MotionDiv 
                         key="custom"
                         initial={{ opacity: 0, width: 0 }}
                         animate={{ opacity: 1, width: 'auto' }}
@@ -232,9 +234,9 @@ const PeriodNavigator: FC<{
                             onChange={(e) => setCustomDateRange({ ...customDateRange, end: e.target.value })}
                             className="bg-slate-700 border border-slate-600 rounded-md px-2 py-1.5 text-white text-sm"
                         />
-                    </motion.div>
+                    </MotionDiv>
                 ) : (
-                    <motion.div 
+                    <MotionDiv 
                         key="nav"
                         initial={{ opacity: 0, width: 0 }}
                         animate={{ opacity: 1, width: 'auto' }}
@@ -245,7 +247,7 @@ const PeriodNavigator: FC<{
                         <button onClick={() => changeDate('prev')} disabled={isNavDisabled} className="p-2 rounded-full hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed"><ChevronLeft className="h-5 w-5" /></button>
                         <span className="font-bold text-white w-40 text-center">{getPeriodLabel()}</span>
                         <button onClick={() => changeDate('next')} disabled={isNavDisabled} className="p-2 rounded-full hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed"><ChevronRight className="h-5 w-5" /></button>
-                    </motion.div>
+                    </MotionDiv>
                 )}
             </AnimatePresence>
         </div>
@@ -381,16 +383,16 @@ const TagDetailView: FC<{
 
     if (filteredTransactions.length === 0) {
         return (
-             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col items-center justify-center h-96 bg-slate-800/50 rounded-2xl border border-slate-700/50 p-6 text-center">
+             <MotionDiv initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col items-center justify-center h-96 bg-slate-800/50 rounded-2xl border border-slate-700/50 p-6 text-center">
                  <Hash className="text-slate-600 h-12 w-12 mb-4" />
                  <h2 className="text-xl font-bold text-white">Keine Daten für {formattedTagNames}</h2>
                  <p className="text-slate-400">Für den gewählten Zeitraum gibt es keine Transaktionen mit diesen Tags.</p>
-            </motion.div>
+            </MotionDiv>
         )
     }
 
     return (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6">
+        <MotionDiv initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6">
             <h2 className="text-2xl font-bold text-white flex items-center gap-2 flex-wrap">
                 {formattedTagNames}
             </h2>
@@ -489,7 +491,7 @@ const TagDetailView: FC<{
                     })}
                 </div>
             </div>
-        </motion.div>
+        </MotionDiv>
     )
 }
 
@@ -561,7 +563,7 @@ const TagsPage: FC = () => {
 
             <AnimatePresence mode="wait">
                 {selectedTagIdsForAnalysis.length > 0 ? (
-                    <motion.div
+                    <MotionDiv
                         key={selectedTagIdsForAnalysis.join('-')}
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -575,7 +577,7 @@ const TagsPage: FC = () => {
                             customDateRange={tagsCustomDateRange}
                             appContext={{ ...rest, transactions }}
                         />
-                    </motion.div>
+                    </MotionDiv>
                 ) : (
                      <div className="flex flex-col items-center justify-center h-96 bg-slate-800/50 rounded-2xl border border-slate-700/50 text-center">
                          <Hash className="text-slate-600 h-12 w-12 mb-4" />
