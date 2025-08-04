@@ -7,7 +7,6 @@ import useLocalStorage from './useLocalStorage';
 import type { Category, Transaction, RecurringTransaction, Tag } from '../types';
 import { RefreshCw, X } from '../components/Icons';
 
-
 export interface SyncProps {
     rawCategories: Category[];
     rawTransactions: Transaction[];
@@ -25,234 +24,87 @@ interface Mergeable {
     version: number;
     conflicted?: boolean;
 }
-// Fügen Sie diese Funktionen zu Ihrem useSync Hook hinzu
+
+// --- MOBILE UTILITIES ---
 
 // Detect mobile device
-const isMobile = () => {
-  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+const isMobile = (): boolean => {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 };
 
 // Improved fetch with mobile-specific timeouts
-const fetchWithMobileTimeout = async (url: string, options: RequestInit = {}) => {
-  const timeoutMs = isMobile() ? 15000 : 8000; // Längere Timeouts für mobile
-  
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-  
-  try {
-    const response = await fetch(url, {
-      ...options,
-      signal: controller.signal,
-      headers: {
-        'Content-Type': 'application/json',
-        'User-Agent': navigator.userAgent, // Explizit User-Agent senden
-        ...options.headers,
-      },
-    });
+const fetchWithMobileTimeout = async (url: string, options: RequestInit = {}): Promise<Response> => {
+    const timeoutMs = isMobile() ? 15000 : 8000; // Längere Timeouts für mobile
     
-    clearTimeout(timeoutId);
-    return response;
-  } catch (error) {
-    clearTimeout(timeoutId);
-    if (error.name === 'AbortError') {
-      throw new Error('Request timeout - please try again');
-    }
-    throw error;
-  }
-};
-
-// Verbesserte loadFromSheet Funktion
-const loadFromSheet = async () => {
-  if (isLoading) {
-    console.log('Load already in progress, skipping...');
-    return;
-  }
-  
-  setIsLoading(true);
-  setError(null);
-  
-  const maxRetries = isMobile() ? 3 : 2;
-  let lastError: Error | null = null;
-  
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    
     try {
-      console.log(`Loading attempt ${attempt}/${maxRetries}${isMobile() ? ' (mobile)' : ''}`);
-      
-      const response = await fetchWithMobileTimeout('/api/sheets/read', {
-        method: 'POST',
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
-      }
-      
-      const data = await response.json();
-      
-      // Validierung der empfangenen Daten
-      if (!data || typeof data !== 'object') {
-        throw new Error('Invalid response format');
-      }
-      
-      const { categories, transactions, recurringTransactions, allAvailableTags } = data;
-      
-      // Prüfe ob kritische Daten vorhanden sind
-      if (!Array.isArray(categories)) {
-        throw new Error('Categories data is missing or invalid');
-      }
-      
-      if (!Array.isArray(transactions)) {
-        throw new Error('Transactions data is missing or invalid');
-      }
-      
-      if (!Array.isArray(allAvailableTags)) {
-        throw new Error('Tags data is missing or invalid');
-      }
-      
-      if (!Array.isArray(recurringTransactions)) {
-        throw new Error('Recurring transactions data is missing or invalid');
-      }
-      
-      // Erfolgreiche Daten verarbeiten
-      console.log('Data loaded successfully:', {
-        categories: categories.length,
-        transactions: transactions.length,
-        recurringTransactions: recurringTransactions.length,
-        allAvailableTags: allAvailableTags.length,
-      });
-      
-      // Update der lokalen Daten
-      setCategories(categories);
-      setTransactions(transactions);
-      setRecurringTransactions(recurringTransactions);
-      setAllAvailableTags(allAvailableTags);
-      
-      // Erfolg - kein weiterer Retry nötig
-      setIsLoading(false);
-      toast.success('Daten erfolgreich geladen!');
-      return;
-      
-    } catch (error) {
-      lastError = error as Error;
-      console.error(`Attempt ${attempt} failed:`, error);
-      
-      if (attempt < maxRetries) {
-        const delay = 1000 * attempt; // 1s, 2s, 3s delays
-        console.log(`Retrying in ${delay}ms...`);
-        await new Promise(resolve => setTimeout(resolve, delay));
-      }
+        const response = await fetch(url, {
+            ...options,
+            signal: controller.signal,
+            headers: {
+                'Content-Type': 'application/json',
+                'User-Agent': navigator.userAgent, // Explizit User-Agent senden
+                ...options.headers,
+            },
+        });
+        
+        clearTimeout(timeoutId);
+        return response;
+    } catch (error: any) {
+        clearTimeout(timeoutId);
+        if (error.name === 'AbortError') {
+            throw new Error('Request timeout - please try again');
+        }
+        throw error;
     }
-  }
-  
-  // Alle Versuche fehlgeschlagen
-  setIsLoading(false);
-  const errorMessage = lastError?.message || 'Unbekannter Fehler beim Laden der Daten';
-  setError(errorMessage);
-  
-  // Spezielle Fehlermeldungen für mobile Geräte
-  if (isMobile()) {
-    if (errorMessage.includes('timeout')) {
-      toast.error('Timeout - Bitte überprüfen Sie Ihre Internetverbindung und versuchen Sie es erneut.');
-    } else if (errorMessage.includes('network')) {
-      toast.error('Netzwerkfehler - Bitte überprüfen Sie Ihre Internetverbindung.');
-    } else {
-      toast.error(`Fehler beim Laden: ${errorMessage}`);
-    }
-  } else {
-    toast.error(`Fehler beim Laden der Daten: ${errorMessage}`);
-  }
 };
-
-// Optimierte Auto-Load Logik
-useEffect(() => {
-  // Auf mobilen Geräten weniger aggressive Auto-Loads
-  const autoLoadInterval = isMobile() ? 300000 : 180000; // 5min mobile, 3min desktop
-  
-  if (shouldAutoLoad) {
-    const intervalId = setInterval(() => {
-      // Nur laden wenn die App im Fokus ist (auf mobile wichtig für Batterie)
-      if (document.visibilityState === 'visible') {
-        loadFromSheet();
-      }
-    }, autoLoadInterval);
-    
-    return () => clearInterval(intervalId);
-  }
-}, [shouldAutoLoad]);
-
-// Verbesserte Connectivity-Erkennung für mobile
-useEffect(() => {
-  const handleOnline = () => {
-    console.log('Back online, attempting to load data...');
-    if (isMobile()) {
-      // Auf mobilen Geräten kurz warten bis die Verbindung stabil ist
-      setTimeout(loadFromSheet, 2000);
-    } else {
-      loadFromSheet();
-    }
-  };
-  
-  const handleOffline = () => {
-    console.log('Gone offline');
-    toast.error('Keine Internetverbindung');
-  };
-  
-  window.addEventListener('online', handleOnline);
-  window.addEventListener('offline', handleOffline);
-  
-  return () => {
-    window.removeEventListener('online', handleOnline);
-    window.removeEventListener('offline', handleOffline);
-  };
-}, []);
-
-// Export der verbesserten Funktionen
-export { loadFromSheet, isMobile, fetchWithMobileTimeout };
 
 // Generic function to merge local and remote data based on version number
 function mergeItems<T extends Mergeable>(localItems: T[], remoteItems: T[], conflicts: T[] = []): T[] {
-  const allItems = new Map<string, T>();
+    const allItems = new Map<string, T>();
 
-  const processItem = (item: T) => {
-      const existing = allItems.get(item.id);
-      if (!existing || item.version > existing.version) {
-          allItems.set(item.id, item);
-      }
-  };
+    const processItem = (item: T) => {
+        const existing = allItems.get(item.id);
+        if (!existing || item.version > existing.version) {
+            allItems.set(item.id, item);
+        }
+    };
 
-  // Process all three lists. Order matters: conflicts first, then remote, then local.
-  conflicts.forEach(processItem);
-  remoteItems.forEach(processItem);
-  localItems.forEach(processItem);
-  
-  // Mark conflicts
-  const conflictMap = new Map(conflicts.map(c => [c.id, c]));
-  const finalItems = Array.from(allItems.values());
-
-  return finalItems.map(item => {
-    const conflictSource = conflictMap.get(item.id);
-    if (conflictSource && item.version === conflictSource.version) {
-        // If the winning item is the one from the conflict list, mark it.
-        return { ...item, conflicted: true };
-    }
+    // Process all three lists. Order matters: conflicts first, then remote, then local.
+    conflicts.forEach(processItem);
+    remoteItems.forEach(processItem);
+    localItems.forEach(processItem);
     
-    // For non-conflicting items, if they have a `conflicted` flag from a previous
-    // merge operation (e.g. from local state), we need to remove it.
-    // This is a safer way to create a clean copy.
-    if ('conflicted' in item) {
-      const cleanItem = { ...item };
-      delete (cleanItem as Partial<T>).conflicted;
-      return cleanItem;
-    }
-    
-    return item;
-  });
+    // Mark conflicts
+    const conflictMap = new Map(conflicts.map(c => [c.id, c]));
+    const finalItems = Array.from(allItems.values());
+
+    return finalItems.map(item => {
+        const conflictSource = conflictMap.get(item.id);
+        if (conflictSource && item.version === conflictSource.version) {
+            // If the winning item is the one from the conflict list, mark it.
+            return { ...item, conflicted: true };
+        }
+        
+        // For non-conflicting items, if they have a `conflicted` flag from a previous
+        // merge operation (e.g. from local state), we need to remove it.
+        // This is a safer way to create a clean copy.
+        if ('conflicted' in item) {
+            const cleanItem = { ...item };
+            delete (cleanItem as Partial<T>).conflicted;
+            return cleanItem;
+        }
+        
+        return item;
+    });
 }
 
 interface SyncPromptToastProps {
-  lastSync: string | null;
-  onSync: () => void;
-  onDismiss: () => void;
+    lastSync: string | null;
+    onSync: () => void;
+    onDismiss: () => void;
 }
 
 // Component for the custom sync prompt toast, written with React.createElement to be valid in a .ts file
@@ -260,7 +112,6 @@ const SyncPromptToast: FC<SyncPromptToastProps> = ({ lastSync, onSync, onDismiss
     const promptText = lastSync
         ? `Letzte Synchronisierung: ${formatDistanceToNow(new Date(lastSync), { addSuffix: true, locale: de })}. Möchten Sie auf den neuesten Stand aktualisieren?`
         : 'Möchten Sie auf den neuesten Stand aktualisieren?';
-
 
     return React.createElement(motion('div'), {
         initial: { opacity: 0, y: 50 },
@@ -300,34 +151,34 @@ interface ReadApiResponse {
     recurringTransactions: RecurringTransaction[];
     allAvailableTags: Tag[];
 }
+
 interface ConflictData {
     categories: Category[];
     transactions: Transaction[];
     recurring: RecurringTransaction[];
     tags: Tag[];
 }
+
 interface WriteErrorResponse {
     error: string;
     conflicts?: ConflictData;
 }
 
-
 export const useSync = (props: SyncProps) => {
-
-// Guard to show the sync start prompt only once per tab (handles React 18 StrictMode)
-const didShowSyncPromptRef = useRef(false);
-useEffect(() => {
-  if (didShowSyncPromptRef.current) return;
-  didShowSyncPromptRef.current = true;
-  if (typeof window !== 'undefined') {
-    const k = 'syncPromptShown';
-    if (sessionStorage.getItem(k) !== '1') {
-      sessionStorage.setItem(k, '1');
-      // The app's existing logic will open the modal; this flag prevents repeated opens per tab.
-    }
-  }
-}, []);
-
+    // Guard to show the sync start prompt only once per tab (handles React 18 StrictMode)
+    const didShowSyncPromptRef = useRef(false);
+    
+    useEffect(() => {
+        if (didShowSyncPromptRef.current) return;
+        didShowSyncPromptRef.current = true;
+        if (typeof window !== 'undefined') {
+            const k = 'syncPromptShown';
+            if (sessionStorage.getItem(k) !== '1') {
+                sessionStorage.setItem(k, '1');
+                // The app's existing logic will open the modal; this flag prevents repeated opens per tab.
+            }
+        }
+    }, []);
 
     const {
         rawCategories, rawTransactions, rawRecurringTransactions, rawAllAvailableTags,
@@ -336,9 +187,160 @@ useEffect(() => {
     
     const [syncOperation, setSyncOperation] = useState<'sync' | null>(null);
     const [lastSync, setLastSync] = useLocalStorage<string | null>('lastSyncTimestamp', null);
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [shouldAutoLoad] = useState(true); // You can make this configurable
+    
     const isSyncing = syncOperation !== null;
     const [isAutoSyncEnabled, setIsAutoSyncEnabled] = useLocalStorage<boolean>('autoSyncEnabled', false);
     const promptShownRef = useRef(false);
+
+    // Verbesserte loadFromSheet Funktion
+    const loadFromSheet = useCallback(async () => {
+        if (isLoading) {
+            console.log('Load already in progress, skipping...');
+            return;
+        }
+        
+        setIsLoading(true);
+        setError(null);
+        
+        const maxRetries = isMobile() ? 3 : 2;
+        let lastError: Error | null = null;
+        
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                console.log(`Loading attempt ${attempt}/${maxRetries}${isMobile() ? ' (mobile)' : ''}`);
+                
+                const response = await fetchWithMobileTimeout('/api/sheets/read', {
+                    method: 'POST',
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                
+                // Validierung der empfangenen Daten
+                if (!data || typeof data !== 'object') {
+                    throw new Error('Invalid response format');
+                }
+                
+                const { categories, transactions, recurringTransactions, allAvailableTags } = data;
+                
+                // Prüfe ob kritische Daten vorhanden sind
+                if (!Array.isArray(categories)) {
+                    throw new Error('Categories data is missing or invalid');
+                }
+                
+                if (!Array.isArray(transactions)) {
+                    throw new Error('Transactions data is missing or invalid');
+                }
+                
+                if (!Array.isArray(allAvailableTags)) {
+                    throw new Error('Tags data is missing or invalid');
+                }
+                
+                if (!Array.isArray(recurringTransactions)) {
+                    throw new Error('Recurring transactions data is missing or invalid');
+                }
+                
+                // Erfolgreiche Daten verarbeiten
+                console.log('Data loaded successfully:', {
+                    categories: categories.length,
+                    transactions: transactions.length,
+                    recurringTransactions: recurringTransactions.length,
+                    allAvailableTags: allAvailableTags.length,
+                });
+                
+                // Update der lokalen Daten
+                setCategories(categories);
+                const newGroups = [...new Set(categories.filter((c: Category) => !c.isDeleted).map((c: Category) => c.group))];
+                setCategoryGroups(newGroups);
+                setTransactions(transactions);
+                setRecurringTransactions(recurringTransactions);
+                setAllAvailableTags(allAvailableTags);
+                
+                // Erfolg - kein weiterer Retry nötig
+                setIsLoading(false);
+                toast.success('Daten erfolgreich geladen!');
+                return;
+                
+            } catch (error) {
+                lastError = error as Error;
+                console.error(`Attempt ${attempt} failed:`, error);
+                
+                if (attempt < maxRetries) {
+                    const delay = 1000 * attempt; // 1s, 2s, 3s delays
+                    console.log(`Retrying in ${delay}ms...`);
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                }
+            }
+        }
+        
+        // Alle Versuche fehlgeschlagen
+        setIsLoading(false);
+        const errorMessage = lastError?.message || 'Unbekannter Fehler beim Laden der Daten';
+        setError(errorMessage);
+        
+        // Spezielle Fehlermeldungen für mobile Geräte
+        if (isMobile()) {
+            if (errorMessage.includes('timeout')) {
+                toast.error('Timeout - Bitte überprüfen Sie Ihre Internetverbindung und versuchen Sie es erneut.');
+            } else if (errorMessage.includes('network')) {
+                toast.error('Netzwerkfehler - Bitte überprüfen Sie Ihre Internetverbindung.');
+            } else {
+                toast.error(`Fehler beim Laden: ${errorMessage}`);
+            }
+        } else {
+            toast.error(`Fehler beim Laden der Daten: ${errorMessage}`);
+        }
+    }, [isLoading, setCategories, setCategoryGroups, setTransactions, setRecurringTransactions, setAllAvailableTags]);
+
+    // Optimierte Auto-Load Logik
+    useEffect(() => {
+        // Auf mobilen Geräten weniger aggressive Auto-Loads
+        const autoLoadInterval = isMobile() ? 300000 : 180000; // 5min mobile, 3min desktop
+        
+        if (shouldAutoLoad) {
+            const intervalId = setInterval(() => {
+                // Nur laden wenn die App im Fokus ist (auf mobile wichtig für Batterie)
+                if (document.visibilityState === 'visible') {
+                    loadFromSheet();
+                }
+            }, autoLoadInterval);
+            
+            return () => clearInterval(intervalId);
+        }
+    }, [shouldAutoLoad, loadFromSheet]);
+
+    // Verbesserte Connectivity-Erkennung für mobile
+    useEffect(() => {
+        const handleOnline = () => {
+            console.log('Back online, attempting to load data...');
+            if (isMobile()) {
+                // Auf mobilen Geräten kurz warten bis die Verbindung stabil ist
+                setTimeout(() => loadFromSheet(), 2000);
+            } else {
+                loadFromSheet();
+            }
+        };
+        
+        const handleOffline = () => {
+            console.log('Gone offline');
+            toast.error('Keine Internetverbindung');
+        };
+        
+        window.addEventListener('online', handleOnline);
+        window.addEventListener('offline', handleOffline);
+        
+        return () => {
+            window.removeEventListener('online', handleOnline);
+            window.removeEventListener('offline', handleOffline);
+        };
+    }, [loadFromSheet]);
 
     const syncData = useCallback(async (options: { isAuto?: boolean; isConflictResolution?: boolean } = {}) => {
         const { isAuto = false, isConflictResolution = false } = options;
@@ -351,7 +353,7 @@ useEffect(() => {
         const syncPromise = new Promise<string>(async (resolve, reject) => {
             try {
                 // 1. Write local data to sheet, which performs the version check
-                const writeResponse = await fetch('/api/sheets/write', {
+                const writeResponse = await fetchWithMobileTimeout('/api/sheets/write', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -373,7 +375,7 @@ useEffect(() => {
                     }
 
                     if (writeResponse.status === 409 && errorJson?.conflicts) {
-                         // CONFLICT DETECTED
+                        // CONFLICT DETECTED
                         console.warn("Sync conflict detected. Merging server data and re-syncing.");
                         
                         const mergedCategories = mergeItems(rawCategories, [], errorJson.conflicts.categories);
@@ -399,7 +401,7 @@ useEffect(() => {
                 }
                 
                 // If write was successful, read back the canonical state from the sheet.
-                const readResponse = await fetch('/api/sheets/read', { method: 'POST' });
+                const readResponse = await fetchWithMobileTimeout('/api/sheets/read', { method: 'POST' });
                 const responseBody = await readResponse.text();
 
                 if (!readResponse.ok) {
@@ -443,9 +445,9 @@ useEffect(() => {
                 error: (err) => `Sync-Fehler: ${err.message}`,
             });
         } else {
-             syncPromise.catch(err => {
+            syncPromise.catch(err => {
                 console.warn('Auto-sync failed in background:', err.message);
-             });
+            });
         }
         
         syncPromise.finally(() => {
@@ -466,10 +468,12 @@ useEffect(() => {
             return;
         }
 
-        
         // Session-level guard
-        if (typeof window !== 'undefined' && sessionStorage.getItem('syncPromptShown') === '1') { return; }
-const SYNC_PROMPT_THRESHOLD = 60 * 60 * 1000; // 1 hour
+        if (typeof window !== 'undefined' && sessionStorage.getItem('syncPromptShown') === '1') { 
+            return; 
+        }
+        
+        const SYNC_PROMPT_THRESHOLD = 60 * 60 * 1000; // 1 hour
         let shouldPrompt = false;
 
         if (!lastSync) {
@@ -488,7 +492,9 @@ const SYNC_PROMPT_THRESHOLD = 60 * 60 * 1000; // 1 hour
         
         if (shouldPrompt) {
             // Mark as shown immediately to prevent re-triggering on subsequent renders.
-            if (typeof window !== 'undefined') { sessionStorage.setItem('syncPromptShown', '1'); }
+            if (typeof window !== 'undefined') { 
+                sessionStorage.setItem('syncPromptShown', '1'); 
+            }
             promptShownRef.current = true;
             
             setTimeout(() => {
@@ -515,5 +521,10 @@ const SYNC_PROMPT_THRESHOLD = 60 * 60 * 1000; // 1 hour
         isAutoSyncEnabled,
         setIsAutoSyncEnabled,
         syncData,
+        loadFromSheet,
+        isLoading,
+        error,
+        // Export utility functions
+        isMobile: isMobile(),
     };
 };
