@@ -75,7 +75,10 @@ const WriteBodySchema = z.object({
 
 type Mergeable = Category | Transaction | RecurringTransaction | Tag;
 
-function findConflicts<T extends { id: string; version: number }>(clientItems: T[], serverItems: T[]): T[] {
+// This constraint ensures that TypeScript preserves all properties during spread operations.
+type FullObjectWithVersion = { id: string; version: number; [key: string]: any };
+
+function findConflicts<T extends FullObjectWithVersion>(clientItems: T[], serverItems: T[]): T[] {
     const serverMap = new Map(serverItems.map(item => [item.id, item]));
     const conflicts: T[] = [];
 
@@ -89,7 +92,7 @@ function findConflicts<T extends { id: string; version: number }>(clientItems: T
     return conflicts;
 }
 
-function mergeData<T extends { id: string; version: number }>(clientItems: T[], serverItems: T[]): T[] {
+function mergeData<T extends FullObjectWithVersion>(clientItems: T[], serverItems: T[]): T[] {
     const allItems = new Map<string, T>();
     
     [...serverItems, ...clientItems].forEach(item => {
@@ -117,8 +120,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // 1. Validate incoming data
   const validationResult = WriteBodySchema.safeParse(req.body);
   if (!validationResult.success) {
-      console.error("Invalid write request body:", validationResult.error.flatten());
-      return res.status(400).json({ error: 'Invalid request body.' });
+      console.error("Invalid write request body:", JSON.stringify(validationResult.error.flatten(), null, 2));
+      return res.status(400).json(validationResult.error.flatten());
   }
   const clientData = validationResult.data;
 
@@ -168,10 +171,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
 
     // 3. Detect conflicts
-    const conflictCategories = findConflicts<Category>(clientData.categories, serverCategories);
-    const conflictTransactions = findConflicts<Transaction>(clientData.transactions, serverTransactions);
-    const conflictRecurring = findConflicts<RecurringTransaction>(clientData.recurringTransactions, serverRecurring);
-    const conflictTags = findConflicts<Tag>(clientData.allAvailableTags, serverTags);
+    const conflictCategories = findConflicts(clientData.categories, serverCategories);
+    const conflictTransactions = findConflicts(clientData.transactions, serverTransactions);
+    const conflictRecurring = findConflicts(clientData.recurringTransactions, serverRecurring);
+    const conflictTags = findConflicts(clientData.allAvailableTags, serverTags);
     
     const allConflicts = [
         ...conflictCategories, ...conflictTransactions, ...conflictRecurring, ...conflictTags
@@ -190,10 +193,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // 4. No conflicts, merge data and write
-    const mergedCategories = mergeData<Category>(clientData.categories, serverCategories);
-    const mergedTransactions = mergeData<Transaction>(clientData.transactions, serverTransactions);
-    const mergedRecurring = mergeData<RecurringTransaction>(clientData.recurringTransactions, serverRecurring);
-    const mergedTags = mergeData<Tag>(clientData.allAvailableTags, serverTags);
+    const mergedCategories = mergeData(clientData.categories, serverCategories);
+    const mergedTransactions = mergeData(clientData.transactions, serverTransactions);
+    const mergedRecurring = mergeData(clientData.recurringTransactions, serverRecurring);
+    const mergedTags = mergeData(clientData.allAvailableTags, serverTags);
 
     const headers = {
         categories: ['id', 'name', 'color', 'icon', 'budget', 'group', 'lastModified', 'isDeleted', 'version'],

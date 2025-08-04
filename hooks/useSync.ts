@@ -26,8 +26,12 @@ interface Mergeable {
     conflicted?: boolean;
 }
 
+// This stronger generic constraint ensures TypeScript preserves all properties during spread operations.
+type FullObjectWithVersion = { id: string; version: number; [key: string]: any };
+
+
 // Generic function to merge local and remote data based on version number
-function mergeItems<T extends Mergeable>(localItems: T[], remoteItems: T[], conflicts: T[] = []): T[] {
+function mergeItems<T extends FullObjectWithVersion>(localItems: T[], remoteItems: T[], conflicts: T[] = []): T[] {
   const allItems = new Map<string, T>();
 
   const processItem = (item: T) => {
@@ -55,11 +59,9 @@ function mergeItems<T extends Mergeable>(localItems: T[], remoteItems: T[], conf
     
     // For non-conflicting items, if they have a `conflicted` flag from a previous
     // merge operation (e.g. from local state), we need to remove it.
-    // This is a safer way to create a clean copy.
-    if ('conflicted' in item) {
-      const cleanItem = { ...item };
-      delete (cleanItem as Partial<T>).conflicted;
-      return cleanItem;
+    if (item.conflicted) {
+      const { conflicted, ...rest } = item;
+      return rest as T;
     }
     
     return item;
