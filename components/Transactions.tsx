@@ -58,7 +58,7 @@ const TransactionList: FC<{
 
     if (showEmptyMessage && groupedTransactions.length === 0) {
         return (
-            <div className="flex flex-col items-center justify-center h-full text-slate-500 text-center p-4">
+            <div className="flex flex-col items-center justify-center h-full text-slate-500 text-center p-4 min-h-[200px]">
                 <Search className="h-12 w-12 mb-4 text-slate-600" />
                 <h3 className="text-lg font-semibold text-slate-300">Keine Transaktionen gefunden</h3>
                 <p>Für die aktuellen Filter gibt es keine Einträge.</p>
@@ -67,7 +67,7 @@ const TransactionList: FC<{
     }
     
     return (
-        <div className="flex-grow space-y-3 overflow-y-auto -mr-3 pr-3">
+        <div className="space-y-3">
             <AnimatePresence>
                 {groupedTransactions.map(group => {
                     const groupTransactionIds = group.transactions.map(t => t.id);
@@ -83,7 +83,7 @@ const TransactionList: FC<{
                             transition={{ duration: 0.3 }}
                             className="bg-slate-800/20 rounded-xl"
                         >
-                            <header className="sticky top-0 bg-slate-800/80 backdrop-blur-sm z-10 flex items-center justify-between p-3 border-b border-slate-700/50">
+                            <header className="sticky top-[70px] md:top-[105px] bg-slate-800/80 backdrop-blur-sm z-10 flex items-center justify-between p-3 border-b border-slate-700/50">
                                 <div className="flex items-center gap-3">
                                      <button onClick={() => onToggleSelectGroup(groupTransactionIds)} className="p-1 text-slate-400 hover:text-white">
                                         {areAllInGroupSelected ? <CheckSquare className="h-5 w-5 text-rose-400" /> : <Square className="h-5 w-5" />}
@@ -578,14 +578,14 @@ const TransactionsPage: FC = () => {
     }
 
     return (
-        <div className="flex flex-col h-full space-y-4">
-            <h1 className="text-3xl font-bold text-white flex-shrink-0">Transaktionen</h1>
+        <div className="space-y-4">
+            <h1 className="text-3xl font-bold text-white">Transaktionen</h1>
             
              <MotionDiv
                 layout
-                className="bg-slate-800/50 p-4 rounded-2xl border border-slate-700/50 flex flex-col flex-grow h-0"
+                className="bg-slate-800/50 p-4 rounded-2xl border border-slate-700/50 space-y-4"
             >
-                <div className="flex justify-between items-center mb-4 flex-wrap gap-2 flex-shrink-0">
+                <div className="flex justify-between items-center flex-wrap gap-2">
                     <QuickFilters activeQuickFilter={transactionActiveQuickFilter} onQuickFilter={handleQuickFilter} />
                     <div className="flex items-center gap-2">
                         {transactionActiveQuickFilter !== 'today' && (
