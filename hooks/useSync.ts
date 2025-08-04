@@ -26,12 +26,8 @@ interface Mergeable {
     conflicted?: boolean;
 }
 
-// This stronger generic constraint ensures TypeScript preserves all properties during spread operations.
-type FullObjectWithVersion = { id: string; version: number; [key: string]: any };
-
-
 // Generic function to merge local and remote data based on version number
-function mergeItems<T extends FullObjectWithVersion>(localItems: T[], remoteItems: T[], conflicts: T[] = []): T[] {
+function mergeItems<T extends Mergeable>(localItems: T[], remoteItems: T[], conflicts: T[] = []): T[] {
   const allItems = new Map<string, T>();
 
   const processItem = (item: T) => {
@@ -46,26 +42,27 @@ function mergeItems<T extends FullObjectWithVersion>(localItems: T[], remoteItem
   remoteItems.forEach(processItem);
   localItems.forEach(processItem);
   
+  // Mark conflicts
   const conflictMap = new Map(conflicts.map(c => [c.id, c]));
   const finalItems = Array.from(allItems.values());
 
   return finalItems.map(item => {
     const conflictSource = conflictMap.get(item.id);
-
-    // Case 1: The current winning item is from the conflict list. Mark it.
     if (conflictSource && item.version === conflictSource.version) {
+        // If the winning item is the one from the conflict list, mark it.
         return { ...item, conflicted: true };
-    } 
-    // Case 2: The item is NOT a current conflict, but it might have a `conflicted: true` flag
-    // from a previous merge operation in the local state. We must remove this stale flag.
-    else if (item.conflicted) {
-      const { conflicted, ...rest } = item;
-      return rest as T;
-    } 
-    // Case 3: The item is clean.
-    else {
-      return item;
     }
+    
+    // For non-conflicting items, if they have a `conflicted` flag from a previous
+    // merge operation (e.g. from local state), we need to remove it.
+    // This is a safer way to create a clean copy.
+    if ('conflicted' in item) {
+      const cleanItem = { ...item };
+      delete (cleanItem as Partial<T>).conflicted;
+      return cleanItem;
+    }
+    
+    return item;
   });
 }
 

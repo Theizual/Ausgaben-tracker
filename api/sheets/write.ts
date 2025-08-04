@@ -117,13 +117,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(500).json({ error: 'Die Google Sheet ID ist auf dem Server nicht konfiguriert.' });
   }
 
-  // 1. Validate incoming data
-  const validationResult = WriteBodySchema.safeParse(req.body);
-  if (!validationResult.success) {
-      console.error("Invalid write request body:", JSON.stringify(validationResult.error.flatten(), null, 2));
-      return res.status(400).json(validationResult.error.flatten());
+  // 0. Robustly parse JSON body (handles cases where req.body is a string or Buffer)
+const contentType = (req.headers['content-type'] || '').toString().toLowerCase();
+let parsedBody: any = (req as any).body;
+
+try {
+  if (typeof parsedBody === 'string') {
+    parsedBody = JSON.parse(parsedBody);
+  } else if (parsedBody && typeof parsedBody === 'object') {
+    // already parsed
+  } else if (parsedBody instanceof Buffer) {
+    parsedBody = JSON.parse(parsedBody.toString('utf8'));
   }
-  const clientData = validationResult.data;
+} catch (e) {
+  return res.status(400).json({ error: 'Invalid JSON body (parse failed)' });
+}
+
+if (!parsedBody || typeof parsedBody !== 'object') {
+  return res.status(400).json({ error: 'Invalid JSON body', contentType });
+}
+
+// 1. Validate incoming data
+const validationResult = WriteBodySchema.safeParse(parsedBody);
+if (!validationResult.success) {
+    console.error("Invalid write request body:", JSON.stringify(validationResult.error.flatten(), null, 2));
+    return res.status(400).json(validationResult.error.flatten());
+}
+const clientData = validationResult.data;
 
   try {
     const auth = await getAuthClient();
