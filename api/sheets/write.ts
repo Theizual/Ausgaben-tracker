@@ -118,32 +118,64 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   // 0. Robustly parse JSON body (handles cases where req.body is a string or Buffer)
-const contentType = (req.headers['content-type'] || '').toString().toLowerCase();
-let parsedBody: any = (req as any).body;
+  const contentType = (req.headers['content-type'] || '').toString().toLowerCase();
+  let parsedBody: any = (req as any).body;
 
-try {
-  if (typeof parsedBody === 'string') {
-    parsedBody = JSON.parse(parsedBody);
-  } else if (parsedBody && typeof parsedBody === 'object') {
-    // already parsed
-  } else if (parsedBody instanceof Buffer) {
-    parsedBody = JSON.parse(parsedBody.toString('utf8'));
+  try {
+    if (typeof parsedBody === 'string') {
+      parsedBody = JSON.parse(parsedBody);
+    } else if (parsedBody && typeof parsedBody === 'object') {
+      // already parsed
+    } else if (parsedBody instanceof Buffer) {
+      parsedBody = JSON.parse(parsedBody.toString('utf8'));
+    }
+  } catch (e) {
+    return res.status(400).json({ error: 'Invalid JSON body (parse failed)' });
   }
-} catch (e) {
-  return res.status(400).json({ error: 'Invalid JSON body (parse failed)' });
-}
 
-if (!parsedBody || typeof parsedBody !== 'object') {
-  return res.status(400).json({ error: 'Invalid JSON body', contentType });
-}
+  if (!parsedBody || typeof parsedBody !== 'object') {
+    return res.status(400).json({ error: 'Invalid JSON body', contentType });
+  }
 
-// 1. Validate incoming data
-const validationResult = WriteBodySchema.safeParse(parsedBody);
-if (!validationResult.success) {
-    console.error("Invalid write request body:", JSON.stringify(validationResult.error.flatten(), null, 2));
-    return res.status(400).json(validationResult.error.flatten());
-}
-const clientData = validationResult.data;
+  // --- UPDATED ZOD SCHEMAS (coercion, relaxed datetime) ---
+  const DateString = z.string().refine(v => !Number.isNaN(Date.parse(v)), 'Invalid datetime');
+
+  const CategorySchema2 = CategorySchema.extend({
+    budget: z.coerce.number().optional(),
+    lastModified: DateString,
+  });
+
+  const TransactionSchema2 = TransactionSchema.extend({
+    amount: z.coerce.number().positive(),
+    date: DateString,
+    lastModified: DateString,
+  });
+
+  const RecurringTransactionSchema2 = RecurringTransactionSchema.extend({
+    amount: z.coerce.number().positive(),
+    startDate: DateString,
+    lastProcessedDate: DateString.optional(),
+    lastModified: DateString,
+  });
+
+  const TagSchema2 = TagSchema.extend({
+    lastModified: DateString,
+  });
+
+  const WriteBodySchema2 = z.object({
+      categories: z.array(CategorySchema2).optional().default([]),
+      transactions: z.array(TransactionSchema2).optional().default([]),
+      recurringTransactions: z.array(RecurringTransactionSchema2).optional().default([]),
+      allAvailableTags: z.array(TagSchema2).optional().default([]),
+  });
+
+  // 1. Validate incoming data (uses the lenient schema)
+  const validationResult = WriteBodySchema2.safeParse(parsedBody);
+  if (!validationResult.success) {
+      console.error("Invalid write request body:", JSON.stringify(validationResult.error.flatten(), null, 2));
+      return res.status(400).json(validationResult.error.flatten());
+  }
+  const clientData = validationResult.data;
 
   try {
     const auth = await getAuthClient();
@@ -225,7 +257,7 @@ const clientData = validationResult.data;
         tags: ['id', 'name', 'lastModified', 'isDeleted', 'version'],
     };
 
-    const categoryValues = [headers.categories, ...mergedCategories.map((c: Category) => [c.id, c.name, c.color, c.icon, c.budget ? String(c.budget).replace('.', ',') : '', c.group, c.lastModified, c.isDeleted ? 'TRUE' : 'FALSE', c.version])];
+    const categoryValues = [headers.categories, ...mergedCategories.map((c: Category) => [c.id, c.name, c.color, c.icon, c.budget != null ? String(c.budget).replace('.', ',') : '', c.group, c.lastModified, c.isDeleted ? 'TRUE' : 'FALSE', c.version])];
     const transactionValues = [headers.transactions, ...mergedTransactions.map((t: Transaction) => [t.id, String(t.amount).replace('.', ','), t.description, t.categoryId, t.date, t.tagIds?.join(',') || '', t.lastModified, t.isDeleted ? 'TRUE' : 'FALSE', t.recurringId || '', t.version])];
     const recurringValues = [headers.recurring, ...mergedRecurring.map((r: RecurringTransaction) => [r.id, String(r.amount).replace('.',','), r.description, r.categoryId, r.frequency, r.startDate, r.lastProcessedDate || '', r.lastModified, r.isDeleted ? 'TRUE' : 'FALSE', r.version])];
     const tagValues = [headers.tags, ...mergedTags.map((tag: Tag) => [tag.id, tag.name, tag.lastModified, tag.isDeleted ? 'TRUE' : 'FALSE', tag.version])];
