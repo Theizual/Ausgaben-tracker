@@ -4,10 +4,11 @@ import { JWT } from 'google-auth-library';
 import { z } from 'zod';
 import { withRetry, createSchemas, parseSheetData } from './utils.js';
 import type { Category, Transaction, RecurringTransaction, Tag } from '../../types';
+import { Buffer } from 'buffer';
 
 async function getAuthClient() {
   const serviceAccountEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
-  const privateKey = process.env.GOOGLE_PRIVATE_KEY?.replace(/\n/g, '\n').replace(/\\n/g, '\n');
+  const privateKey = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n').replace(/\\n/g, '\n');
 
   if (!serviceAccountEmail || !privateKey) {
     throw new Error('Google service account credentials are not set in environment variables.');
@@ -21,6 +22,32 @@ async function getAuthClient() {
 
   return auth;
 }
+
+// --- SANITIZATION HELPERS ---
+// Helper for robust number parsing, handling German locale and empty/null values.
+const numberSanitizer = (fallback: number | undefined) => (val: unknown): number | undefined => {
+    if (val === null || val === undefined) {
+        return fallback;
+    }
+    if (typeof val === 'number') {
+        return isNaN(val) ? fallback : val;
+    }
+    if (typeof val === 'string') {
+        const trimmed = val.trim();
+        if (trimmed === '') return fallback;
+        // Replace comma with dot for German decimal format, then parse.
+        const num = parseFloat(trimmed.replace(',', '.'));
+        return isNaN(num) ? fallback : num;
+    }
+    // For other types, return the fallback.
+    return fallback;
+};
+
+// Zod preprocessor for required numeric fields. Invalid/empty values become 0.
+const SanitizeRequiredNumber = z.preprocess(numberSanitizer(0), z.number());
+// Zod preprocessor for optional numeric fields. Invalid/empty values become undefined.
+const SanitizeOptionalNumber = z.preprocess(numberSanitizer(undefined), z.number().optional());
+
 
 // --- STRICT BASE SCHEMAS ---
 const CategorySchema = z.object({
@@ -66,12 +93,31 @@ const TagSchema = z.object({
   version: z.number(),
 });
 
-// --- LENIENT WRAPPER SCHEMAS ---
+// --- LENIENT WRAPPER SCHEMAS WITH SANITIZATION ---
 const DateString = z.string().refine(v => !Number.isNaN(Date.parse(v)), 'Invalid datetime');
-const CategorySchema2 = CategorySchema.extend({ budget: z.coerce.number().optional(), lastModified: DateString, version: z.coerce.number() });
-const TransactionSchema2 = TransactionSchema.extend({ amount: z.coerce.number(), date: DateString, lastModified: DateString, version: z.coerce.number() });
-const RecurringTransactionSchema2 = RecurringTransactionSchema.extend({ amount: z.coerce.number(), startDate: DateString, lastProcessedDate: DateString.optional(), lastModified: DateString, version: z.coerce.number() });
-const TagSchema2 = TagSchema.extend({ lastModified: DateString, version: z.coerce.number() });
+
+const CategorySchema2 = CategorySchema.extend({
+    budget: SanitizeOptionalNumber,
+    lastModified: DateString,
+    version: SanitizeRequiredNumber
+});
+const TransactionSchema2 = TransactionSchema.extend({
+    amount: SanitizeRequiredNumber,
+    date: DateString,
+    lastModified: DateString,
+    version: SanitizeRequiredNumber
+});
+const RecurringTransactionSchema2 = RecurringTransactionSchema.extend({
+    amount: SanitizeRequiredNumber,
+    startDate: DateString,
+    lastProcessedDate: DateString.optional(),
+    lastModified: DateString,
+    version: SanitizeRequiredNumber
+});
+const TagSchema2 = TagSchema.extend({
+    lastModified: DateString,
+    version: SanitizeRequiredNumber
+});
 
 const WriteBodySchema2 = z.object({
   categories: z.array(CategorySchema2).optional().default([]),
@@ -121,7 +167,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   // 0) Robustly parse JSON
-  const contentType = (req.headers['content-type'] || '').toString().toLowerCase();
   let parsedBody: any = (req as any).body;
   try {
     if (typeof parsedBody === 'string') parsedBody = JSON.parse(parsedBody);

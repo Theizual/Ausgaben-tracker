@@ -387,7 +387,7 @@ const SettingsModal: React.FC<{
                         <button onClick={onClose} className="p-2 rounded-full hover:bg-slate-700 transition-colors"><X className="h-5 w-5" /></button>
                     </div>
 
-                    <div className="flex border-b border-slate-700 px-6 pt-4 overflow-x-auto">
+                    <div className="flex border-b border-slate-700 px-6 pt-4 overflow-x-auto custom-scrollbar">
                         {settingsTabs.map(tab => (
                              <button 
                                 key={tab.id}
@@ -404,7 +404,7 @@ const SettingsModal: React.FC<{
                         ))}
                     </div>
 
-                    <div className="p-6 flex-grow overflow-y-auto space-y-8">
+                    <div className="p-6 flex-grow overflow-y-auto space-y-8 custom-scrollbar">
                         <AnimatePresence mode="wait">
                             {activeSettingsTab === 'general' && (
                                 <MotionDiv

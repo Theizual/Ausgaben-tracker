@@ -20,6 +20,33 @@
         },
       }
     </script>
+    <style>
+        /* Custom Scrollbar for Webkit Browsers */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 8px; /* Width of the scrollbar */
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent; /* Transparent track */
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background-color: #475569; /* slate-600 */
+            border-radius: 10px; /* Rounded corners */
+            border: 2px solid transparent; /* Creates padding around the thumb */
+            background-clip: padding-box;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background-color: #64748b; /* slate-500 */
+        }
+        
+        /* Custom Scrollbar for Firefox */
+        .custom-scrollbar {
+            scrollbar-width: thin;
+            scrollbar-color: #475569 transparent; /* thumb color track color */
+        }
+    </style>
 <script type="importmap">
 {
   "imports": {
@@ -38,7 +65,8 @@
     "framer-motion": "https://esm.sh/framer-motion@^12.23.12",
     "react-hot-toast": "https://esm.sh/react-hot-toast@2.4.1",
     "zod": "https://esm.sh/zod@3.23.8",
-    "lodash.debounce": "https://esm.sh/lodash.debounce@^4.0.8"
+    "lodash.debounce": "https://esm.sh/lodash.debounce@^4.0.8",
+    "buffer": "https://esm.sh/buffer@^6.0.3"
   }
 }
 </script>
