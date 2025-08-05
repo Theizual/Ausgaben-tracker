@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { google } from 'googleapis';
 import { JWT } from 'google-auth-library';
 import { withRetry, createSchemas, parseSheetData } from './utils.js';
+import { z } from 'zod';
 
 // Debug-Funktion für Rohdaten
 function debugRawData(name: string, rows: any[][], headers: string[]) {
@@ -113,7 +114,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         entityName: 'Category',
       });
       console.log(`✅ Categories parsed: ${categories.length} items`);
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Categories parsing failed:', error);
       throw new Error(`Categories parsing failed: ${error.message}`);
     }
@@ -126,7 +127,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         entityName: 'Transaction',
       });
       console.log(`✅ Transactions parsed: ${transactions.length} items`);
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Transactions parsing failed:', error);
       throw new Error(`Transactions parsing failed: ${error.message}`);
     }
@@ -139,7 +140,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         entityName: 'RecurringTransaction',
       });
       console.log(`✅ Recurring transactions parsed: ${recurringTransactions.length} items`);
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Recurring transactions parsing failed:', error);
       throw new Error(`Recurring transactions parsing failed: ${error.message}`);
     }
@@ -152,7 +153,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         entityName: 'Tag',
       });
       console.log(`✅ Tags parsed: ${allAvailableTags.length} items`);
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Tags parsing failed:', error);
       throw new Error(`Tags parsing failed: ${error.message}`);
     }

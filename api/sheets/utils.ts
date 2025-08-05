@@ -1,4 +1,3 @@
-
 import { z } from 'zod';
 import type { Category, Transaction, RecurringTransaction, Tag } from '../../types';
 
@@ -51,7 +50,7 @@ export const createSchemas = (now: string) => {
 
   const stringToPositiveFloatRequired = z.preprocess(
     (val) => (val && typeof val === 'string' && val.trim() !== '') ? parseFloat(val.replace(',', '.')) : undefined,
-    z.number().positive()
+    z.number({ required_error: "Amount is required" }).positive()
   );
 
   const stringToBoolean = z.preprocess((val) => String(val).toUpperCase() === 'TRUE', z.boolean());
@@ -108,11 +107,18 @@ export const createSchemas = (now: string) => {
     isDeleted: stringToBoolean,
     version: versionTransformer,
   });
+  
+  const arrayWrapper = <T extends z.ZodTypeAny>(schema: T) => z.array(schema);
 
-  return { categorySchema, transactionSchema, recurringTransactionSchema, tagSchema };
+  return { 
+      categorySchema: arrayWrapper(categorySchema), 
+      transactionSchema: arrayWrapper(transactionSchema), 
+      recurringTransactionSchema: arrayWrapper(recurringTransactionSchema), 
+      tagSchema: arrayWrapper(tagSchema)
+  };
 };
 
-export function parseSheetData<T_Schema extends z.ZodType<any, any, any>>({
+export function parseSheetData<T_Schema extends z.ZodType<any[], any, any>>({
     rows,
     schema,
     headers,
@@ -122,33 +128,31 @@ export function parseSheetData<T_Schema extends z.ZodType<any, any, any>>({
     schema: T_Schema;
     headers: string[];
     entityName: string;
-}): z.infer<T_Schema>[] {
-    const parsedData: z.infer<T_Schema>[] = [];
+}): z.infer<T_Schema> {
     if (!rows || rows.length === 0) {
-        return parsedData;
+        return [] as z.infer<T_Schema>;
     }
 
-    rows.forEach((row, index) => {
-        if (row.every(cell => cell === '')) {
-            return;
+    const objects = rows.map(row => {
+        // Skip rows that are completely empty
+        if (row.every(cell => cell === null || cell === undefined || cell === '')) {
+            return null;
         }
-
-        const rowObject = headers.reduce((obj, header, i) => {
+        return headers.reduce((obj, header, i) => {
             obj[header] = row[i];
             return obj;
         }, {} as { [key: string]: any });
+    }).filter((item): item is NonNullable<typeof item> => item !== null);
+    
+    const result = schema.safeParse(objects);
 
-        const result = schema.safeParse(rowObject);
-
-        if (result.success) {
-            parsedData.push(result.data);
-        } else {
-            const simplifiedErrors = result.error.issues
-                .map(issue => `Field '${issue.path.join('.')}': ${issue.message}`)
-                .join('; ');
-            console.warn(`[Sheet Read] Skipping invalid ${entityName} at row ${index + 2}: ${simplifiedErrors}`);
-        }
-    });
-
-    return parsedData;
+    if (result.success) {
+        return result.data;
+    } else {
+        // Log a summary error for the whole array
+        console.warn(`[Sheet Read] Could not parse ${entityName} data.`, result.error.flatten());
+        // For array validation errors, you might want to inspect specific item errors if available
+        // This provides a general failure notice.
+        return [] as z.infer<T_Schema>; // Return empty array on failure
+    }
 }
