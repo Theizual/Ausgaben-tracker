@@ -1,5 +1,3 @@
-
-
 import React, { useState, useMemo } from 'react';
 import type { FC } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -12,6 +10,7 @@ import { iconMap, Plus, BarChart2, ChevronDown, Coins } from './Icons';
 import CategoryButtons from './CategoryButtons';
 import TagInput from './TagInput';
 import AvailableTags from './AvailableTags';
+import SpendingTimeSeries from './SpendingTimeSeries';
 
 const MotionDiv = motion('div');
 
@@ -156,12 +155,12 @@ const Dashboard: FC = () => {
                         <div className="flex justify-between items-start">
                              <div className="w-[calc(50%-1rem)]">
                                 <div className="flex items-center text-slate-400 mb-1">
-                                    <Coins className="h-5 w-5 mr-2 flex-shrink-0" />
-                                    <p className="font-medium text-sm">Gesamtausgaben</p>
+                                    <BarChart2 className="h-5 w-5 mr-2 flex-shrink-0" />
+                                    <p className="font-medium text-sm">Tagesausgaben</p>
                                 </div>
                                 <div>
-                                    <p className="text-2xl font-bold text-white truncate" title={formatCurrency(totalExpenses)}>{formatCurrency(totalExpenses)}</p>
-                                    <p className="text-xs text-slate-500 truncate mt-0.5" title={totalExpensesLabel}>{totalExpensesLabel}</p>
+                                    <p className="text-2xl font-bold text-white truncate" title={formatCurrency(todaysExpenses)}>{formatCurrency(todaysExpenses)}</p>
+                                    <p className="text-xs text-slate-500 truncate mt-0.5" title={todaysExpensesLabel}>{todaysExpensesLabel}</p>
                                 </div>
                             </div>
                             
@@ -169,12 +168,12 @@ const Dashboard: FC = () => {
                             
                             <div className="w-[calc(50%-1rem)]">
                                 <div className="flex items-center text-slate-400 mb-1">
-                                    <BarChart2 className="h-5 w-5 mr-2 flex-shrink-0" />
-                                    <p className="font-medium text-sm">Tagesausgaben</p>
+                                    <Coins className="h-5 w-5 mr-2 flex-shrink-0" />
+                                    <p className="font-medium text-sm">Gesamtausgaben</p>
                                 </div>
                                 <div>
-                                    <p className="text-2xl font-bold text-white truncate" title={formatCurrency(todaysExpenses)}>{formatCurrency(todaysExpenses)}</p>
-                                    <p className="text-xs text-slate-500 truncate mt-0.5" title={todaysExpensesLabel}>{todaysExpensesLabel}</p>
+                                    <p className="text-2xl font-bold text-white truncate" title={formatCurrency(totalExpenses)}>{formatCurrency(totalExpenses)}</p>
+                                    <p className="text-xs text-slate-500 truncate mt-0.5" title={totalExpensesLabel}>{totalExpensesLabel}</p>
                                 </div>
                             </div>
                         </div>
@@ -299,6 +298,9 @@ const Dashboard: FC = () => {
                         )}
                     </MotionDiv>
                 </div>
+            </div>
+            <div className="lg:col-span-2">
+                <SpendingTimeSeries transactions={transactions} defaultAggregation="day" defaultRangeInDays={30} />
             </div>
         </div>
     );

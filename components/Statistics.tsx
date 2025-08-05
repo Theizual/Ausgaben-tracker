@@ -1,6 +1,3 @@
-
-
-
 import React, { useState, useMemo } from 'react';
 import type { FC } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -14,6 +11,7 @@ import {
 import { de, addMonths, subMonths } from '../utils/dateUtils';
 import { ChevronLeft, ChevronRight, X, iconMap, ChevronDown } from './Icons';
 import { formatCurrency, formatGermanDate } from '../utils/dateUtils';
+import SpendingTimeSeries from './SpendingTimeSeries';
 
 const MotionDiv = motion('div');
 
@@ -57,6 +55,7 @@ const Statistics: FC = () => {
 
     return (
         <div className="space-y-6">
+             <h1 className="text-3xl font-bold text-white">Statistiken</h1>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
                 <CalendarView
                     transactions={transactions}
@@ -81,6 +80,9 @@ const Statistics: FC = () => {
                         </MotionDiv>
                     )}
                 </AnimatePresence>
+            </div>
+            <div className="lg:col-span-2">
+                 <SpendingTimeSeries transactions={transactions} defaultAggregation="week" defaultRangeInDays={90} />
             </div>
             <MonthlySummary
                 transactions={monthlyTransactions}
