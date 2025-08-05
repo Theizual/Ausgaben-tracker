@@ -1,6 +1,4 @@
 import { z } from 'zod';
-import type { Category, Transaction, RecurringTransaction, Tag } from '../../types';
-
 
 const RETRYABLE_STATUS_CODES = [429, 500, 502, 503, 504];
 const MAX_RETRIES = 5;
@@ -38,83 +36,82 @@ export async function withRetry<T>(apiCall: () => Promise<T>): Promise<T> {
   }
 }
 
-// --- ZOD SCHEMAS & PARSING ---
+// --- Sanitization Helpers ---
+const SanitizeRequiredNumber = z.preprocess(
+  (val) => {
+    if (val === null || val === undefined || val === '') return 0;
+    const num = parseFloat(String(val).replace(',', '.'));
+    return isNaN(num) ? 0 : num;
+  },
+  z.number()
+);
 
-// A function to create the schemas, so `now` is not stale.
-export const createSchemas = (now: string) => {
-  // Common Preprocessors & Transformers
-  const stringToPositiveFloatOptional = z.preprocess(
-    (val) => (val && typeof val === 'string' && val.trim() !== '') ? parseFloat(val.replace(',', '.')) : undefined,
-    z.number().positive().optional()
-  );
+const SanitizeOptionalNumber = z.preprocess(
+  (val) => {
+    if (val === null || val === undefined || val === '') return undefined;
+    const num = parseFloat(String(val).replace(',', '.'));
+    return isNaN(num) ? undefined : num;
+  },
+  z.number().optional()
+);
 
-  const stringToPositiveFloatRequired = z.preprocess(
-    (val) => (val && typeof val === 'string' && val.trim() !== '') ? parseFloat(val.replace(',', '.')) : undefined,
-    z.number({ required_error: "Amount is required" }).positive()
-  );
 
-  const stringToBoolean = z.preprocess((val) => String(val).toUpperCase() === 'TRUE', z.boolean());
+// --- Lenient Schemas ---
+export const getLenientSchemas = (now: string = new Date().toISOString()) => {
+  const DateString = z.string().datetime({ message: 'Invalid datetime string' }).or(z.literal('')).transform(val => val || now);
+  const OptionalDateString = z.string().datetime().optional().or(z.literal('')).transform(val => val || undefined);
 
-  const stringToOptionalDatetime = z.string().datetime().optional().transform(val => val || undefined);
-  
-  const lastModifiedTransformer = z.string().datetime().or(z.literal('')).transform(val => val || now);
-  
-  const versionTransformer = z.preprocess(v => parseInt(String(v), 10) || 1, z.number().int().positive());
-
-  // Schemas for row objects
-  const categorySchema = z.object({
+  const CategorySchema = z.object({
     id: z.string().min(1),
-    name: z.string().min(1),
-    color: z.string().min(1),
-    icon: z.string().min(1),
-    budget: stringToPositiveFloatOptional,
+    name: z.string().default(''),
+    color: z.string().default('#808080'),
+    icon: z.string().default('MoreHorizontal'),
+    budget: SanitizeOptionalNumber,
     group: z.string().default('Sonstiges'),
-    lastModified: lastModifiedTransformer,
-    isDeleted: stringToBoolean,
-    version: versionTransformer,
+    lastModified: DateString,
+    isDeleted: z.preprocess((val) => String(val).toUpperCase() === 'TRUE', z.boolean()).optional().default(false),
+    version: SanitizeRequiredNumber,
   });
 
-  const transactionSchema = z.object({
+  const TransactionSchema = z.object({
     id: z.string().min(1),
-    amount: stringToPositiveFloatRequired,
+    amount: SanitizeRequiredNumber,
     description: z.string().default(''),
     categoryId: z.string().min(1),
-    date: z.string().datetime(),
-    tagIds: z.preprocess((val) => String(val || '').split(',').map(tag => tag.trim()).filter(Boolean), z.array(z.string())),
-    lastModified: lastModifiedTransformer,
-    isDeleted: stringToBoolean,
+    date: DateString,
+    tagIds: z.preprocess((val) => String(val || '').split(',').map(tag => tag.trim()).filter(Boolean), z.array(z.string())).optional().default([]),
     recurringId: z.string().optional().transform(val => val || undefined),
-    version: versionTransformer,
+    lastModified: DateString,
+    isDeleted: z.preprocess((val) => String(val).toUpperCase() === 'TRUE', z.boolean()).optional().default(false),
+    version: SanitizeRequiredNumber,
   });
-
-  const recurringTransactionSchema = z.object({
+  
+  const RecurringTransactionSchema = z.object({
     id: z.string().min(1),
-    amount: stringToPositiveFloatRequired,
+    amount: SanitizeRequiredNumber,
     description: z.string().default(''),
     categoryId: z.string().min(1),
     frequency: z.enum(['monthly', 'yearly']),
-    startDate: z.string().datetime(),
-    lastProcessedDate: stringToOptionalDatetime,
-    lastModified: lastModifiedTransformer,
-    isDeleted: stringToBoolean,
-    version: versionTransformer,
+    startDate: DateString,
+    lastProcessedDate: OptionalDateString,
+    lastModified: DateString,
+    isDeleted: z.preprocess((val) => String(val).toUpperCase() === 'TRUE', z.boolean()).optional().default(false),
+    version: SanitizeRequiredNumber,
   });
 
-  const tagSchema = z.object({
+  const TagSchema = z.object({
     id: z.string().min(1),
     name: z.string().min(1),
-    lastModified: lastModifiedTransformer,
-    isDeleted: stringToBoolean,
-    version: versionTransformer,
+    lastModified: DateString,
+    isDeleted: z.preprocess((val) => String(val).toUpperCase() === 'TRUE', z.boolean()).optional().default(false),
+    version: SanitizeRequiredNumber,
   });
-  
-  const arrayWrapper = <T extends z.ZodTypeAny>(schema: T) => z.array(schema);
 
-  return { 
-      categorySchema: arrayWrapper(categorySchema), 
-      transactionSchema: arrayWrapper(transactionSchema), 
-      recurringTransactionSchema: arrayWrapper(recurringTransactionSchema), 
-      tagSchema: arrayWrapper(tagSchema)
+  return {
+    CategorySchema,
+    TransactionSchema,
+    RecurringTransactionSchema,
+    TagSchema,
   };
 };
 
@@ -134,12 +131,11 @@ export function parseSheetData<T_Schema extends z.ZodType<any[], any, any>>({
     }
 
     const objects = rows.map(row => {
-        // Skip rows that are completely empty
         if (row.every(cell => cell === null || cell === undefined || cell === '')) {
             return null;
         }
         return headers.reduce((obj, header, i) => {
-            obj[header] = row[i];
+            obj[header] = row[i] !== undefined && row[i] !== null ? row[i] : '';
             return obj;
         }, {} as { [key: string]: any });
     }).filter((item): item is NonNullable<typeof item> => item !== null);
@@ -149,10 +145,7 @@ export function parseSheetData<T_Schema extends z.ZodType<any[], any, any>>({
     if (result.success) {
         return result.data;
     } else {
-        // Log a summary error for the whole array
         console.warn(`[Sheet Read] Could not parse ${entityName} data.`, result.error.flatten());
-        // For array validation errors, you might want to inspect specific item errors if available
-        // This provides a general failure notice.
         return [] as z.infer<T_Schema>; // Return empty array on failure
     }
 }

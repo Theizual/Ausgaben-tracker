@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { google } from 'googleapis';
 import { JWT } from 'google-auth-library';
 import { z } from 'zod';
-import { withRetry, parseSheetData } from './utils.js';
+import { withRetry, getLenientSchemas, parseSheetData } from './utils.js';
 import { Buffer } from 'buffer';
 
 async function getAuthClient() {
@@ -22,82 +22,11 @@ async function getAuthClient() {
   return auth;
 }
 
-// --- SANITIZATION HELPERS ---
-const SanitizeRequiredNumber = z.any().transform(val => {
-  if (val === null || val === undefined || val === '') return 0;
-  const num = parseFloat(String(val).replace(',', '.'));
-  return isNaN(num) ? 0 : num;
-}).pipe(z.number());
+type Category = z.infer<ReturnType<typeof getLenientSchemas>['CategorySchema']>;
+type Transaction = z.infer<ReturnType<typeof getLenientSchemas>['TransactionSchema']>;
+type RecurringTransaction = z.infer<ReturnType<typeof getLenientSchemas>['RecurringTransactionSchema']>;
+type Tag = z.infer<ReturnType<typeof getLenientSchemas>['TagSchema']>;
 
-const SanitizeOptionalNumber = z.any().transform(val => {
-  if (val === null || val === undefined || val === '') return undefined;
-  const num = parseFloat(String(val).replace(',', '.'));
-  return isNaN(num) ? undefined : num;
-}).pipe(z.number().optional());
-
-
-// --- LENIENT SCHEMAS WITH SANITIZATION ---
-// These schemas will be used for BOTH client input and for parsing data read from the sheet.
-const DateString = z.string().datetime({ message: 'Invalid datetime string' }).or(z.literal('')).transform(val => val || new Date(0).toISOString());
-const OptionalDateString = z.string().datetime().optional().or(z.literal('')).transform(val => val || undefined);
-
-const CategorySchema = z.object({
-  id: z.string().min(1),
-  name: z.string().default(''),
-  color: z.string().default('#808080'),
-  icon: z.string().default('MoreHorizontal'),
-  budget: SanitizeOptionalNumber,
-  group: z.string().default('Sonstiges'),
-  lastModified: DateString,
-  isDeleted: z.preprocess((val) => String(val).toUpperCase() === 'TRUE', z.boolean()).optional().default(false),
-  version: SanitizeRequiredNumber,
-});
-type Category = z.infer<typeof CategorySchema>;
-
-const TransactionSchema = z.object({
-  id: z.string().min(1),
-  amount: SanitizeRequiredNumber,
-  description: z.string().default(''),
-  categoryId: z.string().min(1),
-  date: DateString,
-  tagIds: z.preprocess((val) => String(val || '').split(',').map(tag => tag.trim()).filter(Boolean), z.array(z.string())).optional().default([]),
-  recurringId: z.string().optional().transform(val => val || undefined),
-  lastModified: DateString,
-  isDeleted: z.preprocess((val) => String(val).toUpperCase() === 'TRUE', z.boolean()).optional().default(false),
-  version: SanitizeRequiredNumber,
-});
-type Transaction = z.infer<typeof TransactionSchema>;
-
-const RecurringTransactionSchema = z.object({
-  id: z.string().min(1),
-  amount: SanitizeRequiredNumber,
-  description: z.string().default(''),
-  categoryId: z.string().min(1),
-  frequency: z.enum(['monthly', 'yearly']),
-  startDate: DateString,
-  lastProcessedDate: OptionalDateString,
-  lastModified: DateString,
-  isDeleted: z.preprocess((val) => String(val).toUpperCase() === 'TRUE', z.boolean()).optional().default(false),
-  version: SanitizeRequiredNumber,
-});
-type RecurringTransaction = z.infer<typeof RecurringTransactionSchema>;
-
-
-const TagSchema = z.object({
-  id: z.string().min(1),
-  name: z.string().min(1),
-  lastModified: DateString,
-  isDeleted: z.preprocess((val) => String(val).toUpperCase() === 'TRUE', z.boolean()).optional().default(false),
-  version: SanitizeRequiredNumber,
-});
-type Tag = z.infer<typeof TagSchema>;
-
-const WriteBodySchema = z.object({
-  categories: z.array(CategorySchema).optional().default([]),
-  transactions: z.array(TransactionSchema).optional().default([]),
-  recurringTransactions: z.array(RecurringTransactionSchema).optional().default([]),
-  allAvailableTags: z.array(TagSchema).optional().default([]),
-});
 
 function normalizeArray(input: any): any[] {
   if (!Array.isArray(input)) return [];
@@ -148,6 +77,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     allAvailableTags: normalizeArray(parsedBody.allAvailableTags),
   };
 
+  const schemas = getLenientSchemas();
+  const WriteBodySchema = z.object({
+      categories: z.array(schemas.CategorySchema).optional().default([]),
+      transactions: z.array(schemas.TransactionSchema).optional().default([]),
+      recurringTransactions: z.array(schemas.RecurringTransactionSchema).optional().default([]),
+      allAvailableTags: z.array(schemas.TagSchema).optional().default([]),
+  });
+
   const validationResult = WriteBodySchema.safeParse(normalizedBody);
   if (!validationResult.success) {
     console.error("Invalid write request body:", JSON.stringify(validationResult.error.flatten(), null, 2));
@@ -166,28 +103,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const serverValues = (readResponse as any).data.valueRanges || [];
     
-    // Use the SAME lenient schemas to parse server data
     const serverCategories = parseSheetData({
       rows: serverValues.find((r: any) => r.range?.startsWith('Categories'))?.values || [],
-      schema: z.array(CategorySchema),
+      schema: z.array(schemas.CategorySchema),
       headers: ['id', 'name', 'color', 'icon', 'budget', 'group', 'lastModified', 'isDeleted', 'version'],
       entityName: 'Category',
     });
     const serverTransactions = parseSheetData({
       rows: serverValues.find((r: any) => r.range?.startsWith('Transactions'))?.values || [],
-      schema: z.array(TransactionSchema),
+      schema: z.array(schemas.TransactionSchema),
       headers: ['id', 'amount', 'description', 'categoryId', 'date', 'tagIds', 'lastModified', 'isDeleted', 'recurringId', 'version'],
       entityName: 'Transaction',
     });
     const serverRecurring = parseSheetData({
       rows: serverValues.find((r: any) => r.range?.startsWith('Recurring'))?.values || [],
-      schema: z.array(RecurringTransactionSchema),
+      schema: z.array(schemas.RecurringTransactionSchema),
       headers: ['id', 'amount', 'description', 'categoryId', 'frequency', 'startDate', 'lastProcessedDate', 'lastModified', 'isDeleted', 'version'],
       entityName: 'RecurringTransaction',
     });
     const serverTags = parseSheetData({
       rows: serverValues.find((r: any) => r.range?.startsWith('Tags'))?.values || [],
-      schema: z.array(TagSchema),
+      schema: z.array(schemas.TagSchema),
       headers: ['id', 'name', 'lastModified', 'isDeleted', 'version'],
       entityName: 'Tag',
     });
