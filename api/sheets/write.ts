@@ -128,11 +128,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       entityName: 'Tag',
     });
 
-    function findConflicts<T extends { id: string; version: number }>(clientItems: T[], serverItems: T[]): T[] {
+    function findConflicts<T extends { id: string; version?: number }>(clientItems: T[], serverItems: T[]): T[] {
       const serverMap = new Map(serverItems.map(item => [item.id, item]));
       return clientItems.reduce((conflicts, clientItem) => {
         const serverItem = serverMap.get(clientItem.id);
-        if (serverItem && clientItem.version < serverItem.version) {
+        if (serverItem && (clientItem.version || 1) < (serverItem.version || 1)) {
           conflicts.push(serverItem);
         }
         return conflicts;
@@ -156,11 +156,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    function mergeData<T extends { id: string; version: number }>(clientItems: T[], serverItems: T[]): T[] {
+    function mergeData<T extends { id: string; version?: number }>(clientItems: T[], serverItems: T[]): T[] {
       const mergedMap = new Map<string, T>();
       [...serverItems, ...clientItems].forEach(item => {
         const existing = mergedMap.get(item.id);
-        if (!existing || item.version >= existing.version) {
+        if (!existing || (item.version || 1) >= (existing.version || 1)) {
           mergedMap.set(item.id, item);
         }
       });
@@ -179,9 +179,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       tags: ['id', 'name', 'lastModified', 'isDeleted', 'version'],
     };
 
-    const categoryValues = [headers.categories, ...mergedCategories.map(c => [c.id, c.name, c.color, c.icon, c.budget != null ? String(c.budget).replace('.', ',') : '', c.group, c.lastModified, c.isDeleted ? 'TRUE' : 'FALSE', c.version])];
-    const transactionValues = [headers.transactions, ...mergedTransactions.map(t => [t.id, String(t.amount).replace('.', ','), t.description, t.categoryId, t.date, t.tagIds?.join(',') || '', t.lastModified, t.isDeleted ? 'TRUE' : 'FALSE', t.recurringId || '', t.version])];
-    const recurringValues = [headers.recurring, ...mergedRecurring.map(r => [r.id, String(r.amount).replace('.',','), r.description, r.categoryId, r.frequency, r.startDate, r.lastProcessedDate || '', r.lastModified, r.isDeleted ? 'TRUE' : 'FALSE', r.version])];
+    const categoryValues = [headers.categories, ...mergedCategories.map(c => [c.id, c.name, c.color, c.icon, c.budget != null ? String(c.budget) : '', c.group, c.lastModified, c.isDeleted ? 'TRUE' : 'FALSE', c.version])];
+    const transactionValues = [headers.transactions, ...mergedTransactions.map(t => [t.id, String(t.amount), t.description, t.categoryId, t.date, t.tagIds?.join(',') || '', t.lastModified, t.isDeleted ? 'TRUE' : 'FALSE', t.recurringId || '', t.version])];
+    const recurringValues = [headers.recurring, ...mergedRecurring.map(r => [r.id, String(r.amount), r.description, r.categoryId, r.frequency, r.startDate, r.lastProcessedDate || '', r.lastModified, r.isDeleted ? 'TRUE' : 'FALSE', r.version])];
     const tagValues = [headers.tags, ...mergedTags.map(tag => [tag.id, tag.name, tag.lastModified, tag.isDeleted ? 'TRUE' : 'FALSE', tag.version])];
 
     await withRetry(() => sheets.spreadsheets.values.batchClear({

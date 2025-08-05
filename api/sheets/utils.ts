@@ -37,22 +37,43 @@ export async function withRetry<T>(apiCall: () => Promise<T>): Promise<T> {
 }
 
 // --- Sanitization Helpers ---
-const SanitizeRequiredNumber = z.preprocess(
+
+// For Money values that must exist (e.g., transaction.amount)
+const SanitizeRequiredMoney = z.preprocess(
   (val) => {
+    // Default to 0 if empty/null/undefined
     if (val === null || val === undefined || val === '') return 0;
+    // Handle German comma format and parse as float
     const num = parseFloat(String(val).replace(',', '.'));
+    // Default to 0 if parsing fails
     return isNaN(num) ? 0 : num;
   },
-  z.number()
+  z.number() // Allows decimals and 0
 );
 
-const SanitizeOptionalNumber = z.preprocess(
+// For Money values that are optional (e.g., category.budget)
+const SanitizeOptionalMoney = z.preprocess(
   (val) => {
+    // Default to undefined if empty/null/undefined
     if (val === null || val === undefined || val === '') return undefined;
+    // Handle German comma format and parse as float
     const num = parseFloat(String(val).replace(',', '.'));
+    // Default to undefined if parsing fails
     return isNaN(num) ? undefined : num;
   },
-  z.number().optional()
+  z.number().optional() // Allows decimals and 0, and is optional
+);
+
+// For version numbers (must be a positive integer, defaults to 1)
+const SanitizeVersion = z.preprocess(
+  (val) => {
+    if (val === null || val === undefined || val === '') return 1;
+    // Version must be an integer
+    const num = parseInt(String(val), 10);
+    // Default to 1 if parsing fails or is less than 1
+    return isNaN(num) || num < 1 ? 1 : num;
+  },
+  z.number().int().positive() // Enforce positive integer
 );
 
 
@@ -66,16 +87,16 @@ export const getLenientSchemas = (now: string = new Date().toISOString()) => {
     name: z.string().default(''),
     color: z.string().default('#808080'),
     icon: z.string().default('MoreHorizontal'),
-    budget: SanitizeOptionalNumber,
+    budget: SanitizeOptionalMoney,
     group: z.string().default('Sonstiges'),
     lastModified: DateString,
     isDeleted: z.preprocess((val) => String(val).toUpperCase() === 'TRUE', z.boolean()).optional().default(false),
-    version: SanitizeRequiredNumber,
+    version: SanitizeVersion,
   });
 
   const TransactionSchema = z.object({
     id: z.string().min(1),
-    amount: SanitizeRequiredNumber,
+    amount: SanitizeRequiredMoney,
     description: z.string().default(''),
     categoryId: z.string().min(1),
     date: DateString,
@@ -83,12 +104,12 @@ export const getLenientSchemas = (now: string = new Date().toISOString()) => {
     recurringId: z.string().optional().transform(val => val || undefined),
     lastModified: DateString,
     isDeleted: z.preprocess((val) => String(val).toUpperCase() === 'TRUE', z.boolean()).optional().default(false),
-    version: SanitizeRequiredNumber,
+    version: SanitizeVersion,
   });
   
   const RecurringTransactionSchema = z.object({
     id: z.string().min(1),
-    amount: SanitizeRequiredNumber,
+    amount: SanitizeRequiredMoney,
     description: z.string().default(''),
     categoryId: z.string().min(1),
     frequency: z.enum(['monthly', 'yearly']),
@@ -96,7 +117,7 @@ export const getLenientSchemas = (now: string = new Date().toISOString()) => {
     lastProcessedDate: OptionalDateString,
     lastModified: DateString,
     isDeleted: z.preprocess((val) => String(val).toUpperCase() === 'TRUE', z.boolean()).optional().default(false),
-    version: SanitizeRequiredNumber,
+    version: SanitizeVersion,
   });
 
   const TagSchema = z.object({
@@ -104,7 +125,7 @@ export const getLenientSchemas = (now: string = new Date().toISOString()) => {
     name: z.string().min(1),
     lastModified: DateString,
     isDeleted: z.preprocess((val) => String(val).toUpperCase() === 'TRUE', z.boolean()).optional().default(false),
-    version: SanitizeRequiredNumber,
+    version: SanitizeVersion,
   });
 
   return {

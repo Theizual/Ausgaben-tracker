@@ -194,14 +194,30 @@ export const useSync = (props: SyncProps) => {
     const isSyncing = syncOperation !== null;
     const [isAutoSyncEnabled, setIsAutoSyncEnabled] = useLocalStorage<boolean>('autoSyncEnabled', false);
     const promptShownRef = useRef(false);
+    
+    // ANTI-LOOP MECHANISMS
+    const syncInProgressRef = useRef(false);
+    const lastSyncAttemptRef = useRef<number>(0);
+    const lastAutoLoadRef = useRef<number>(0);
+    const isDataUpdatingRef = useRef(false);
 
-    // Verbesserte loadFromSheet Funktion
+    // Verbesserte loadFromSheet Funktion mit Anti-Loop-Schutz
     const loadFromSheet = useCallback(async () => {
-        if (isLoading) {
-            console.log('Load already in progress, skipping...');
+        // Anti-Loop: Mindestabstand zwischen Loads
+        const now = Date.now();
+        const MIN_LOAD_INTERVAL = 5000; // 5 Sekunden
+        
+        if (now - lastAutoLoadRef.current < MIN_LOAD_INTERVAL) {
+            console.log('Load attempted too soon, skipping...');
             return;
         }
         
+        if (isLoading || isDataUpdatingRef.current) {
+            console.log('Load already in progress or data updating, skipping...');
+            return;
+        }
+        
+        lastAutoLoadRef.current = now;
         setIsLoading(true);
         setError(null);
         
@@ -255,6 +271,9 @@ export const useSync = (props: SyncProps) => {
                     allAvailableTags: allAvailableTags.length,
                 });
                 
+                // WICHTIG: Flag setzen während Datenupdate
+                isDataUpdatingRef.current = true;
+                
                 // Update der lokalen Daten
                 setCategories(categories);
                 const newGroups = [...new Set(categories.filter((c: Category) => !c.isDeleted).map((c: Category) => c.group))];
@@ -262,6 +281,11 @@ export const useSync = (props: SyncProps) => {
                 setTransactions(transactions);
                 setRecurringTransactions(recurringTransactions);
                 setAllAvailableTags(allAvailableTags);
+                
+                // Flag zurücksetzen nach einem kurzen Timeout
+                setTimeout(() => {
+                    isDataUpdatingRef.current = false;
+                }, 1000);
                 
                 // Erfolg - kein weiterer Retry nötig
                 setIsLoading(false);
@@ -281,6 +305,7 @@ export const useSync = (props: SyncProps) => {
         }
         
         // Alle Versuche fehlgeschlagen
+        isDataUpdatingRef.current = false;
         setIsLoading(false);
         const errorMessage = lastError?.message || 'Unbekannter Fehler beim Laden der Daten';
         setError(errorMessage);
@@ -299,32 +324,38 @@ export const useSync = (props: SyncProps) => {
         }
     }, [isLoading, setCategories, setCategoryGroups, setTransactions, setRecurringTransactions, setAllAvailableTags]);
 
-    // Optimierte Auto-Load Logik
+    // Optimierte Auto-Load Logik mit strengeren Guards
     useEffect(() => {
+        if (!shouldAutoLoad || !isAutoSyncEnabled) return;
+        
         // Auf mobilen Geräten weniger aggressive Auto-Loads
         const autoLoadInterval = isMobile() ? 300000 : 180000; // 5min mobile, 3min desktop
         
-        if (shouldAutoLoad) {
-            const intervalId = setInterval(() => {
-                // Nur laden wenn die App im Fokus ist (auf mobile wichtig für Batterie)
-                if (document.visibilityState === 'visible') {
-                    loadFromSheet();
-                }
-            }, autoLoadInterval);
-            
-            return () => clearInterval(intervalId);
-        }
-    }, [shouldAutoLoad, loadFromSheet]);
+        const intervalId = setInterval(() => {
+            // Nur laden wenn die App im Fokus ist UND nicht gerade synct/lädt
+            if (document.visibilityState === 'visible' && 
+                !syncInProgressRef.current && 
+                !isLoading && 
+                !isDataUpdatingRef.current) {
+                loadFromSheet();
+            }
+        }, autoLoadInterval);
+        
+        return () => clearInterval(intervalId);
+    }, [shouldAutoLoad, isAutoSyncEnabled, loadFromSheet, isLoading]);
 
     // Verbesserte Connectivity-Erkennung für mobile
     useEffect(() => {
         const handleOnline = () => {
             console.log('Back online, attempting to load data...');
-            if (isMobile()) {
-                // Auf mobilen Geräten kurz warten bis die Verbindung stabil ist
-                setTimeout(() => loadFromSheet(), 2000);
-            } else {
-                loadFromSheet();
+            // Nur laden wenn nicht bereits ein Sync läuft
+            if (!syncInProgressRef.current && !isLoading && !isDataUpdatingRef.current) {
+                if (isMobile()) {
+                    // Auf mobilen Geräten kurz warten bis die Verbindung stabil ist
+                    setTimeout(() => loadFromSheet(), 2000);
+                } else {
+                    loadFromSheet();
+                }
             }
         };
         
@@ -340,12 +371,39 @@ export const useSync = (props: SyncProps) => {
             window.removeEventListener('online', handleOnline);
             window.removeEventListener('offline', handleOffline);
         };
-    }, [loadFromSheet]);
+    }, [loadFromSheet, isLoading]);
 
     const syncData = useCallback(async (options: { isAuto?: boolean; isConflictResolution?: boolean } = {}) => {
+        // VERSTÄRKTE GUARDS to prevent multiple/rapid syncs
+        if (syncInProgressRef.current || isSyncing || isLoading || isDataUpdatingRef.current) {
+            console.warn('Sync already in progress or data updating, ignoring request.');
+            return;
+        }
+
         const { isAuto = false, isConflictResolution = false } = options;
-        if (isSyncing) return;
         
+        // Anti-Spam für manuelle Syncs
+        const now = Date.now();
+        const MIN_SYNC_INTERVAL = isAuto ? 30000 : 3000; // 30s für auto, 3s für manuell
+        
+        if (now - lastSyncAttemptRef.current < MIN_SYNC_INTERVAL) {
+            console.warn(`Sync attempted too frequently (${now - lastSyncAttemptRef.current}ms ago), ignoring.`);
+            return;
+        }
+        
+        lastSyncAttemptRef.current = now;
+
+        if (isConflictResolution) {
+            const lastConflictResolve = sessionStorage.getItem('lastConflictResolve');
+            if (lastConflictResolve && (now - parseInt(lastConflictResolve, 10)) < 5000) { // 5-second cooldown
+                console.warn('Conflict resolution attempted too frequently, ignoring.');
+                return;
+            }
+            sessionStorage.setItem('lastConflictResolve', now.toString());
+        }
+        
+        // Sync-Flags setzen
+        syncInProgressRef.current = true;
         if (!isAuto) {
             setSyncOperation('sync');
         }
@@ -370,20 +428,29 @@ export const useSync = (props: SyncProps) => {
                     try {
                         errorJson = JSON.parse(errorBody);
                     } catch(e) {
-                        // Not a JSON response, throw with the raw text.
                         throw new Error(errorBody || `Fehler beim Speichern (${writeResponse.status})`);
                     }
 
                     if (writeResponse.status === 409 && errorJson?.conflicts) {
                         // CONFLICT DETECTED
-                        console.warn("Sync conflict detected. Merging server data and re-syncing.");
+                        console.warn("Sync conflict detected. Merging server data.");
+                        
+                        // Zusätzlicher Guard: Verhindere Konflikt-Loop
+                        const conflictKey = `conflict-${Date.now()}`;
+                        if (sessionStorage.getItem('lastConflictKey') === conflictKey) {
+                            throw new Error('Konflikt-Loop erkannt. Sync abgebrochen.');
+                        }
+                        sessionStorage.setItem('lastConflictKey', conflictKey);
                         
                         const mergedCategories = mergeItems(rawCategories, [], errorJson.conflicts.categories);
                         const mergedTransactions = mergeItems(rawTransactions, [], errorJson.conflicts.transactions);
                         const mergedRecurring = mergeItems(rawRecurringTransactions, [], errorJson.conflicts.recurring);
                         const mergedTags = mergeItems(rawAllAvailableTags, [], errorJson.conflicts.tags);
                         
-                        // Update local state
+                        // KRITISCH: Flag setzen während Merge
+                        isDataUpdatingRef.current = true;
+                        
+                        // Update local state with merged data
                         setCategories(mergedCategories);
                         const newGroups = [...new Set(mergedCategories.filter(c => !c.isDeleted).map(c => c.group))];
                         setCategoryGroups(newGroups);
@@ -391,16 +458,71 @@ export const useSync = (props: SyncProps) => {
                         setRecurringTransactions(mergedRecurring);
                         setAllAvailableTags(mergedTags);
                         
-                        // Immediately trigger a new sync to push the resolved state
-                        setTimeout(() => syncData({ isAuto, isConflictResolution: true }), 100);
+                        // Kurz warten bis State-Updates verarbeitet sind
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                        
+                        // Attempt ONE MORE TIME with the merged data
+                        console.log("Attempting final sync with merged data...");
+                        try {
+                            const finalWriteResponse = await fetchWithMobileTimeout('/api/sheets/write', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    categories: mergedCategories,
+                                    transactions: mergedTransactions,
+                                    recurringTransactions: mergedRecurring,
+                                    allAvailableTags: mergedTags,
+                                }),
+                            });
 
-                        resolve('Konflikt gelöst. Erneute Synchronisierung...');
-                        return;
+                            if (!finalWriteResponse.ok) {
+                                const finalErrorBody = await finalWriteResponse.text();
+                                let finalErrorJson: WriteErrorResponse | null = null;
+                                try {
+                                    finalErrorJson = JSON.parse(finalErrorBody);
+                                } catch(e) {
+                                    throw new Error(`Conflict resolution failed: ${finalErrorBody}`);
+                                }
+                                
+                                if (finalWriteResponse.status === 409) {
+                                    console.error("Persistent conflicts detected. Manual intervention required.");
+                                    throw new Error("Dauerhafte Konflikte erkannt. Bitte kontaktieren Sie den Support.");
+                                }
+                                
+                                throw new Error(finalErrorJson?.error || `Final sync failed (${finalWriteResponse.status})`);
+                            }
+                            
+                            // Successful final write - read back the data to be safe
+                            const readResponse = await fetchWithMobileTimeout('/api/sheets/read', { method: 'POST' });
+                            if (!readResponse.ok) {
+                                throw new Error(`Failed to read after conflict resolution (${readResponse.status})`);
+                            }
+                            
+                            const remoteData = await readResponse.json() as ReadApiResponse;
+                            
+                            // Update state to final server data
+                            setCategories(remoteData.categories || []);
+                            const finalGroups = [...new Set((remoteData.categories || []).filter((c: Category) => !c.isDeleted).map((c: Category) => c.group))];
+                            setCategoryGroups(finalGroups);
+                            setTransactions(remoteData.transactions || []);
+                            setRecurringTransactions(remoteData.recurringTransactions || []);
+                            setAllAvailableTags(remoteData.allAvailableTags || []);
+                            
+                            setLastSync(new Date().toISOString());
+                            resolve('Konflikt erfolgreich behoben und synchronisiert!');
+                            return;
+
+                        } catch (finalError: any) {
+                            console.error('Final conflict resolution sync failed:', finalError);
+                            throw new Error(`Conflict resolution failed: ${finalError.message}`);
+                        } finally {
+                            isDataUpdatingRef.current = false;
+                        }
                     }
                     throw new Error(errorJson?.error || `Fehler beim Speichern (${writeResponse.status})`);
                 }
                 
-                // If write was successful, read back the canonical state from the sheet.
+                // If write was successful on the first try, read back the canonical state.
                 const readResponse = await fetchWithMobileTimeout('/api/sheets/read', { method: 'POST' });
                 const responseBody = await readResponse.text();
 
@@ -416,7 +538,9 @@ export const useSync = (props: SyncProps) => {
 
                 const remoteData = JSON.parse(responseBody) as ReadApiResponse;
 
-                // Set local state to exactly match the remote state
+                // KRITISCH: Flag setzen während Datenupdate
+                isDataUpdatingRef.current = true;
+
                 setCategories(remoteData.categories || []);
                 const newGroups = [...new Set((remoteData.categories || []).filter((c: Category) => !c.isDeleted).map((c: Category) => c.group))];
                 setCategoryGroups(newGroups);
@@ -426,14 +550,16 @@ export const useSync = (props: SyncProps) => {
                 
                 setLastSync(new Date().toISOString());
                 
-                if(isConflictResolution) {
-                    resolve('Konflikt erfolgreich behoben und synchronisiert!');
-                } else {
-                    resolve('Daten erfolgreich synchronisiert!');
-                }
+                // Flag nach kurzer Zeit zurücksetzen
+                setTimeout(() => {
+                    isDataUpdatingRef.current = false;
+                }, 1000);
+                
+                resolve('Daten erfolgreich synchronisiert!');
 
             } catch (error: any) {
                 console.error('Sync Error:', error);
+                isDataUpdatingRef.current = false;
                 reject(error);
             }
         });
@@ -451,24 +577,28 @@ export const useSync = (props: SyncProps) => {
         }
         
         syncPromise.finally(() => {
+            syncInProgressRef.current = false;
             if (!isAuto) {
                 setSyncOperation(null);
             }
         });
 
     }, [
-        isSyncing,
         rawCategories, rawTransactions, rawRecurringTransactions, rawAllAvailableTags,
-        setCategories, setCategoryGroups, setTransactions, setRecurringTransactions, setAllAvailableTags, setLastSync
+        setCategories, setCategoryGroups, setTransactions, setRecurringTransactions, setAllAvailableTags, 
+        setLastSync, isSyncing, isLoading
     ]);
 
+    // Sync Prompt Effect mit verstärkten Guards
     useEffect(() => {
-        // Don't show prompt if already shown in this session, or if a sync is happening.
-        if (promptShownRef.current || isSyncing) {
+        if (promptShownRef.current || 
+            syncInProgressRef.current || 
+            isSyncing || 
+            isLoading ||
+            isDataUpdatingRef.current) {
             return;
         }
 
-        // Session-level guard
         if (typeof window !== 'undefined' && sessionStorage.getItem('syncPromptShown') === '1') { 
             return; 
         }
@@ -485,13 +615,11 @@ export const useSync = (props: SyncProps) => {
                     shouldPrompt = true;
                 }
             } catch (e) {
-                // If lastSync is an invalid date string, prompt to be safe.
                 shouldPrompt = true;
             }
         }
         
         if (shouldPrompt) {
-            // Mark as shown immediately to prevent re-triggering on subsequent renders.
             if (typeof window !== 'undefined') { 
                 sessionStorage.setItem('syncPromptShown', '1'); 
             }
@@ -512,7 +640,7 @@ export const useSync = (props: SyncProps) => {
                 );
             }, 500);
         }
-    }, [lastSync, isSyncing, syncData]);
+    }, [lastSync, isSyncing, isLoading, syncData]);
 
     return {
         syncOperation,
@@ -524,7 +652,6 @@ export const useSync = (props: SyncProps) => {
         loadFromSheet,
         isLoading,
         error,
-        // Export utility functions
         isMobile: isMobile(),
     };
 };
