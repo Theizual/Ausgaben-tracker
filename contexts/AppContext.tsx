@@ -29,6 +29,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const transactionDataState = useTransactionData({
         showConfirmation: uiState.showConfirmation,
         closeTransactionDetail: uiState.closeTransactionDetail,
+        currentUserId: uiState.currentUser?.id || null,
+        isDevModeEnabled: uiState.isDevModeEnabled,
     });
     
     // Sync needs data and setters from all other domains.

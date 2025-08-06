@@ -1,12 +1,12 @@
-
-
 import React, { useState, useMemo, FC, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useApp } from '../contexts/AppContext';
-import type { Transaction, Category, Tag, QuickFilterId } from '../types';
+import type { Transaction, Category, Tag, QuickFilterId, User } from '../types';
 import { format, parseISO, formatCurrency, endOfDay, startOfDay, getWeekInterval, getMonthInterval, isToday, isYesterday } from '../utils/dateUtils';
 import { de } from 'date-fns/locale';
 import { iconMap, Search, SlidersHorizontal, ChevronDown, Tag as TagIcon, Edit, Trash2, X, Square, CheckSquare, Calendar } from './Icons';
+import ViewSwitch from './ViewSwitch';
+import DensitySwitch from './DensitySwitch';
 
 const MotionDiv = motion('div');
 const MotionButton = motion('button');
@@ -53,8 +53,10 @@ const TransactionList: FC<{
     selectedIds: string[];
     onToggleSelect: (id: string) => void;
     onToggleSelectGroup: (ids: string[]) => void;
-}> = ({ groupedTransactions, showEmptyMessage = false, selectedIds, onToggleSelect, onToggleSelectGroup }) => {
-    const { categoryMap, tagMap, handleTagAnalyticsClick, handleTransactionClick, deleteTransaction } = useApp();
+    viewMode?: 'list' | 'grid';
+    density?: 'normal' | 'compact';
+}> = ({ groupedTransactions, showEmptyMessage = false, selectedIds, onToggleSelect, onToggleSelectGroup, viewMode = 'list', density = 'normal' }) => {
+    const { categoryMap, tagMap, handleTagAnalyticsClick, handleTransactionClick, deleteTransaction, users } = useApp();
 
     if (showEmptyMessage && groupedTransactions.length === 0) {
         return (
@@ -67,11 +69,12 @@ const TransactionList: FC<{
     }
     
     return (
-        <div className="space-y-3">
+        <div className="space-y-4">
             <AnimatePresence>
                 {groupedTransactions.map(group => {
                     const groupTransactionIds = group.transactions.map(t => t.id);
                     const areAllInGroupSelected = groupTransactionIds.every(id => selectedIds.includes(id));
+                    const isList = viewMode === 'list';
 
                     return (
                         <MotionDiv 
@@ -81,9 +84,9 @@ const TransactionList: FC<{
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: 20 }}
                             transition={{ duration: 0.3 }}
-                            className="bg-slate-800/20 rounded-xl"
+                            className={isList ? "bg-slate-800/20 rounded-xl" : ""}
                         >
-                            <header className="sticky top-[70px] md:top-[105px] bg-slate-800/80 backdrop-blur-sm z-10 flex items-center justify-between p-3 border-b border-slate-700/50">
+                            <header className={`flex items-center justify-between p-3 border-b border-slate-700/50 ${isList ? 'sticky top-[70px] md:top-[105px] bg-slate-800/80 backdrop-blur-sm z-10' : ''}`}>
                                 <div className="flex items-center gap-3">
                                      <button onClick={() => onToggleSelectGroup(groupTransactionIds)} className="p-1 text-slate-400 hover:text-white">
                                         {areAllInGroupSelected ? <CheckSquare className="h-5 w-5 text-rose-400" /> : <Square className="h-5 w-5" />}
@@ -94,18 +97,21 @@ const TransactionList: FC<{
                                     </div>
                                 </div>
                             </header>
-                            <div className="p-2 space-y-1">
+                            <div className={isList ? "p-2 space-y-1" : "grid grid-cols-1 sm:grid-cols-2 gap-3 p-2"}>
                                 {group.transactions.map(t => (
                                     <TransactionItem
                                         key={t.id}
                                         transaction={t}
                                         category={categoryMap.get(t.categoryId)}
                                         tagMap={tagMap}
+                                        users={users}
                                         onTagClick={handleTagAnalyticsClick}
                                         onTransactionClick={handleTransactionClick}
                                         deleteTransaction={deleteTransaction}
                                         isSelected={selectedIds.includes(t.id)}
                                         onToggleSelect={() => onToggleSelect(t.id)}
+                                        viewMode={viewMode}
+                                        density={density}
                                     />
                                 ))}
                             </div>
@@ -121,29 +127,111 @@ const TransactionItem: FC<{
     transaction: Transaction; 
     category?: Category;
     tagMap: Map<string, string>;
+    users: User[];
     onTagClick: (tagId: string) => void;
     onTransactionClick: (transaction: Transaction, mode: 'view' | 'edit') => void;
     deleteTransaction: (id: string) => void;
     isSelected: boolean;
     onToggleSelect: () => void;
-}> = ({ transaction, category, tagMap, onTagClick, onTransactionClick, deleteTransaction, isSelected, onToggleSelect }) => {
+    viewMode?: 'list' | 'grid';
+    density?: 'normal' | 'compact';
+}> = ({ transaction, category, tagMap, users, onTagClick, onTransactionClick, deleteTransaction, isSelected, onToggleSelect, viewMode = 'list', density = 'normal' }) => {
     const Icon = category ? iconMap[category.icon] || iconMap.MoreHorizontal : iconMap.MoreHorizontal;
     const color = category ? category.color : '#64748b';
+    const isCard = viewMode === 'grid';
+    const isCompact = density === 'compact';
+    const createdBy = useMemo(() => transaction.createdBy ? users.find(u => u.id === transaction.createdBy) : null, [transaction.createdBy, users]);
+    const isDev = transaction.isDev;
 
-    return (
-        <div className={`group flex items-center gap-2 rounded-lg transition-colors duration-150 ${isSelected ? 'bg-rose-500/10' : 'hover:bg-slate-700/50'}`}>
-            <button onClick={onToggleSelect} className="p-3 text-slate-500 hover:text-white">
+    const cardLayout = (
+        <div className={`relative group flex flex-col transition-all duration-200 h-full rounded-xl ${isSelected ? 'bg-rose-900/40 ring-2 ring-rose-500' : 'bg-slate-800 hover:bg-slate-700/50'} ${isCompact ? 'p-2 gap-1' : 'p-3 gap-2'}`}>
+            <div className={`flex justify-between items-start ${isCompact ? 'gap-2' : 'gap-3'}`}>
+                 <div 
+                    className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer"
+                    onClick={() => onTransactionClick(transaction, 'view')}
+                >
+                    <div className={`rounded-full flex items-center justify-center flex-shrink-0 ${isCompact ? 'w-8 h-8' : 'w-9 h-9'}`} style={{ backgroundColor: color }}>
+                        <Icon className={`text-white ${isCompact ? 'h-4 w-4' : 'h-5 w-5'}`} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <p className="font-medium text-white truncate text-sm">{category?.name}</p>
+                        <p className="text-xs text-slate-400">{format(parseISO(transaction.date), 'dd.MM.yy HH:mm')}</p>
+                    </div>
+                 </div>
+                 <button onClick={onToggleSelect} className="p-2 text-slate-400 hover:text-white z-10 rounded-full">
+                    {isSelected ? <CheckSquare className="h-5 w-5 text-rose-400" /> : <Square className="h-5 w-5" />}
+                </button>
+            </div>
+
+            <div className="pl-1 space-y-1 flex-grow cursor-pointer" onClick={() => onTransactionClick(transaction, 'view')}>
+                <p className={`font-bold text-white ${isCompact ? 'text-lg' : 'text-xl'}`}>{formatCurrency(transaction.amount)}</p>
+                <div className="flex items-start gap-2">
+                    {isDev && (
+                        <span className="bg-purple-600 text-white text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0">
+                            DEV
+                        </span>
+                    )}
+                    {createdBy && (
+                        <span className="text-white text-xs font-bold px-2 py-0.5 rounded-full" style={{ backgroundColor: createdBy.color }}>
+                            {createdBy.name}
+                        </span>
+                    )}
+                    <p className={`text-slate-300 flex-1 ${isCompact ? 'text-xs' : 'text-sm'}`}>{transaction.description}</p>
+                </div>
+            </div>
+
+            <div className="flex items-end justify-between mt-1">
+                 {transaction.tagIds && transaction.tagIds.length > 0 && (
+                    <div className="flex flex-wrap gap-1 flex-shrink-0 pt-1">
+                        {transaction.tagIds.slice(0, 2).map(id => {
+                            const tagName = tagMap.get(id);
+                            if (!tagName) return null;
+                            return (
+                                <button
+                                    key={id}
+                                    onClick={(e) => { e.stopPropagation(); onTagClick(id); }}
+                                    className="text-xs font-medium bg-slate-700 hover:bg-slate-600 text-slate-300 hover:text-white px-2 py-0.5 rounded-full transition-colors"
+                                >
+                                    #{tagName}
+                                </button>
+                            );
+                        })}
+                    </div>
+                 )}
+                <div className="flex items-center gap-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10 self-end ml-auto">
+                    <button onClick={() => onTransactionClick(transaction, 'edit')} className="p-1.5 rounded-full text-slate-400 hover:bg-slate-600 hover:text-white" title="Bearbeiten"><Edit className="h-4 w-4" /></button>
+                    <button onClick={() => { if (window.confirm(`Löschen: "${transaction.description}"?`)) { deleteTransaction(transaction.id); }}} className="p-1.5 rounded-full text-slate-400 hover:bg-slate-600 hover:text-red-400" title="Löschen"><Trash2 className="h-4 w-4" /></button>
+                </div>
+            </div>
+        </div>
+    );
+    
+    const listLayout = (
+        <div className={`group flex items-center rounded-lg transition-colors duration-150 ${isSelected ? 'bg-rose-900/40' : 'hover:bg-slate-700/50'} ${isCompact ? 'gap-1 px-1 py-0.5' : 'gap-2 p-1'}`}>
+            <button onClick={onToggleSelect} className={`text-slate-500 hover:text-white rounded-full ${isCompact ? 'p-2' : 'p-3'}`}>
                 {isSelected ? <CheckSquare className="h-5 w-5 text-rose-400" /> : <Square className="h-5 w-5" />}
             </button>
             <div 
-                className="w-full flex items-center gap-3 flex-1 min-w-0 text-left py-2 pr-2 cursor-pointer"
+                className={`w-full flex items-center flex-1 min-w-0 text-left pr-2 cursor-pointer ${isCompact ? 'gap-2 py-1' : 'gap-3 py-2'}`}
                 onClick={() => onTransactionClick(transaction, 'view')}
             >
-                <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: color }}>
-                    <Icon className="h-5 w-5 text-white" />
+                <div className={`rounded-full flex items-center justify-center flex-shrink-0 ${isCompact ? 'w-8 h-8' : 'w-10 h-10'}`} style={{ backgroundColor: color }}>
+                    <Icon className={`text-white ${isCompact ? 'h-4 w-4' : 'h-5 w-5'}`} />
                 </div>
                 <div className="flex-1 min-w-0">
-                    <p className="font-medium text-white truncate">{transaction.description}</p>
+                    <div className="flex items-center gap-2">
+                         {isDev && (
+                            <span className="bg-purple-600 text-white text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0">
+                                DEV
+                            </span>
+                        )}
+                        {createdBy && (
+                            <span className="text-white text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0" style={{ backgroundColor: createdBy.color }}>
+                                {createdBy.name}
+                            </span>
+                        )}
+                        <p className={`font-medium text-white truncate ${isCompact ? 'text-sm' : ''}`}>{transaction.description}</p>
+                    </div>
                     <p className="text-xs text-slate-400 truncate">{category?.name}</p>
                 </div>
                  {transaction.tagIds && transaction.tagIds.length > 0 && (
@@ -152,18 +240,18 @@ const TransactionItem: FC<{
                             const tagName = tagMap.get(id);
                             if (!tagName) return null;
                             return (
-                                <div
+                                <button
                                     key={id}
                                     onClick={(e) => { e.stopPropagation(); onTagClick(id); }}
                                     className="text-xs font-medium bg-slate-700 hover:bg-slate-600 text-slate-300 hover:text-white px-2 py-0.5 rounded-full transition-colors"
                                 >
                                     #{tagName}
-                                </div>
+                                </button>
                             );
                         })}
                     </div>
                  )}
-                <p className="font-bold text-white text-md text-right w-24 flex-shrink-0 ml-2">{formatCurrency(transaction.amount)}</p>
+                <p className={`font-bold text-white text-right w-24 flex-shrink-0 ml-2 ${isCompact ? 'text-base' : 'text-md'}`}>{formatCurrency(transaction.amount)}</p>
             </div>
             <div className="flex items-center gap-0 pr-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                 <button
@@ -187,6 +275,8 @@ const TransactionItem: FC<{
             </div>
         </div>
     );
+    
+    return isCard ? cardLayout : listLayout;
 };
 
 const FilterModal: FC<{
@@ -407,7 +497,11 @@ const TransactionsPage: FC = () => {
         transactionFilters, 
         setTransactionFilters, 
         transactionActiveQuickFilter, 
-        setTransactionActiveQuickFilter 
+        setTransactionActiveQuickFilter,
+        transactionViewMode,
+        setTransactionViewMode,
+        transactionViewDensity,
+        setTransactionViewDensity,
     } = useApp();
     const [isFilterModalOpen, setFilterModalOpen] = useState(false);
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -598,6 +692,8 @@ const TransactionsPage: FC = () => {
                                 <Calendar className="h-5 w-5" />
                             </MotionButton>
                         )}
+                         <ViewSwitch viewMode={transactionViewMode} onChange={setTransactionViewMode} />
+                         <DensitySwitch density={transactionViewDensity} onChange={setTransactionViewDensity} />
                         <MotionButton
                             layout
                             onClick={() => setFilterModalOpen(true)}
@@ -622,6 +718,8 @@ const TransactionsPage: FC = () => {
                     selectedIds={selectedIds}
                     onToggleSelect={handleToggleSelect}
                     onToggleSelectGroup={handleToggleSelectGroup}
+                    viewMode={transactionViewMode}
+                    density={transactionViewDensity}
                 />
             </MotionDiv>
             

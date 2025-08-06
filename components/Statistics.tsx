@@ -1,17 +1,17 @@
-import React, { useState, useMemo } from 'react';
-import type { FC } from 'react';
+import React, { useState, useMemo, FC } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useApp } from '../contexts/AppContext';
 import type { Transaction, Category } from '../types';
 import {
     format, parseISO, startOfMonth, endOfMonth,
     eachDayOfInterval, getDay, isToday, getDaysInMonth,
-    isSameMonth, isSameDay
+    isSameMonth, isSameDay, formatGermanDate
 } from '../utils/dateUtils';
 import { de, addMonths, subMonths } from '../utils/dateUtils';
-import { ChevronLeft, ChevronRight, X, iconMap, ChevronDown } from './Icons';
-import { formatCurrency, formatGermanDate } from '../utils/dateUtils';
+import { ChevronLeft, ChevronRight, X, iconMap, ChevronDown, Edit, Trash2 } from './Icons';
+import { formatCurrency } from '../utils/dateUtils';
 import SpendingTimeSeries from './SpendingTimeSeries';
+import DayDetailPanel from './DayDetailPanel';
 
 const MotionDiv = motion('div');
 
@@ -50,8 +50,13 @@ const Statistics: FC = () => {
             } catch {
                 return false;
             }
-        });
+        }).sort((a,b) => b.amount - a.amount);
     }, [transactions, statisticsSelectedDay]);
+
+    const dateRangeForChart = useMemo(() => ({
+        from: startOfMonth(statisticsCurrentMonth),
+        to: endOfMonth(statisticsCurrentMonth),
+    }), [statisticsCurrentMonth]);
 
     return (
         <div className="space-y-6">
@@ -64,25 +69,24 @@ const Statistics: FC = () => {
                     onDayClick={(day) => setStatisticsSelectedDay(prev => prev && isSameDay(prev, day) ? null : day)}
                     selectedDay={statisticsSelectedDay}
                 />
-                <AnimatePresence>
-                    {statisticsSelectedDay && transactionsForSelectedDay.length > 0 && (
-                        <MotionDiv
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -20 }}
-                            transition={{ duration: 0.3 }}
-                        >
-                            <DailyBreakdownView
-                                date={statisticsSelectedDay}
-                                transactions={transactionsForSelectedDay}
-                                onClose={() => setStatisticsSelectedDay(null)}
-                            />
-                        </MotionDiv>
+                 <AnimatePresence>
+                    {statisticsSelectedDay && (
+                        <DayDetailPanel 
+                            isOpen={!!statisticsSelectedDay}
+                            date={statisticsSelectedDay}
+                            transactions={transactionsForSelectedDay}
+                            onClose={() => setStatisticsSelectedDay(null)}
+                        />
                     )}
                 </AnimatePresence>
             </div>
             <div className="lg:col-span-2">
-                 <SpendingTimeSeries transactions={transactions} defaultAggregation="week" defaultRangeInDays={90} />
+                 <SpendingTimeSeries 
+                    transactions={transactions} 
+                    aggregation="day" 
+                    dateRange={dateRangeForChart} 
+                    onDayClick={setStatisticsSelectedDay}
+                 />
             </div>
             <MonthlySummary
                 transactions={monthlyTransactions}
@@ -96,83 +100,6 @@ const Statistics: FC = () => {
     );
 };
 
-// Daily Breakdown View
-const DailyBreakdownView: FC<{
-    date: Date;
-    transactions: Transaction[];
-    onClose: () => void;
-}> = ({ date, transactions, onClose }) => {
-    const { categoryMap, handleTransactionClick } = useApp();
-    const dailyTotal = useMemo(() => transactions.reduce((sum, t) => sum + t.amount, 0), [transactions]);
-
-    const categoryBreakdown = useMemo(() => {
-        const spending = new Map<string, { amount: number; category: Category }>();
-        transactions.forEach(t => {
-            const category = categoryMap.get(t.categoryId);
-            if (category) {
-                const current = spending.get(t.categoryId) || { amount: 0, category };
-                current.amount += t.amount;
-                spending.set(t.categoryId, current);
-            }
-        });
-        return Array.from(spending.values()).sort((a, b) => b.amount - a.amount);
-    }, [transactions, categoryMap]);
-
-    return (
-        <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 h-full">
-            <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-bold text-white">{formatGermanDate(date)}</h3>
-                <button onClick={onClose} className="p-2 -mr-2 -mt-2 rounded-full hover:bg-slate-700"><X className="h-5 w-5" /></button>
-            </div>
-            <div className="mb-4">
-                <p className="text-sm text-slate-400">Gesamtausgaben an diesem Tag</p>
-                <p className="text-3xl font-bold text-white">{formatCurrency(dailyTotal)}</p>
-            </div>
-            {categoryBreakdown.length > 0 && (
-                 <div className="space-y-4">
-                    <div>
-                        <div className="flex h-3 w-full rounded-full overflow-hidden bg-slate-700 my-2">
-                             {categoryBreakdown.map(({ category, amount }) => (
-                                <MotionDiv
-                                    key={category.id}
-                                    className="h-full"
-                                    style={{ backgroundColor: category.color }}
-                                    initial={{ width: 0 }}
-                                    animate={{ width: `${(amount / dailyTotal) * 100}%` }}
-                                    transition={{ duration: 0.8, ease: "easeOut" }}
-                                    title={`${category.name}: ${formatCurrency(amount)}`}
-                                />
-                            ))}
-                        </div>
-                    </div>
-                     <div className="space-y-3 max-h-80 overflow-y-auto pr-2 -mr-2">
-                        {transactions.sort((a,b) => b.amount - a.amount).map(t => {
-                             const category = categoryMap.get(t.categoryId);
-                             if (!category) return null;
-                             const Icon = iconMap[category.icon] || iconMap.MoreHorizontal;
-                             return (
-                                <button
-                                    key={t.id}
-                                    onClick={() => handleTransactionClick(t, 'view')}
-                                    className="w-full flex items-center gap-3 bg-slate-800/50 p-2 rounded-md hover:bg-slate-700/50 text-left"
-                                >
-                                     <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: category.color }}>
-                                         <Icon className="h-5 w-5 text-white" />
-                                     </div>
-                                     <div className="flex-1 text-sm min-w-0">
-                                         <p className="font-medium text-white truncate">{t.description}</p>
-                                         <p className="text-xs text-slate-400">{category.name}</p>
-                                     </div>
-                                     <p className="font-semibold text-white text-sm flex-shrink-0 pl-2">{formatCurrency(t.amount)}</p>
-                                 </button>
-                             )
-                         })}
-                     </div>
-                 </div>
-            )}
-        </div>
-    );
-}
 
 // Calendar Heatmap
 const CalendarView: FC<{
@@ -231,7 +158,12 @@ const CalendarView: FC<{
     const startOffset = (firstDayOfMonth === 0 ? 6 : firstDayOfMonth - 1);
 
     return (
-        <MotionDiv initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-slate-800 p-6 rounded-2xl border border-slate-700">
+        <MotionDiv 
+            layout
+            initial={{ opacity: 0, y: 10 }} 
+            animate={{ opacity: 1, y: 0 }} 
+            className={`bg-slate-800 p-6 rounded-2xl border border-slate-700 ${!selectedDay ? 'lg:col-span-2' : ''}`}
+        >
             <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-bold text-white">{format(currentMonth, 'MMMM yyyy', { locale: de })}</h3>
                 <div className="flex gap-2">
@@ -250,19 +182,25 @@ const CalendarView: FC<{
                     const dayIsToday = isToday(day);
                     const isSelected = selectedDay && isSameDay(day, selectedDay);
                     return (
-                        <div key={day.toString()} className="relative group" onClick={() => onDayClick(day)}>
-                            <div
-                                className={`w-full aspect-square rounded-md transition-all ${isSelected ? 'ring-2 ring-rose-400' : dayIsToday ? 'ring-2 ring-rose-500' : ''} ${spending > 0 ? 'cursor-pointer hover:scale-105' : 'cursor-default'}`}
+                        <div key={day.toString()} className="flex items-center justify-center">
+                             <button
+                                onClick={() => onDayClick(day)}
+                                className={`relative group w-full aspect-square rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-800 focus:ring-rose-500
+                                ${isSelected ? 'ring-2 ring-rose-400' : ''} 
+                                ${!isSelected && dayIsToday ? 'ring-1 ring-slate-400' : ''} 
+                                ${spending > 0 ? 'cursor-pointer hover:scale-105' : 'cursor-default'}`}
                                 style={{ backgroundColor: `rgba(225, 29, 72, ${intensity})` }}
-                            />
-                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-xs text-white font-semibold pointer-events-none">
-                                {format(day, 'd')}
-                            </div>
-                            {spending > 0 && (
-                                <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 p-2 bg-slate-900 text-white text-xs rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 pointer-events-none">
-                                    {formatCurrency(spending)}
-                                </div>
-                            )}
+                                aria-label={`Datum ${format(day, 'd. MMMM')}, Ausgaben: ${formatCurrency(spending)}`}
+                            >
+                                <span className="absolute inset-0 flex items-center justify-center text-sm text-white font-semibold pointer-events-none">
+                                    {format(day, 'd')}
+                                </span>
+                                {spending > 0 && (
+                                    <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 p-2 bg-slate-900 text-white text-xs rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 pointer-events-none">
+                                        {formatCurrency(spending)}
+                                    </div>
+                                )}
+                            </button>
                         </div>
                     );
                 })}

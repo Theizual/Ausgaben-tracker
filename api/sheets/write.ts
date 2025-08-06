@@ -98,7 +98,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const readResponse = await withRetry(() => sheets.spreadsheets.values.batchGet({
       spreadsheetId: sheetId,
-      ranges: ['Categories!A2:I', 'Transactions!A2:J', 'Recurring!A2:J', 'Tags!A2:E'],
+      ranges: ['Categories!A2:I', 'Transactions!A2:K', 'Recurring!A2:J', 'Tags!A2:E'],
     }));
 
     const serverValues = (readResponse as any).data.valueRanges || [];
@@ -112,7 +112,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const serverTransactions = parseSheetData({
       rows: serverValues.find((r: any) => r.range?.startsWith('Transactions'))?.values || [],
       schema: z.array(schemas.TransactionSchema),
-      headers: ['id', 'amount', 'description', 'categoryId', 'date', 'tagIds', 'lastModified', 'isDeleted', 'recurringId', 'version'],
+      headers: ['id', 'amount', 'description', 'categoryId', 'date', 'tagIds', 'lastModified', 'isDeleted', 'recurringId', 'version', 'createdBy'],
       entityName: 'Transaction',
     });
     const serverRecurring = parseSheetData({
@@ -167,20 +167,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return Array.from(mergedMap.values());
     }
     
-    const mergedCategories = mergeData(clientData.categories, serverCategories);
-    const mergedTransactions = mergeData(clientData.transactions, serverTransactions);
-    const mergedRecurring = mergeData(clientData.recurringTransactions, serverRecurring);
-    const mergedTags = mergeData(clientData.allAvailableTags, serverTags);
+    const mergedCategories = mergeData<Category>(clientData.categories, serverCategories);
+    const mergedTransactions = mergeData<Transaction>(clientData.transactions, serverTransactions);
+    const mergedRecurring = mergeData<RecurringTransaction>(clientData.recurringTransactions, serverRecurring);
+    const mergedTags = mergeData<Tag>(clientData.allAvailableTags, serverTags);
 
     const headers = {
       categories: ['id', 'name', 'color', 'icon', 'budget', 'group', 'lastModified', 'isDeleted', 'version'],
-      transactions: ['id', 'amount', 'description', 'categoryId', 'date', 'tagIds', 'lastModified', 'isDeleted', 'recurringId', 'version'],
+      transactions: ['id', 'amount', 'description', 'categoryId', 'date', 'tagIds', 'lastModified', 'isDeleted', 'recurringId', 'version', 'createdBy'],
       recurring: ['id', 'amount', 'description', 'categoryId', 'frequency', 'startDate', 'lastProcessedDate', 'lastModified', 'isDeleted', 'version'],
       tags: ['id', 'name', 'lastModified', 'isDeleted', 'version'],
     };
 
     const categoryValues = [headers.categories, ...mergedCategories.map(c => [c.id, c.name, c.color, c.icon, c.budget != null ? String(c.budget) : '', c.group, c.lastModified, c.isDeleted ? 'TRUE' : 'FALSE', c.version])];
-    const transactionValues = [headers.transactions, ...mergedTransactions.map(t => [t.id, String(t.amount), t.description, t.categoryId, t.date, t.tagIds?.join(',') || '', t.lastModified, t.isDeleted ? 'TRUE' : 'FALSE', t.recurringId || '', t.version])];
+    const transactionValues = [headers.transactions, ...mergedTransactions.map(t => [t.id, String(t.amount), t.description, t.categoryId, t.date, t.tagIds?.join(',') || '', t.lastModified, t.isDeleted ? 'TRUE' : 'FALSE', t.recurringId || '', t.version, t.createdBy || ''])];
     const recurringValues = [headers.recurring, ...mergedRecurring.map(r => [r.id, String(r.amount), r.description, r.categoryId, r.frequency, r.startDate, r.lastProcessedDate || '', r.lastModified, r.isDeleted ? 'TRUE' : 'FALSE', r.version])];
     const tagValues = [headers.tags, ...mergedTags.map(tag => [tag.id, tag.name, tag.lastModified, tag.isDeleted ? 'TRUE' : 'FALSE', tag.version])];
 

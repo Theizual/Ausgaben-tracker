@@ -299,8 +299,8 @@ const Dashboard: FC = () => {
                     </MotionDiv>
                 </div>
             </div>
-            <div className="lg:col-span-2">
-                <SpendingTimeSeries transactions={transactions} defaultAggregation="day" defaultRangeInDays={30} />
+             <div className="lg:col-span-2">
+                <SpendingTimeSeries />
             </div>
         </div>
     );

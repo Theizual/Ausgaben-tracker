@@ -1,5 +1,11 @@
 
 
+export interface User {
+  id: string;
+  name: string;
+  color: string;
+}
+
 export interface Tag {
   id: string;
   name: string;
@@ -7,6 +13,7 @@ export interface Tag {
   isDeleted?: boolean;
   version: number;
   conflicted?: boolean;
+  isDev?: boolean;
 }
 
 export interface Category {
@@ -34,6 +41,8 @@ export interface Transaction {
   isDeleted?: boolean;
   version: number;
   conflicted?: boolean;
+  createdBy?: string; // ID of the user who created the transaction
+  isDev?: boolean; // Flag for temporary development/test transactions
 }
 
 export interface RecurringTransaction {

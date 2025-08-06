@@ -43,7 +43,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     
     const response = await withRetry(() => sheets.spreadsheets.values.batchGet({
       spreadsheetId: sheetId,
-      ranges: ['Categories!A2:I', 'Transactions!A2:J', 'Recurring!A2:J', 'Tags!A2:E'],
+      ranges: ['Categories!A2:I', 'Transactions!A2:K', 'Recurring!A2:J', 'Tags!A2:E'],
     }));
 
     const valueRanges = (response as any).data.valueRanges || [];
@@ -65,7 +65,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const transactions = parseSheetData({
       rows: transactionRows,
       schema: z.array(schemas.TransactionSchema),
-      headers: ['id', 'amount', 'description', 'categoryId', 'date', 'tagIds', 'lastModified', 'isDeleted', 'recurringId', 'version'],
+      headers: ['id', 'amount', 'description', 'categoryId', 'date', 'tagIds', 'lastModified', 'isDeleted', 'recurringId', 'version', 'createdBy'],
       entityName: 'Transaction',
     });
     

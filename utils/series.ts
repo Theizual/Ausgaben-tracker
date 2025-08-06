@@ -1,10 +1,10 @@
 import {
+    addDays,
+    addMonths,
     eachDayOfInterval,
     endOfDay,
     format,
-    isSameDay,
-    isSameMonth,
-    isSameWeek,
+    isWithinInterval,
     parseISO,
     startOfDay,
     startOfMonth,
@@ -36,61 +36,59 @@ export function aggregateTransactions(
     aggregation: AggregationType,
     dateRange: { from: Date; to: Date }
 ): AggregatedPoint[] {
-    if (transactions.length === 0) return [];
-
     const dateMap = new Map<string, number>();
     const { from, to } = dateRange;
 
-    // 1. Sum up transactions for each period
+    // 1. Filter and sum up transactions for each period
     transactions.forEach(t => {
-        const tDate = parseISO(t.date);
-        let key: string;
+        try {
+            const tDate = parseISO(t.date);
+            if (!isWithinInterval(tDate, { start: from, end: to })) {
+                return; // Skip transactions outside the range
+            }
 
-        switch (aggregation) {
-            case 'week':
-                key = format(startOfWeek(tDate, { weekStartsOn: 1 }), 'yyyy-MM-dd');
-                break;
-            case 'month':
-                key = format(startOfMonth(tDate), 'yyyy-MM-dd');
-                break;
-            default: // 'day'
-                key = format(startOfDay(tDate), 'yyyy-MM-dd');
+            let key: string;
+
+            switch (aggregation) {
+                case 'week':
+                    key = format(startOfWeek(tDate, { weekStartsOn: 1 }), 'yyyy-MM-dd');
+                    break;
+                case 'month':
+                    key = format(startOfMonth(tDate), 'yyyy-MM-dd');
+                    break;
+                default: // 'day'
+                    key = format(startOfDay(tDate), 'yyyy-MM-dd');
+            }
+            dateMap.set(key, (dateMap.get(key) || 0) + t.amount);
+        } catch (e) {
+            // Ignore transactions with invalid dates
         }
-        dateMap.set(key, (dateMap.get(key) || 0) + t.amount);
     });
 
     // 2. Create a continuous date interval and fill gaps
     const results: AggregatedPoint[] = [];
-    let currentDate = startOfDay(from);
     const endDate = endOfDay(to);
 
-    while (currentDate <= endDate) {
-        let key: string;
-        let nextDate: Date;
-
-        switch (aggregation) {
-            case 'week':
-                key = format(startOfWeek(currentDate, { weekStartsOn: 1 }), 'yyyy-MM-dd');
-                nextDate = startOfWeek(new Date(currentDate.setDate(currentDate.getDate() + 7)), { weekStartsOn: 1 });
-                break;
-            case 'month':
-                key = format(startOfMonth(currentDate), 'yyyy-MM-dd');
-                nextDate = startOfMonth(new Date(currentDate.setMonth(currentDate.getMonth() + 1)));
-                 break;
-            default: // 'day'
-                key = format(currentDate, 'yyyy-MM-dd');
-                nextDate = new Date(currentDate.setDate(currentDate.getDate() + 1));
+    if (aggregation === 'day') {
+        const days = eachDayOfInterval({ start: startOfDay(from), end: endDate });
+        days.forEach(day => {
+            const key = format(day, 'yyyy-MM-dd');
+            results.push({ date: key, sum: dateMap.get(key) || 0 });
+        });
+    } else if (aggregation === 'week') {
+        let currentWeekStart = startOfWeek(from, { weekStartsOn: 1 });
+        while (currentWeekStart <= endDate) {
+            const key = format(currentWeekStart, 'yyyy-MM-dd');
+            results.push({ date: key, sum: dateMap.get(key) || 0 });
+            currentWeekStart = addDays(currentWeekStart, 7);
         }
-
-        // Avoid adding duplicate keys for week/month aggregation
-        if (!results.some(r => r.date === key)) {
-            results.push({
-                date: key,
-                sum: dateMap.get(key) || 0,
-            });
+    } else if (aggregation === 'month') {
+        let currentMonthStart = startOfMonth(from);
+        while (currentMonthStart <= endDate) {
+            const key = format(currentMonthStart, 'yyyy-MM-dd');
+            results.push({ date: key, sum: dateMap.get(key) || 0 });
+            currentMonthStart = addMonths(currentMonthStart, 1);
         }
-        
-        currentDate = nextDate;
     }
 
     return results;

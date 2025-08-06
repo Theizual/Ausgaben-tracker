@@ -105,6 +105,7 @@ export const getLenientSchemas = (now: string = new Date().toISOString()) => {
     lastModified: DateString,
     isDeleted: z.preprocess((val) => String(val).toUpperCase() === 'TRUE', z.boolean()).optional().default(false),
     version: SanitizeVersion,
+    createdBy: z.string().optional().transform(val => val || undefined),
   });
   
   const RecurringTransactionSchema = z.object({

@@ -1,9 +1,8 @@
 
-
 import { useCallback, useEffect, useMemo, useReducer, useRef } from 'react';
 import { toast } from 'react-hot-toast';
 import type { Transaction, RecurringTransaction, Tag } from '../types';
-import { addMonths, addYears, isSameDay, parseISO, getMonthInterval, isWithinInterval, isValid, format } from '../utils/dateUtils';
+import { addMonths, addYears, isSameDay, parseISO, getMonthInterval, isWithinInterval, isValid, format, subDays } from '../utils/dateUtils';
 
 // --- CONSTANTS & HELPERS ---
 const TAG_MIN_LENGTH = 1;
@@ -13,6 +12,33 @@ const MAX_RECURRING_ITERATIONS = 100; // Safety break for while loop (100 months
 const sortTransactions = (transactions: Transaction[]): Transaction[] => 
     [...transactions].sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime());
 
+const DEV_TAGS: Tag[] = [
+    { id: 'dev-tag-1', name: 'Urlaub', lastModified: new Date().toISOString(), version: 1, isDev: true },
+    { id: 'dev-tag-2', name: 'Projekt', lastModified: new Date().toISOString(), version: 1, isDev: true },
+    { id: 'dev-tag-3', name: 'Wochenende', lastModified: new Date().toISOString(), version: 1, isDev: true },
+    { id: 'dev-tag-4', name: 'Auto', lastModified: new Date().toISOString(), version: 1, isDev: true },
+];
+
+const makeDevTransactions = (): Transaction[] => {
+    const now = new Date();
+    return [
+        { id: 'dev-1', amount: 12.34, description: 'Kaffee & Croissant', categoryId: 'cat_baecker', date: new Date().toISOString(), isDev: true, lastModified: now.toISOString(), version: 1 },
+        { id: 'dev-2', amount: 99.99, description: 'Wocheneinkauf Supermarkt', categoryId: 'cat_supermarkt', date: subDays(now, 1).toISOString(), isDev: true, tagIds: ['dev-tag-3'], lastModified: now.toISOString(), version: 1 },
+        { id: 'dev-3', amount: 7.50, description: 'Parkgebühren', categoryId: 'cat_sonstiges', date: subDays(now, 2).toISOString(), isDev: true, tagIds: ['dev-tag-4'], lastModified: now.toISOString(), version: 1 },
+        { id: 'dev-4', amount: 25.00, description: 'Pizza Lieferservice', categoryId: 'cat_gastro', date: subDays(now, 2).toISOString(), isDev: true, tagIds: ['dev-tag-3'], lastModified: now.toISOString(), version: 1 },
+        { id: 'dev-5', amount: 125.60, description: 'Neuer Reifen', categoryId: 'cat_sonstiges', date: subDays(now, 3).toISOString(), isDev: true, tagIds: ['dev-tag-4'], lastModified: now.toISOString(), version: 1 },
+        { id: 'dev-6', amount: 55.00, description: 'Baumarkt-Einkauf', categoryId: 'cat_sonstiges', date: subDays(now, 4).toISOString(), isDev: true, tagIds: ['dev-tag-2'], lastModified: now.toISOString(), version: 1 },
+        { id: 'dev-7', amount: 8.20, description: 'Gemüse vom Markt', categoryId: 'cat_gemuese', date: subDays(now, 5).toISOString(), isDev: true, lastModified: now.toISOString(), version: 1 },
+        { id: 'dev-8', amount: 42.00, description: 'Geschenk für Freund', categoryId: 'cat_sonstiges', date: subDays(now, 6).toISOString(), isDev: true, lastModified: now.toISOString(), version: 1 },
+        { id: 'dev-9', amount: 330.00, description: 'Hotel für Wochenende', categoryId: 'cat_gastro', date: subDays(now, 7).toISOString(), isDev: true, tagIds: ['dev-tag-1', 'dev-tag-3'], lastModified: now.toISOString(), version: 1 },
+        { id: 'dev-10', amount: 18.00, description: 'Kino-Tickets', categoryId: 'cat_gastro', date: subDays(now, 8).toISOString(), isDev: true, tagIds: ['dev-tag-3'], lastModified: now.toISOString(), version: 1 },
+        { id: 'dev-11', amount: 22.50, description: 'Apothekenkauf', categoryId: 'cat_pflege', date: subDays(now, 9).toISOString(), isDev: true, lastModified: now.toISOString(), version: 1 },
+        { id: 'dev-12', amount: 64.95, description: 'Online-Bestellung Kleidung', categoryId: 'cat_sonstiges', date: subDays(now, 10).toISOString(), isDev: true, lastModified: now.toISOString(), version: 1 },
+        { id: 'dev-13', amount: 35.00, description: 'Tankfüllung Test', categoryId: 'cat_sonstiges', date: subDays(now, 11).toISOString(), isDev: true, tagIds: ['dev-tag-4'], lastModified: now.toISOString(), version: 1 }
+    ];
+};
+
+const DEV_TRANSACTIONS = makeDevTransactions();
 
 // --- STATE MANAGEMENT ---
 
@@ -131,9 +157,11 @@ const initializer = (): DataState => {
 interface useTransactionDataProps {
     showConfirmation: (data: { transactions: Transaction[]; totalSpentBefore: number }) => void;
     closeTransactionDetail: () => void;
+    currentUserId: string | null;
+    isDevModeEnabled: boolean;
 }
 
-export const useTransactionData = ({ showConfirmation, closeTransactionDetail }: useTransactionDataProps) => {
+export const useTransactionData = ({ showConfirmation, closeTransactionDetail, currentUserId, isDevModeEnabled }: useTransactionDataProps) => {
     // 1. Use reducer with the lazy initializer. State is now hydrated synchronously.
     const [rawState, dispatch] = useReducer(dataReducer, undefined, initializer);
 
@@ -152,8 +180,25 @@ export const useTransactionData = ({ showConfirmation, closeTransactionDetail }:
     }, [rawState.recurring]);
 
     // Memoized "live" data, filtered to exclude soft-deleted items
-    const transactions = useMemo(() => rawState.transactions.filter(t => !t.isDeleted), [rawState.transactions]);
-    const allAvailableTags = useMemo(() => rawState.tags.filter(t => !t.isDeleted), [rawState.tags]);
+    const liveTransactions = useMemo(() => rawState.transactions.filter(t => !t.isDeleted), [rawState.transactions]);
+    const liveTags = useMemo(() => rawState.tags.filter(t => !t.isDeleted), [rawState.tags]);
+    
+    const transactions = useMemo(() => {
+        if (isDevModeEnabled) {
+            // Prepend dev transactions and sort again. This ensures they are not persisted.
+            return sortTransactions([...DEV_TRANSACTIONS, ...liveTransactions]);
+        }
+        return liveTransactions;
+    }, [liveTransactions, isDevModeEnabled]);
+
+
+    const allAvailableTags = useMemo(() => {
+        if (isDevModeEnabled) {
+            return [...DEV_TAGS, ...liveTags];
+        }
+        return liveTags;
+    }, [liveTags, isDevModeEnabled]);
+
     const recurringTransactions = useMemo(() => rawState.recurring.filter(r => !r.isDeleted), [rawState.recurring]);
 
     // Create a stable key based on tag content to ensure tagMap is only recomputed when tags actually change.
@@ -240,7 +285,7 @@ export const useTransactionData = ({ showConfirmation, closeTransactionDetail }:
         return Array.from(resultingTagIds);
     }, [rawState.tags]);
     
-    const addTransaction = useCallback((transaction: Omit<Transaction, 'id' | 'date' | 'tagIds' | 'lastModified' | 'version'> & { tags?: string[] }) => {
+    const addTransaction = useCallback((transaction: Omit<Transaction, 'id' | 'date' | 'tagIds' | 'lastModified' | 'version' | 'createdBy'> & { tags?: string[] }) => {
         const totalSpentBefore = selectorRef.current(new Date());
         const now = new Date().toISOString();
         const tagIds = getOrCreateTagIds(transaction.tags);
@@ -251,10 +296,11 @@ export const useTransactionData = ({ showConfirmation, closeTransactionDetail }:
             lastModified: now,
             version: 1,
             tagIds,
+            createdBy: currentUserId || undefined,
         };
         dispatch({ type: 'ADD_TRANSACTION', payload: newTransaction });
         showConfirmation({ transactions: [newTransaction], totalSpentBefore });
-    }, [getOrCreateTagIds, showConfirmation]);
+    }, [getOrCreateTagIds, showConfirmation, currentUserId]);
 
     const addMultipleTransactions = useCallback((
         transactionsToCreate: Array<{amount: number, description: string}>,
@@ -272,11 +318,12 @@ export const useTransactionData = ({ showConfirmation, closeTransactionDetail }:
             version: 1,
             categoryId: commonData.categoryId,
             tagIds,
+            createdBy: currentUserId || undefined,
         }));
 
         dispatch({ type: 'ADD_MULTIPLE_TRANSACTIONS', payload: newTransactions });
         showConfirmation({ transactions: newTransactions, totalSpentBefore });
-    }, [getOrCreateTagIds, showConfirmation]);
+    }, [getOrCreateTagIds, showConfirmation, currentUserId]);
 
     const updateTransaction = useCallback((transaction: Transaction, tags?: string[] | null) => {
         let finalTransaction: Transaction = {
@@ -306,6 +353,7 @@ export const useTransactionData = ({ showConfirmation, closeTransactionDetail }:
     const deleteMultipleTransactions = useCallback((ids: string[]) => {
         if (ids.length === 0) return;
         const now = new Date().toISOString();
+
         const updatedTransactions = rawState.transactions.map(t => {
             if (ids.includes(t.id)) {
                 return { ...t, isDeleted: true, lastModified: now, version: (t.version || 0) + 1 };
@@ -313,6 +361,7 @@ export const useTransactionData = ({ showConfirmation, closeTransactionDetail }:
             return t;
         });
         dispatch({ type: 'SET_TRANSACTIONS', payload: updatedTransactions });
+        
         toast.success(`${ids.length} ${ids.length > 1 ? 'Einträge' : 'Eintrag'} gelöscht.`);
     }, [rawState.transactions]);
 

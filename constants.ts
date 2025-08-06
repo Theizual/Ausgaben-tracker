@@ -1,5 +1,4 @@
 
-
 import type { Category } from './types';
 
 // This is the source of truth for the initial setup.
@@ -9,6 +8,7 @@ const initialSetup: { name: string; categories: Omit<Category, 'group' | 'lastMo
     categories: [
       { id: 'cat_supermarkt', name: 'Supermarkt / Drogeriemarkt', color: '#c7aa05', icon: 'ShoppingCart', budget: 500 },
       { id: 'cat_metzger', name: 'Metzger', color: '#ff4a4a', icon: 'Beef', budget: 100 },
+      { id: 'cat_fisch', name: 'Fisch', color: '#3b82f6', icon: 'Fish', budget: 50 },
       { id: 'cat_baecker', name: 'Bäcker / Bärenbrot', color: '#d97706', icon: 'Croissant', budget: 50 },
       { id: 'cat_gemuese', name: 'Gemüsemarkt', color: '#65a30d', icon: 'Carrot', budget: 100 },
       { id: 'cat_gastro', name: 'Gastronomie / Lieferservice', color: '#6366f1', icon: 'UtensilsCrossed', budget: 100 },

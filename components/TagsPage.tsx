@@ -1,8 +1,9 @@
 
 
+
 import React, { useState, useMemo, FC } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { AreaChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { useApp } from '../contexts/AppContext';
 import type { Transaction, Category, Tag, PeriodType } from '../types';
 import { 
@@ -403,25 +404,38 @@ const TagDetailView: FC<{
             </div>
 
              <div className="bg-slate-800/50 p-4 rounded-2xl border border-slate-700/50">
-                <h3 className="font-bold text-white mb-4">Ausgaben im Zeitverlauf</h3>
-                <div className="h-72 pr-4">
+                <div className="mb-4">
+                    <h3 className="font-bold text-white">Ausgaben im Zeitverlauf</h3>
+                    <p className="text-sm text-slate-400">{`${format(interval.start, 'd. MMM yyyy', { locale: de })} - ${format(interval.end, 'd. MMM yyyy', { locale: de })}`}</p>
+                </div>
+                <div className="h-72 pr-4 -ml-4">
                     <ResponsiveContainer width="100%" height="100%">
-                         <LineChart data={chartMetrics.chartData} margin={{ top: 5, right: 10, left: 0, bottom: 20 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
-                            <XAxis dataKey="date" tickFormatter={(d) => format(parseISO(d), chartMetrics.chartData.length > 31 ? 'MMM yy' : 'd. MMM', {locale: de})} stroke="#94a3b8" fontSize={12} />
+                         <AreaChart data={chartMetrics.chartData} margin={{ top: 5, right: 10, left: 0, bottom: 20 }}>
+                             <defs>
+                                {tagIds.map(id => (
+                                     <linearGradient key={`grad-${id}`} id={`color-${id}`} x1="0" y1="0" x2="0" y2="1">
+                                         <stop offset="5%" stopColor={chartMetrics.colors[id]} stopOpacity={0.4}/>
+                                         <stop offset="95%" stopColor={chartMetrics.colors[id]} stopOpacity={0}/>
+                                     </linearGradient>
+                                ))}
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#475569" strokeOpacity={0.3}/>
+                            <XAxis dataKey="date" tickFormatter={(d) => format(parseISO(d), chartMetrics.chartData.length > 31 ? 'MMM yy' : 'd. MMM', {locale: de})} stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} dy={10} />
                             <YAxis tickFormatter={(v) => formatCurrency(v)} stroke="#94a3b8" fontSize={12} width={80} axisLine={false} tickLine={false} />
-                            <Tooltip content={<CustomTooltip tagMap={tagMap} />} />
+                            <Tooltip content={<CustomTooltip tagMap={tagMap} />} cursor={{ stroke: '#f43f5e', strokeWidth: 1, strokeDasharray: '3 3' }}/>
                             <Legend wrapperStyle={{paddingTop: '20px'}} />
                             {tagIds.map(id => (
                                 <React.Fragment key={id}>
-                                    <Line
+                                    <Area
                                         type="monotone"
                                         dataKey={id}
                                         name={tagMap.get(id) || 'Unbekannt'}
                                         stroke={chartMetrics.colors[id]}
-                                        strokeWidth={2}
+                                        strokeWidth={2.5}
+                                        fillOpacity={1}
+                                        fill={`url(#color-${id})`}
                                         dot={false}
-                                        activeDot={{ r: 6 }}
+                                        activeDot={{ r: 6, stroke: '#111827', strokeWidth: 2, fill: chartMetrics.colors[id] }}
                                     />
                                     <Line
                                         type="monotone"
@@ -436,7 +450,7 @@ const TagDetailView: FC<{
                                     />
                                 </React.Fragment>
                             ))}
-                        </LineChart>
+                        </AreaChart>
                     </ResponsiveContainer>
                 </div>
             </div>

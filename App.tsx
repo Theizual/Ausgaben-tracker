@@ -1,6 +1,8 @@
 
 
-import React from 'react';
+
+
+import React, { useState, useRef, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Toaster } from 'react-hot-toast';
 import { useApp } from './contexts/AppContext';
@@ -12,10 +14,11 @@ import SettingsModal from './components/SettingsModal';
 import ConfirmationModal from './components/ConfirmationModal';
 import TransactionDetailModal from './components/TransactionDetailModal';
 import { formatGermanDate } from './utils/dateUtils';
-import { Settings, Loader2, LayoutGrid, Repeat, BarChart2, Tags, RefreshCw } from './components/Icons';
+import { Settings, Loader2, LayoutGrid, Repeat, BarChart2, Tags, RefreshCw, User, CheckCircle2, Users } from './components/Icons';
 import { formatDistanceToNow } from 'date-fns';
 import { de } from 'date-fns/locale';
 import Logo from './components/Logo';
+import type { User as UserType } from './types';
 
 const MotionDiv = motion('div');
 
@@ -28,6 +31,7 @@ const App: React.FC = () => {
         isSettingsOpen,
         openSettings,
         closeSettings,
+        initialSettingsTab,
         confirmationData,
         closeConfirmation,
         transactionForDetail,
@@ -36,6 +40,8 @@ const App: React.FC = () => {
         syncOperation,
         lastSync,
         syncData,
+        // User State
+        users,
     } = useApp();
 
     const renderContent = () => {
@@ -69,7 +75,8 @@ const App: React.FC = () => {
             <div className="sticky top-0 z-30 bg-slate-900/95 backdrop-blur-sm border-b border-slate-700">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <Header 
-                        onSettingsClick={openSettings} 
+                        users={users}
+                        onSettingsClick={() => openSettings('general')} 
                         onSyncClick={() => syncData()}
                         syncOperation={syncOperation}
                         lastSync={lastSync}
@@ -102,7 +109,7 @@ const App: React.FC = () => {
                 <MainTabs activeTab={activeTab} setActiveTab={setActiveTab} isMobile={true} />
             </div>
 
-            <SettingsModal isOpen={isSettingsOpen} onClose={closeSettings} />
+            <SettingsModal isOpen={isSettingsOpen} onClose={closeSettings} initialTab={initialSettingsTab} />
             
             <AnimatePresence>
                 {confirmationData && (
@@ -129,13 +136,100 @@ const App: React.FC = () => {
     );
 };
 
+// User Selector Component
+const UserSelector: React.FC = () => {
+    const { users, currentUser, setCurrentUserId, openSettings } = useApp();
+    const [isOpen, setIsOpen] = useState(false);
+    const wrapperRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
+
+    const handleManageUsers = () => {
+        setIsOpen(false);
+        openSettings('users');
+    };
+
+    const handleOpenGeneralSettings = () => {
+        setIsOpen(false);
+        openSettings('general');
+    };
+
+    if (users.length === 0) {
+        return (
+            <button onClick={handleManageUsers} className="hidden sm:flex items-center gap-2 text-sm bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded-md font-semibold text-slate-300">
+                <User className="h-4 w-4"/>Benutzer hinzufügen
+            </button>
+        )
+    }
+
+    if (!currentUser) return null;
+
+    return (
+        <div className="relative" ref={wrapperRef}>
+            <button onClick={() => setIsOpen(!isOpen)} className="flex items-center gap-2 p-1.5 rounded-full hover:bg-slate-700 transition-colors">
+                 <div className="w-6 h-6 rounded-full flex items-center justify-center text-white font-bold text-xs" style={{ backgroundColor: currentUser.color }}>
+                    {currentUser.name.charAt(0).toUpperCase()}
+                </div>
+                <span className="hidden sm:inline font-semibold text-sm text-slate-200">{currentUser.name}</span>
+            </button>
+            <AnimatePresence>
+                {isOpen && (
+                     <MotionDiv 
+                        initial={{ opacity: 0, y: -5, scale: 0.95 }} 
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -5, scale: 0.95 }}
+                        transition={{ duration: 0.1 }}
+                        className="absolute z-40 top-full mt-2 right-0 w-60 bg-slate-800 border border-slate-700 rounded-lg shadow-xl py-2"
+                    >
+                         <p className="px-4 py-1 text-xs text-slate-400 font-semibold uppercase">Benutzer wechseln</p>
+                        {users.map(user => (
+                            <button
+                                key={user.id}
+                                onClick={() => {
+                                    setCurrentUserId(user.id);
+                                    setIsOpen(false);
+                                }}
+                                className="w-full text-left flex items-center gap-3 px-4 py-2 hover:bg-slate-700/50"
+                            >
+                                <div className="w-6 h-6 rounded-full flex items-center justify-center text-white font-bold text-xs" style={{ backgroundColor: user.color }}>
+                                    {user.name.charAt(0).toUpperCase()}
+                                </div>
+                                <span className="font-medium text-white flex-1">{user.name}</span>
+                                {currentUser.id === user.id && <CheckCircle2 className="h-5 w-5 text-rose-400" />}
+                            </button>
+                        ))}
+                         <div className="border-t border-slate-700 my-2"></div>
+                         <button onClick={handleManageUsers} className="w-full text-left flex items-center gap-3 px-4 py-2 hover:bg-slate-700/50 text-slate-300">
+                            <Users className="h-5 w-5"/>
+                            <span className="font-medium">Benutzer verwalten</span>
+                        </button>
+                         <button onClick={handleOpenGeneralSettings} className="w-full text-left flex items-center gap-3 px-4 py-2 hover:bg-slate-700/50 text-slate-300">
+                            <Settings className="h-5 w-5"/>
+                            <span className="font-medium">Einstellungen</span>
+                        </button>
+                    </MotionDiv>
+                )}
+            </AnimatePresence>
+        </div>
+    )
+}
+
 // Header Component
 const Header: React.FC<{ 
+    users: UserType[];
     onSettingsClick: () => void; 
     onSyncClick: () => void; 
     syncOperation: 'sync' | null;
     lastSync: string | null;
-}> = ({ onSettingsClick, onSyncClick, syncOperation, lastSync }) => {
+}> = ({ users, onSettingsClick, onSyncClick, syncOperation, lastSync }) => {
     const isSyncing = syncOperation !== null;
 
     const renderLastSyncText = () => {
@@ -164,9 +258,12 @@ const Header: React.FC<{
                 >
                     {isSyncing ? <Loader2 className="h-5 w-5 sm:h-6 sm:w-6 animate-spin" /> : <RefreshCw className="h-5 w-5 sm:h-6 sm:w-6" />}
                 </button>
-                <button onClick={onSettingsClick} className="p-3 rounded-full hover:bg-slate-700 transition-colors">
-                    <Settings className="h-5 w-5 sm:h-6 sm:w-6" />
-                </button>
+                {users.length === 0 && (
+                    <button onClick={onSettingsClick} className="p-3 rounded-full hover:bg-slate-700 transition-colors">
+                        <Settings className="h-5 w-5 sm:h-6 sm:w-6" />
+                    </button>
+                )}
+                <UserSelector />
             </div>
         </header>
     );

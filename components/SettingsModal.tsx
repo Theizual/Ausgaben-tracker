@@ -1,12 +1,16 @@
 
 
+
+
+
+
 import React, { useState, useMemo, useCallback, useEffect, FC } from 'react';
 import { AnimatePresence, motion, Reorder } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { useApp } from '../contexts/AppContext';
-import type { Category, RecurringTransaction, Tag } from '../types';
+import type { Category, RecurringTransaction, Tag, User } from '../types';
 import { format, parseISO, formatCurrency } from '../utils/dateUtils';
-import { iconMap, Settings, Loader2, X, TrendingDown, LayoutGrid, BarChart2, Sheet, Save, DownloadCloud, Target, Edit, Trash2, Plus, GripVertical, Wallet, SlidersHorizontal, Repeat, History, Tag as TagIcon, ChevronUp, ChevronDown } from './Icons';
+import { iconMap, Settings, Loader2, X, TrendingDown, LayoutGrid, BarChart2, Sheet, Save, DownloadCloud, Target, Edit, Trash2, Plus, GripVertical, Wallet, SlidersHorizontal, Repeat, History, Tag as TagIcon, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, FlaskConical, Users } from './Icons';
 import type { LucideProps } from 'lucide-react';
 
 const MotionDiv = motion('div');
@@ -17,7 +21,27 @@ const IconPicker: FC<{
   onSelect: (iconName: string) => void;
   onClose: () => void;
 }> = ({ onSelect, onClose }) => {
-    const iconList = Object.keys(iconMap);
+    const iconList = useMemo(() => Object.keys(iconMap).sort(), []);
+    
+    // Pagination state
+    const ICONS_PER_PAGE = 50; // 5 rows of 10 icons
+    const [currentPage, setCurrentPage] = useState(1);
+    const totalPages = Math.ceil(iconList.length / ICONS_PER_PAGE);
+
+    const paginatedIcons = useMemo(() => {
+        const startIndex = (currentPage - 1) * ICONS_PER_PAGE;
+        const endIndex = startIndex + ICONS_PER_PAGE;
+        return iconList.slice(startIndex, endIndex);
+    }, [currentPage, iconList]);
+
+    const goToNextPage = () => {
+        setCurrentPage(prev => Math.min(prev + 1, totalPages));
+    };
+
+    const goToPrevPage = () => {
+        setCurrentPage(prev => Math.max(prev - 1, 1));
+    };
+    
     return (
         <MotionDiv
             initial={{ opacity: 0 }}
@@ -31,17 +55,17 @@ const IconPicker: FC<{
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.9, opacity: 0 }}
                 transition={{ type: 'spring', bounce: 0.3, duration: 0.4 }}
-                className="bg-slate-800 rounded-2xl w-full max-w-2xl shadow-2xl border border-slate-700 flex flex-col"
+                className="bg-slate-800 rounded-2xl w-full max-w-2xl shadow-2xl border border-slate-700 flex flex-col max-h-[80vh]"
                 onClick={e => e.stopPropagation()}
             >
-                <div className="flex justify-between items-center p-4 border-b border-slate-700 flex-shrink-0">
+                <header className="flex justify-between items-center p-4 border-b border-slate-700 flex-shrink-0">
                     <h3 className="text-lg font-bold text-white">Symbol auswählen</h3>
                     <button onClick={onClose} className="p-2 rounded-full hover:bg-slate-700 transition-colors">
                         <X className="h-5 w-5" />
                     </button>
-                </div>
-                <div className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 gap-2 p-4 overflow-y-auto">
-                    {iconList.sort().map(iconName => {
+                </header>
+                <main className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 gap-2 p-4 overflow-y-auto flex-grow">
+                    {paginatedIcons.map(iconName => {
                         const Icon = iconMap[iconName];
                         return (
                             <button
@@ -54,7 +78,28 @@ const IconPicker: FC<{
                             </button>
                         );
                     })}
-                </div>
+                </main>
+                <footer className="flex justify-between items-center p-4 border-t border-slate-700 flex-shrink-0">
+                    <button 
+                        onClick={goToPrevPage}
+                        disabled={currentPage === 1}
+                        className="p-2 rounded-full hover:bg-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        aria-label="Vorherige Seite"
+                    >
+                        <ChevronLeft className="h-5 w-5"/>
+                    </button>
+                    <span className="text-sm font-medium text-slate-400">
+                        Seite {currentPage} von {totalPages}
+                    </span>
+                    <button 
+                        onClick={goToNextPage}
+                        disabled={currentPage === totalPages}
+                        className="p-2 rounded-full hover:bg-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        aria-label="Nächste Seite"
+                    >
+                        <ChevronRight className="h-5 w-5"/>
+                    </button>
+                </footer>
             </MotionDiv>
         </MotionDiv>
     );
@@ -74,7 +119,7 @@ const ToggleSwitch: React.FC<{
             onClick={() => setEnabled(!enabled)}
             className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-800 focus:ring-rose-500 ${enabled ? 'bg-rose-600' : 'bg-slate-600'}`}
         >
-            <span className="sr-only">Automatische Synchronisierung aktivieren</span>
+            <span className="sr-only">Toggle</span>
             <MotionSpan
                 layout
                 transition={{ type: 'spring', stiffness: 700, damping: 30 }}
@@ -142,6 +187,81 @@ const TagSettings: FC = () => {
             </div>
         </MotionDiv>
     )
+}
+
+const UserSettings: FC = () => {
+    const { users, addUser, updateUser, deleteUser } = useApp();
+    const [newUserName, setNewUserName] = useState('');
+
+    const handleAddUser = (e: React.FormEvent) => {
+        e.preventDefault();
+        addUser(newUserName);
+        setNewUserName('');
+    };
+
+    return (
+        <MotionDiv
+            key="users"
+            initial={{ opacity: 0, x: 10 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 10 }}
+            transition={{ duration: 0.2 }}
+        >
+             <h3 className="text-lg font-semibold text-white mb-4">Benutzer verwalten</h3>
+            <p className="text-sm text-slate-400 mb-6">
+                Legen Sie Benutzer an, um Ausgaben zuzuordnen. Der aktuell ausgewählte Benutzer wird neuen Transaktionen automatisch zugewiesen.
+            </p>
+
+            <form onSubmit={handleAddUser} className="flex gap-3 mb-6">
+                <input
+                    type="text"
+                    value={newUserName}
+                    onChange={(e) => setNewUserName(e.target.value)}
+                    placeholder="Neuer Benutzername..."
+                    className="flex-grow bg-slate-700 border border-slate-600 rounded-md px-3 py-2 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500"
+                />
+                <button type="submit" className="flex items-center gap-2 bg-rose-600 hover:bg-rose-500 text-white font-semibold px-4 py-2 rounded-md transition-colors">
+                    <Plus className="h-4 w-4" /> Hinzufügen
+                </button>
+            </form>
+
+            <div className="space-y-3">
+                {users.map(user => (
+                    <div key={user.id} className="flex items-center gap-4 bg-slate-700/50 p-2 rounded-lg">
+                        <input
+                            type="color"
+                            value={user.color}
+                            onChange={(e) => updateUser(user.id, { color: e.target.value })}
+                            className="w-10 h-10 p-0 border-none rounded-md bg-transparent cursor-pointer flex-shrink-0"
+                            title="Farbe ändern"
+                        />
+                        <input
+                            type="text"
+                            defaultValue={user.name}
+                            onBlur={(e) => updateUser(user.id, { name: e.target.value })}
+                             onKeyDown={(e) => {
+                                if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+                            }}
+                            className="bg-transparent font-medium text-white w-full focus:outline-none focus:bg-slate-600/50 rounded px-2 py-1"
+                        />
+                        <button
+                            onClick={() => {
+                                if (window.confirm(`Möchten Sie den Benutzer "${user.name}" wirklich löschen?`)) {
+                                    deleteUser(user.id);
+                                }
+                            }}
+                            className="p-3 rounded-full hover:bg-red-500/20 text-slate-500 hover:text-red-400"
+                        >
+                            <Trash2 className="h-5 w-5" />
+                        </button>
+                    </div>
+                ))}
+                 {users.length === 0 && (
+                    <p className="text-center text-slate-500 py-4">Keine Benutzer angelegt.</p>
+                )}
+            </div>
+        </MotionDiv>
+    );
 }
 
 const BudgetSettings: FC<{
@@ -300,11 +420,15 @@ const RecurringSettings: FC = () => {
     )
 };
 
+type SettingsTab = 'general' | 'users' | 'budget' | 'categories' | 'tags' | 'recurring';
 
-const SettingsModal: React.FC<{
+interface SettingsModalProps {
     isOpen: boolean;
     onClose: () => void;
-}> = ({ isOpen, onClose }) => {
+    initialTab?: SettingsTab;
+}
+
+const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, initialTab }) => {
     const {
         categories,
         categoryGroups,
@@ -317,9 +441,11 @@ const SettingsModal: React.FC<{
         deleteGroup,
         isAutoSyncEnabled,
         setIsAutoSyncEnabled,
+        isDevModeEnabled,
+        setIsDevModeEnabled,
     } = useApp();
 
-    const [activeSettingsTab, setActiveSettingsTab] = useState<'general' | 'budget' | 'categories' | 'tags' | 'recurring'>('general');
+    const [activeSettingsTab, setActiveSettingsTab] = useState<SettingsTab>('general');
     const [pickingIconFor, setPickingIconFor] = useState<string | null>(null);
 
     useEffect(() => {
@@ -331,34 +457,27 @@ const SettingsModal: React.FC<{
 
         if (isOpen) {
             window.addEventListener('keydown', handleKeyDown);
-            setActiveSettingsTab('general');
+            if (initialTab) {
+                setActiveSettingsTab(initialTab);
+            }
         }
 
         return () => {
             window.removeEventListener('keydown', handleKeyDown);
         };
-    }, [isOpen, onClose]);
+    }, [isOpen, onClose, initialTab]);
 
     const handleCategoryBudgetChange = (id: string, value: string) => {
         const budgetValue = parseFloat(value.replace(',', '.'));
         const newBudgetValue = isNaN(budgetValue) || budgetValue < 0 ? undefined : budgetValue;
         updateCategory(id, { budget: newBudgetValue });
     };
-
-    const handleReorderCategories = (groupName: string, newOrderInGroup: Category[]) => {
-        const otherCategories = categories.filter(c => c.group !== groupName);
-        const finalOrder = [...otherCategories, ...newOrderInGroup];
-        // This is a bit tricky. A full reorder action in the reducer would be better.
-        // For now, let's just update the groups based on the new order.
-        // A direct mutation like this isn't ideal but works for reordering within a group.
-        // Note: This does not update version numbers, which is a limitation.
-        console.warn("Reordering categories is not fully implemented with versioning yet.");
-    };
     
     if (!isOpen) return null;
 
     const settingsTabs = [
         { id: 'general', label: 'Allgemein', icon: SlidersHorizontal },
+        { id: 'users', label: 'Benutzer', icon: Users },
         { id: 'budget', label: 'Budgets', icon: Target },
         { id: 'categories', label: 'Kategorien', icon: LayoutGrid },
         { id: 'tags', label: 'Tags', icon: TagIcon },
@@ -391,6 +510,7 @@ const SettingsModal: React.FC<{
                         {settingsTabs.map(tab => (
                              <button 
                                 key={tab.id}
+                                data-tab-id={tab.id}
                                 onClick={() => setActiveSettingsTab(tab.id as any)} 
                                 className={`flex items-center gap-2 pb-3 px-2 border-b-2 text-sm font-semibold transition-colors flex-shrink-0 mr-4 ${
                                     activeSettingsTab === tab.id
@@ -428,7 +548,25 @@ const SettingsModal: React.FC<{
                                             <ToggleSwitch id="auto-sync-toggle" enabled={isAutoSyncEnabled} setEnabled={setIsAutoSyncEnabled} />
                                         </div>
                                     </div>
+
+                                    {/* Dev Mode Settings */}
+                                    <div>
+                                        <h3 className="text-lg font-semibold mb-3 text-white flex items-center gap-2">
+                                            <FlaskConical className="h-5 w-5 text-purple-400" /> Entwicklermodus
+                                        </h3>
+                                        <div className="flex items-center justify-between pt-4 mt-4 border-t border-slate-700/50">
+                                            <div>
+                                                <label htmlFor="dev-mode-toggle" className="block text-sm font-medium text-slate-300">Testingmodus aktivieren</label>
+                                                <p className="text-xs text-slate-400 mt-1">Fügt temporäre Test-Transaktionen hinzu. Diese werden nicht gespeichert.</p>
+                                            </div>
+                                            <ToggleSwitch id="dev-mode-toggle" enabled={isDevModeEnabled} setEnabled={setIsDevModeEnabled} />
+                                        </div>
+                                    </div>
                                 </MotionDiv>
+                            )}
+                            
+                            {activeSettingsTab === 'users' && (
+                                <UserSettings />
                             )}
                             
                             {activeSettingsTab === 'budget' && (
