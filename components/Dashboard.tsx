@@ -11,6 +11,7 @@ import CategoryButtons from './CategoryButtons';
 import TagInput from './TagInput';
 import AvailableTags from './AvailableTags';
 import SpendingTimeSeries from './SpendingTimeSeries';
+import StandardTransactionItem from './StandardTransactionItem';
 
 const MotionDiv = motion('div');
 
@@ -258,26 +259,16 @@ const Dashboard: FC = () => {
                                                                     exit={{ opacity: 0, height: 0, marginTop: 0 }}
                                                                     className="overflow-hidden"
                                                                 >
-                                                                    <div className="ml-4 pl-4 border-l-2 border-slate-600/50 space-y-2">
+                                                                    <div className="ml-4 pl-4 border-l-2 border-slate-600/50 space-y-1">
                                                                         {monthlyTransactions.filter(t => t.categoryId === category.id)
                                                                             .sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime())
                                                                             .map(t => (
-                                                                                <button
+                                                                                <StandardTransactionItem
                                                                                     key={t.id}
-                                                                                    onClick={() => handleTransactionClick(t, 'view')}
-                                                                                    className="w-full flex items-center gap-3 text-sm p-2 rounded-md hover:bg-slate-700/50 text-left"
-                                                                                >
-                                                                                    <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: category.color }}>
-                                                                                        <Icon className="h-5 w-5 text-white" />
-                                                                                    </div>
-                                                                                    <div className="flex-1 flex justify-between items-center min-w-0">
-                                                                                        <div className="min-w-0">
-                                                                                            <p className="text-slate-300 truncate">{t.description}</p>
-                                                                                            <p className="text-xs text-slate-500">{format(parseISO(t.date), 'dd.MM, HH:mm')} Uhr</p>
-                                                                                        </div>
-                                                                                        <p className="font-semibold text-slate-200 flex-shrink-0 pl-2">{formatCurrency(t.amount)}</p>
-                                                                                    </div>
-                                                                                </button>
+                                                                                    transaction={t}
+                                                                                    onClick={() => handleTransactionClick(t)}
+                                                                                    showSubline="date"
+                                                                                />
                                                                             ))
                                                                         }
                                                                          {monthlyTransactions.filter(t => t.categoryId === category.id).length === 0 && (

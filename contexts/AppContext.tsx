@@ -3,13 +3,18 @@ import { useCategories } from '../hooks/useCategories';
 import { useTransactionData } from '../hooks/useTransactionData';
 import { useUI } from '../hooks/useUI';
 import { useSync, type SyncProps } from '../hooks/useSync';
+import { useUsers } from '../hooks/useUsers';
+import type { User } from '../types';
 
 // Combine the return types of all hooks to define the shape of the context
 type AppContextType = 
     ReturnType<typeof useCategories> &
     ReturnType<typeof useTransactionData> &
     ReturnType<typeof useUI> &
-    ReturnType<typeof useSync>;
+    ReturnType<typeof useUsers> &
+    { currentUser: User | null } &
+    ReturnType<typeof useSync> &
+    { isDevModeEnabled: boolean }; // Explicitly add derived state
 
 const AppContext = createContext<AppContextType | null>(null);
 
@@ -25,12 +30,32 @@ function debounce(func: (...args: any[]) => void, delay: number) {
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     // Instantiate hooks in an order that resolves dependencies.
     const uiState = useUI();
+    const usersState = useUsers();
     const categoriesState = useCategories();
+    
+    // --- Dev Mode Logic ---
+    // Dev mode is considered active as long as the initial setup is not marked as "done".
+    const { isInitialSetupDone, setIsInitialSetupDone } = uiState;
+
+    // The setup is considered "done" and dev mode disabled permanently
+    // once the first user's default name ("Benutzer") is changed.
+    useEffect(() => {
+        if (!isInitialSetupDone) {
+            const firstUser = usersState.users[0];
+            if (firstUser && firstUser.name !== 'Benutzer') {
+                setIsInitialSetupDone(true);
+            }
+        }
+    }, [usersState.users, isInitialSetupDone, setIsInitialSetupDone]);
+    
+    // isDevModeEnabled is now a derived state.
+    const isDevModeEnabled = !isInitialSetupDone;
+
     const transactionDataState = useTransactionData({
         showConfirmation: uiState.showConfirmation,
         closeTransactionDetail: uiState.closeTransactionDetail,
-        currentUserId: uiState.currentUser?.id || null,
-        isDevModeEnabled: uiState.isDevModeEnabled,
+        currentUserId: uiState.currentUserId,
+        isDevModeEnabled: isDevModeEnabled,
     });
     
     // Sync needs data and setters from all other domains.
@@ -39,13 +64,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         rawTransactions: transactionDataState.rawTransactions,
         rawRecurringTransactions: transactionDataState.rawRecurringTransactions,
         rawAllAvailableTags: transactionDataState.rawAllAvailableTags,
+        rawUsers: usersState.rawUsers,
         setCategories: categoriesState.setCategories,
         setCategoryGroups: categoriesState.setCategoryGroups,
         setTransactions: transactionDataState.setTransactions,
         setRecurringTransactions: transactionDataState.setRecurringTransactions,
         setAllAvailableTags: transactionDataState.setAllAvailableTags,
+        setUsers: usersState.setUsers,
     });
     
+    const currentUser = useMemo(() => {
+        if (!uiState.currentUserId) return null;
+        return usersState.users.find(u => u.id === uiState.currentUserId) || null;
+    }, [usersState.users, uiState.currentUserId]);
+
+    // This effect ensures a user is always selected if users exist
+    useEffect(() => {
+        if (usersState.users.length > 0 && (!uiState.currentUserId || !usersState.users.some(u => u.id === uiState.currentUserId))) {
+            uiState.setCurrentUserId(usersState.users[0].id);
+        }
+    }, [usersState.users, uiState.currentUserId, uiState.setCurrentUserId]);
+
     // --- Auto-sync logic with stale closure fix ---
 
     // 1. Ref Latch: This ref will always hold the most current syncState.
@@ -93,6 +132,7 @@ const debouncedSync = useMemo(() => debounce(() => {
         transactionDataState.rawTransactions, 
         transactionDataState.rawRecurringTransactions, 
         transactionDataState.rawAllAvailableTags,
+        usersState.rawUsers,
         debouncedSync // This is stable, but good practice to include
     ]);
 
@@ -101,10 +141,13 @@ const debouncedSync = useMemo(() => debounce(() => {
         ...uiState,
         ...categoriesState,
         ...transactionDataState,
+        ...usersState,
+        currentUser,
         deleteMultipleTransactions: transactionDataState.deleteMultipleTransactions,
         addMultipleTransactions: transactionDataState.addMultipleTransactions,
         selectTotalSpentForMonth: transactionDataState.selectTotalSpentForMonth,
         ...syncState,
+        isDevModeEnabled,
     };
 
     return (

@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { formatDistanceToNow } from 'date-fns';
 import { de } from 'date-fns/locale';
 import useLocalStorage from './useLocalStorage';
-import type { Category, Transaction, RecurringTransaction, Tag } from '../types';
+import type { Category, Transaction, RecurringTransaction, Tag, User } from '../types';
 import { RefreshCw, X } from '../components/Icons';
 
 export interface SyncProps {
@@ -12,11 +12,13 @@ export interface SyncProps {
     rawTransactions: Transaction[];
     rawRecurringTransactions: RecurringTransaction[];
     rawAllAvailableTags: Tag[];
+    rawUsers: User[];
     setCategories: (data: Category[]) => void;
     setCategoryGroups: (data: string[]) => void;
     setTransactions: (data: Transaction[]) => void;
     setRecurringTransactions: (data: RecurringTransaction[]) => void;
     setAllAvailableTags: (data: Tag[]) => void;
+    setUsers: (data: User[]) => void;
 }
 
 interface Mergeable {
@@ -150,6 +152,7 @@ interface ReadApiResponse {
     transactions: Transaction[];
     recurringTransactions: RecurringTransaction[];
     allAvailableTags: Tag[];
+    users: User[];
 }
 
 interface ConflictData {
@@ -157,6 +160,7 @@ interface ConflictData {
     transactions: Transaction[];
     recurring: RecurringTransaction[];
     tags: Tag[];
+    users: User[];
 }
 
 interface WriteErrorResponse {
@@ -181,8 +185,8 @@ export const useSync = (props: SyncProps) => {
     }, []);
 
     const {
-        rawCategories, rawTransactions, rawRecurringTransactions, rawAllAvailableTags,
-        setCategories, setCategoryGroups, setTransactions, setRecurringTransactions, setAllAvailableTags
+        rawCategories, rawTransactions, rawRecurringTransactions, rawAllAvailableTags, rawUsers,
+        setCategories, setCategoryGroups, setTransactions, setRecurringTransactions, setAllAvailableTags, setUsers
     } = props;
     
     const [syncOperation, setSyncOperation] = useState<'sync' | null>(null);
@@ -244,11 +248,14 @@ export const useSync = (props: SyncProps) => {
                     throw new Error('Invalid response format');
                 }
                 
-                const { categories, transactions, recurringTransactions, allAvailableTags } = data;
+                const { categories, transactions, recurringTransactions, allAvailableTags, users } = data;
                 
                 // Prüfe ob kritische Daten vorhanden sind
                 if (!Array.isArray(categories)) {
                     throw new Error('Categories data is missing or invalid');
+                }
+                 if (!Array.isArray(users)) {
+                    throw new Error('Users data is missing or invalid');
                 }
                 
                 if (!Array.isArray(transactions)) {
@@ -269,12 +276,14 @@ export const useSync = (props: SyncProps) => {
                     transactions: transactions.length,
                     recurringTransactions: recurringTransactions.length,
                     allAvailableTags: allAvailableTags.length,
+                    users: users.length,
                 });
                 
                 // WICHTIG: Flag setzen während Datenupdate
                 isDataUpdatingRef.current = true;
                 
                 // Update der lokalen Daten
+                setUsers(users);
                 setCategories(categories);
                 const newGroups = [...new Set(categories.filter((c: Category) => !c.isDeleted).map((c: Category) => c.group))];
                 setCategoryGroups(newGroups);
@@ -322,7 +331,7 @@ export const useSync = (props: SyncProps) => {
         } else {
             toast.error(`Fehler beim Laden der Daten: ${errorMessage}`);
         }
-    }, [isLoading, setCategories, setCategoryGroups, setTransactions, setRecurringTransactions, setAllAvailableTags]);
+    }, [isLoading, setCategories, setCategoryGroups, setTransactions, setRecurringTransactions, setAllAvailableTags, setUsers]);
 
     // Optimierte Auto-Load Logik mit strengeren Guards
     useEffect(() => {
@@ -419,6 +428,7 @@ export const useSync = (props: SyncProps) => {
                         transactions: rawTransactions,
                         recurringTransactions: rawRecurringTransactions,
                         allAvailableTags: rawAllAvailableTags,
+                        users: rawUsers,
                     }),
                 });
 
@@ -442,6 +452,7 @@ export const useSync = (props: SyncProps) => {
                         }
                         sessionStorage.setItem('lastConflictKey', conflictKey);
                         
+                        const mergedUsers = mergeItems(rawUsers, [], errorJson.conflicts.users);
                         const mergedCategories = mergeItems(rawCategories, [], errorJson.conflicts.categories);
                         const mergedTransactions = mergeItems(rawTransactions, [], errorJson.conflicts.transactions);
                         const mergedRecurring = mergeItems(rawRecurringTransactions, [], errorJson.conflicts.recurring);
@@ -451,6 +462,7 @@ export const useSync = (props: SyncProps) => {
                         isDataUpdatingRef.current = true;
                         
                         // Update local state with merged data
+                        setUsers(mergedUsers);
                         setCategories(mergedCategories);
                         const newGroups = [...new Set(mergedCategories.filter(c => !c.isDeleted).map(c => c.group))];
                         setCategoryGroups(newGroups);
@@ -468,6 +480,7 @@ export const useSync = (props: SyncProps) => {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({
+                                    users: mergedUsers,
                                     categories: mergedCategories,
                                     transactions: mergedTransactions,
                                     recurringTransactions: mergedRecurring,
@@ -501,6 +514,7 @@ export const useSync = (props: SyncProps) => {
                             const remoteData = await readResponse.json() as ReadApiResponse;
                             
                             // Update state to final server data
+                            setUsers(remoteData.users || []);
                             setCategories(remoteData.categories || []);
                             const finalGroups = [...new Set((remoteData.categories || []).filter((c: Category) => !c.isDeleted).map((c: Category) => c.group))];
                             setCategoryGroups(finalGroups);
@@ -540,7 +554,8 @@ export const useSync = (props: SyncProps) => {
 
                 // KRITISCH: Flag setzen während Datenupdate
                 isDataUpdatingRef.current = true;
-
+                
+                setUsers(remoteData.users || []);
                 setCategories(remoteData.categories || []);
                 const newGroups = [...new Set((remoteData.categories || []).filter((c: Category) => !c.isDeleted).map((c: Category) => c.group))];
                 setCategoryGroups(newGroups);
@@ -584,8 +599,8 @@ export const useSync = (props: SyncProps) => {
         });
 
     }, [
-        rawCategories, rawTransactions, rawRecurringTransactions, rawAllAvailableTags,
-        setCategories, setCategoryGroups, setTransactions, setRecurringTransactions, setAllAvailableTags, 
+        rawCategories, rawTransactions, rawRecurringTransactions, rawAllAvailableTags, rawUsers,
+        setCategories, setCategoryGroups, setTransactions, setRecurringTransactions, setAllAvailableTags, setUsers,
         setLastSync, isSyncing, isLoading
     ]);
 

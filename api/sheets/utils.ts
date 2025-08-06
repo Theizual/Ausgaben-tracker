@@ -129,11 +129,21 @@ export const getLenientSchemas = (now: string = new Date().toISOString()) => {
     version: SanitizeVersion,
   });
 
+  const UserSchema = z.object({
+    id: z.string().min(1),
+    name: z.string().default(''),
+    color: z.string().default('#808080'),
+    lastModified: DateString,
+    isDeleted: z.preprocess((val) => String(val).toUpperCase() === 'TRUE', z.boolean()).optional().default(false),
+    version: SanitizeVersion,
+  });
+
   return {
     CategorySchema,
     TransactionSchema,
     RecurringTransactionSchema,
     TagSchema,
+    UserSchema,
   };
 };
 

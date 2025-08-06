@@ -8,10 +8,11 @@ import {
     isSameMonth, isSameDay, formatGermanDate
 } from '../utils/dateUtils';
 import { de, addMonths, subMonths } from '../utils/dateUtils';
-import { ChevronLeft, ChevronRight, X, iconMap, ChevronDown, Edit, Trash2 } from './Icons';
+import { ChevronLeft, ChevronRight, X, iconMap, ChevronDown } from './Icons';
 import { formatCurrency } from '../utils/dateUtils';
 import SpendingTimeSeries from './SpendingTimeSeries';
 import DayDetailPanel from './DayDetailPanel';
+import StandardTransactionItem from './StandardTransactionItem';
 
 const MotionDiv = motion('div');
 
@@ -21,7 +22,8 @@ const Statistics: FC = () => {
         statisticsCurrentMonth,
         setStatisticsCurrentMonth,
         statisticsSelectedDay,
-        setStatisticsSelectedDay
+        setStatisticsSelectedDay,
+        handleTransactionClick
     } = useApp();
 
     const monthlyTransactions = useMemo(() => {
@@ -334,30 +336,17 @@ const MonthlyCategoryBreakdown: FC<{ transactions: Transaction[], currentMonth: 
                                     exit={{ opacity: 0, height: 0, marginTop: 0 }}
                                     className="overflow-hidden"
                                 >
-                                    <div className="ml-4 pl-4 border-l-2 border-slate-600/50 space-y-2">
+                                    <div className="ml-4 pl-4 border-l-2 border-slate-600/50 space-y-1">
                                         {transactions.filter(t => t.categoryId === category.id)
                                             .sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime())
-                                            .map(t => {
-                                                const Icon = iconMap[category.icon] || iconMap.MoreHorizontal;
-                                                return (
-                                                    <button
-                                                        key={t.id}
-                                                        onClick={() => handleTransactionClick(t, 'view')}
-                                                        className="w-full flex items-center gap-3 text-sm p-2 rounded-md hover:bg-slate-700/50 text-left"
-                                                    >
-                                                        <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: category.color }}>
-                                                            <Icon className="h-5 w-5 text-white" />
-                                                        </div>
-                                                        <div className="flex-1 flex justify-between items-center min-w-0">
-                                                            <div className="min-w-0">
-                                                                <p className="text-slate-300 truncate">{t.description}</p>
-                                                                <p className="text-xs text-slate-500">{format(parseISO(t.date), 'dd.MM, HH:mm')} Uhr</p>
-                                                            </div>
-                                                            <p className="font-semibold text-slate-200 flex-shrink-0 pl-2">{formatCurrency(t.amount)}</p>
-                                                        </div>
-                                                    </button>
-                                                );
-                                            })
+                                            .map(t => (
+                                                <StandardTransactionItem
+                                                    key={t.id}
+                                                    transaction={t}
+                                                    onClick={() => handleTransactionClick(t)}
+                                                    showSubline="date"
+                                                />
+                                            ))
                                         }
                                     </div>
                                 </MotionDiv>

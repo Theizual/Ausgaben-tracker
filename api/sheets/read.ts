@@ -43,7 +43,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     
     const response = await withRetry(() => sheets.spreadsheets.values.batchGet({
       spreadsheetId: sheetId,
-      ranges: ['Categories!A2:I', 'Transactions!A2:K', 'Recurring!A2:J', 'Tags!A2:E'],
+      ranges: ['Categories!A2:I', 'Transactions!A2:K', 'Recurring!A2:J', 'Tags!A2:E', 'Users!A2:F'],
     }));
 
     const valueRanges = (response as any).data.valueRanges || [];
@@ -52,6 +52,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const transactionRows = valueRanges.find((r: any) => r.range?.includes('Transactions'))?.values || [];
     const recurringRows = valueRanges.find((r: any) => r.range?.includes('Recurring'))?.values || [];
     const tagRows = valueRanges.find((r: any) => r.range?.includes('Tags'))?.values || [];
+    const userRows = valueRanges.find((r: any) => r.range?.includes('Users'))?.values || [];
 
     const schemas = getLenientSchemas(now);
     
@@ -83,11 +84,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       entityName: 'Tag',
     });
 
+    const users = parseSheetData({
+      rows: userRows,
+      schema: z.array(schemas.UserSchema),
+      headers: ['id', 'name', 'color', 'lastModified', 'isDeleted', 'version'],
+      entityName: 'User',
+    });
+
     return res.status(200).json({
       categories,
       transactions,
       recurringTransactions,
       allAvailableTags,
+      users,
     });
 
   } catch (error: unknown) {

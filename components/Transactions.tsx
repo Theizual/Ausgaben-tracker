@@ -1,12 +1,13 @@
+
+
 import React, { useState, useMemo, FC, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useApp } from '../contexts/AppContext';
 import type { Transaction, Category, Tag, QuickFilterId, User } from '../types';
-import { format, parseISO, formatCurrency, endOfDay, startOfDay, getWeekInterval, getMonthInterval, isToday, isYesterday } from '../utils/dateUtils';
+import { format, parseISO, formatCurrency, endOfDay, startOfDay, getWeekInterval, getMonthInterval, isToday, isYesterday, startOfWeek, endOfWeek, getWeek, subDays } from '../utils/dateUtils';
 import { de } from 'date-fns/locale';
 import { iconMap, Search, SlidersHorizontal, ChevronDown, Tag as TagIcon, Edit, Trash2, X, Square, CheckSquare, Calendar } from './Icons';
 import ViewSwitch from './ViewSwitch';
-import DensitySwitch from './DensitySwitch';
 
 const MotionDiv = motion('div');
 const MotionButton = motion('button');
@@ -18,8 +19,7 @@ type GroupedTransactions = {
 }[];
 
 const quickFilterButtons: { id: QuickFilterId; label: string }[] = [
-    { id: 'today', label: 'Heute' },
-    { id: 'week', label: 'Woche' },
+    { id: 'current', label: 'Aktuell' },
     { id: 'month', label: 'Monat' },
     { id: 'all', label: 'Gesamt' },
 ];
@@ -55,7 +55,7 @@ const TransactionList: FC<{
     onToggleSelectGroup: (ids: string[]) => void;
     viewMode?: 'list' | 'grid';
     density?: 'normal' | 'compact';
-}> = ({ groupedTransactions, showEmptyMessage = false, selectedIds, onToggleSelect, onToggleSelectGroup, viewMode = 'list', density = 'normal' }) => {
+}> = ({ groupedTransactions, showEmptyMessage = false, selectedIds, onToggleSelect, onToggleSelectGroup, viewMode = 'list', density = 'compact' }) => {
     const { categoryMap, tagMap, handleTagAnalyticsClick, handleTransactionClick, deleteTransaction, users } = useApp();
 
     if (showEmptyMessage && groupedTransactions.length === 0) {
@@ -78,23 +78,22 @@ const TransactionList: FC<{
 
                     return (
                         <MotionDiv 
-                            key={group.date} 
-                            layout
+                            key={group.date}
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: 20 }}
                             transition={{ duration: 0.3 }}
                             className={isList ? "bg-slate-800/20 rounded-xl" : ""}
                         >
-                            <header className={`flex items-center justify-between p-3 border-b border-slate-700/50 ${isList ? 'sticky top-[70px] md:top-[105px] bg-slate-800/80 backdrop-blur-sm z-10' : ''}`}>
-                                <div className="flex items-center gap-3">
-                                     <button onClick={() => onToggleSelectGroup(groupTransactionIds)} className="p-1 text-slate-400 hover:text-white">
-                                        {areAllInGroupSelected ? <CheckSquare className="h-5 w-5 text-rose-400" /> : <Square className="h-5 w-5" />}
-                                    </button>
-                                    <div>
-                                        <h3 className="font-bold text-white text-md">{group.date}</h3>
-                                        <p className="text-xs text-slate-400">Gesamt: {formatCurrency(group.total)}</p>
+                            <header className={`p-3 border-b border-slate-700/50 ${isList ? 'sticky top-[70px] md:top-[105px] bg-slate-800/80 backdrop-blur-sm z-10' : ''}`}>
+                                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                                    <div className="flex items-center gap-3">
+                                        <button onClick={() => onToggleSelectGroup(groupTransactionIds)} className="p-1 text-slate-400 hover:text-white flex-shrink-0">
+                                            {areAllInGroupSelected ? <CheckSquare className="h-5 w-5 text-rose-400" /> : <Square className="h-5 w-5" />}
+                                        </button>
+                                        <h3 className="font-bold text-white text-md truncate">{group.date}</h3>
                                     </div>
+                                    <p className="text-xs text-slate-400 sm:text-right pl-10 sm:pl-0">Gesamt: {formatCurrency(group.total)}</p>
                                 </div>
                             </header>
                             <div className={isList ? "p-2 space-y-1" : "grid grid-cols-1 sm:grid-cols-2 gap-3 p-2"}>
@@ -129,13 +128,13 @@ const TransactionItem: FC<{
     tagMap: Map<string, string>;
     users: User[];
     onTagClick: (tagId: string) => void;
-    onTransactionClick: (transaction: Transaction, mode: 'view' | 'edit') => void;
+    onTransactionClick: (transaction: Transaction) => void;
     deleteTransaction: (id: string) => void;
     isSelected: boolean;
     onToggleSelect: () => void;
     viewMode?: 'list' | 'grid';
     density?: 'normal' | 'compact';
-}> = ({ transaction, category, tagMap, users, onTagClick, onTransactionClick, deleteTransaction, isSelected, onToggleSelect, viewMode = 'list', density = 'normal' }) => {
+}> = ({ transaction, category, tagMap, users, onTagClick, onTransactionClick, deleteTransaction, isSelected, onToggleSelect, viewMode = 'list', density = 'compact' }) => {
     const Icon = category ? iconMap[category.icon] || iconMap.MoreHorizontal : iconMap.MoreHorizontal;
     const color = category ? category.color : '#64748b';
     const isCard = viewMode === 'grid';
@@ -143,47 +142,49 @@ const TransactionItem: FC<{
     const createdBy = useMemo(() => transaction.createdBy ? users.find(u => u.id === transaction.createdBy) : null, [transaction.createdBy, users]);
     const isDev = transaction.isDev;
 
-    const cardLayout = (
-        <div className={`relative group flex flex-col transition-all duration-200 h-full rounded-xl ${isSelected ? 'bg-rose-900/40 ring-2 ring-rose-500' : 'bg-slate-800 hover:bg-slate-700/50'} ${isCompact ? 'p-2 gap-1' : 'p-3 gap-2'}`}>
-            <div className={`flex justify-between items-start ${isCompact ? 'gap-2' : 'gap-3'}`}>
-                 <div 
-                    className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer"
-                    onClick={() => onTransactionClick(transaction, 'view')}
-                >
-                    <div className={`rounded-full flex items-center justify-center flex-shrink-0 ${isCompact ? 'w-8 h-8' : 'w-9 h-9'}`} style={{ backgroundColor: color }}>
-                        <Icon className={`text-white ${isCompact ? 'h-4 w-4' : 'h-5 w-5'}`} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                        <p className="font-medium text-white truncate text-sm">{category?.name}</p>
-                        <p className="text-xs text-slate-400">{format(parseISO(transaction.date), 'dd.MM.yy HH:mm')}</p>
-                    </div>
-                 </div>
-                 <button onClick={onToggleSelect} className="p-2 text-slate-400 hover:text-white z-10 rounded-full">
-                    {isSelected ? <CheckSquare className="h-5 w-5 text-rose-400" /> : <Square className="h-5 w-5" />}
-                </button>
-            </div>
+    const userAvatar = createdBy ? (
+        <div 
+            className="w-5 h-5 rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0"
+            style={{ backgroundColor: createdBy.color }}
+            title={`Erstellt von: ${createdBy.name}`}
+        >
+            {createdBy.name.charAt(0).toUpperCase()}
+        </div>
+    ) : null;
 
-            <div className="pl-1 space-y-1 flex-grow cursor-pointer" onClick={() => onTransactionClick(transaction, 'view')}>
-                <p className={`font-bold text-white ${isCompact ? 'text-lg' : 'text-xl'}`}>{formatCurrency(transaction.amount)}</p>
-                <div className="flex items-start gap-2">
+    const cardLayout = (
+        <div className={`relative group flex gap-3 transition-all duration-200 h-full rounded-xl ${isSelected ? 'bg-rose-900/40 ring-2 ring-rose-500' : 'bg-slate-800 hover:bg-slate-700/50'} ${isCompact ? 'p-3' : 'p-4'}`}>
+            {/* Column 1: Icon, Dev, User */}
+            <div className={`flex flex-col items-center justify-between flex-shrink-0 ${isCompact ? 'w-9 py-0.5' : 'w-10 py-1'}`}>
+                <div 
+                    className={`rounded-full flex items-center justify-center flex-shrink-0 ${isCompact ? 'w-9 h-9' : 'w-10 h-10'}`}
+                    style={{ backgroundColor: color }}
+                    title={category?.name}
+                >
+                    <Icon className={`text-white ${isCompact ? 'h-4 w-4' : 'h-5 w-5'}`} />
+                </div>
+                
+                <div className="flex flex-col items-center gap-1.5">
                     {isDev && (
-                        <span className="bg-purple-600 text-white text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0">
+                        <span className="bg-purple-600 text-white text-xs font-bold px-1.5 py-0.5 rounded-full flex-shrink-0">
                             DEV
                         </span>
                     )}
-                    {createdBy && (
-                        <span className="text-white text-xs font-bold px-2 py-0.5 rounded-full" style={{ backgroundColor: createdBy.color }}>
-                            {createdBy.name}
-                        </span>
-                    )}
-                    <p className={`text-slate-300 flex-1 ${isCompact ? 'text-xs' : 'text-sm'}`}>{transaction.description}</p>
+                    {userAvatar}
                 </div>
             </div>
-
-            <div className="flex items-end justify-between mt-1">
-                 {transaction.tagIds && transaction.tagIds.length > 0 && (
-                    <div className="flex flex-wrap gap-1 flex-shrink-0 pt-1">
-                        {transaction.tagIds.slice(0, 2).map(id => {
+    
+            {/* Column 2: Details */}
+            <div 
+                className="flex flex-col flex-grow min-w-0 cursor-pointer"
+                onClick={() => onTransactionClick(transaction)}
+            >
+                <p className={`font-semibold text-white truncate ${isCompact ? 'text-base' : 'text-lg'}`}>{transaction.description}</p>
+                <p className={`text-slate-400 truncate ${isCompact ? 'text-xs' : 'text-sm'}`}>{category?.name}</p>
+                
+                {transaction.tagIds && transaction.tagIds.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-auto pt-2">
+                        {transaction.tagIds.slice(0, 3).map(id => {
                             const tagName = tagMap.get(id);
                             if (!tagName) return null;
                             return (
@@ -197,10 +198,21 @@ const TransactionItem: FC<{
                             );
                         })}
                     </div>
-                 )}
-                <div className="flex items-center gap-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10 self-end ml-auto">
-                    <button onClick={() => onTransactionClick(transaction, 'edit')} className="p-1.5 rounded-full text-slate-400 hover:bg-slate-600 hover:text-white" title="Bearbeiten"><Edit className="h-4 w-4" /></button>
-                    <button onClick={() => { if (window.confirm(`Löschen: "${transaction.description}"?`)) { deleteTransaction(transaction.id); }}} className="p-1.5 rounded-full text-slate-400 hover:bg-slate-600 hover:text-red-400" title="Löschen"><Trash2 className="h-4 w-4" /></button>
+                )}
+            </div>
+    
+            {/* Column 3: Amount & Controls */}
+            <div className="flex flex-col items-end justify-between flex-shrink-0">
+                <p className={`font-bold text-white text-right ${isCompact ? 'text-lg' : 'text-xl'}`}>{formatCurrency(transaction.amount)}</p>
+                
+                <div className="flex items-center gap-0">
+                    <div className="flex items-center gap-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                        <button onClick={() => onTransactionClick(transaction)} className="p-1.5 rounded-full text-slate-400 hover:bg-slate-600 hover:text-white" title="Bearbeiten"><Edit className="h-4 w-4" /></button>
+                        <button onClick={() => { if (window.confirm(`Löschen: "${transaction.description}"?`)) { deleteTransaction(transaction.id); }}} className="p-1.5 rounded-full text-slate-400 hover:bg-slate-600 hover:text-red-400" title="Löschen"><Trash2 className="h-4 w-4" /></button>
+                    </div>
+                    <button onClick={onToggleSelect} className="p-1.5 rounded-full text-slate-400 hover:text-white" title="Auswählen">
+                       {isSelected ? <CheckSquare className="h-5 w-5 text-rose-400" /> : <Square className="h-5 w-5" />}
+                   </button>
                 </div>
             </div>
         </div>
@@ -213,7 +225,7 @@ const TransactionItem: FC<{
             </button>
             <div 
                 className={`w-full flex items-center flex-1 min-w-0 text-left pr-2 cursor-pointer ${isCompact ? 'gap-2 py-1' : 'gap-3 py-2'}`}
-                onClick={() => onTransactionClick(transaction, 'view')}
+                onClick={() => onTransactionClick(transaction)}
             >
                 <div className={`rounded-full flex items-center justify-center flex-shrink-0 ${isCompact ? 'w-8 h-8' : 'w-10 h-10'}`} style={{ backgroundColor: color }}>
                     <Icon className={`text-white ${isCompact ? 'h-4 w-4' : 'h-5 w-5'}`} />
@@ -225,37 +237,33 @@ const TransactionItem: FC<{
                                 DEV
                             </span>
                         )}
-                        {createdBy && (
-                            <span className="text-white text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0" style={{ backgroundColor: createdBy.color }}>
-                                {createdBy.name}
-                            </span>
-                        )}
-                        <p className={`font-medium text-white truncate ${isCompact ? 'text-sm' : ''}`}>{transaction.description}</p>
+                        <p className={`font-semibold text-white truncate ${isCompact ? 'text-sm' : ''}`}>{transaction.description}</p>
                     </div>
                     <p className="text-xs text-slate-400 truncate">{category?.name}</p>
                 </div>
-                 {transaction.tagIds && transaction.tagIds.length > 0 && (
-                    <div className="hidden md:flex flex-wrap gap-1.5 flex-shrink-0">
-                        {transaction.tagIds.map(id => {
-                            const tagName = tagMap.get(id);
-                            if (!tagName) return null;
-                            return (
-                                <button
-                                    key={id}
-                                    onClick={(e) => { e.stopPropagation(); onTagClick(id); }}
-                                    className="text-xs font-medium bg-slate-700 hover:bg-slate-600 text-slate-300 hover:text-white px-2 py-0.5 rounded-full transition-colors"
-                                >
-                                    #{tagName}
-                                </button>
-                            );
-                        })}
-                    </div>
-                 )}
+                <div className="hidden md:flex items-center gap-1.5 flex-shrink-0 ml-auto pl-2">
+                    {transaction.tagIds?.map(id => {
+                        const tagName = tagMap.get(id);
+                        if (!tagName) return null;
+                        return (
+                            <button
+                                key={id}
+                                onClick={(e) => { e.stopPropagation(); onTagClick(id); }}
+                                className="text-xs font-medium bg-slate-700 hover:bg-slate-600 text-slate-300 hover:text-white px-2 py-0.5 rounded-full transition-colors"
+                            >
+                                #{tagName}
+                            </button>
+                        );
+                    })}
+                </div>
+                <div className="ml-2 flex-shrink-0">
+                    {userAvatar}
+                </div>
                 <p className={`font-bold text-white text-right w-24 flex-shrink-0 ml-2 ${isCompact ? 'text-base' : 'text-md'}`}>{formatCurrency(transaction.amount)}</p>
             </div>
             <div className="flex items-center gap-0 pr-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                 <button
-                    onClick={() => onTransactionClick(transaction, 'edit')}
+                    onClick={() => onTransactionClick(transaction)}
                     className="p-2 rounded-full text-slate-400 hover:bg-slate-600 hover:text-white"
                     title="Bearbeiten"
                 >
@@ -500,8 +508,6 @@ const TransactionsPage: FC = () => {
         setTransactionActiveQuickFilter,
         transactionViewMode,
         setTransactionViewMode,
-        transactionViewDensity,
-        setTransactionViewDensity,
     } = useApp();
     const [isFilterModalOpen, setFilterModalOpen] = useState(false);
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -514,14 +520,9 @@ const TransactionsPage: FC = () => {
         const now = new Date();
 
         switch (filter) {
-            case 'today':
-                startDate = format(startOfDay(now), 'yyyy-MM-dd');
-                endDate = format(endOfDay(now), 'yyyy-MM-dd');
-                break;
-            case 'week':
-                const weekInterval = getWeekInterval(now);
-                startDate = format(weekInterval.start, 'yyyy-MM-dd');
-                endDate = format(weekInterval.end, 'yyyy-MM-dd');
+            case 'current':
+                startDate = format(subDays(now, 2), 'yyyy-MM-dd');
+                endDate = format(now, 'yyyy-MM-dd');
                 break;
             case 'month':
                 const monthInterval = getMonthInterval(now);
@@ -554,10 +555,8 @@ const TransactionsPage: FC = () => {
         let correspondingQuickFilter: QuickFilterId | null = null;
         
         if (!hasAdvancedFilters) {
-            if (startDate === format(startOfDay(now), 'yyyy-MM-dd') && endDate === format(endOfDay(now), 'yyyy-MM-dd')) {
-                correspondingQuickFilter = 'today';
-            } else if (startDate === format(getWeekInterval(now).start, 'yyyy-MM-dd') && endDate === format(getWeekInterval(now).end, 'yyyy-MM-dd')) {
-                correspondingQuickFilter = 'week';
+            if (startDate === format(subDays(now, 2), 'yyyy-MM-dd') && endDate === format(now, 'yyyy-MM-dd')) {
+                correspondingQuickFilter = 'current';
             } else if (startDate === format(getMonthInterval(now).start, 'yyyy-MM-dd') && endDate === format(getMonthInterval(now).end, 'yyyy-MM-dd')) {
                 correspondingQuickFilter = 'month';
             } else if (!startDate && !endDate) {
@@ -624,30 +623,54 @@ const TransactionsPage: FC = () => {
     }, [transactions, transactionFilters, tagMap]);
 
     const groupedTransactions = useMemo(() => {
+        const isWeeklyGrouping = transactionActiveQuickFilter === 'month' || transactionActiveQuickFilter === 'all';
         const groups: { [key: string]: { total: number, transactions: Transaction[] } } = {};
         
         filteredTransactions.forEach(t => {
-            const date = format(parseISO(t.date), 'yyyy-MM-dd');
-            if (!groups[date]) {
-                groups[date] = { total: 0, transactions: [] };
+            let dateKey: string;
+            try {
+                const tDate = parseISO(t.date);
+                if (isWeeklyGrouping) {
+                    dateKey = format(startOfWeek(tDate, { weekStartsOn: 1 }), 'yyyy-MM-dd');
+                } else { // Daily grouping for 'current' filter
+                    dateKey = format(tDate, 'yyyy-MM-dd');
+                }
+            } catch(e) { return; } // ignore invalid dates
+
+            if (!groups[dateKey]) {
+                groups[dateKey] = { total: 0, transactions: [] };
             }
-            groups[date].total += t.amount;
-            groups[date].transactions.push(t);
+            groups[dateKey].total += t.amount;
+            groups[dateKey].transactions.push(t);
         });
 
-        return Object.entries(groups).map(([date, groupData]) => {
-            const parsedDate = parseISO(date);
-            let formattedDate = format(parsedDate, 'EEEE, dd. MMMM', { locale: de });
-            if(isToday(parsedDate)) formattedDate = `Heute, ${format(parsedDate, 'dd. MMMM', { locale: de })}`;
-            if(isYesterday(parsedDate)) formattedDate = `Gestern, ${format(parsedDate, 'dd. MMMM', { locale: de })}`;
+        return Object.entries(groups).map(([dateKey, groupData]) => {
+            const parsedDate = parseISO(dateKey);
+            let formattedDate: string;
+            
+            if (isWeeklyGrouping) {
+                const weekStart = parsedDate;
+                const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 });
+                const startFormat = format(weekStart, 'd. MMM');
+                const endFormat = format(weekEnd, 'd. MMM yyyy');
+                const weekNumber = getWeek(weekStart, { weekStartsOn: 1, locale: de });
+                formattedDate = `KW ${weekNumber}: ${startFormat} - ${endFormat}`;
+            } else { // Daily grouping for 'current' filter
+                 if(isToday(parsedDate)) formattedDate = `Heute, ${format(parsedDate, 'dd. MMMM', { locale: de })}`;
+                else if(isYesterday(parsedDate)) formattedDate = `Gestern, ${format(parsedDate, 'dd. MMMM', { locale: de })}`;
+                else formattedDate = format(parsedDate, 'EEEE, dd. MMMM', { locale: de });
+            }
+
+            // Sort transactions within each group by date descending
+            groupData.transactions.sort((a,b) => parseISO(b.date).getTime() - parseISO(a.date).getTime());
 
             return {
                 date: formattedDate,
                 total: groupData.total,
                 transactions: groupData.transactions,
             }
-        });
-    }, [filteredTransactions]);
+        }).sort((a, b) => parseISO(b.transactions[0].date).getTime() - parseISO(a.transactions[0].date).getTime()); // Sort groups by date descending
+    }, [filteredTransactions, transactionActiveQuickFilter]);
 
     const handleToggleSelect = (id: string) => {
         setSelectedIds(prev =>
@@ -682,18 +705,7 @@ const TransactionsPage: FC = () => {
                 <div className="flex justify-between items-center flex-wrap gap-2">
                     <QuickFilters activeQuickFilter={transactionActiveQuickFilter} onQuickFilter={handleQuickFilter} />
                     <div className="flex items-center gap-2">
-                        {transactionActiveQuickFilter !== 'today' && (
-                             <MotionButton
-                                onClick={() => handleQuickFilter('today')}
-                                className="relative p-2 rounded-full transition-colors text-slate-400 hover:bg-slate-700 hover:text-white"
-                                title="Heute anzeigen"
-                                initial={{opacity: 0}} animate={{opacity: 1}} exit={{opacity: 0}}
-                            >
-                                <Calendar className="h-5 w-5" />
-                            </MotionButton>
-                        )}
                          <ViewSwitch viewMode={transactionViewMode} onChange={setTransactionViewMode} />
-                         <DensitySwitch density={transactionViewDensity} onChange={setTransactionViewDensity} />
                         <MotionButton
                             layout
                             onClick={() => setFilterModalOpen(true)}
@@ -719,7 +731,6 @@ const TransactionsPage: FC = () => {
                     onToggleSelect={handleToggleSelect}
                     onToggleSelectGroup={handleToggleSelectGroup}
                     viewMode={transactionViewMode}
-                    density={transactionViewDensity}
                 />
             </MotionDiv>
             

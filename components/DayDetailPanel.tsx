@@ -4,7 +4,8 @@ import { useApp } from '../contexts/AppContext';
 import type { Transaction } from '../types';
 import { format, parseISO } from '../utils/dateUtils';
 import { formatCurrency, formatGermanDate } from '../utils/dateUtils';
-import { iconMap, X, Edit, Trash2 } from './Icons';
+import { X } from './Icons';
+import StandardTransactionItem from './StandardTransactionItem';
 
 const MotionDiv = motion('div');
 
@@ -16,7 +17,7 @@ interface DayDetailPanelProps {
 }
 
 const DayDetailPanel: FC<DayDetailPanelProps> = ({ isOpen, date, transactions, onClose }) => {
-    const { categoryMap, handleTransactionClick, deleteTransaction } = useApp();
+    const { handleTransactionClick, deleteTransaction } = useApp();
     const panelRef = useRef<HTMLDivElement>(null);
 
     const dailyTotal = useMemo(() => transactions.reduce((sum, t) => sum + t.amount, 0), [transactions]);
@@ -76,31 +77,21 @@ const DayDetailPanel: FC<DayDetailPanelProps> = ({ isOpen, date, transactions, o
             {/* Transaction List */}
             <main className="flex-grow p-4 overflow-y-auto custom-scrollbar">
                 {transactions.length > 0 ? (
-                    <ul className="space-y-2">
-                        {transactions.map(t => {
-                            const category = categoryMap.get(t.categoryId);
-                            if (!category) return null;
-                            const Icon = iconMap[category.icon] || iconMap.MoreHorizontal;
-                            return (
-                                <li key={t.id} className="group bg-slate-800/50 rounded-lg p-3 flex items-center gap-3">
-                                    <button onClick={() => handleTransactionClick(t, 'view')} className="flex items-center gap-4 flex-grow min-w-0 text-left">
-                                        <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: category.color }}>
-                                            <Icon className="h-5 w-5 text-white" />
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <p className="font-medium text-white truncate">{t.description}</p>
-                                            <p className="text-xs text-slate-400">{category.name} &middot; {format(parseISO(t.date), 'HH:mm')} Uhr</p>
-                                        </div>
-                                        <p className="font-semibold text-white text-lg flex-shrink-0 pl-2">{formatCurrency(t.amount)}</p>
-                                    </button>
-                                    <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                         <button onClick={() => handleTransactionClick(t, 'edit')} className="p-2 rounded-full text-slate-400 hover:bg-slate-700 hover:text-white" aria-label="Bearbeiten"><Edit className="h-4 w-4" /></button>
-                                         <button onClick={() => { if(window.confirm(`Löschen: "${t.description}"?`)) deleteTransaction(t.id) }} className="p-2 rounded-full text-slate-400 hover:bg-slate-700 hover:text-red-400" aria-label="Löschen"><Trash2 className="h-4 w-4" /></button>
-                                    </div>
-                                </li>
-                            );
-                        })}
-                    </ul>
+                    <div className="space-y-1">
+                        {transactions.map(t => (
+                            <StandardTransactionItem
+                                key={t.id}
+                                transaction={t}
+                                onClick={() => handleTransactionClick(t)}
+                                onDelete={() => {
+                                    if(window.confirm(`Löschen: "${t.description}"?`)) {
+                                        deleteTransaction(t.id)
+                                    }
+                                }}
+                                showSubline="category"
+                            />
+                        ))}
+                    </div>
                 ) : (
                     <div className="flex flex-col items-center justify-center h-full text-center text-slate-500 py-10">
                         <p>Keine Ausgaben an diesem Tag erfasst.</p>

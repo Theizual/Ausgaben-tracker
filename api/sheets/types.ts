@@ -1,9 +1,15 @@
 
 
+
+
 export interface User {
   id: string;
   name: string;
   color: string;
+  lastModified: string; // ISO string
+  isDeleted?: boolean;
+  version: number;
+  conflicted?: boolean;
 }
 
 export interface Tag {
@@ -61,5 +67,6 @@ export interface RecurringTransaction {
 
 export type ViewMode = 'woche' | 'monat';
 export type PeriodType = 'last3Months' | 'month' | 'year' | 'custom';
-export type QuickFilterId = 'today' | 'week' | 'month' | 'all';
+export type QuickFilterId = 'current' | 'month' | 'all';
 export type CategoryId = string;
+export type SettingsTab = 'general' | 'users' | 'budget' | 'recurring';

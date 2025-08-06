@@ -1,16 +1,12 @@
 
 
-
-
-
-
 import React, { useState, useMemo, useCallback, useEffect, FC } from 'react';
 import { AnimatePresence, motion, Reorder } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { useApp } from '../contexts/AppContext';
-import type { Category, RecurringTransaction, Tag, User } from '../types';
+import type { Category, RecurringTransaction, Tag, User, SettingsTab } from '../types';
 import { format, parseISO, formatCurrency } from '../utils/dateUtils';
-import { iconMap, Settings, Loader2, X, TrendingDown, LayoutGrid, BarChart2, Sheet, Save, DownloadCloud, Target, Edit, Trash2, Plus, GripVertical, Wallet, SlidersHorizontal, Repeat, History, Tag as TagIcon, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, FlaskConical, Users } from './Icons';
+import { iconMap, Settings, Loader2, X, TrendingDown, LayoutGrid, BarChart2, Sheet, Save, DownloadCloud, Target, Edit, Trash2, Plus, GripVertical, Wallet, SlidersHorizontal, Repeat, History, Tag as TagIcon, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, FlaskConical, Users, CheckCircle2, ChevronRight as ChevronRightIcon } from './Icons';
 import type { LucideProps } from 'lucide-react';
 
 const MotionDiv = motion('div');
@@ -47,7 +43,7 @@ const IconPicker: FC<{
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-[60] p-4"
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-[70]"
             onClick={onClose}
         >
             <MotionDiv
@@ -149,7 +145,6 @@ const TagSettings: FC = () => {
             exit={{ opacity: 0, x: 10 }}
             transition={{ duration: 0.2 }}
         >
-            <h3 className="text-lg font-semibold text-white mb-4">Tags verwalten</h3>
             <p className="text-sm text-slate-400 mb-6">
                 Bearbeiten oder löschen Sie bestehende Tags. Änderungen werden sofort auf alle zugehörigen Transaktionen angewendet.
             </p>
@@ -420,7 +415,60 @@ const RecurringSettings: FC = () => {
     )
 };
 
-type SettingsTab = 'general' | 'users' | 'budget' | 'categories' | 'tags' | 'recurring';
+const ManagerModal: FC<{
+  isOpen: boolean;
+  onClose: () => void;
+  title: string;
+  children: React.ReactNode;
+}> = ({ isOpen, onClose, title, children }) => {
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+    if (isOpen) {
+      window.addEventListener('keydown', handleKeyDown);
+    }
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <MotionDiv
+          className="fixed inset-0 bg-black/70 backdrop-blur-sm flex justify-center items-center z-[60] p-4"
+          onClick={onClose}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
+          <MotionDiv
+            className="bg-slate-900 rounded-2xl w-full max-w-2xl shadow-2xl border border-slate-700 flex flex-col max-h-[85vh]"
+            onClick={(e) => e.stopPropagation()}
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.95, opacity: 0 }}
+            transition={{ type: "spring", bounce: 0.3, duration: 0.4 }}
+          >
+            <header className="flex justify-between items-center p-6 border-b border-slate-700 flex-shrink-0">
+              <h2 className="text-xl font-bold text-white">{title}</h2>
+              <button onClick={onClose} className="p-2 rounded-full hover:bg-slate-700 transition-colors">
+                <X className="h-5 w-5" />
+              </button>
+            </header>
+            <main className="p-6 flex-grow overflow-y-auto custom-scrollbar">
+              {children}
+            </main>
+            <footer className="p-6 border-t border-slate-700 flex justify-end">
+              <button onClick={onClose} className="flex items-center justify-center gap-2 bg-gradient-to-r from-rose-500 to-red-600 text-white font-semibold px-6 py-3 rounded-lg shadow-md hover:opacity-90 transition-opacity">
+                <CheckCircle2 className="h-4 w-4" /> Fertig
+              </button>
+            </footer>
+          </MotionDiv>
+        </MotionDiv>
+      )}
+    </AnimatePresence>
+  );
+};
 
 interface SettingsModalProps {
     isOpen: boolean;
@@ -441,17 +489,20 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, initialT
         deleteGroup,
         isAutoSyncEnabled,
         setIsAutoSyncEnabled,
-        isDevModeEnabled,
-        setIsDevModeEnabled,
     } = useApp();
 
     const [activeSettingsTab, setActiveSettingsTab] = useState<SettingsTab>('general');
     const [pickingIconFor, setPickingIconFor] = useState<string | null>(null);
+    const [isCategoryManagerOpen, setCategoryManagerOpen] = useState(false);
+    const [isTagManagerOpen, setTagManagerOpen] = useState(false);
 
     useEffect(() => {
         const handleKeyDown = (event: KeyboardEvent) => {
             if (event.key === 'Escape') {
-                onClose();
+                if (isCategoryManagerOpen) setCategoryManagerOpen(false);
+                else if (isTagManagerOpen) setTagManagerOpen(false);
+                else if (pickingIconFor) setPickingIconFor(null);
+                else onClose();
             }
         };
 
@@ -465,7 +516,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, initialT
         return () => {
             window.removeEventListener('keydown', handleKeyDown);
         };
-    }, [isOpen, onClose, initialTab]);
+    }, [isOpen, onClose, initialTab, pickingIconFor, isCategoryManagerOpen, isTagManagerOpen]);
 
     const handleCategoryBudgetChange = (id: string, value: string) => {
         const budgetValue = parseFloat(value.replace(',', '.'));
@@ -479,8 +530,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, initialT
         { id: 'general', label: 'Allgemein', icon: SlidersHorizontal },
         { id: 'users', label: 'Benutzer', icon: Users },
         { id: 'budget', label: 'Budgets', icon: Target },
-        { id: 'categories', label: 'Kategorien', icon: LayoutGrid },
-        { id: 'tags', label: 'Tags', icon: TagIcon },
         { id: 'recurring', label: 'Wiederkehrende Ausgaben', icon: History }
     ];
 
@@ -548,18 +597,32 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, initialT
                                             <ToggleSwitch id="auto-sync-toggle" enabled={isAutoSyncEnabled} setEnabled={setIsAutoSyncEnabled} />
                                         </div>
                                     </div>
-
-                                    {/* Dev Mode Settings */}
+                                     {/* Management Section */}
                                     <div>
                                         <h3 className="text-lg font-semibold mb-3 text-white flex items-center gap-2">
-                                            <FlaskConical className="h-5 w-5 text-purple-400" /> Entwicklermodus
+                                            <Wallet className="h-5 w-5 text-purple-400" /> Datenverwaltung
                                         </h3>
-                                        <div className="flex items-center justify-between pt-4 mt-4 border-t border-slate-700/50">
-                                            <div>
-                                                <label htmlFor="dev-mode-toggle" className="block text-sm font-medium text-slate-300">Testingmodus aktivieren</label>
-                                                <p className="text-xs text-slate-400 mt-1">Fügt temporäre Test-Transaktionen hinzu. Diese werden nicht gespeichert.</p>
-                                            </div>
-                                            <ToggleSwitch id="dev-mode-toggle" enabled={isDevModeEnabled} setEnabled={setIsDevModeEnabled} />
+                                        <div className="pt-4 mt-4 border-t border-slate-700/50 space-y-3">
+                                            <button
+                                                onClick={() => setCategoryManagerOpen(true)}
+                                                className="w-full text-left bg-slate-700/50 hover:bg-slate-700 p-4 rounded-lg transition-colors flex justify-between items-center"
+                                            >
+                                                <div>
+                                                    <span className="font-semibold text-white">Kategorien-Verwaltung</span>
+                                                    <p className="text-xs text-slate-400 mt-1">Kategorien und Gruppen bearbeiten, hinzufügen oder löschen.</p>
+                                                </div>
+                                                <ChevronRightIcon className="h-5 w-5 text-slate-400 flex-shrink-0" />
+                                            </button>
+                                            <button
+                                                onClick={() => setTagManagerOpen(true)}
+                                                className="w-full text-left bg-slate-700/50 hover:bg-slate-700 p-4 rounded-lg transition-colors flex justify-between items-center"
+                                            >
+                                                <div>
+                                                    <span className="font-semibold text-white">Tag-Verwaltung</span>
+                                                     <p className="text-xs text-slate-400 mt-1">Bestehende Tags umbenennen oder löschen.</p>
+                                                </div>
+                                                <ChevronRightIcon className="h-5 w-5 text-slate-400 flex-shrink-0" />
+                                            </button>
                                         </div>
                                     </div>
                                 </MotionDiv>
@@ -576,113 +639,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, initialT
                                 />
                             )}
 
-                             {activeSettingsTab === 'tags' && (
-                                <TagSettings />
-                             )}
-
-                            {activeSettingsTab === 'categories' && (
-                                 <MotionDiv
-                                    key="categories"
-                                    initial={{ opacity: 0, x: 10 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    exit={{ opacity: 0, x: 10 }}
-                                    transition={{ duration: 0.2 }}
-                                >
-                                    <div className="flex justify-between items-center mb-4">
-                                        <h3 className="text-lg font-semibold text-white">Kategorien & Gruppen</h3>
-                                        <button onClick={addGroup} className="flex items-center gap-2 text-sm bg-slate-700 hover:bg-slate-600 px-3 py-2 rounded-md font-semibold"><Plus className="h-4 w-4"/>Neue Gruppe</button>
-                                    </div>
-                                    <div className="space-y-4">
-                                        {categoryGroups.map((groupName, index) => {
-                                            const groupCategories = categories.filter(c => c.group === groupName);
-                                            return (
-                                            <div key={groupName} className="bg-slate-700/40 p-4 rounded-lg">
-                                                <div className="flex items-center gap-3 mb-4">
-                                                    <div className="flex flex-col -my-2">
-                                                        <button
-                                                            onClick={() => reorderGroups(categoryGroups.map((g, i) => i === index - 1 ? groupName : i === index ? categoryGroups[index - 1] : g))}
-                                                            disabled={index === 0}
-                                                            className="p-2 rounded-full text-slate-500 hover:bg-slate-600 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
-                                                            title="Gruppe nach oben verschieben"
-                                                        >
-                                                            <ChevronUp className="h-5 w-5" />
-                                                        </button>
-                                                        <button
-                                                            onClick={() => reorderGroups(categoryGroups.map((g, i) => i === index + 1 ? groupName : i === index ? categoryGroups[index + 1] : g))}
-                                                            disabled={index === categoryGroups.length - 1}
-                                                            className="p-2 rounded-full text-slate-500 hover:bg-slate-600 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
-                                                            title="Gruppe nach unten verschieben"
-                                                        >
-                                                            <ChevronDown className="h-5 w-5" />
-                                                        </button>
-                                                    </div>
-                                                    <input
-                                                        type="text"
-                                                        defaultValue={groupName}
-                                                        onBlur={(e) => updateGroupName(groupName, e.target.value)}
-                                                        className="bg-transparent text-lg font-bold text-white w-full focus:outline-none focus:bg-slate-600/50 rounded px-2"
-                                                    />
-                                                    <button onClick={() => deleteGroup(groupName)} className="p-3 rounded-full hover:bg-red-500/20 text-slate-500 hover:text-red-400"><Trash2 className="h-5 w-5"/></button>
-                                                </div>
-                                                <div className="space-y-2 ml-4 pl-4 border-l-2 border-slate-600">
-                                                    {groupCategories.map(cat => {
-                                                        const Icon = iconMap[cat.icon] || iconMap['MoreHorizontal'];
-                                                        return (
-                                                            <div key={cat.id} className="bg-slate-700/50 p-3 rounded-lg">
-                                                                <div className="flex items-start gap-3 w-full">
-                                                                    <div className="text-slate-500 pt-1"><GripVertical className="h-5 w-5" /></div>
-                                                                    
-                                                                    <div className="flex-1 flex flex-col gap-3">
-                                                                        <div className="flex items-center gap-3">
-                                                                             <button
-                                                                                type="button"
-                                                                                onClick={() => setPickingIconFor(cat.id)}
-                                                                                className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 transition-transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-700 focus:ring-rose-500"
-                                                                                style={{ backgroundColor: cat.color }}
-                                                                                title="Symbol ändern"
-                                                                            >
-                                                                                <Icon className="h-6 w-6 text-white" />
-                                                                            </button>
-                                                                             <input
-                                                                                type="text"
-                                                                                defaultValue={cat.name}
-                                                                                onBlur={e => updateCategory(cat.id, { name: e.target.value })}
-                                                                                className="bg-transparent font-medium text-white w-full focus:outline-none"
-                                                                            />
-                                                                        </div>
-                                                                         <div className="flex items-center gap-3">
-                                                                            <input
-                                                                                type="color"
-                                                                                value={cat.color}
-                                                                                onChange={e => updateCategory(cat.id, { color: e.target.value })}
-                                                                                className="w-10 h-10 p-0 border-none rounded-md bg-transparent cursor-pointer"
-                                                                                title="Farbe ändern"
-                                                                            />
-                                                                            <select
-                                                                                value={cat.group}
-                                                                                onChange={e => updateCategory(cat.id, { group: e.target.value })}
-                                                                                className="bg-slate-600 text-sm rounded-md border-slate-500 p-1.5 focus:outline-none focus:ring-2 focus:ring-rose-500"
-                                                                            >
-                                                                                {categoryGroups.map(g => <option key={g} value={g}>{g}</option>)}
-                                                                            </select>
-                                                                        </div>
-                                                                    </div>
-                                                                     <button onClick={() => deleteCategory(cat.id)} className="p-3 rounded-full hover:bg-red-500/20 text-slate-500 hover:text-red-400">
-                                                                        <Trash2 className="h-5 w-5"/>
-                                                                    </button>
-                                                                </div>
-                                                            </div>
-                                                        )
-                                                    })}
-                                                </div>
-                                                <button onClick={() => addCategory(groupName)} className="flex items-center gap-2 text-sm text-slate-400 hover:text-white mt-3 ml-8"><Plus className="h-4 w-4"/>Kategorie hinzufügen</button>
-                                            </div>
-                                            )
-                                        })}
-                                    </div>
-                                </MotionDiv>
-                            )}
-
                              {activeSettingsTab === 'recurring' && (
                                 <RecurringSettings />
                             )}
@@ -695,6 +651,113 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, initialT
                     </div>
                 </MotionDiv>
             </MotionDiv>
+             <ManagerModal 
+                isOpen={isCategoryManagerOpen} 
+                onClose={() => setCategoryManagerOpen(false)}
+                title="Kategorien-Verwaltung"
+            >
+                <div className="flex justify-between items-center mb-4">
+                    <p className="text-sm text-slate-400">Verwalten Sie hier Ihre Ausgabenkategorien und deren Gruppierung.</p>
+                    <button onClick={addGroup} className="flex items-center gap-2 text-sm bg-slate-700 hover:bg-slate-600 px-3 py-2 rounded-md font-semibold flex-shrink-0"><Plus className="h-4 w-4"/>Neue Gruppe</button>
+                </div>
+                <div className="space-y-4">
+                    {categoryGroups.map((groupName, index) => {
+                        const groupCategories = categories.filter(c => c.group === groupName);
+                        return (
+                        <div key={groupName} className="bg-slate-700/40 p-4 rounded-lg">
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="flex flex-col -my-2">
+                                    <button
+                                        onClick={() => reorderGroups(categoryGroups.map((g, i) => i === index - 1 ? groupName : i === index ? categoryGroups[index - 1] : g))}
+                                        disabled={index === 0}
+                                        className="p-2 rounded-full text-slate-500 hover:bg-slate-600 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
+                                        title="Gruppe nach oben verschieben"
+                                    >
+                                        <ChevronUp className="h-5 w-5" />
+                                    </button>
+                                    <button
+                                        onClick={() => reorderGroups(categoryGroups.map((g, i) => i === index + 1 ? groupName : i === index ? categoryGroups[index + 1] : g))}
+                                        disabled={index === categoryGroups.length - 1}
+                                        className="p-2 rounded-full text-slate-500 hover:bg-slate-600 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
+                                        title="Gruppe nach unten verschieben"
+                                    >
+                                        <ChevronDown className="h-5 w-5" />
+                                    </button>
+                                </div>
+                                <input
+                                    type="text"
+                                    defaultValue={groupName}
+                                    onBlur={(e) => updateGroupName(groupName, e.target.value)}
+                                    className="bg-transparent text-lg font-bold text-white w-full focus:outline-none focus:bg-slate-600/50 rounded px-2"
+                                />
+                                <button onClick={() => deleteGroup(groupName)} className="p-3 rounded-full hover:bg-red-500/20 text-slate-500 hover:text-red-400"><Trash2 className="h-5 w-5"/></button>
+                            </div>
+                            <div className="space-y-2 ml-4 pl-4 border-l-2 border-slate-600">
+                                {groupCategories.map(cat => {
+                                    const Icon = iconMap[cat.icon] || iconMap['MoreHorizontal'];
+                                    return (
+                                        <div key={cat.id} className="bg-slate-700/50 p-3 rounded-lg">
+                                            <div className="flex items-start gap-3 w-full">
+                                                <div className="text-slate-500 pt-1"><GripVertical className="h-5 w-5" /></div>
+                                                
+                                                <div className="flex-1 flex flex-col gap-3">
+                                                    <div className="flex items-center gap-3">
+                                                         <button
+                                                            type="button"
+                                                            onClick={() => setPickingIconFor(cat.id)}
+                                                            className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 transition-transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-700 focus:ring-rose-500"
+                                                            style={{ backgroundColor: cat.color }}
+                                                            title="Symbol ändern"
+                                                        >
+                                                            <Icon className="h-6 w-6 text-white" />
+                                                        </button>
+                                                         <input
+                                                            type="text"
+                                                            defaultValue={cat.name}
+                                                            onBlur={e => updateCategory(cat.id, { name: e.target.value })}
+                                                            className="bg-transparent font-medium text-white w-full focus:outline-none"
+                                                        />
+                                                    </div>
+                                                     <div className="flex items-center gap-3">
+                                                        <input
+                                                            type="color"
+                                                            value={cat.color}
+                                                            onChange={e => updateCategory(cat.id, { color: e.target.value })}
+                                                            className="w-10 h-10 p-0 border-none rounded-md bg-transparent cursor-pointer"
+                                                            title="Farbe ändern"
+                                                        />
+                                                        <select
+                                                            value={cat.group}
+                                                            onChange={e => updateCategory(cat.id, { group: e.target.value })}
+                                                            className="bg-slate-600 text-sm rounded-md border-slate-500 p-1.5 focus:outline-none focus:ring-2 focus:ring-rose-500"
+                                                        >
+                                                            {categoryGroups.map(g => <option key={g} value={g}>{g}</option>)}
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                                 <button onClick={() => deleteCategory(cat.id)} className="p-3 rounded-full hover:bg-red-500/20 text-slate-500 hover:text-red-400">
+                                                    <Trash2 className="h-5 w-5"/>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                            <button onClick={() => addCategory(groupName)} className="flex items-center gap-2 text-sm text-slate-400 hover:text-white mt-3 ml-8"><Plus className="h-4 w-4"/>Kategorie hinzufügen</button>
+                        </div>
+                        )
+                    })}
+                </div>
+            </ManagerModal>
+
+            <ManagerModal 
+                isOpen={isTagManagerOpen} 
+                onClose={() => setTagManagerOpen(false)}
+                title="Tag-Verwaltung"
+            >
+                <TagSettings />
+            </ManagerModal>
+            
             {pickingIconFor && (
                 <IconPicker
                     onClose={() => setPickingIconFor(null)}

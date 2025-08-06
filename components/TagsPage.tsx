@@ -1,6 +1,8 @@
 
 
 
+
+
 import React, { useState, useMemo, FC } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { AreaChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
@@ -11,8 +13,8 @@ import {
     addYears, subYears, getMonthInterval, getYearInterval,
     addDays, differenceInDays, startOfDay, endOfDay, startOfMonth, endOfMonth, startOfYear, endOfYear
 } from '../utils/dateUtils';
-import { Hash, Coins, BarChart2, ChevronLeft, ChevronRight, X, Edit, Trash2, Plus, Search } from './Icons';
-import { iconMap } from './Icons';
+import { Hash, Coins, BarChart2, ChevronLeft, ChevronRight, X, Plus, Search } from './Icons';
+import StandardTransactionItem from './StandardTransactionItem';
 
 const MotionDiv = motion('div');
 
@@ -274,7 +276,7 @@ const TagDetailView: FC<{
     customDateRange: { start: string, end: string },
     appContext: AppContextSubset
 }> = ({ tagIds, periodType, currentDate, customDateRange, appContext }) => {
-    const { transactions, tagMap, categoryMap, handleTransactionClick, deleteTransaction } = appContext;
+    const { transactions, tagMap, handleTransactionClick, deleteTransaction } = appContext;
     const formattedTagNames = tagIds.map(id => `#${tagMap.get(id) || 'Unbekannt'}`).join(', ');
 
     const { filteredTransactions, interval } = useMemo(() => {
@@ -457,52 +459,20 @@ const TagDetailView: FC<{
 
             <div className="bg-slate-800/50 p-4 rounded-2xl border border-slate-700/50">
                 <h3 className="font-bold text-white mb-4">Transaktionen ({filteredTransactions.length})</h3>
-                <div className="max-h-96 overflow-y-auto space-y-2 pr-2">
-                    {filteredTransactions.map(t => {
-                        const category = categoryMap.get(t.categoryId);
-                        if (!category) return null;
-                        const Icon = iconMap[category.icon] || iconMap.MoreHorizontal;
-                        return (
-                            <div key={t.id} className="flex items-center gap-3 bg-slate-800/50 hover:bg-slate-700/50 p-3 rounded-lg transition-colors">
-                                <button
-                                    onClick={() => handleTransactionClick(t, 'view')}
-                                    className="w-full flex items-start gap-4 flex-1 min-w-0 text-left"
-                                >
-                                    <div className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: category.color }}>
-                                        <Icon className="h-6 w-6 text-white" />
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <p className="font-medium text-white truncate">{t.description}</p>
-                                        <p className="text-sm text-slate-400">{format(parseISO(t.date), 'dd. MMMM yyyy, HH:mm')} Uhr</p>
-                                    </div>
-                                    <div className="text-right flex-shrink-0 ml-2">
-                                        <p className="font-bold text-white text-lg">{formatCurrency(t.amount)}</p>
-                                        <p className="text-xs text-slate-500">{category.name}</p>
-                                    </div>
-                                </button>
-                                <div className="flex items-center gap-1">
-                                    <button
-                                        onClick={() => handleTransactionClick(t, 'edit')}
-                                        className="p-2 rounded-full text-slate-400 hover:bg-slate-600 hover:text-white"
-                                        title="Bearbeiten"
-                                    >
-                                        <Edit className="h-4 w-4" />
-                                    </button>
-                                    <button
-                                        onClick={() => {
-                                            if (window.confirm(`Möchten Sie die Ausgabe "${t.description}" wirklich löschen?`)) {
-                                                deleteTransaction(t.id);
-                                            }
-                                        }}
-                                        className="p-2 rounded-full text-slate-400 hover:bg-slate-600 hover:text-red-400"
-                                        title="Löschen"
-                                    >
-                                        <Trash2 className="h-4 w-4" />
-                                    </button>
-                                </div>
-                            </div>
-                        )
-                    })}
+                <div className="max-h-96 overflow-y-auto space-y-1 pr-2">
+                    {filteredTransactions.map(t => (
+                        <StandardTransactionItem
+                            key={t.id}
+                            transaction={t}
+                            onClick={() => handleTransactionClick(t)}
+                            onDelete={() => {
+                                if (window.confirm(`Möchten Sie die Ausgabe "${t.description}" wirklich löschen?`)) {
+                                    deleteTransaction(t.id);
+                                }
+                            }}
+                            showSubline="date"
+                        />
+                    ))}
                 </div>
             </div>
         </MotionDiv>

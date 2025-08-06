@@ -26,6 +26,7 @@ type Category = z.infer<ReturnType<typeof getLenientSchemas>['CategorySchema']>;
 type Transaction = z.infer<ReturnType<typeof getLenientSchemas>['TransactionSchema']>;
 type RecurringTransaction = z.infer<ReturnType<typeof getLenientSchemas>['RecurringTransactionSchema']>;
 type Tag = z.infer<ReturnType<typeof getLenientSchemas>['TagSchema']>;
+type User = z.infer<ReturnType<typeof getLenientSchemas>['UserSchema']>;
 
 
 function normalizeArray(input: any): any[] {
@@ -75,6 +76,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     transactions: normalizeArray(parsedBody.transactions),
     recurringTransactions: normalizeArray(parsedBody.recurringTransactions),
     allAvailableTags: normalizeArray(parsedBody.allAvailableTags),
+    users: normalizeArray(parsedBody.users),
   };
 
   const schemas = getLenientSchemas();
@@ -83,6 +85,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       transactions: z.array(schemas.TransactionSchema).optional().default([]),
       recurringTransactions: z.array(schemas.RecurringTransactionSchema).optional().default([]),
       allAvailableTags: z.array(schemas.TagSchema).optional().default([]),
+      users: z.array(schemas.UserSchema).optional().default([]),
   });
 
   const validationResult = WriteBodySchema.safeParse(normalizedBody);
@@ -98,7 +101,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const readResponse = await withRetry(() => sheets.spreadsheets.values.batchGet({
       spreadsheetId: sheetId,
-      ranges: ['Categories!A2:I', 'Transactions!A2:K', 'Recurring!A2:J', 'Tags!A2:E'],
+      ranges: ['Categories!A2:I', 'Transactions!A2:K', 'Recurring!A2:J', 'Tags!A2:E', 'Users!A2:F'],
     }));
 
     const serverValues = (readResponse as any).data.valueRanges || [];
@@ -127,6 +130,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       headers: ['id', 'name', 'lastModified', 'isDeleted', 'version'],
       entityName: 'Tag',
     });
+    const serverUsers = parseSheetData({
+      rows: serverValues.find((r: any) => r.range?.startsWith('Users'))?.values || [],
+      schema: z.array(schemas.UserSchema),
+      headers: ['id', 'name', 'color', 'lastModified', 'isDeleted', 'version'],
+      entityName: 'User',
+    });
 
     function findConflicts<T extends { id: string; version?: number }>(clientItems: T[], serverItems: T[]): T[] {
       const serverMap = new Map(serverItems.map(item => [item.id, item]));
@@ -143,8 +152,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const conflictTransactions = findConflicts(clientData.transactions, serverTransactions);
     const conflictRecurring = findConflicts(clientData.recurringTransactions, serverRecurring);
     const conflictTags = findConflicts(clientData.allAvailableTags, serverTags);
+    const conflictUsers = findConflicts(clientData.users, serverUsers);
 
-    if (conflictCategories.length || conflictTransactions.length || conflictRecurring.length || conflictTags.length) {
+    if (conflictCategories.length || conflictTransactions.length || conflictRecurring.length || conflictTags.length || conflictUsers.length) {
       return res.status(409).json({
         error: 'Conflict: Newer versions of some items were found on the server.',
         conflicts: {
@@ -152,6 +162,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           transactions: conflictTransactions,
           recurring: conflictRecurring,
           tags: conflictTags,
+          users: conflictUsers,
         },
       });
     }
@@ -171,22 +182,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const mergedTransactions = mergeData<Transaction>(clientData.transactions, serverTransactions);
     const mergedRecurring = mergeData<RecurringTransaction>(clientData.recurringTransactions, serverRecurring);
     const mergedTags = mergeData<Tag>(clientData.allAvailableTags, serverTags);
+    const mergedUsers = mergeData<User>(clientData.users, serverUsers);
 
     const headers = {
       categories: ['id', 'name', 'color', 'icon', 'budget', 'group', 'lastModified', 'isDeleted', 'version'],
       transactions: ['id', 'amount', 'description', 'categoryId', 'date', 'tagIds', 'lastModified', 'isDeleted', 'recurringId', 'version', 'createdBy'],
       recurring: ['id', 'amount', 'description', 'categoryId', 'frequency', 'startDate', 'lastProcessedDate', 'lastModified', 'isDeleted', 'version'],
       tags: ['id', 'name', 'lastModified', 'isDeleted', 'version'],
+      users: ['id', 'name', 'color', 'lastModified', 'isDeleted', 'version'],
     };
 
     const categoryValues = [headers.categories, ...mergedCategories.map(c => [c.id, c.name, c.color, c.icon, c.budget != null ? String(c.budget) : '', c.group, c.lastModified, c.isDeleted ? 'TRUE' : 'FALSE', c.version])];
     const transactionValues = [headers.transactions, ...mergedTransactions.map(t => [t.id, String(t.amount), t.description, t.categoryId, t.date, t.tagIds?.join(',') || '', t.lastModified, t.isDeleted ? 'TRUE' : 'FALSE', t.recurringId || '', t.version, t.createdBy || ''])];
     const recurringValues = [headers.recurring, ...mergedRecurring.map(r => [r.id, String(r.amount), r.description, r.categoryId, r.frequency, r.startDate, r.lastProcessedDate || '', r.lastModified, r.isDeleted ? 'TRUE' : 'FALSE', r.version])];
     const tagValues = [headers.tags, ...mergedTags.map(tag => [tag.id, tag.name, tag.lastModified, tag.isDeleted ? 'TRUE' : 'FALSE', tag.version])];
+    const userValues = [headers.users, ...mergedUsers.map(u => [u.id, u.name, u.color, u.lastModified, u.isDeleted ? 'TRUE' : 'FALSE', u.version])];
 
     await withRetry(() => sheets.spreadsheets.values.batchClear({
       spreadsheetId: sheetId,
-      requestBody: { ranges: ['Categories!A1:Z', 'Transactions!A1:Z', 'Recurring!A1:Z', 'Tags!A1:Z'] },
+      requestBody: { ranges: ['Categories!A1:Z', 'Transactions!A1:Z', 'Recurring!A1:Z', 'Tags!A1:Z', 'Users!A1:Z'] },
     }));
 
     await withRetry(() => sheets.spreadsheets.values.batchUpdate({
@@ -198,6 +212,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           { range: 'Transactions!A1', values: transactionValues },
           { range: 'Recurring!A1', values: recurringValues },
           { range: 'Tags!A1', values: tagValues },
+          { range: 'Users!A1', values: userValues },
         ],
       },
     }));

@@ -2,6 +2,7 @@
 
 
 
+
 import React, { useState, useRef, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Toaster } from 'react-hot-toast';
@@ -128,7 +129,6 @@ const App: React.FC = () => {
                         isOpen={!!transactionForDetail}
                         onClose={closeTransactionDetail}
                         transaction={transactionForDetail.transaction}
-                        initialMode={transactionForDetail.mode}
                      />
                 )}
             </AnimatePresence>
