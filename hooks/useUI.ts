@@ -17,6 +17,8 @@ export const useUI = () => {
     const [initialSettingsTab, setInitialSettingsTab] = useState<SettingsTab>('general');
     const [confirmationData, setConfirmationData] = useState<{ transactions: Transaction[]; totalSpentBefore: number; } | null>(null);
     const [transactionForDetail, setTransactionForDetail] = useState<{ transaction: Transaction } | null>(null);
+    const [isChangelogOpen, setIsChangelogOpen] = useState(false);
+    const [isChangelogAutoShowEnabled, setIsChangelogAutoShowEnabled] = useLocalStorage('changelogAutoShowEnabled', true);
     
     // User Management - UI Preference ONLY
     const [currentUserId, setCurrentUserId] = useLocalStorage<string | null>('app-current-user-id', null);
@@ -84,6 +86,8 @@ export const useUI = () => {
         setTransactionForDetail({ transaction });
     }, []);
     const closeTransactionDetail = useCallback(() => setTransactionForDetail(null), []);
+    const openChangelog = useCallback(() => setIsChangelogOpen(true), []);
+    const closeChangelog = useCallback(() => setIsChangelogOpen(false), []);
 
     // Cross-tab navigation handlers
     const handleTagAnalyticsClick = useCallback((tagId: string) => {
@@ -144,5 +148,12 @@ export const useUI = () => {
         setTransactionActiveQuickFilter,
         transactionViewMode,
         setTransactionViewMode,
+
+        // Changelog UI State
+        isChangelogOpen,
+        openChangelog,
+        closeChangelog,
+        isChangelogAutoShowEnabled,
+        setIsChangelogAutoShowEnabled,
     };
 };

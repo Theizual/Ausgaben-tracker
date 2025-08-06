@@ -1,29 +1,102 @@
-
 import type { Category } from './types';
+
+export const APP_VERSION = '0.78';
+
+export const CHANGELOG = [
+    {
+        version: '0.78',
+        date: '30.07.2024, 11:00 Uhr',
+        title: 'Stabilität & Kritische Fehlerbehebungen',
+        changes: [
+            'KRITISCH: Ein schwerwiegender Fehler wurde behoben, bei dem gezogene Kategorien beim Verschieben zwischen Gruppen unsichtbar wurden oder die Ansicht überlagerten.',
+            'Die Drag-and-Drop-Funktionalität in der Kategorien-Verwaltung ist nun stabil und zuverlässig.',
+            'Diverse interne Code-Verbesserungen zur Steigerung der Stabilität und Performance.',
+        ]
+    },
+    {
+        version: '0.77',
+        date: '29.07.2024, 15:30 Uhr',
+        title: 'Drag & Drop Verbesserungen & Changelog',
+        changes: [
+            'Gruppen öffnen sich nun automatisch, wenn eine Kategorie darüber gezogen wird.',
+            'App-Version und Changelog in den Einstellungen hinzugefügt.',
+            'Option zum Deaktivieren der automatischen Changelog-Anzeige implementiert.',
+            'Verbesserte visuelle Darstellung beim Ziehen von Kategorien.',
+        ]
+    },
+    {
+        version: '0.76',
+        date: '28.07.2024, 10:00 Uhr',
+        title: 'Interaktive Kategorien-Verwaltung',
+        changes: [
+            'Einklappbare Gruppen (Akkordeon-Ansicht) für bessere Übersicht.',
+            'Drag & Drop zum Sortieren von Gruppen und Kategorien hinzugefügt.',
+            'Kategorien können jetzt zwischen Gruppen verschoben werden.',
+            'Diverse UI-Fehlerbehebungen und Performance-Optimierungen.',
+        ]
+    }
+];
+
 
 // This is the source of truth for the initial setup.
 const initialSetup: { name: string; categories: Omit<Category, 'group' | 'lastModified' | 'version'>[] }[] = [
   {
-    name: 'Einkauf Lebensmittel',
+    name: 'Einkauf & Lebensmittel',
     categories: [
-      { id: 'cat_supermarkt', name: 'Supermarkt / Drogeriemarkt', color: '#c7aa05', icon: 'ShoppingCart', budget: 500 },
-      { id: 'cat_metzger', name: 'Metzger', color: '#ff4a4a', icon: 'Beef', budget: 100 },
-      { id: 'cat_fisch', name: 'Fisch', color: '#3b82f6', icon: 'Fish', budget: 50 },
-      { id: 'cat_baecker', name: 'Bäcker / Bärenbrot', color: '#d97706', icon: 'Croissant', budget: 50 },
-      { id: 'cat_gemuese', name: 'Gemüsemarkt', color: '#65a30d', icon: 'Carrot', budget: 100 },
-      { id: 'cat_gastro', name: 'Gastronomie / Lieferservice', color: '#6366f1', icon: 'UtensilsCrossed', budget: 100 },
+      { id: 'cat_supermarkt', name: 'Supermarkt / Drogerie', color: '#c7aa05', icon: 'ShoppingCart', budget: 500 },
+      { id: 'cat_gastro', name: 'Gastronomie / Lieferservice', color: '#6366f1', icon: 'UtensilsCrossed', budget: 150 },
+      { id: 'cat_baecker', name: 'Bäcker', color: '#d97706', icon: 'Croissant', budget: 50 },
+      { id: 'cat_metzger', name: 'Metzger / Fisch', color: '#ff4a4a', icon: 'Beef', budget: 80 },
     ],
   },
   {
-    name: 'Haushalt & Familie',
+    name: 'Wohnen & Haushalt',
     categories: [
-      { id: 'cat_pflege', name: 'Körperpflege / Gesundheit', color: '#0d9488', icon: 'ShowerHead', budget: 100 },
-      { id: 'cat_reinigung', name: 'Haushaltspflege / Reinigung', color: '#0ea5e9', icon: 'SprayCan', budget: 50 },
-      { id: 'cat_kinder', name: 'Kinderbedarf / Babyartikel', color: '#f472b6', icon: 'Baby', budget: 100 },
-      { id: 'cat_tier', name: 'Tierbedarf', color: '#a855f7', icon: 'Bone', budget: 50 },
-      { id: 'cat_sonstiges', name: 'Sonstiges / Non-Food / Tabak / Kleidung / Internetkäufe', color: '#64748b', icon: 'MoreHorizontal', budget: 150 },
+      { id: 'cat_miete', name: 'Miete / Rate', color: '#0ea5e9', icon: 'Home', budget: 1200 },
+      { id: 'cat_nebenkosten', name: 'Nebenkosten (Strom, Wasser)', color: '#0d9488', icon: 'Zap', budget: 150 },
+      { id: 'cat_internet_tv', name: 'Internet / Telefon / TV', color: '#6366f1', icon: 'Router', budget: 60 },
+      { id: 'cat_haushalt', name: 'Haushaltsartikel / Reinigung', color: '#0ea5e9', icon: 'SprayCan', budget: 50 },
+      { id: 'cat_moebel', name: 'Möbel / Einrichtung', color: '#a16207', icon: 'Sofa', budget: 100 },
     ],
   },
+  {
+    name: 'Mobilität',
+    categories: [
+      { id: 'cat_tanken', name: 'Tanken', color: '#ef4444', icon: 'Fuel', budget: 200 },
+      { id: 'cat_oepnv', name: 'ÖPNV / Tickets', color: '#3b82f6', icon: 'Ticket', budget: 80 },
+      { id: 'cat_auto', name: 'Auto (Wartung, Versicherung)', color: '#64748b', icon: 'Car', budget: 100 },
+    ],
+  },
+  {
+    name: 'Freizeit & Unterhaltung',
+    categories: [
+      { id: 'cat_hobbies', name: 'Hobbies / Sport', color: '#f59e0b', icon: 'Dumbbell', budget: 75 },
+      { id: 'cat_kultur', name: 'Kultur / Ausgehen', color: '#a855f7', icon: 'Film', budget: 80 },
+      { id: 'cat_urlaub', name: 'Urlaub / Reisen', color: '#14b8a6', icon: 'Plane', budget: 200 },
+      { id: 'cat_bildung', name: 'Bücher / Bildung', color: '#06b6d4', icon: 'BookOpen', budget: 30 },
+    ],
+  },
+  {
+    name: 'Kleidung & Pflege',
+    categories: [
+      { id: 'cat_kleidung', name: 'Kleidung / Schuhe', color: '#ec4899', icon: 'Shirt', budget: 100 },
+      { id: 'cat_pflege', name: 'Drogerie / Körperpflege', color: '#0d9488', icon: 'ShowerHead', budget: 50 },
+      { id: 'cat_friseur', name: 'Friseur / Kosmetik', color: '#f472b6', icon: 'Scissors', budget: 40 },
+      { id: 'cat_gesundheit', name: 'Gesundheit / Apotheke', color: '#22c55e', icon: 'HeartPulse', budget: 50 },
+    ],
+  },
+  {
+    name: 'Sonstiges',
+    categories: [
+      { id: 'cat_geschenke', name: 'Geschenke', color: '#d946ef', icon: 'Gift', budget: 50 },
+      { id: 'cat_kinder', name: 'Kinder / Familie', color: '#f472b6', icon: 'Baby', budget: 100 },
+      { id: 'cat_tier', name: 'Haustier', color: '#a855f7', icon: 'PawPrint', budget: 50 },
+      { id: 'cat_non_food', name: 'Elektronik / Non-Food', color: '#78716c', icon: 'Package', budget: 75 },
+      { id: 'cat_internetkaeufe', name: 'Internetkäufe (allg.)', color: '#f43f5e', icon: 'Globe', budget: 100 },
+      { id: 'cat_gebuehren', name: 'Gebühren / Steuern', color: '#84cc16', icon: 'Landmark', budget: 100 },
+      { id: 'cat_uncategorized', name: 'Sonstige Ausgaben', color: '#64748b', icon: 'MoreHorizontal', budget: 100 },
+    ]
+  }
 ];
 
 const now = new Date().toISOString();

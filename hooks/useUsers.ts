@@ -24,10 +24,34 @@ const usersReducer = (state: UsersState, action: Action): UsersState => {
     }
 };
 
-const emptyState: UsersState = { users: [] };
+const initializer = (): UsersState => {
+    try {
+        const storedUsers = JSON.parse(window.localStorage.getItem('users') || '[]');
+        if (Array.isArray(storedUsers) && storedUsers.length > 0) {
+            return { users: storedUsers };
+        }
+    } catch (error) {
+        console.error("Failed to parse users from localStorage, starting fresh.", error);
+    }
+    
+    // If localStorage is empty or corrupt, create the default user.
+    const defaultUser: User = {
+        id: '1001',
+        name: 'Benutzer',
+        color: '#64748b',
+        lastModified: new Date().toISOString(),
+        version: 1
+    };
+    return { users: [defaultUser] };
+};
 
 export const useUsers = () => {
-    const [state, dispatch] = useReducer(usersReducer, emptyState);
+    const [state, dispatch] = useReducer(usersReducer, undefined, initializer);
+
+    // Persist to localStorage on change
+    useEffect(() => {
+        window.localStorage.setItem('users', JSON.stringify(state.users));
+    }, [state.users]);
 
     const setUsers = useCallback((users: User[]) => {
         dispatch({ type: 'SET_USERS', payload: users });
@@ -35,22 +59,6 @@ export const useUsers = () => {
 
     const users = useMemo(() => state.users.filter(u => !u.isDeleted), [state.users]);
     
-    // Effect to create default user if sheet is empty
-    useEffect(() => {
-        // After initial load from sync, if there are NO users at all (not even deleted ones),
-        // it implies a fresh sheet. Let's create the default user.
-        if (state.users.length === 0) {
-            const defaultUser: User = {
-                id: '1001',
-                name: 'Benutzer',
-                color: '#64748b',
-                lastModified: new Date().toISOString(),
-                version: 1
-            };
-            dispatch({ type: 'ADD_USER', payload: defaultUser });
-        }
-    }, [state.users.length]); // Depend on length to only run when it changes from 0 or to 0.
-
     const getNextId = useCallback(() => {
         if (state.users.length === 0) {
             return '1001';

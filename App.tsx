@@ -3,6 +3,7 @@
 
 
 
+
 import React, { useState, useRef, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Toaster } from 'react-hot-toast';
@@ -14,12 +15,15 @@ import TagsPage from './components/TagsPage';
 import SettingsModal from './components/SettingsModal';
 import ConfirmationModal from './components/ConfirmationModal';
 import TransactionDetailModal from './components/TransactionDetailModal';
+import ChangelogModal from './components/ChangelogModal';
 import { formatGermanDate } from './utils/dateUtils';
 import { Settings, Loader2, LayoutGrid, Repeat, BarChart2, Tags, RefreshCw, User, CheckCircle2, Users } from './components/Icons';
 import { formatDistanceToNow } from 'date-fns';
 import { de } from 'date-fns/locale';
 import Logo from './components/Logo';
 import type { User as UserType } from './types';
+import { APP_VERSION } from './constants';
+import useLocalStorage from './hooks/useLocalStorage';
 
 const MotionDiv = motion('div');
 
@@ -37,6 +41,11 @@ const App: React.FC = () => {
         closeConfirmation,
         transactionForDetail,
         closeTransactionDetail,
+        isChangelogOpen,
+        openChangelog,
+        closeChangelog,
+        isChangelogAutoShowEnabled,
+        setIsChangelogAutoShowEnabled,
         // Sync State & Handlers
         syncOperation,
         lastSync,
@@ -44,6 +53,21 @@ const App: React.FC = () => {
         // User State
         users,
     } = useApp();
+
+    const [lastSeenVersion, setLastSeenVersion] = useLocalStorage('lastSeenVersion', '0.0.0');
+
+    useEffect(() => {
+        // Automatically show changelog on first launch after an update
+        if (APP_VERSION > lastSeenVersion && isChangelogAutoShowEnabled) {
+            openChangelog();
+        }
+    }, []); // Run only once on mount
+
+    const handleCloseChangelog = () => {
+        closeChangelog();
+        setLastSeenVersion(APP_VERSION);
+    };
+
 
     const renderContent = () => {
         switch (activeTab) {
@@ -130,6 +154,16 @@ const App: React.FC = () => {
                         onClose={closeTransactionDetail}
                         transaction={transactionForDetail.transaction}
                      />
+                )}
+            </AnimatePresence>
+
+            <AnimatePresence>
+                {isChangelogOpen && (
+                    <ChangelogModal 
+                        onClose={handleCloseChangelog}
+                        isAutoShowEnabled={isChangelogAutoShowEnabled}
+                        onToggleAutoShow={() => setIsChangelogAutoShowEnabled(prev => !prev)}
+                    />
                 )}
             </AnimatePresence>
         </div>

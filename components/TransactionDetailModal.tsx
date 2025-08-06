@@ -4,7 +4,7 @@ import { toast } from 'react-hot-toast';
 import { useApp } from '../contexts/AppContext';
 import type { Transaction, Category, Tag, CategoryId, User } from '../types';
 import { format, parseISO, formatCurrency } from '../utils/dateUtils';
-import { iconMap, X, Edit, Trash2, Tag as TagIcon, CheckSquare, Square } from './Icons';
+import { iconMap, X, Edit, Trash2, Tag as TagIcon, CheckSquare, Square, Plus } from './Icons';
 import CategoryButtons from './CategoryButtons';
 
 const MotionDiv = motion('div');
@@ -266,17 +266,22 @@ const TransactionDetailModal: FC<TransactionDetailModalProps> = ({
                                                     </button>
                                                  )}
                                             </div>
-                                            {createdBy && (
-                                                <div className="flex justify-between items-center">
-                                                    <span className="text-slate-400 font-medium">Erstellt von</span>
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-slate-400 font-medium">Erstellt von</span>
+                                                {createdBy ? (
                                                     <button onClick={() => setIsPickingUser(true)} className="flex items-center gap-2 text-slate-200 font-medium rounded p-1 -m-1" title="Benutzer ändern">
-                                                         <div className="w-5 h-5 rounded-full flex items-center justify-center text-white font-bold text-xs" style={{ backgroundColor: createdBy.color }}>
+                                                            <div className="w-5 h-5 rounded-full flex items-center justify-center text-white font-bold text-xs" style={{ backgroundColor: createdBy.color }}>
                                                             {createdBy.name.charAt(0).toUpperCase()}
                                                         </div>
                                                         <span>{createdBy.name}</span>
                                                     </button>
-                                                </div>
-                                            )}
+                                                ) : (
+                                                    <button onClick={() => setIsPickingUser(true)} className="flex items-center gap-1 text-rose-400 font-medium rounded p-1 -m-1 hover:text-rose-300" title="Benutzer zuweisen">
+                                                        <Plus className="h-4 w-4" />
+                                                        <span>Zuweisen</span>
+                                                    </button>
+                                                )}
+                                            </div>
                                             {formState.isDev && (
                                                  <div className="flex justify-between items-center">
                                                     <span className="text-slate-400 font-medium">Status</span>
@@ -285,14 +290,16 @@ const TransactionDetailModal: FC<TransactionDetailModalProps> = ({
                                             )}
                                         </div>
 
-                                        {localTags.length > 0 && (
-                                             <div className="w-full max-w-sm mt-4 pt-4 border-t border-slate-700/50">
-                                                <div className="flex items-center justify-center gap-2 mb-2">
-                                                    <h4 className="text-sm font-medium text-slate-400">Tags</h4>
+                                        <div className="w-full max-w-sm mt-4 pt-4 border-t border-slate-700/50">
+                                            <div className="flex items-center justify-center gap-2 mb-2">
+                                                <h4 className="text-sm font-medium text-slate-400">Tags</h4>
+                                                {localTags.length > 0 && (
                                                     <button onClick={() => setIsEditingTags(true)} className="p-1 rounded-full text-slate-400 hover:text-white hover:bg-slate-700" title="Tags bearbeiten">
                                                         <Edit className="h-3 w-3"/>
                                                     </button>
-                                                </div>
+                                                )}
+                                            </div>
+                                            {localTags.length > 0 ? (
                                                 <div className="flex flex-wrap justify-center gap-2">
                                                     {localTags.map(tagName => (
                                                         <div key={tagName} className="text-sm font-medium bg-rose-500/20 text-rose-300 px-3 py-1 rounded-full">
@@ -300,8 +307,13 @@ const TransactionDetailModal: FC<TransactionDetailModalProps> = ({
                                                         </div>
                                                     ))}
                                                 </div>
-                                            </div>
-                                        )}
+                                            ) : (
+                                                <button onClick={() => setIsEditingTags(true)} className="w-full text-center py-2 text-rose-400 font-medium rounded-lg hover:bg-slate-700/50 flex items-center justify-center gap-1" title="Tags hinzufügen">
+                                                     <Plus className="h-4 w-4" />
+                                                     <span>Tags hinzufügen</span>
+                                                </button>
+                                            )}
+                                        </div>
                                     </div>
                                     <div className="p-4 bg-slate-800/50 border-t border-slate-700">
                                         <button onClick={handleDelete} className="w-full px-4 py-3 rounded-lg text-sm font-semibold text-red-400 bg-slate-700/50 hover:bg-red-500/20 transition-colors flex items-center justify-center gap-2">

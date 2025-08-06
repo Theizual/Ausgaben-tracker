@@ -1,8 +1,8 @@
 
-
 import { useMemo, useReducer, useEffect, useCallback } from 'react';
 import { INITIAL_CATEGORIES, INITIAL_GROUPS } from '../constants';
 import type { Category } from '../types';
+import { generateUUID } from '../utils/uuid';
 
 // --- STATE & ACTIONS ---
 type CategoriesState = {
@@ -12,12 +12,14 @@ type CategoriesState = {
 
 type Action =
     | { type: 'SET_ALL_CATEGORIES_DATA', payload: { categories: Category[], groups: string[] } }
-    | { type: 'ADD_CATEGORY', payload: { groupName: string } }
+    | { type: 'ADD_CATEGORY', payload: { groupName: string, id: string } }
     | { type: 'UPDATE_CATEGORY', payload: { id: string, data: Partial<Omit<Category, 'id'>> } }
     | { type: 'DELETE_CATEGORY', payload: { id: string } }
     | { type: 'ADD_GROUP' }
     | { type: 'UPDATE_GROUP_NAME', payload: { oldName: string, newName: string } }
-    | { type: 'REORDER_GROUPS', payload: { newGroups: string[] } }
+    | { type: 'REORDER_GROUPS', payload: string[] }
+    | { type: 'REORDER_CATEGORIES', payload: { groupName: string, reorderedCategories: Category[] } }
+    | { type: 'MOVE_CATEGORY_TO_GROUP', payload: { categoryId: string, newGroupName: string } }
     | { type: 'DELETE_GROUP', payload: { groupName: string } };
 
 const categoriesReducer = (state: CategoriesState, action: Action): CategoriesState => {
@@ -28,7 +30,7 @@ const categoriesReducer = (state: CategoriesState, action: Action): CategoriesSt
             
         case 'ADD_CATEGORY': {
             const newCategory: Category = {
-                id: crypto.randomUUID(),
+                id: action.payload.id, // Use provided ID
                 name: "Neue Kategorie",
                 color: "#8b5cf6",
                 icon: "Plus",
@@ -84,7 +86,29 @@ const categoriesReducer = (state: CategoriesState, action: Action): CategoriesSt
         }
             
         case 'REORDER_GROUPS':
-            return { ...state, groups: action.payload.newGroups };
+            return { ...state, groups: action.payload };
+        
+        case 'REORDER_CATEGORIES': {
+            const { groupName, reorderedCategories } = action.payload;
+            const otherGroupCategories = state.categories.filter(c => c.group !== groupName);
+            return {
+                ...state,
+                categories: [...otherGroupCategories, ...reorderedCategories],
+            };
+        }
+        
+        case 'MOVE_CATEGORY_TO_GROUP': {
+            const { categoryId, newGroupName } = action.payload;
+            if (!state.groups.includes(newGroupName)) return state;
+            return {
+                ...state,
+                categories: state.categories.map(cat =>
+                    cat.id === categoryId
+                        ? { ...cat, group: newGroupName, lastModified: now, version: (cat.version || 0) + 1 }
+                        : cat
+                )
+            };
+        }
             
         case 'DELETE_GROUP': {
             if (state.groups.length <= 1) return state; // Can't delete the last group
@@ -111,7 +135,6 @@ const initializer = (): CategoriesState => {
     try {
         const storedCategories = JSON.parse(window.localStorage.getItem('categories') || 'null');
         const storedGroups = JSON.parse(window.localStorage.getItem('categoryGroups') || 'null');
-
         return {
             categories: Array.isArray(storedCategories) ? storedCategories : INITIAL_CATEGORIES,
             groups: Array.isArray(storedGroups) ? storedGroups : INITIAL_GROUPS
@@ -124,74 +147,32 @@ const initializer = (): CategoriesState => {
 export const useCategories = () => {
     const [state, dispatch] = useReducer(categoriesReducer, undefined, initializer);
 
-    useEffect(() => {
-        window.localStorage.setItem('categories', JSON.stringify(state.categories));
-    }, [state.categories]);
-
-    useEffect(() => {
-        window.localStorage.setItem('categoryGroups', JSON.stringify(state.groups));
-    }, [state.groups]);
+    useEffect(() => { window.localStorage.setItem('categories', JSON.stringify(state.categories)); }, [state.categories]);
+    useEffect(() => { window.localStorage.setItem('categoryGroups', JSON.stringify(state.groups)); }, [state.groups]);
     
-    // Live categories are filtered to exclude soft-deleted ones
     const categories = useMemo(() => state.categories.filter(c => !c.isDeleted), [state.categories]);
-
     const categoryMap = useMemo(() => new Map(categories.map(c => [c.id, c])), [categories]);
-    
-    const totalMonthlyBudget = useMemo(() => 
-        categories.reduce((sum, cat) => sum + (cat.budget || 0), 0), 
-    [categories]);
+    const totalMonthlyBudget = useMemo(() => categories.reduce((sum, cat) => sum + (cat.budget || 0), 0), [categories]);
 
-    // Action wrappers
-    const setAllCategoriesData = useCallback((payload: { categories: Category[], groups: string[] }) => {
-        dispatch({ type: 'SET_ALL_CATEGORIES_DATA', payload });
-    }, []);
-    const updateCategory = useCallback((id: string, data: Partial<Omit<Category, 'id'>>) => {
-        dispatch({ type: 'UPDATE_CATEGORY', payload: { id, data } });
-    }, []);
-    const addCategory = useCallback((groupName: string) => {
-        dispatch({ type: 'ADD_CATEGORY', payload: { groupName } });
-    }, []);
-    const deleteCategory = useCallback((id: string) => {
-        dispatch({ type: 'DELETE_CATEGORY', payload: { id } });
-    }, []);
-    const addGroup = useCallback(() => {
-        dispatch({ type: 'ADD_GROUP' });
-    }, []);
-    const updateGroupName = useCallback((oldName: string, newName: string) => {
-        dispatch({ type: 'UPDATE_GROUP_NAME', payload: { oldName, newName } });
-    }, []);
-    const reorderGroups = useCallback((newGroups: string[]) => {
-        dispatch({ type: 'REORDER_GROUPS', payload: { newGroups } });
-    }, []);
-     const deleteGroup = useCallback((groupName: string) => {
-        dispatch({ type: 'DELETE_GROUP', payload: { groupName } });
-    }, []);
+    const setAllCategoriesData = useCallback((payload: { categories: Category[], groups: string[] }) => dispatch({ type: 'SET_ALL_CATEGORIES_DATA', payload }), []);
+    const updateCategory = useCallback((id: string, data: Partial<Omit<Category, 'id'>>) => dispatch({ type: 'UPDATE_CATEGORY', payload: { id, data } }), []);
+    const addCategory = useCallback((groupName: string) => dispatch({ type: 'ADD_CATEGORY', payload: { groupName, id: generateUUID() } }), []);
+    const deleteCategory = useCallback((id: string) => dispatch({ type: 'DELETE_CATEGORY', payload: { id } }), []);
+    const addGroup = useCallback(() => dispatch({ type: 'ADD_GROUP' }), []);
+    const updateGroupName = useCallback((oldName: string, newName: string) => dispatch({ type: 'UPDATE_GROUP_NAME', payload: { oldName, newName } }), []);
+    const reorderGroups = useCallback((newGroups: string[]) => dispatch({ type: 'REORDER_GROUPS', payload: newGroups }), []);
+    const reorderCategories = useCallback((groupName: string, reorderedCategories: Category[]) => dispatch({ type: 'REORDER_CATEGORIES', payload: { groupName, reorderedCategories } }), []);
+    const deleteGroup = useCallback((groupName: string) => dispatch({ type: 'DELETE_GROUP', payload: { groupName } }), []);
+    const moveCategoryToGroup = useCallback((categoryId: string, newGroupName: string) => dispatch({ type: 'MOVE_CATEGORY_TO_GROUP', payload: { categoryId, newGroupName } }), []);
     
-    // Legacy setters for sync hook compatibility. TODO: Refactor sync hook to use actions
-    const setCategories = useCallback((data: Category[]) => {
-         setAllCategoriesData({ categories: data, groups: state.groups });
-    }, [state.groups, setAllCategoriesData]);
-    const setCategoryGroups = useCallback((data: string[]) => {
-        setAllCategoriesData({ categories: state.categories, groups: data });
-    }, [state.categories, setAllCategoriesData]);
-
+    // Legacy setters for sync hook compatibility
+    const setCategories = useCallback((data: Category[]) => setAllCategoriesData({ categories: data, groups: state.groups }), [state.groups, setAllCategoriesData]);
+    const setCategoryGroups = useCallback((data: string[]) => setAllCategoriesData({ categories: state.categories, groups: data }), [state.categories, setAllCategoriesData]);
 
     return {
-        categories, // Live, filtered data for UI
-        rawCategories: state.categories, // Unfiltered data for sync
-        setCategories,
-        categoryGroups: state.groups,
-        setCategoryGroups,
-        categoryMap,
-        totalMonthlyBudget,
-
-        // New actions
-        updateCategory,
-        addCategory,
-        deleteCategory,
-        addGroup,
-        updateGroupName,
-        reorderGroups,
-        deleteGroup,
+        categories, rawCategories: state.categories, setCategories,
+        categoryGroups: state.groups, setCategoryGroups, categoryMap, totalMonthlyBudget,
+        updateCategory, addCategory, deleteCategory, addGroup, updateGroupName,
+        reorderGroups, reorderCategories, deleteGroup, moveCategoryToGroup,
     };
 };
