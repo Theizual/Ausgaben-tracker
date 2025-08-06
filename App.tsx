@@ -96,8 +96,8 @@ const App: React.FC = () => {
                 }}
             />
 
-            {/* Sticky Header & Desktop Nav */}
-            <div className="sticky top-0 z-30 bg-slate-900/95 backdrop-blur-sm border-b border-slate-700">
+            {/* Sticky Header & Navigation */}
+            <header className="sticky top-0 z-30 bg-slate-900/95 backdrop-blur-sm">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <Header 
                         users={users}
@@ -106,14 +106,14 @@ const App: React.FC = () => {
                         syncOperation={syncOperation}
                         lastSync={lastSync}
                     />
-                    {/* Desktop Tabs are now part of the sticky container */}
-                    <div className="hidden md:block">
-                        <MainTabs activeTab={activeTab} setActiveTab={setActiveTab} isMobile={false} />
-                    </div>
+                    {/* Responsive Tabs are now part of the sticky header */}
+                    <MainTabs activeTab={activeTab} setActiveTab={setActiveTab} />
                 </div>
-            </div>
+                 {/* The bottom border now lives outside the padded container to be full-width */}
+                <div className="border-b border-slate-700"></div>
+            </header>
             
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-24 md:pb-6">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">
                 <main className="mt-6">
                     <AnimatePresence mode="wait">
                         <MotionDiv
@@ -127,11 +127,6 @@ const App: React.FC = () => {
                         </MotionDiv>
                     </AnimatePresence>
                 </main>
-            </div>
-
-             {/* Mobile Bottom Nav */}
-            <div className="md:hidden">
-                <MainTabs activeTab={activeTab} setActiveTab={setActiveTab} isMobile={true} />
             </div>
 
             <SettingsModal isOpen={isSettingsOpen} onClose={closeSettings} initialTab={initialSettingsTab} />
@@ -277,7 +272,7 @@ const Header: React.FC<{
     };
     
     return (
-        <header className="flex justify-between items-center py-2 sm:py-3">
+        <div className="flex justify-between items-center py-2 sm:py-3">
             <Logo />
             <div className="flex items-center gap-1 sm:gap-2">
                 <div className="text-right hidden sm:block">
@@ -299,16 +294,15 @@ const Header: React.FC<{
                 )}
                 <UserSelector />
             </div>
-        </header>
+        </div>
     );
 };
 
-// MainTabs Component
+// Responsive MainTabs Component
 const MainTabs: React.FC<{ 
     activeTab: string; 
     setActiveTab: (tab: 'dashboard' | 'transactions' | 'statistics' | 'tags') => void;
-    isMobile: boolean;
-}> = ({ activeTab, setActiveTab, isMobile }) => {
+}> = ({ activeTab, setActiveTab }) => {
     const tabs = [
         { id: 'dashboard', label: 'Übersicht', icon: LayoutGrid },
         { id: 'transactions', label: 'Transaktionen', icon: Repeat },
@@ -316,18 +310,17 @@ const MainTabs: React.FC<{
         { id: 'tags', label: 'Tags', icon: Tags },
     ];
     
-    if (isMobile) {
-        return (
-            <div className="fixed bottom-0 left-0 right-0 z-40 bg-slate-900/80 backdrop-blur-sm border-t border-slate-700">
-                <div className="flex justify-around items-center h-16">
+    return (
+        <nav>
+            {/* Mobile Tabs */}
+            <div className="md:hidden">
+                <div className="flex justify-around items-center h-14">
                     {tabs.map(tab => (
                         <button
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id as any)}
-                            className={`flex flex-col items-center justify-center gap-1 w-full h-full transition-colors ${
-                                activeTab === tab.id
-                                    ? 'text-rose-400'
-                                    : 'text-slate-400 hover:text-white'
+                            className={`relative flex flex-col items-center justify-center gap-1 w-full h-full transition-colors ${
+                                activeTab === tab.id ? 'text-rose-400' : 'text-slate-400 hover:text-white'
                             }`}
                             title={tab.label}
                         >
@@ -340,29 +333,28 @@ const MainTabs: React.FC<{
                     ))}
                 </div>
             </div>
-        )
-    }
 
-    return (
-        <div className="pb-3 flex items-center space-x-2">
-            {tabs.map(tab => (
-                <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id as any)}
-                    className={`flex items-center justify-center rounded-lg text-sm font-medium transition-all gap-2 p-3 px-4 py-2
-                        ${
-                            activeTab === tab.id
-                                ? 'bg-gradient-to-r from-rose-500 to-red-600 text-white shadow-lg'
-                                : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
-                        }`
-                    }
-                    title={tab.label}
-                >
-                    <tab.icon className="h-5 w-5" />
-                    <span>{tab.label}</span>
-                </button>
-            ))}
-        </div>
+            {/* Desktop Tabs */}
+            <div className="hidden md:flex pb-3 items-center space-x-2">
+                {tabs.map(tab => (
+                    <button
+                        key={tab.id}
+                        onClick={() => setActiveTab(tab.id as any)}
+                        className={`flex items-center justify-center rounded-lg text-sm font-medium transition-all gap-2 p-3 px-4 py-2
+                            ${
+                                activeTab === tab.id
+                                    ? 'bg-gradient-to-r from-rose-500 to-red-600 text-white shadow-lg'
+                                    : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
+                            }`
+                        }
+                        title={tab.label}
+                    >
+                        <tab.icon className="h-5 w-5" />
+                        <span>{tab.label}</span>
+                    </button>
+                ))}
+            </div>
+        </nav>
     );
 };
 

@@ -1,10 +1,13 @@
+
+
+
 import React, { createContext, useContext, useEffect, useMemo, useRef} from 'react';
 import { useCategories } from '../hooks/useCategories';
 import { useTransactionData } from '../hooks/useTransactionData';
 import { useUI } from '../hooks/useUI';
 import { useSync, type SyncProps } from '../hooks/useSync';
 import { useUsers } from '../hooks/useUsers';
-import type { User } from '../types';
+import type { User, Category } from '../types';
 
 // Combine the return types of all hooks to define the shape of the context
 type AppContextType = 
@@ -14,7 +17,7 @@ type AppContextType =
     ReturnType<typeof useUsers> &
     { currentUser: User | null } &
     ReturnType<typeof useSync> &
-    { isDevModeEnabled: boolean }; // Explicitly add derived state
+    { isDevModeEnabled: boolean; addCategoryFromLibrary: (category: Omit<Category, 'lastModified' | 'version'>) => void; }; // Explicitly add derived state
 
 const AppContext = createContext<AppContextType | null>(null);
 

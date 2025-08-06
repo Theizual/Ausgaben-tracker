@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import type { FC } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
@@ -187,7 +187,7 @@ const Dashboard: FC = () => {
                         <div className="flex justify-between items-center mb-4">
                             <h3 className="font-bold text-white">Analyse</h3>
                         </div>
-                        <div className="h-[250px]">
+                        <div className="h-[300px] sm:h-[250px]">
                             <CategoryPieChart transactions={filteredTransactions} categoryMap={categoryMap} />
                         </div>
                         {totalMonthlyBudget > 0 && (
@@ -502,6 +502,15 @@ const MAX_PIE_SLICES = 5; // Top 5 + 1 for "Other"
 const CategoryPieChart: React.FC<CategoryPieChartProps> = ({ transactions, categoryMap }) => {
   const getCategoryById = (id: string): Category | undefined => categoryMap.get(id);
 
+  const [isMobileView, setIsMobileView] = useState(false);
+
+    useEffect(() => {
+        const checkMobile = () => setIsMobileView(window.innerWidth < 640);
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
+
   const data = useMemo(() => {
     if (!transactions.length) return [];
     
@@ -568,8 +577,8 @@ const CategoryPieChart: React.FC<CategoryPieChartProps> = ({ transactions, categ
           cy="50%"
           labelLine={false}
           label={<CustomizedLabel />}
-          outerRadius="80%"
-          innerRadius="50%"
+          outerRadius={isMobileView ? "75%" : "80%"}
+          innerRadius={isMobileView ? "45%" : "50%"}
           fill="#8884d8"
           dataKey="value"
           paddingAngle={3}
@@ -580,10 +589,13 @@ const CategoryPieChart: React.FC<CategoryPieChartProps> = ({ transactions, categ
         </Pie>
         <Legend 
             iconType="circle" 
-            layout="vertical" 
-            verticalAlign="middle" 
-            align="right" 
-            wrapperStyle={{ fontSize: '12px', lineHeight: '1.5', paddingLeft: '20px' }}
+            layout={isMobileView ? 'horizontal' : 'vertical'}
+            verticalAlign={isMobileView ? 'bottom' : 'middle'}
+            align={isMobileView ? 'center' : 'right'}
+            wrapperStyle={isMobileView 
+                ? { fontSize: '10px', paddingTop: '10px', lineHeight: '1.2' }
+                : { fontSize: '12px', lineHeight: '1.5', paddingLeft: '20px' }
+            }
             formatter={(value, entry) => {
                 if (!entry || !entry.payload) {
                     return <span className="text-slate-400">{value}</span>;
@@ -591,7 +603,7 @@ const CategoryPieChart: React.FC<CategoryPieChartProps> = ({ transactions, categ
                 const { payload } = entry;
                 const formattedValue = payload.value != null ? formatCurrency(payload.value) : '';
                 return (
-                    <span className="text-slate-400">
+                     <span className="text-slate-400 inline-block mr-2">
                         {value}{' '}
                         <span className="font-semibold text-slate-300">
                            {formattedValue}

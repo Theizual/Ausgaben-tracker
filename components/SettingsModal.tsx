@@ -1,13 +1,16 @@
 
+
+
+
 import React, { useState, useMemo, useCallback, useEffect, FC, useRef } from 'react';
-import { AnimatePresence, motion, Reorder, PanInfo } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { useApp } from '../contexts/AppContext';
 import type { Category, RecurringTransaction, Tag, User, SettingsTab } from '../types';
 import { format, parseISO, formatCurrency } from '../utils/dateUtils';
-import { Settings, Loader2, X, TrendingDown, LayoutGrid, BarChart2, Sheet, Save, DownloadCloud, Target, Edit, Trash2, Plus, GripVertical, Wallet, SlidersHorizontal, Repeat, History, Tag as TagIcon, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, FlaskConical, Users, CheckCircle2, ChevronRight as ChevronRightIcon, Info, iconMap } from './Icons';
+import { Settings, Loader2, X, TrendingDown, LayoutGrid, BarChart2, Sheet, Save, DownloadCloud, Target, Edit, Trash2, Plus, Wallet, SlidersHorizontal, Repeat, History, Tag as TagIcon, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, FlaskConical, Users, CheckCircle2, ChevronRight as ChevronRightIcon, Info, iconMap } from './Icons';
 import type { LucideProps } from 'lucide-react';
-import { APP_VERSION } from '../constants';
+import { APP_VERSION, INITIAL_CATEGORIES, INITIAL_GROUPS } from '../constants';
 import { useEscapeKey } from '../hooks/useEscapeKey';
 import { generateUUID } from '../utils/uuid';
 import { getIconComponent } from './Icons';
@@ -24,12 +27,11 @@ const STYLES = {
     PRIMARY_BUTTON: "flex items-center gap-2 bg-rose-600 hover:bg-rose-500 text-white font-semibold px-4 py-2 rounded-md transition-colors",
     SECONDARY_BUTTON: "flex items-center gap-2 text-sm bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded-md font-semibold",
     BASE_INPUT: "w-full bg-slate-700 border border-slate-600 rounded-md px-3 py-2 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500",
+    SORT_BUTTON: "p-1 text-slate-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed",
 };
 
 const ANIMATION_CONFIG = {
-    HOVER_DELAY: 400,
     MODAL_SPRING: { type: 'spring' as const, bounce: 0.3, duration: 0.4 },
-    EXPAND_DURATION_FAST: 0,
     EXPAND_DURATION_NORMAL: 0.3,
 };
 
@@ -97,14 +99,14 @@ const UserSettings: FC = () => {
     const { users, addUser, updateUser, deleteUser } = useApp();
     const [newUserName, setNewUserName] = useState('');
 
-    const handleAddUser = (e: React.FormEvent) => {
+    const handleAddUser = useCallback((e: React.FormEvent) => {
         e.preventDefault();
         const trimmedName = newUserName.trim();
         if (trimmedName) {
             addUser(trimmedName);
             setNewUserName('');
         }
-    };
+    }, [addUser, newUserName]);
 
     const handleNameUpdate = useCallback((id: string, name: string) => updateUser(id, { name }), [updateUser]);
 
@@ -257,7 +259,7 @@ const IconRenderer: FC<{ iconName: string } & LucideProps> = ({ iconName, ...pro
 const SettingsModal: FC<{ isOpen: boolean; onClose: () => void; initialTab?: SettingsTab; }> = ({ isOpen, onClose, initialTab }) => {
     const {
         categories, categoryGroups, updateCategory, addCategory, deleteCategory, addGroup,
-        updateGroupName, reorderGroups, deleteGroup, reorderCategories, moveCategoryToGroup,
+        updateGroupName, deleteGroup, moveGroup, moveCategory, addCategoryFromLibrary,
         isAutoSyncEnabled, setIsAutoSyncEnabled, openChangelog, allAvailableTags, handleUpdateTag, handleDeleteTag
     } = useApp();
 
@@ -265,72 +267,25 @@ const SettingsModal: FC<{ isOpen: boolean; onClose: () => void; initialTab?: Set
     const [pickingIconFor, setPickingIconFor] = useState<string | null>(null);
     const [isCategoryManagerOpen, setCategoryManagerOpen] = useState(false);
     const [isTagManagerOpen, setTagManagerOpen] = useState(false);
+    const [isCategoryLibraryOpen, setCategoryLibraryOpen] = useState(false);
     const [openGroupName, setOpenGroupName] = useState<string | null>(null);
-    const [isDraggingCategory, setIsDraggingCategory] = useState(false);
-    const [originGroupName, setOriginGroupName] = useState<string | null>(null);
-    
-    const groupItemRefs = useRef<Map<string, HTMLElement | null>>(new Map());
-    const hoverTimeoutRef = useRef<number | null>(null);
-    const lastHoveredGroupRef = useRef<string | null>(null);
 
     useEffect(() => {
-        if (!isOpen) setOpenGroupName(categoryGroups[0] || null);
-        else if (initialTab) setActiveSettingsTab(initialTab);
+        if (!isOpen) {
+            setOpenGroupName(categoryGroups[0] || null);
+        } else if (initialTab) {
+            setActiveSettingsTab(initialTab);
+        }
     }, [isOpen, initialTab, categoryGroups]);
 
-    // Global timeout cleanup
-    useEffect(() => () => { if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current); }, []);
-
     const handleEscape = useCallback(() => {
-        if (isCategoryManagerOpen) setCategoryManagerOpen(false);
+        if (isCategoryLibraryOpen) setCategoryLibraryOpen(false);
+        else if (isCategoryManagerOpen) setCategoryManagerOpen(false);
         else if (isTagManagerOpen) setTagManagerOpen(false);
         else if (pickingIconFor) setPickingIconFor(null);
         else onClose();
-    }, [isCategoryManagerOpen, isTagManagerOpen, pickingIconFor, onClose]);
+    }, [isCategoryLibraryOpen, isCategoryManagerOpen, isTagManagerOpen, pickingIconFor, onClose]);
     useEscapeKey(handleEscape);
-
-    const handleCategoryDragEnd = useCallback((info: PanInfo, category: Category) => {
-        // Cleanup hover logic
-        if (hoverTimeoutRef.current) {
-            clearTimeout(hoverTimeoutRef.current);
-            hoverTimeoutRef.current = null;
-        }
-        lastHoveredGroupRef.current = null;
-        
-        // Find drop target
-        const { point } = info;
-        for (const [groupName, element] of groupItemRefs.current.entries()) {
-            if (element && groupName !== category.group) {
-                const rect = element.getBoundingClientRect();
-                if (point.x > rect.left && point.x < rect.right && point.y > rect.top && point.y < rect.bottom) {
-                    moveCategoryToGroup(category.id, groupName);
-                    return; // Exit after moving
-                }
-            }
-        }
-    }, [moveCategoryToGroup]);
-
-    const handleCategoryDrag = useCallback((_: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
-        const { point } = info;
-        let hoveredGroup: string | null = null;
-        for (const [groupName, element] of groupItemRefs.current.entries()) {
-            if (element) {
-                const rect = element.getBoundingClientRect();
-                if (point.x > rect.left && point.x < rect.right && point.y > rect.top && point.y < rect.bottom) {
-                    hoveredGroup = groupName; break;
-                }
-            }
-        }
-        if (hoveredGroup !== lastHoveredGroupRef.current) {
-            if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
-            lastHoveredGroupRef.current = hoveredGroup;
-            if (hoveredGroup && hoveredGroup !== openGroupName) {
-                hoverTimeoutRef.current = window.setTimeout(() => {
-                    if (lastHoveredGroupRef.current === hoveredGroup) setOpenGroupName(hoveredGroup);
-                }, ANIMATION_CONFIG.HOVER_DELAY);
-            }
-        }
-    }, [openGroupName]);
     
     const settingsTabs: { id: SettingsTab; label: string; icon: FC<LucideProps>; }[] = [
         { id: 'general', label: 'Allgemein', icon: SlidersHorizontal }, { id: 'users', label: 'Benutzer', icon: Users },
@@ -355,7 +310,23 @@ const SettingsModal: FC<{ isOpen: boolean; onClose: () => void; initialTab?: Set
                             {activeSettingsTab === 'general' && (
                                 <MotionDiv key="general" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} transition={{ duration: 0.2 }} className="space-y-8">
                                     <div><h3 className="text-lg font-semibold mb-3 text-white flex items-center gap-2"><Sheet className="h-5 w-5 text-green-400" /> Google Sheets Sync</h3><div className="flex items-center justify-between pt-4 mt-4 border-t border-slate-700/50"><div><label htmlFor="auto-sync-toggle" className="block text-sm font-medium text-slate-300">Automatische Hintergrund-Synchronisierung</label><p className="text-xs text-slate-400 mt-1">Speichert Änderungen nach kurzer Inaktivität automatisch.</p></div><ToggleSwitch id="auto-sync-toggle" enabled={isAutoSyncEnabled} setEnabled={setIsAutoSyncEnabled} /></div></div>
-                                    <div><h3 className="text-lg font-semibold mb-3 text-white flex items-center gap-2"><Wallet className="h-5 w-5 text-purple-400" /> Datenverwaltung</h3><div className="pt-4 mt-4 border-t border-slate-700/50 space-y-3"><button onClick={() => setCategoryManagerOpen(true)} className={STYLES.MANAGER_LIST_ITEM}><div><span className="font-semibold text-white">Kategorien-Verwaltung</span><p className="text-xs text-slate-400 mt-1">Kategorien und Gruppen bearbeiten, hinzufügen oder löschen.</p></div><ChevronRightIcon className="h-5 w-5 text-slate-400" /></button><button onClick={() => setTagManagerOpen(true)} className={STYLES.MANAGER_LIST_ITEM}><div><span className="font-semibold text-white">Tag-Verwaltung</span><p className="text-xs text-slate-400 mt-1">Bestehende Tags umbenennen oder löschen.</p></div><ChevronRightIcon className="h-5 w-5 text-slate-400" /></button></div></div>
+                                    <div>
+                                        <h3 className="text-lg font-semibold mb-3 text-white flex items-center gap-2"><Wallet className="h-5 w-5 text-purple-400" /> Datenverwaltung</h3>
+                                        <div className="pt-4 mt-4 border-t border-slate-700/50 space-y-3">
+                                            <button onClick={() => setCategoryManagerOpen(true)} className={STYLES.MANAGER_LIST_ITEM}>
+                                                <div><span className="font-semibold text-white">Kategorien-Verwaltung</span><p className="text-xs text-slate-400 mt-1">Kategorien und Gruppen bearbeiten, hinzufügen oder löschen.</p></div>
+                                                <ChevronRightIcon className="h-5 w-5 text-slate-400" />
+                                            </button>
+                                            <button onClick={() => setTagManagerOpen(true)} className={STYLES.MANAGER_LIST_ITEM}>
+                                                <div><span className="font-semibold text-white">Tag-Verwaltung</span><p className="text-xs text-slate-400 mt-1">Bestehende Tags umbenennen oder löschen.</p></div>
+                                                <ChevronRightIcon className="h-5 w-5 text-slate-400" />
+                                            </button>
+                                            <button onClick={() => setCategoryLibraryOpen(true)} className={STYLES.MANAGER_LIST_ITEM}>
+                                                <div><span className="font-semibold text-white">Kategorien-Bibliothek</span><p className="text-xs text-slate-400 mt-1">Vordefinierte Kategorien zum Setup hinzufügen.</p></div>
+                                                <ChevronRightIcon className="h-5 w-5 text-slate-400" />
+                                            </button>
+                                        </div>
+                                    </div>
                                     <div><h3 className="text-lg font-semibold mb-3 text-white flex items-center gap-2"><Info className="h-5 w-5 text-sky-400" /> App Informationen</h3><div className="pt-4 mt-4 border-t border-slate-700/50 space-y-3"><button onClick={openChangelog} className={STYLES.MANAGER_LIST_ITEM}><div><span className="font-semibold text-white">Was ist neu? (Changelog)</span><p className="text-xs text-slate-400 mt-1">Änderungen und neue Funktionen der letzten Versionen anzeigen.</p></div><ChevronRightIcon className="h-5 w-5 text-slate-400" /></button><div className="flex justify-between items-center text-sm px-1"><span className="text-slate-400">App-Version</span><span className="font-mono text-slate-500 bg-slate-700/50 px-2 py-1 rounded-md">{APP_VERSION}</span></div></div></div>
                                 </MotionDiv>
                             )}
@@ -367,61 +338,55 @@ const SettingsModal: FC<{ isOpen: boolean; onClose: () => void; initialTab?: Set
                 </MotionDiv>
             </MotionDiv>
             <ManagerModal isOpen={isCategoryManagerOpen} onClose={() => setCategoryManagerOpen(false)} title="Kategorien-Verwaltung">
-                <div className="flex justify-between items-center mb-6"><p className="text-sm text-slate-400">Organisieren Sie Ihre Gruppen und Kategorien per Drag & Drop.</p><button onClick={addGroup} className={STYLES.SECONDARY_BUTTON}><Plus className="h-4 w-4"/>Neue Gruppe</button></div>
-                <Reorder.Group axis="y" values={categoryGroups} onReorder={reorderGroups} className="space-y-2">
-                    {categoryGroups.map((groupName) => {
+                <div className="flex justify-between items-center mb-6 flex-wrap gap-2">
+                    <p className="text-sm text-slate-400">Organisieren Sie Ihre Gruppen und Kategorien.</p>
+                    <div className="flex items-center gap-2">
+                        <button onClick={addGroup} className={STYLES.PRIMARY_BUTTON}>
+                            <Plus className="h-4 w-4"/>Neue Gruppe
+                        </button>
+                    </div>
+                </div>
+                <div className="space-y-2">
+                    {categoryGroups.map((groupName, groupIndex) => {
                         const isOpen = openGroupName === groupName;
-                        const isRelevantForOverflow = isDraggingCategory && groupName === openGroupName;
+                        const categoriesInGroup = categories.filter(c => c.group === groupName);
 
                         return (
-                            <Reorder.Item key={groupName} value={groupName} className="bg-slate-700/40 rounded-lg" ref={(el) => groupItemRefs.current.set(groupName, el)}>
+                            <div key={groupName} className="bg-slate-700/40 rounded-lg">
                                 <div className="flex items-center p-3 cursor-pointer" onClick={() => setOpenGroupName(isOpen ? null : groupName)}>
-                                    <div className="text-slate-500 cursor-grab active:cursor-grabbing" onPointerDown={(e) => e.stopPropagation()}><GripVertical className="h-6 w-6" /></div>
+                                    <div className="flex flex-col" onClick={e => e.stopPropagation()}>
+                                        <button onClick={() => moveGroup(groupName, 'up')} disabled={groupIndex === 0} className={STYLES.SORT_BUTTON}><ChevronUp className="h-4 w-4" /></button>
+                                        <button onClick={() => moveGroup(groupName, 'down')} disabled={groupIndex === categoryGroups.length - 1} className={STYLES.SORT_BUTTON}><ChevronDown className="h-4 w-4" /></button>
+                                    </div>
                                     <input type="text" defaultValue={groupName} onClick={(e) => e.stopPropagation()} onBlur={(e) => updateGroupName(groupName, e.currentTarget.value)} onKeyDown={e => e.key === 'Enter' && e.currentTarget.blur()} className="bg-transparent text-lg font-bold text-white w-full focus:outline-none focus:bg-slate-600/50 rounded px-2 mx-2"/>
                                     <ChevronDown className={`h-6 w-6 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
                                     <button onClick={(e) => { e.stopPropagation(); deleteGroup(groupName); }} className="p-2 ml-2 rounded-full hover:bg-red-500/20 text-slate-500 hover:text-red-400"><Trash2 className="h-5 w-5"/></button>
                                 </div>
-                                <motion.div 
-                                    initial={false} 
-                                    animate={{ height: isOpen ? 'auto' : 0 }} 
-                                    transition={{ duration: isDraggingCategory ? ANIMATION_CONFIG.EXPAND_DURATION_FAST : ANIMATION_CONFIG.EXPAND_DURATION_NORMAL }} 
-                                    style={{ overflow: isRelevantForOverflow ? 'visible' : 'hidden' }}
-                                >
+                                <motion.div initial={false} animate={{ height: isOpen ? 'auto' : 0 }} transition={{ duration: ANIMATION_CONFIG.EXPAND_DURATION_NORMAL }} style={{ overflow: 'hidden' }}>
                                     <div className="pb-4 px-4">
-                                        <Reorder.Group axis="y" values={categories.filter(c => c.group === groupName)} onReorder={(newOrder) => reorderCategories(groupName, newOrder)} className="space-y-2 ml-4 pl-4 border-l-2 border-slate-600">
-                                        {categories.filter(c => c.group === groupName).map(cat => (
-                                            <Reorder.Item 
-                                                key={cat.id} 
-                                                value={cat} 
-                                                onDragStart={() => {
-                                                    setIsDraggingCategory(true);
-                                                    setOriginGroupName(cat.group);
-                                                }} 
-                                                onDrag={handleCategoryDrag} 
-                                                onDragEnd={(_, info) => { 
-                                                    setIsDraggingCategory(false); 
-                                                    setOriginGroupName(null);
-                                                    handleCategoryDragEnd(info, cat); 
-                                                }}
-                                                whileDrag={{ scale: 1.05, zIndex: 50, boxShadow: '0px 10px 30px rgba(0, 0, 0, 0.3)' }} 
-                                                className="bg-slate-700/50 p-2 rounded-lg flex items-center gap-3">
-                                                <div className="text-slate-500 cursor-grab active:cursor-grabbing"><GripVertical className="h-5 w-5" /></div>
-                                                <button type="button" onClick={() => setPickingIconFor(cat.id)} className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 transition-transform hover:scale-110" style={{ backgroundColor: cat.color }} title="Symbol ändern">
-                                                    <IconRenderer iconName={cat.icon} className="h-5 w-5 text-white" />
-                                                </button>
-                                                <input type="text" defaultValue={cat.name} onBlur={e => updateCategory(cat.id, { name: e.currentTarget.value })} onKeyDown={e => e.key === 'Enter' && e.currentTarget.blur()} className={STYLES.INPUT_FIELD}/>
-                                                <input type="color" value={cat.color} onChange={e => updateCategory(cat.id, { color: e.currentTarget.value })} className="w-8 h-8 p-0 border-none rounded-md bg-transparent cursor-pointer" title="Farbe ändern"/>
-                                                <button onClick={() => deleteCategory(cat.id)} className="p-2 rounded-full hover:bg-red-500/20 text-slate-500 hover:text-red-400"><Trash2 className="h-5 w-5"/></button>
-                                            </Reorder.Item>
-                                        ))}
-                                        </Reorder.Group>
+                                        <div className="space-y-2 ml-4 pl-4 border-l-2 border-slate-600">
+                                            {categoriesInGroup.map((cat, catIndex) => (
+                                                <div key={cat.id} className="bg-slate-700/50 p-2 rounded-lg flex items-center gap-3">
+                                                    <div className="flex flex-col">
+                                                        <button onClick={() => moveCategory(cat.id, 'up')} disabled={catIndex === 0} className={STYLES.SORT_BUTTON}><ChevronUp className="h-4 w-4" /></button>
+                                                        <button onClick={() => moveCategory(cat.id, 'down')} disabled={catIndex === categoriesInGroup.length - 1} className={STYLES.SORT_BUTTON}><ChevronDown className="h-4 w-4" /></button>
+                                                    </div>
+                                                    <button type="button" onClick={() => setPickingIconFor(cat.id)} className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 transition-transform hover:scale-110" style={{ backgroundColor: cat.color }} title="Symbol ändern">
+                                                        <IconRenderer iconName={cat.icon} className="h-5 w-5 text-white" />
+                                                    </button>
+                                                    <input type="text" defaultValue={cat.name} onBlur={e => updateCategory(cat.id, { name: e.currentTarget.value })} onKeyDown={e => e.key === 'Enter' && e.currentTarget.blur()} className={STYLES.INPUT_FIELD}/>
+                                                    <input type="color" value={cat.color} onChange={e => updateCategory(cat.id, { color: e.currentTarget.value })} className="w-8 h-8 p-0 border-none rounded-md bg-transparent cursor-pointer" title="Farbe ändern"/>
+                                                    <button onClick={() => deleteCategory(cat.id)} className="p-2 rounded-full hover:bg-red-500/20 text-slate-500 hover:text-red-400"><Trash2 className="h-5 w-5"/></button>
+                                                </div>
+                                            ))}
+                                        </div>
                                         <button onClick={() => addCategory(groupName)} className="flex items-center gap-2 text-sm text-slate-400 hover:text-white mt-3 ml-8"><Plus className="h-4 w-4"/>Kategorie hinzufügen</button>
                                     </div>
                                 </motion.div>
-                            </Reorder.Item>
+                            </div>
                         )
                     })}
-                </Reorder.Group>
+                </div>
             </ManagerModal>
             <ManagerModal isOpen={isTagManagerOpen} onClose={() => setTagManagerOpen(false)} title="Tag-Verwaltung">
                 <div className="space-y-3">
@@ -434,7 +399,89 @@ const SettingsModal: FC<{ isOpen: boolean; onClose: () => void; initialTab?: Set
                     ))}
                 </div>
             </ManagerModal>
+            <CategoryLibraryModal isOpen={isCategoryLibraryOpen} onClose={() => setCategoryLibraryOpen(false)} />
             {pickingIconFor && <IconPicker onClose={() => setPickingIconFor(null)} onSelect={(iconName) => { if (pickingIconFor) updateCategory(pickingIconFor, { icon: iconName }); setPickingIconFor(null); }}/>}
+        </AnimatePresence>
+    );
+};
+
+const CategoryLibraryModal: FC<{ isOpen: boolean; onClose: () => void; }> = ({ isOpen, onClose }) => {
+    const { categories, addCategoryFromLibrary } = useApp();
+    const existingCategoryIds = useMemo(() => new Set(categories.map(c => c.id)), [categories]);
+
+    const groupedInitialCategories = useMemo(() => {
+        const groupMap = new Map<string, Omit<Category, 'lastModified' | 'version'>[]>();
+        INITIAL_CATEGORIES.forEach(category => {
+            const group = category.group;
+            if (!groupMap.has(group)) {
+                groupMap.set(group, []);
+            }
+            groupMap.get(group)!.push(category);
+        });
+        return INITIAL_GROUPS.map(groupName => ({
+            name: groupName,
+            categories: groupMap.get(groupName) || []
+        })).filter(group => group.categories.length > 0);
+    }, []);
+
+    const handleAddCategory = (category: Omit<Category, 'lastModified' | 'version'>) => {
+        addCategoryFromLibrary(category);
+        toast.success(`Kategorie "${category.name}" hinzugefügt.`);
+    };
+
+    useEscapeKey(onClose);
+
+    return (
+        <AnimatePresence>
+            {isOpen && (
+                <MotionDiv className="fixed inset-0 bg-black/70 backdrop-blur-sm flex justify-center items-center z-[60] p-4" onClick={onClose} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                    <MotionDiv className="bg-slate-900 rounded-2xl w-full max-w-3xl shadow-2xl border border-slate-700 flex flex-col max-h-[85vh]" onClick={e => e.stopPropagation()}
+                        initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} transition={ANIMATION_CONFIG.MODAL_SPRING}>
+                        <header className="flex justify-between items-center p-6 border-b border-slate-700 flex-shrink-0">
+                            <h2 className="text-xl font-bold text-white">Kategorien-Bibliothek</h2>
+                            <button onClick={onClose} className="p-2 rounded-full hover:bg-slate-700"><X className="h-5 w-5" /></button>
+                        </header>
+                        <main className="p-6 flex-grow overflow-y-auto custom-scrollbar space-y-6">
+                            {groupedInitialCategories.map(group => (
+                                <div key={group.name}>
+                                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3 ml-1">{group.name}</h4>
+                                    <div className="flex flex-wrap gap-2">
+                                        {group.categories.map(category => {
+                                            const Icon = iconMap[category.icon] || iconMap.MoreHorizontal;
+                                            const isAdded = existingCategoryIds.has(category.id);
+                                            return (
+                                                <button
+                                                    key={category.id}
+                                                    type="button"
+                                                    onClick={() => handleAddCategory(category)}
+                                                    disabled={isAdded}
+                                                    className={`w-12 h-12 flex items-center justify-center rounded-lg transition-colors duration-200 border relative
+                                                        ${isAdded 
+                                                            ? 'bg-slate-700/50 border-slate-600 opacity-60 cursor-not-allowed' 
+                                                            : 'bg-slate-700/80 hover:bg-slate-700 border-transparent hover:border-slate-500'
+                                                        }`
+                                                    }
+                                                    title={isAdded ? `${category.name} (Hinzugefügt)` : category.name}
+                                                >
+                                                    <Icon className="h-6 w-6" style={{ color: category.color }} />
+                                                    {isAdded && (
+                                                        <div className="absolute -top-1 -right-1 bg-green-500 text-white rounded-full h-4 w-4 flex items-center justify-center ring-2 ring-slate-900">
+                                                            <CheckCircle2 className="h-3 w-3" />
+                                                        </div>
+                                                    )}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            ))}
+                        </main>
+                         <footer className="p-4 border-t border-slate-700 flex-shrink-0 text-right">
+                            <button onClick={onClose} className={STYLES.PRIMARY_BUTTON}>Fertig</button>
+                        </footer>
+                    </MotionDiv>
+                </MotionDiv>
+            )}
         </AnimatePresence>
     );
 };

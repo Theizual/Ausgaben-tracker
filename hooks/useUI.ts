@@ -1,3 +1,4 @@
+
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { format, subDays, getMonthInterval, getWeekInterval } from '../utils/dateUtils';
 import type { Transaction, ViewMode, PeriodType, QuickFilterId, SettingsTab } from '../types';
@@ -18,7 +19,7 @@ export const useUI = () => {
     const [confirmationData, setConfirmationData] = useState<{ transactions: Transaction[]; totalSpentBefore: number; } | null>(null);
     const [transactionForDetail, setTransactionForDetail] = useState<{ transaction: Transaction } | null>(null);
     const [isChangelogOpen, setIsChangelogOpen] = useState(false);
-    const [isChangelogAutoShowEnabled, setIsChangelogAutoShowEnabled] = useLocalStorage('changelogAutoShowEnabled', true);
+    const [isChangelogAutoShowEnabled, setIsChangelogAutoShowEnabled] = useLocalStorage('changelogAutoShowEnabled', false);
     
     // User Management - UI Preference ONLY
     const [currentUserId, setCurrentUserId] = useLocalStorage<string | null>('app-current-user-id', null);

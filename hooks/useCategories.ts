@@ -1,8 +1,10 @@
 
+
 import { useMemo, useReducer, useEffect, useCallback } from 'react';
 import { INITIAL_CATEGORIES, INITIAL_GROUPS } from '../constants';
 import type { Category } from '../types';
 import { generateUUID } from '../utils/uuid';
+import { toast } from 'react-hot-toast';
 
 // --- STATE & ACTIONS ---
 type CategoriesState = {
@@ -17,10 +19,10 @@ type Action =
     | { type: 'DELETE_CATEGORY', payload: { id: string } }
     | { type: 'ADD_GROUP' }
     | { type: 'UPDATE_GROUP_NAME', payload: { oldName: string, newName: string } }
-    | { type: 'REORDER_GROUPS', payload: string[] }
-    | { type: 'REORDER_CATEGORIES', payload: { groupName: string, reorderedCategories: Category[] } }
-    | { type: 'MOVE_CATEGORY_TO_GROUP', payload: { categoryId: string, newGroupName: string } }
-    | { type: 'DELETE_GROUP', payload: { groupName: string } };
+    | { type: 'DELETE_GROUP', payload: { groupName: string } }
+    | { type: 'MOVE_GROUP', payload: { groupName: string, direction: 'up' | 'down' } }
+    | { type: 'MOVE_CATEGORY', payload: { categoryId: string, direction: 'up' | 'down' } }
+    | { type: 'ADD_FROM_LIBRARY', payload: { category: Omit<Category, 'lastModified' | 'version'> } };
 
 const categoriesReducer = (state: CategoriesState, action: Action): CategoriesState => {
     const now = new Date().toISOString();
@@ -39,6 +41,42 @@ const categoriesReducer = (state: CategoriesState, action: Action): CategoriesSt
                 version: 1
             };
             return { ...state, categories: [...state.categories, newCategory] };
+        }
+
+        case 'ADD_FROM_LIBRARY': {
+            const { category } = action.payload;
+            const existingCategory = state.categories.find(c => c.id === category.id);
+
+            let updatedCategories: Category[];
+            if (existingCategory) {
+                // If it exists but is deleted, undelete it
+                if (existingCategory.isDeleted) {
+                    updatedCategories = state.categories.map(c =>
+                        c.id === category.id
+                            ? { ...category, id: c.id, lastModified: now, version: (c.version || 0) + 1, isDeleted: false }
+                            : c
+                    );
+                } else {
+                    // Already exists and is not deleted, do nothing
+                    toast.error(`Kategorie "${category.name}" ist bereits vorhanden.`);
+                    return state;
+                }
+            } else {
+                // Doesn't exist, add it
+                const newCategory: Category = {
+                    ...category,
+                    lastModified: now,
+                    version: 1,
+                };
+                updatedCategories = [...state.categories, newCategory];
+            }
+
+            // Ensure the group exists
+            const updatedGroups = state.groups.includes(category.group)
+                ? state.groups
+                : [...state.groups, category.group];
+
+            return { ...state, categories: updatedCategories, groups: updatedGroups };
         }
             
         case 'UPDATE_CATEGORY': {
@@ -85,28 +123,40 @@ const categoriesReducer = (state: CategoriesState, action: Action): CategoriesSt
             };
         }
             
-        case 'REORDER_GROUPS':
-            return { ...state, groups: action.payload };
-        
-        case 'REORDER_CATEGORIES': {
-            const { groupName, reorderedCategories } = action.payload;
-            const otherGroupCategories = state.categories.filter(c => c.group !== groupName);
-            return {
-                ...state,
-                categories: [...otherGroupCategories, ...reorderedCategories],
-            };
+        case 'MOVE_GROUP': {
+            const { groupName, direction } = action.payload;
+            const index = state.groups.findIndex(g => g === groupName);
+            if (index === -1) return state;
+
+            const newIndex = direction === 'up' ? index - 1 : index + 1;
+            if (newIndex < 0 || newIndex >= state.groups.length) return state;
+
+            const newGroups = [...state.groups];
+            [newGroups[index], newGroups[newIndex]] = [newGroups[newIndex], newGroups[index]]; // Swap
+            return { ...state, groups: newGroups };
         }
-        
-        case 'MOVE_CATEGORY_TO_GROUP': {
-            const { categoryId, newGroupName } = action.payload;
-            if (!state.groups.includes(newGroupName)) return state;
+
+        case 'MOVE_CATEGORY': {
+            const { categoryId, direction } = action.payload;
+            const categoryToMove = state.categories.find(c => c.id === categoryId);
+            if (!categoryToMove) return state;
+
+            const groupName = categoryToMove.group;
+            const categoriesInGroup = state.categories.filter(c => c.group === groupName);
+            const otherCategories = state.categories.filter(c => c.group !== groupName);
+            
+            const index = categoriesInGroup.findIndex(c => c.id === categoryId);
+            if (index === -1) return state;
+
+            const newIndex = direction === 'up' ? index - 1 : index + 1;
+            if (newIndex < 0 || newIndex >= categoriesInGroup.length) return state;
+            
+            const reorderedCategoriesInGroup = [...categoriesInGroup];
+            [reorderedCategoriesInGroup[index], reorderedCategoriesInGroup[newIndex]] = [reorderedCategoriesInGroup[newIndex], reorderedCategoriesInGroup[index]]; // Swap
+
             return {
                 ...state,
-                categories: state.categories.map(cat =>
-                    cat.id === categoryId
-                        ? { ...cat, group: newGroupName, lastModified: now, version: (cat.version || 0) + 1 }
-                        : cat
-                )
+                categories: [...otherCategories, ...reorderedCategoriesInGroup]
             };
         }
             
@@ -157,13 +207,15 @@ export const useCategories = () => {
     const setAllCategoriesData = useCallback((payload: { categories: Category[], groups: string[] }) => dispatch({ type: 'SET_ALL_CATEGORIES_DATA', payload }), []);
     const updateCategory = useCallback((id: string, data: Partial<Omit<Category, 'id'>>) => dispatch({ type: 'UPDATE_CATEGORY', payload: { id, data } }), []);
     const addCategory = useCallback((groupName: string) => dispatch({ type: 'ADD_CATEGORY', payload: { groupName, id: generateUUID() } }), []);
+    const addCategoryFromLibrary = useCallback((category: Omit<Category, 'lastModified' | 'version'>) => dispatch({ type: 'ADD_FROM_LIBRARY', payload: { category } }), []);
     const deleteCategory = useCallback((id: string) => dispatch({ type: 'DELETE_CATEGORY', payload: { id } }), []);
     const addGroup = useCallback(() => dispatch({ type: 'ADD_GROUP' }), []);
     const updateGroupName = useCallback((oldName: string, newName: string) => dispatch({ type: 'UPDATE_GROUP_NAME', payload: { oldName, newName } }), []);
-    const reorderGroups = useCallback((newGroups: string[]) => dispatch({ type: 'REORDER_GROUPS', payload: newGroups }), []);
-    const reorderCategories = useCallback((groupName: string, reorderedCategories: Category[]) => dispatch({ type: 'REORDER_CATEGORIES', payload: { groupName, reorderedCategories } }), []);
     const deleteGroup = useCallback((groupName: string) => dispatch({ type: 'DELETE_GROUP', payload: { groupName } }), []);
-    const moveCategoryToGroup = useCallback((categoryId: string, newGroupName: string) => dispatch({ type: 'MOVE_CATEGORY_TO_GROUP', payload: { categoryId, newGroupName } }), []);
+    
+    // Arrow-based sorting functions
+    const moveGroup = useCallback((groupName: string, direction: 'up' | 'down') => dispatch({ type: 'MOVE_GROUP', payload: { groupName, direction } }), []);
+    const moveCategory = useCallback((categoryId: string, direction: 'up' | 'down') => dispatch({ type: 'MOVE_CATEGORY', payload: { categoryId, direction } }), []);
     
     // Legacy setters for sync hook compatibility
     const setCategories = useCallback((data: Category[]) => setAllCategoriesData({ categories: data, groups: state.groups }), [state.groups, setAllCategoriesData]);
@@ -173,6 +225,6 @@ export const useCategories = () => {
         categories, rawCategories: state.categories, setCategories,
         categoryGroups: state.groups, setCategoryGroups, categoryMap, totalMonthlyBudget,
         updateCategory, addCategory, deleteCategory, addGroup, updateGroupName,
-        reorderGroups, reorderCategories, deleteGroup, moveCategoryToGroup,
+        deleteGroup, moveGroup, moveCategory, addCategoryFromLibrary,
     };
 };
