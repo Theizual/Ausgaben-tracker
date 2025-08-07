@@ -1,3 +1,4 @@
+
 import type { Category } from './types';
 
 export const APP_VERSION = '0.88';

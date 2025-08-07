@@ -137,6 +137,15 @@ export const getLenientSchemas = (now: string = new Date().toISOString()) => {
     isDeleted: z.preprocess((val) => String(val).toUpperCase() === 'TRUE', z.boolean()).optional().default(false),
     version: SanitizeVersion,
   });
+  
+  const UserSettingSchema = z.object({
+    userId: z.string().min(1),
+    settingKey: z.literal('visibleGroups'),
+    settingValue: z.string().default(''),
+    lastModified: DateString,
+    isDeleted: z.preprocess((val) => String(val).toUpperCase() === 'TRUE', z.boolean()).optional().default(false),
+    version: SanitizeVersion,
+  });
 
   return {
     CategorySchema,
@@ -144,6 +153,7 @@ export const getLenientSchemas = (now: string = new Date().toISOString()) => {
     RecurringTransactionSchema,
     TagSchema,
     UserSchema,
+    UserSettingSchema,
   };
 };
 

@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { formatDistanceToNow } from 'date-fns';
 import { de } from 'date-fns/locale';
 import useLocalStorage from './useLocalStorage';
-import type { Category, Transaction, RecurringTransaction, Tag, User } from '../types';
+import type { Category, Transaction, RecurringTransaction, Tag, User, UserSetting } from '../types';
 import { RefreshCw, X } from '../components/Icons';
 
 export interface SyncProps {
@@ -13,16 +13,20 @@ export interface SyncProps {
     rawRecurringTransactions: RecurringTransaction[];
     rawAllAvailableTags: Tag[];
     rawUsers: User[];
+    rawUserSettings: UserSetting[];
     setCategories: (data: Category[]) => void;
     setCategoryGroups: (data: string[]) => void;
     setTransactions: (data: Transaction[]) => void;
     setRecurringTransactions: (data: RecurringTransaction[]) => void;
     setAllAvailableTags: (data: Tag[]) => void;
     setUsers: (data: User[]) => void;
+    setUserSettings: (data: UserSetting[]) => void;
 }
 
 interface Mergeable {
-    id: string;
+    id?: string; // UserSetting uses a composite key, so id might not be the primary one.
+    userId?: string;
+    settingKey?: string;
     version: number;
     conflicted?: boolean;
 }
@@ -64,14 +68,21 @@ const fetchWithMobileTimeout = async (url: string, options: RequestInit = {}): P
     }
 };
 
+const getItemKey = (item: any): string => {
+    if (item.id) return item.id;
+    if (item.userId && item.settingKey) return `${item.userId}-${item.settingKey}`;
+    throw new Error('Cannot determine key for mergeable item');
+}
+
 // Generic function to merge local and remote data based on version number
 function mergeItems<T extends Mergeable>(localItems: T[], remoteItems: T[], conflicts: T[] = []): T[] {
     const allItems = new Map<string, T>();
 
     const processItem = (item: T) => {
-        const existing = allItems.get(item.id);
+        const key = getItemKey(item);
+        const existing = allItems.get(key);
         if (!existing || item.version > existing.version) {
-            allItems.set(item.id, item);
+            allItems.set(key, item);
         }
     };
 
@@ -81,11 +92,12 @@ function mergeItems<T extends Mergeable>(localItems: T[], remoteItems: T[], conf
     localItems.forEach(processItem);
     
     // Mark conflicts
-    const conflictMap = new Map(conflicts.map(c => [c.id, c]));
+    const conflictMap = new Map(conflicts.map(c => [getItemKey(c), c]));
     const finalItems = Array.from(allItems.values());
 
     return finalItems.map(item => {
-        const conflictSource = conflictMap.get(item.id);
+        const key = getItemKey(item);
+        const conflictSource = conflictMap.get(key);
         if (conflictSource && item.version === conflictSource.version) {
             // If the winning item is the one from the conflict list, mark it.
             return { ...item, conflicted: true };
@@ -95,9 +107,9 @@ function mergeItems<T extends Mergeable>(localItems: T[], remoteItems: T[], conf
         // merge operation (e.g. from local state), we need to remove it.
         // This is a safer way to create a clean copy.
         if ('conflicted' in item) {
-            const cleanItem = { ...item };
-            delete (cleanItem as Partial<T>).conflicted;
-            return cleanItem;
+            const cleanItem: Partial<T> = { ...item };
+            delete cleanItem.conflicted;
+            return cleanItem as T;
         }
         
         return item;
@@ -154,6 +166,7 @@ interface ReadApiResponse {
     recurringTransactions: RecurringTransaction[];
     allAvailableTags: Tag[];
     users: User[];
+    userSettings: UserSetting[];
 }
 
 interface ConflictData {
@@ -162,6 +175,7 @@ interface ConflictData {
     recurring: RecurringTransaction[];
     tags: Tag[];
     users: User[];
+    userSettings: UserSetting[];
 }
 
 interface WriteErrorResponse {
@@ -186,8 +200,8 @@ export const useSync = (props: SyncProps) => {
     }, []);
 
     const {
-        rawCategories, rawTransactions, rawRecurringTransactions, rawAllAvailableTags, rawUsers,
-        setCategories, setCategoryGroups, setTransactions, setRecurringTransactions, setAllAvailableTags, setUsers
+        rawCategories, rawTransactions, rawRecurringTransactions, rawAllAvailableTags, rawUsers, rawUserSettings,
+        setCategories, setCategoryGroups, setTransactions, setRecurringTransactions, setAllAvailableTags, setUsers, setUserSettings
     } = props;
     
     const [syncOperation, setSyncOperation] = useState<'sync' | null>(null);
@@ -246,6 +260,7 @@ export const useSync = (props: SyncProps) => {
                 setRecurringTransactions(data.recurringTransactions);
                 setAllAvailableTags(data.allAvailableTags);
                 setUsers(data.users);
+                setUserSettings(data.userSettings);
                 setLastSync(new Date().toISOString());
                 isDataUpdatingRef.current = false;
                 
@@ -268,7 +283,7 @@ export const useSync = (props: SyncProps) => {
         }
         
         setIsLoading(false);
-    }, [isLoading, setCategories, setCategoryGroups, setTransactions, setRecurringTransactions, setAllAvailableTags, setUsers, setLastSync]);
+    }, [isLoading, setCategories, setCategoryGroups, setTransactions, setRecurringTransactions, setAllAvailableTags, setUsers, setUserSettings, setLastSync]);
     
     const handleMergeConflicts = useCallback(async (conflicts: ConflictData) => {
         isDataUpdatingRef.current = true;
@@ -278,13 +293,14 @@ export const useSync = (props: SyncProps) => {
         setRecurringTransactions(mergeItems(rawRecurringTransactions, [], conflicts.recurring));
         setAllAvailableTags(mergeItems(rawAllAvailableTags, [], conflicts.tags));
         setUsers(mergeItems(rawUsers, [], conflicts.users));
+        setUserSettings(mergeItems(rawUserSettings, [], conflicts.userSettings));
         
         isDataUpdatingRef.current = false;
         
         toast.error('Konflikt! Daten wurden zusammengeführt. Bitte prüfen Sie Ihre Einträge.', { duration: 5000 });
     }, [
-        rawCategories, rawTransactions, rawRecurringTransactions, rawAllAvailableTags, rawUsers,
-        setCategories, setTransactions, setRecurringTransactions, setAllAvailableTags, setUsers
+        rawCategories, rawTransactions, rawRecurringTransactions, rawAllAvailableTags, rawUsers, rawUserSettings,
+        setCategories, setTransactions, setRecurringTransactions, setAllAvailableTags, setUsers, setUserSettings
     ]);
 
     const syncData = useCallback(async (options: { isAuto?: boolean } = {}) => {
@@ -309,6 +325,7 @@ export const useSync = (props: SyncProps) => {
                 recurringTransactions: rawRecurringTransactions,
                 allAvailableTags: rawAllAvailableTags,
                 users: rawUsers,
+                userSettings: rawUserSettings,
             });
 
             const response = await fetchWithMobileTimeout('/api/sheets/write', {
@@ -343,7 +360,7 @@ export const useSync = (props: SyncProps) => {
             syncInProgressRef.current = false;
         }
     }, [
-        rawCategories, rawTransactions, rawRecurringTransactions, rawAllAvailableTags, rawUsers,
+        rawCategories, rawTransactions, rawRecurringTransactions, rawAllAvailableTags, rawUsers, rawUserSettings,
         handleMergeConflicts, setLastSync
     ]);
     

@@ -272,7 +272,7 @@ const MonthlySummary: FC<{ transactions: Transaction[], currentMonth: Date }> = 
 };
 
 const MonthlyCategoryBreakdown: FC<{ transactions: Transaction[], currentMonth: Date }> = ({ transactions, currentMonth }) => {
-    const { categoryMap, handleTransactionClick, categoryGroups } = useApp();
+    const { categoryMap, handleTransactionClick, visibleCategoryGroups } = useApp();
     const [expandedGroupId, setExpandedGroupId] = useState<string | null>(null);
     const [expandedCategoryId, setExpandedCategoryId] = useState<string | null>(null);
 
@@ -288,8 +288,8 @@ const MonthlyCategoryBreakdown: FC<{ transactions: Transaction[], currentMonth: 
 
         const spendingByGroup = new Map<string, { total: number; categories: any[] }>();
 
-        // Initialize groups from categoryGroups to maintain order
-        categoryGroups.forEach(groupName => {
+        // Initialize groups from visibleCategoryGroups to maintain order and filtering
+        visibleCategoryGroups.forEach(groupName => {
             spendingByGroup.set(groupName, { total: 0, categories: [] });
         });
 
@@ -297,18 +297,16 @@ const MonthlyCategoryBreakdown: FC<{ transactions: Transaction[], currentMonth: 
         spendingByCategory.forEach((amount, categoryId) => {
             const category = categoryMap.get(categoryId);
             if (category) {
-                // Ensure group exists even if it's not in the main list (e.g., 'Sonstiges')
-                if (!spendingByGroup.has(category.group)) {
-                    spendingByGroup.set(category.group, { total: 0, categories: [] });
+                // Only consider categories whose group is in the visible list
+                if (spendingByGroup.has(category.group)) {
+                    const groupData = spendingByGroup.get(category.group)!;
+                    groupData.total += amount;
+                    groupData.categories.push({
+                        category,
+                        amount,
+                        percentage: totalMonthlySpending > 0 ? (amount / totalMonthlySpending) * 100 : 0
+                    });
                 }
-                
-                const groupData = spendingByGroup.get(category.group)!;
-                groupData.total += amount;
-                groupData.categories.push({
-                    category,
-                    amount,
-                    percentage: totalMonthlySpending > 0 ? (amount / totalMonthlySpending) * 100 : 0
-                });
             }
         });
 
@@ -322,7 +320,7 @@ const MonthlyCategoryBreakdown: FC<{ transactions: Transaction[], currentMonth: 
             .filter(group => group.totalAmount > 0)
             .sort((a, b) => b.totalAmount - a.totalAmount);
 
-    }, [transactions, categoryMap, categoryGroups]);
+    }, [transactions, categoryMap, visibleCategoryGroups]);
 
     return (
         <motion.div 

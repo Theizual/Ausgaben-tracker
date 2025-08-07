@@ -37,10 +37,10 @@ const CustomTooltip: FC<any> = ({ active, payload, label }) => {
 
 const BudgetBurndownChart: FC<BudgetBurndownChartProps> = ({ transactions, categoryMap, currentMonth }) => {
 
-    const { data, activeCategoriesWithBudget, maxBudget } = useMemo(() => {
+    const { data, activeCategoriesWithBudget, maxBudget, finalProjections } = useMemo(() => {
         const categoriesWithBudget = Array.from(categoryMap.values()).filter(cat => cat.budget && cat.budget > 0);
         if (categoriesWithBudget.length === 0) {
-            return { data: [], activeCategoriesWithBudget: [], maxBudget: 0 };
+            return { data: [], activeCategoriesWithBudget: [], maxBudget: 0, finalProjections: new Map() };
         }
 
         const start = startOfMonth(currentMonth);
@@ -50,7 +50,7 @@ const BudgetBurndownChart: FC<BudgetBurndownChartProps> = ({ transactions, categ
         const activeCategoriesForChart = categoriesWithBudget.filter(cat => activeCategoryIdsInMonth.has(cat.id));
 
         if (activeCategoriesForChart.length === 0) {
-            return { data: [], activeCategoriesWithBudget: [], maxBudget: 0 };
+            return { data: [], activeCategoriesWithBudget: [], maxBudget: 0, finalProjections: new Map() };
         }
         
         const calculatedMaxBudget = Math.max(...activeCategoriesForChart.map(c => c.budget || 0));
@@ -96,7 +96,16 @@ const BudgetBurndownChart: FC<BudgetBurndownChartProps> = ({ transactions, categ
             return dataPoint;
         });
 
-        return { data: chartData, activeCategoriesWithBudget: activeCategoriesForChart, maxBudget: calculatedMaxBudget };
+        const finalProjections = new Map<string, number>();
+        if (chartData.length > 0) {
+            const lastDataPoint = chartData[chartData.length - 1];
+            activeCategoriesForChart.forEach(cat => {
+                const projectedRemaining = lastDataPoint[`trend_${cat.id}`];
+                finalProjections.set(cat.id, projectedRemaining);
+            });
+        }
+
+        return { data: chartData, activeCategoriesWithBudget: activeCategoriesForChart, maxBudget: calculatedMaxBudget, finalProjections };
 
     }, [transactions, categoryMap, currentMonth]);
     
@@ -159,7 +168,24 @@ const BudgetBurndownChart: FC<BudgetBurndownChartProps> = ({ transactions, categ
                             stroke="#94a3b8" fontSize={12} width={80} axisLine={false} tickLine={false}
                         />
                         <Tooltip content={<CustomTooltip />} />
-                        <Legend wrapperStyle={{paddingTop: '20px'}}/>
+                        <Legend
+                            wrapperStyle={{ paddingTop: '20px' }}
+                            formatter={(value, entry) => {
+                                // The dataKey can be a string or number according to recharts types.
+                                // We are only using strings, so we can safely cast it.
+                                const categoryId = String(entry.dataKey);
+
+                                // Don't show trend lines in legend
+                                if (categoryId.startsWith('trend_')) {
+                                    return null;
+                                }
+
+                                const isNegativeTrend = finalProjections.get(categoryId) !== undefined && finalProjections.get(categoryId)! <= 0;
+                                const classNames = isNegativeTrend ? "underline decoration-red-500 decoration-2 underline-offset-2" : "";
+
+                                return <span className={classNames} style={{ color: entry.color }}>{value}</span>;
+                            }}
+                        />
                         
                         {activeCategoriesWithBudget.map(cat => (
                            <React.Fragment key={`fragment-${cat.id}`}>

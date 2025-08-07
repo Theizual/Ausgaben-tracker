@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useCallback, useEffect, FC, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
@@ -166,6 +167,43 @@ const RecurringSettings: FC = () => {
     );
 };
 
+const DisplaySettings: FC<{
+    allGroups: string[];
+    visibleGroups: string[];
+    onVisibilityChange: (newVisibleGroups: string[]) => void;
+}> = ({ allGroups, visibleGroups, onVisibilityChange }) => {
+
+    const handleToggleGroup = (groupName: string) => {
+        const newVisible = visibleGroups.includes(groupName)
+            ? visibleGroups.filter(g => g !== groupName)
+            : [...visibleGroups, groupName];
+        onVisibilityChange(newVisible);
+    };
+
+    return (
+        <motion.div key="display" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} transition={{ duration: 0.2 }}>
+            <h3 className="text-lg font-semibold text-white mb-4">Angezeigte Gruppen</h3>
+            <p className="text-sm text-slate-400 mb-6">
+                Wählen Sie aus, welche Kategoriegruppen in der App für Sie sichtbar sein sollen.
+                Dies beeinflusst die Übersicht, das Hinzufügen von Ausgaben und die Statistiken.
+            </p>
+            <div className="space-y-3">
+                {allGroups.map(group => (
+                    <label key={group} className="flex items-center justify-between bg-slate-700/50 p-4 rounded-lg cursor-pointer hover:bg-slate-700/30">
+                        <span className="font-medium text-white">{group}</span>
+                        <input
+                            type="checkbox"
+                            checked={visibleGroups.includes(group)}
+                            onChange={() => handleToggleGroup(group)}
+                            className="w-5 h-5 rounded text-rose-500 bg-slate-600 border-slate-500 focus:ring-rose-500 shrink-0"
+                        />
+                    </label>
+                ))}
+            </div>
+        </motion.div>
+    );
+};
+
 const ManagerModal: FC<{ isOpen: boolean; onClose: () => void; title: string; children: React.ReactNode; }> = ({ isOpen, onClose, title, children }) => {
     useEscapeKey(onClose);
     return (
@@ -190,7 +228,8 @@ const ManagerModal: FC<{ isOpen: boolean; onClose: () => void; title: string; ch
 
 const SettingsModal: FC<{ isOpen: boolean; onClose: () => void; initialTab?: SettingsTab; }> = ({ isOpen, onClose, initialTab }) => {
     const {
-        isAutoSyncEnabled, setIsAutoSyncEnabled, openChangelog, allAvailableTags, handleUpdateTag, handleDeleteTag
+        isAutoSyncEnabled, setIsAutoSyncEnabled, openChangelog, allAvailableTags, handleUpdateTag, handleDeleteTag,
+        categoryGroups, visibleCategoryGroups, updateVisibleGroups, currentUserId
     } = useApp();
 
     const [activeSettingsTab, setActiveSettingsTab] = useState<SettingsTab>('general');
@@ -211,8 +250,11 @@ const SettingsModal: FC<{ isOpen: boolean; onClose: () => void; initialTab?: Set
     useEscapeKey(handleEscape);
     
     const settingsTabs: { id: SettingsTab; label: string; icon: FC<LucideProps>; }[] = [
-        { id: 'general', label: 'Allgemein', icon: SlidersHorizontal }, { id: 'users', label: 'Benutzer', icon: Users },
-        { id: 'budget', label: 'Budgets', icon: Target }, { id: 'recurring', label: 'Wiederkehrende Ausgaben', icon: History }
+        { id: 'general', label: 'Allgemein', icon: SlidersHorizontal }, 
+        { id: 'display', label: 'Anzeige', icon: LayoutGrid },
+        { id: 'users', label: 'Benutzer', icon: Users },
+        { id: 'budget', label: 'Budgets', icon: Target }, 
+        { id: 'recurring', label: 'Wiederkehrende Ausgaben', icon: History }
     ];
     
     const MANAGER_LIST_ITEM_CLASSES = "w-full text-left bg-slate-700/50 hover:bg-slate-700 p-4 rounded-lg transition-colors flex justify-between items-center";
@@ -251,6 +293,17 @@ const SettingsModal: FC<{ isOpen: boolean; onClose: () => void; initialTab?: Set
                                     </div>
                                     <div><h3 className="text-lg font-semibold mb-3 text-white flex items-center gap-2"><Info className="h-5 w-5 text-sky-400" /> App Informationen</h3><div className="pt-4 mt-4 border-t border-slate-700/50 space-y-3"><button onClick={openChangelog} className={MANAGER_LIST_ITEM_CLASSES}><div><span className="font-semibold text-white">Was ist neu? (Changelog)</span><p className="text-xs text-slate-400 mt-1">Änderungen und neue Funktionen der letzten Versionen anzeigen.</p></div><ChevronRightIcon className="h-5 w-5 text-slate-400" /></button><div className="flex justify-between items-center text-sm px-1"><span className="text-slate-400">App-Version</span><span className="font-mono text-slate-500 bg-slate-700/50 px-2 py-1 rounded-md">{APP_VERSION}</span></div></div></div>
                                 </motion.div>
+                            )}
+                            {activeSettingsTab === 'display' && (
+                                <DisplaySettings 
+                                    allGroups={categoryGroups}
+                                    visibleGroups={visibleCategoryGroups}
+                                    onVisibilityChange={(newGroups) => {
+                                        if (currentUserId) {
+                                            updateVisibleGroups(currentUserId, newGroups);
+                                        }
+                                    }}
+                                />
                             )}
                             {activeSettingsTab === 'users' && <UserSettings />}
                             {activeSettingsTab === 'budget' && <BudgetSettings />}

@@ -1,3 +1,4 @@
+
 import React, { FC, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X, Gift } from './Icons';

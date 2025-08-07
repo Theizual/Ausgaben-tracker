@@ -27,6 +27,7 @@ type Transaction = z.infer<ReturnType<typeof getLenientSchemas>['TransactionSche
 type RecurringTransaction = z.infer<ReturnType<typeof getLenientSchemas>['RecurringTransactionSchema']>;
 type Tag = z.infer<ReturnType<typeof getLenientSchemas>['TagSchema']>;
 type User = z.infer<ReturnType<typeof getLenientSchemas>['UserSchema']>;
+type UserSetting = z.infer<ReturnType<typeof getLenientSchemas>['UserSettingSchema']>;
 
 
 function normalizeArray(input: any): any[] {
@@ -77,6 +78,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     recurringTransactions: normalizeArray(parsedBody.recurringTransactions),
     allAvailableTags: normalizeArray(parsedBody.allAvailableTags),
     users: normalizeArray(parsedBody.users),
+    userSettings: normalizeArray(parsedBody.userSettings),
   };
 
   const schemas = getLenientSchemas();
@@ -86,6 +88,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       recurringTransactions: z.array(schemas.RecurringTransactionSchema).optional().default([]),
       allAvailableTags: z.array(schemas.TagSchema).optional().default([]),
       users: z.array(schemas.UserSchema).optional().default([]),
+      userSettings: z.array(schemas.UserSettingSchema).optional().default([]),
   });
 
   const validationResult = WriteBodySchema.safeParse(normalizedBody);
@@ -101,7 +104,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const readResponse = await withRetry(() => sheets.spreadsheets.values.batchGet({
       spreadsheetId: sheetId,
-      ranges: ['Categories!A2:I', 'Transactions!A2:K', 'Recurring!A2:J', 'Tags!A2:E', 'Users!A2:F'],
+      ranges: ['Categories!A2:I', 'Transactions!A2:K', 'Recurring!A2:J', 'Tags!A2:E', 'Users!A2:F', 'UserSettings!A2:F'],
     }));
 
     const serverValues = (readResponse as any).data.valueRanges || [];
@@ -136,11 +139,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       headers: ['id', 'name', 'color', 'lastModified', 'isDeleted', 'version'],
       entityName: 'User',
     });
+    const serverUserSettings = parseSheetData({
+      rows: serverValues.find((r: any) => r.range?.startsWith('UserSettings'))?.values || [],
+      schema: z.array(schemas.UserSettingSchema),
+      headers: ['userId', 'settingKey', 'settingValue', 'lastModified', 'isDeleted', 'version'],
+      entityName: 'UserSetting',
+    });
 
-    function findConflicts<T extends { id: string; version?: number }>(clientItems: T[], serverItems: T[]): T[] {
-      const serverMap = new Map(serverItems.map(item => [item.id, item]));
+    const getConflictKey = (item: any): string => (item.id ? item.id : `${item.userId}-${item.settingKey}`);
+    
+    function findConflicts<T extends { id?: string; userId?: string; settingKey?: string; version?: number }>(clientItems: T[], serverItems: T[]): T[] {
+      const serverMap = new Map(serverItems.map(item => [getConflictKey(item), item]));
       return clientItems.reduce((conflicts, clientItem) => {
-        const serverItem = serverMap.get(clientItem.id);
+        const serverItem = serverMap.get(getConflictKey(clientItem));
         if (serverItem && (clientItem.version || 1) < (serverItem.version || 1)) {
           conflicts.push(serverItem);
         }
@@ -153,8 +164,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const conflictRecurring = findConflicts(clientData.recurringTransactions, serverRecurring);
     const conflictTags = findConflicts(clientData.allAvailableTags, serverTags);
     const conflictUsers = findConflicts(clientData.users, serverUsers);
+    const conflictUserSettings = findConflicts(clientData.userSettings, serverUserSettings);
 
-    if (conflictCategories.length || conflictTransactions.length || conflictRecurring.length || conflictTags.length || conflictUsers.length) {
+    if (conflictCategories.length || conflictTransactions.length || conflictRecurring.length || conflictTags.length || conflictUsers.length || conflictUserSettings.length) {
       return res.status(409).json({
         error: 'Conflict: Newer versions of some items were found on the server.',
         conflicts: {
@@ -163,16 +175,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           recurring: conflictRecurring,
           tags: conflictTags,
           users: conflictUsers,
+          userSettings: conflictUserSettings,
         },
       });
     }
 
-    function mergeData<T extends { id: string; version?: number }>(clientItems: T[], serverItems: T[]): T[] {
+    function mergeData<T extends { id?: string; userId?: string; settingKey?: string; version?: number }>(clientItems: T[], serverItems: T[]): T[] {
       const mergedMap = new Map<string, T>();
       [...serverItems, ...clientItems].forEach(item => {
-        const existing = mergedMap.get(item.id);
+        const key = getConflictKey(item);
+        const existing = mergedMap.get(key);
         if (!existing || (item.version || 1) >= (existing.version || 1)) {
-          mergedMap.set(item.id, item);
+          mergedMap.set(key, item);
         }
       });
       return Array.from(mergedMap.values());
@@ -183,6 +197,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const mergedRecurring = mergeData<RecurringTransaction>(clientData.recurringTransactions, serverRecurring);
     const mergedTags = mergeData<Tag>(clientData.allAvailableTags, serverTags);
     const mergedUsers = mergeData<User>(clientData.users, serverUsers);
+    const mergedUserSettings = mergeData<UserSetting>(clientData.userSettings, serverUserSettings);
 
     const headers = {
       categories: ['id', 'name', 'color', 'icon', 'budget', 'group', 'lastModified', 'isDeleted', 'version'],
@@ -190,6 +205,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       recurring: ['id', 'amount', 'description', 'categoryId', 'frequency', 'startDate', 'lastProcessedDate', 'lastModified', 'isDeleted', 'version'],
       tags: ['id', 'name', 'lastModified', 'isDeleted', 'version'],
       users: ['id', 'name', 'color', 'lastModified', 'isDeleted', 'version'],
+      userSettings: ['userId', 'settingKey', 'settingValue', 'lastModified', 'isDeleted', 'version'],
     };
 
     const categoryValues = [headers.categories, ...mergedCategories.map(c => [c.id, c.name, c.color, c.icon, c.budget != null ? String(c.budget) : '', c.group, c.lastModified, c.isDeleted ? 'TRUE' : 'FALSE', c.version])];
@@ -197,10 +213,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const recurringValues = [headers.recurring, ...mergedRecurring.map(r => [r.id, String(r.amount), r.description, r.categoryId, r.frequency, r.startDate, r.lastProcessedDate || '', r.lastModified, r.isDeleted ? 'TRUE' : 'FALSE', r.version])];
     const tagValues = [headers.tags, ...mergedTags.map(tag => [tag.id, tag.name, tag.lastModified, tag.isDeleted ? 'TRUE' : 'FALSE', tag.version])];
     const userValues = [headers.users, ...mergedUsers.map(u => [u.id, u.name, u.color, u.lastModified, u.isDeleted ? 'TRUE' : 'FALSE', u.version])];
+    const userSettingValues = [headers.userSettings, ...mergedUserSettings.map(s => [s.userId, s.settingKey, s.settingValue, s.lastModified, s.isDeleted ? 'TRUE' : 'FALSE', s.version])];
+
 
     await withRetry(() => sheets.spreadsheets.values.batchClear({
       spreadsheetId: sheetId,
-      requestBody: { ranges: ['Categories!A1:Z', 'Transactions!A1:Z', 'Recurring!A1:Z', 'Tags!A1:Z', 'Users!A1:Z'] },
+      requestBody: { ranges: ['Categories!A1:Z', 'Transactions!A1:Z', 'Recurring!A1:Z', 'Tags!A1:Z', 'Users!A1:Z', 'UserSettings!A1:Z'] },
     }));
 
     await withRetry(() => sheets.spreadsheets.values.batchUpdate({
@@ -213,6 +231,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           { range: 'Recurring!A1', values: recurringValues },
           { range: 'Tags!A1', values: tagValues },
           { range: 'Users!A1', values: userValues },
+          { range: 'UserSettings!A1', values: userSettingValues },
         ],
       },
     }));

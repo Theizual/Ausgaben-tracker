@@ -296,7 +296,7 @@ const TagDetailView: FC<{
 
     const chartMetrics = useMemo(() => {
         if (filteredTransactions.length === 0) {
-            return { chartData: [], averages: {}, colors: {}, earliestDate: null };
+            return { chartData: [], colors: {}, earliestDate: null };
         }
 
         const colors: Record<string, string> = {};
@@ -329,9 +329,6 @@ const TagDetailView: FC<{
             currentDatePointer = groupByMonth ? addMonths(currentDatePointer, 1) : addDays(currentDatePointer, 1);
         }
 
-        const tagTotals: Record<string, number> = {};
-        tagIds.forEach(id => { tagTotals[id] = 0; });
-
         filteredTransactions.forEach(t => {
             const tDate = parseISO(t.date);
             const key = groupByMonth ? format(tDate, 'yyyy-MM') : format(tDate, 'yyyy-MM-dd');
@@ -339,25 +336,28 @@ const TagDetailView: FC<{
                 t.tagIds?.forEach(tagId => {
                     if (tagIds.includes(tagId)) {
                         dataMap.get(key)[tagId] += t.amount;
-                        tagTotals[tagId] += t.amount;
                     }
                 });
             }
         });
         
-        const averages: Record<string, number> = {};
-        const numberOfUnits = dataMap.size;
-        if (numberOfUnits > 0) {
-            tagIds.forEach(id => { averages[id] = tagTotals[id] / numberOfUnits; });
-        }
+        const sortedData = Array.from(dataMap.values()).sort((a,b) => a.date.localeCompare(b.date));
         
-        dataMap.forEach(entry => {
-            tagIds.forEach(id => { entry[`avg_${id}`] = averages[id]; });
+        const cumulativeSums = new Map<string, number>();
+        tagIds.forEach(id => cumulativeSums.set(id, 0));
+        
+        const cumulativeChartData = sortedData.map(point => {
+            const cumulativePoint: { [key: string]: any } = { date: point.date };
+            tagIds.forEach(id => {
+                const currentCumulative = cumulativeSums.get(id) || 0;
+                const newCumulative = currentCumulative + (point[id] || 0);
+                cumulativeSums.set(id, newCumulative);
+                cumulativePoint[id] = newCumulative;
+            });
+            return cumulativePoint;
         });
 
-        const chartData = Array.from(dataMap.values()).sort((a,b) => a.date.localeCompare(b.date));
-
-        return { chartData, averages, colors, earliestDate: chartStartDate };
+        return { chartData: cumulativeChartData, colors, earliestDate: chartStartDate };
     }, [filteredTransactions, tagIds, interval, periodType]);
 
     const stats = useMemo(() => {
@@ -408,30 +408,18 @@ const TagDetailView: FC<{
                             <Tooltip content={<CustomTooltip tagMap={tagMap} />} cursor={{ stroke: '#f43f5e', strokeWidth: 1, strokeDasharray: '3 3' }}/>
                             <Legend wrapperStyle={{paddingTop: '20px'}} />
                             {tagIds.map(id => (
-                                <React.Fragment key={id}>
-                                    <Area
-                                        type="monotone"
-                                        dataKey={id}
-                                        name={tagMap.get(id) || 'Unbekannt'}
-                                        stroke={chartMetrics.colors[id]}
-                                        strokeWidth={2.5}
-                                        fillOpacity={1}
-                                        fill={`url(#color-${id})`}
-                                        dot={false}
-                                        activeDot={{ r: 6, stroke: '#111827', strokeWidth: 2, fill: chartMetrics.colors[id] }}
-                                    />
-                                    <Line
-                                        type="monotone"
-                                        dataKey={`avg_${id}`}
-                                        name={`Ø ${tagMap.get(id)}`}
-                                        stroke={chartMetrics.colors[id]}
-                                        strokeWidth={1.5}
-                                        strokeDasharray="3 5"
-                                        dot={false}
-                                        activeDot={false}
-                                        legendType="none"
-                                    />
-                                </React.Fragment>
+                                <Area
+                                    key={id}
+                                    type="monotone"
+                                    dataKey={id}
+                                    name={tagMap.get(id) || 'Unbekannt'}
+                                    stroke={chartMetrics.colors[id]}
+                                    strokeWidth={2.5}
+                                    fillOpacity={1}
+                                    fill={`url(#color-${id})`}
+                                    dot={false}
+                                    activeDot={{ r: 6, stroke: '#111827', strokeWidth: 2, fill: chartMetrics.colors[id] }}
+                                />
                             ))}
                         </AreaChart>
                     </ResponsiveContainer>

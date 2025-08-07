@@ -29,7 +29,7 @@ const Dashboard: FC = () => {
     const {
         transactions,
         categories,
-        categoryGroups,
+        visibleCategoryGroups,
         categoryMap,
         addTransaction,
         totalMonthlyBudget,
@@ -40,7 +40,6 @@ const Dashboard: FC = () => {
         setDashboardViewMode,
     } = useApp();
 
-    const [isCategoryBudgetOpen, setCategoryBudgetOpen] = useState(false);
     const [expandedGroupId, setExpandedGroupId] = useState<string | null>(null);
     const [expandedBudgetId, setExpandedBudgetId] = useState<string | null>(null);
     
@@ -107,7 +106,7 @@ const Dashboard: FC = () => {
         });
         
         const spendingByGroup = new Map<string, { totalSpent: number, totalBudget: number, categories: Category[] }>();
-        categoryGroups.forEach(groupName => {
+        visibleCategoryGroups.forEach(groupName => {
             spendingByGroup.set(groupName, { totalSpent: 0, totalBudget: 0, categories: [] });
         });
 
@@ -132,7 +131,7 @@ const Dashboard: FC = () => {
             .filter(group => group.categories.length > 0);
 
         return { groupedBudgetedCategories: result, spendingByCategory: spendingMap };
-    }, [monthlyTransactions, categories, categoryGroups]);
+    }, [monthlyTransactions, categories, visibleCategoryGroups]);
 
     const totalBudgetPercentage = totalMonthlyBudget > 0 ? (totalSpentThisMonth / totalMonthlyBudget) * 100 : 0;
     
@@ -225,127 +224,106 @@ const Dashboard: FC = () => {
                         )}
                          {hasAnyBudgetedCategories && (
                             <div className="mt-6 pt-6 border-t border-slate-700/50">
-                                <button
-                                    onClick={() => setCategoryBudgetOpen(!isCategoryBudgetOpen)}
-                                    className="w-full flex justify-between items-center text-left"
-                                    aria-expanded={isCategoryBudgetOpen}
-                                >
-                                    <h4 className="text-sm font-semibold text-slate-300">Kategorienbudgets</h4>
-                                    <ChevronDown
-                                        className={`h-5 w-5 text-slate-400 transition-transform duration-300 ${isCategoryBudgetOpen ? 'rotate-180' : ''}`}
-                                    />
-                                </button>
-                                <AnimatePresence>
-                                    {isCategoryBudgetOpen && (
-                                        <motion.div
-                                            initial={{ height: 0, opacity: 0 }}
-                                            animate={{ height: 'auto', opacity: 1 }}
-                                            exit={{ height: 0, opacity: 0 }}
-                                            transition={{ duration: 0.3, ease: 'easeInOut' }}
-                                            className="overflow-hidden"
-                                        >
-                                            <div className="space-y-3 mt-4">
-                                                {groupedBudgetedCategories.map(group => {
-                                                    const isGroupExpanded = expandedGroupId === group.groupName;
-                                                    const groupPercentage = group.totalBudget > 0 ? (group.totalSpent / group.totalBudget) * 100 : 0;
-                                                    const groupColor = getCategoryBarColor(groupPercentage, '#a855f7'); // default purple
+                                <h4 className="text-sm font-semibold text-slate-300">Kategorienbudgets</h4>
+                                <div className="space-y-3 mt-4">
+                                    {groupedBudgetedCategories.map(group => {
+                                        const isGroupExpanded = expandedGroupId === group.groupName;
+                                        const groupPercentage = group.totalBudget > 0 ? (group.totalSpent / group.totalBudget) * 100 : 0;
+                                        const groupColor = getCategoryBarColor(groupPercentage, '#a855f7'); // default purple
 
-                                                    return (
-                                                        <div key={group.groupName} className="bg-slate-700/30 p-3 rounded-lg space-y-3">
-                                                            <div
-                                                                className="flex flex-col cursor-pointer"
-                                                                onClick={() => setExpandedGroupId(isGroupExpanded ? null : group.groupName)}
-                                                            >
-                                                                <div className="flex justify-between items-center text-sm mb-1.5">
-                                                                    <div className="flex items-center gap-3 truncate">
-                                                                        <span className="font-bold text-white truncate">{group.groupName}</span>
-                                                                        <ChevronDown className={`h-4 w-4 text-slate-500 transition-transform ${isGroupExpanded ? 'rotate-180' : ''}`} />
-                                                                    </div>
-                                                                    <div className="font-semibold text-white flex-shrink-0 pl-2">
-                                                                        {formatCurrency(group.totalSpent)}
-                                                                        <span className="text-slate-500 text-xs"> / {formatCurrency(group.totalBudget)}</span>
-                                                                    </div>
-                                                                </div>
-                                                                <ProgressBar percentage={groupPercentage} color={groupColor} />
-                                                            </div>
-
-                                                            <AnimatePresence>
-                                                                {isGroupExpanded && (
-                                                                    <motion.div
-                                                                        initial={{ opacity: 0, height: 0 }}
-                                                                        animate={{ opacity: 1, height: 'auto' }}
-                                                                        exit={{ opacity: 0, height: 0 }}
-                                                                        transition={{ duration: 0.3, ease: 'easeInOut' }}
-                                                                        className="overflow-hidden"
-                                                                    >
-                                                                        <div className="space-y-4 pt-3 ml-4 pl-4 border-l-2 border-slate-600/50">
-                                                                            {group.categories.map(category => {
-                                                                                const spent = spendingByCategory.get(category.id) || 0;
-                                                                                const budget = category.budget!;
-                                                                                const percentage = (spent / budget) * 100;
-                                                                                const Icon = iconMap[category.icon] || iconMap.MoreHorizontal;
-                                                                                const isExpanded = expandedBudgetId === category.id;
-                                                                                
-                                                                                return (
-                                                                                    <div key={category.id}>
-                                                                                        <div
-                                                                                            className="flex flex-col cursor-pointer"
-                                                                                            onClick={() => setExpandedBudgetId(isExpanded ? null : category.id)}
-                                                                                        >
-                                                                                            <div className="flex justify-between items-center text-sm mb-1.5">
-                                                                                                <div className="flex items-center gap-3 truncate">
-                                                                                                    <Icon className="h-4 w-4 flex-shrink-0" style={{ color: category.color }} />
-                                                                                                    <span className="font-medium text-white truncate">{category.name}</span>
-                                                                                                    <ChevronDown className={`h-4 w-4 text-slate-500 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
-                                                                                                </div>
-                                                                                                <div className="font-semibold text-white flex-shrink-0 pl-2">
-                                                                                                    {formatCurrency(spent)}
-                                                                                                    <span className="text-slate-500 text-xs"> / {formatCurrency(budget)}</span>
-                                                                                                </div>
-                                                                                            </div>
-                                                                                            <ProgressBar percentage={percentage} color={getCategoryBarColor(percentage, category.color)} />
-                                                                                        </div>
-                                                                                        <AnimatePresence>
-                                                                                            {isExpanded && (
-                                                                                                <motion.div
-                                                                                                    initial={{ opacity: 0, height: 0, marginTop: 0 }}
-                                                                                                    animate={{ opacity: 1, height: 'auto', marginTop: '1rem' }}
-                                                                                                    exit={{ opacity: 0, height: 0, marginTop: 0 }}
-                                                                                                    className="overflow-hidden"
-                                                                                                >
-                                                                                                    <div className="ml-4 pl-4 border-l-2 border-slate-600/50 space-y-1">
-                                                                                                        {monthlyTransactions.filter(t => t.categoryId === category.id)
-                                                                                                            .sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime())
-                                                                                                            .map(t => (
-                                                                                                                <StandardTransactionItem
-                                                                                                                    key={t.id}
-                                                                                                                    transaction={t}
-                                                                                                                    onClick={() => handleTransactionClick(t)}
-                                                                                                                    showSublineInList="date"
-                                                                                                                />
-                                                                                                            ))
-                                                                                                        }
-                                                                                                        {monthlyTransactions.filter(t => t.categoryId === category.id).length === 0 && (
-                                                                                                            <p className="text-slate-500 text-sm p-2">Keine Ausgaben diesen Monat.</p>
-                                                                                                        )}
-                                                                                                    </div>
-                                                                                                </motion.div>
-                                                                                            )}
-                                                                                        </AnimatePresence>
-                                                                                    </div>
-                                                                                );
-                                                                            })}
-                                                                        </div>
-                                                                    </motion.div>
-                                                                )}
-                                                            </AnimatePresence>
+                                        return (
+                                            <div key={group.groupName} className="bg-slate-700/30 p-3 rounded-lg space-y-3">
+                                                <div
+                                                    className="flex flex-col cursor-pointer"
+                                                    onClick={() => setExpandedGroupId(isGroupExpanded ? null : group.groupName)}
+                                                >
+                                                    <div className="flex justify-between items-center text-sm mb-1.5">
+                                                        <div className="flex items-center gap-3 truncate">
+                                                            <span className="font-bold text-white truncate">{group.groupName}</span>
+                                                            <ChevronDown className={`h-4 w-4 text-slate-500 transition-transform ${isGroupExpanded ? 'rotate-180' : ''}`} />
                                                         </div>
-                                                    );
-                                                })}
+                                                        <div className="font-semibold text-white flex-shrink-0 pl-2">
+                                                            {formatCurrency(group.totalSpent)}
+                                                            <span className="text-slate-500 text-xs"> / {formatCurrency(group.totalBudget)}</span>
+                                                        </div>
+                                                    </div>
+                                                    <ProgressBar percentage={groupPercentage} color={groupColor} />
+                                                </div>
+
+                                                <AnimatePresence>
+                                                    {isGroupExpanded && (
+                                                        <motion.div
+                                                            initial={{ opacity: 0, height: 0 }}
+                                                            animate={{ opacity: 1, height: 'auto' }}
+                                                            exit={{ opacity: 0, height: 0 }}
+                                                            transition={{ duration: 0.3, ease: 'easeInOut' }}
+                                                            className="overflow-hidden"
+                                                        >
+                                                            <div className="space-y-4 pt-3 ml-4 pl-4 border-l-2 border-slate-600/50">
+                                                                {group.categories.map(category => {
+                                                                    const spent = spendingByCategory.get(category.id) || 0;
+                                                                    const budget = category.budget!;
+                                                                    const percentage = (spent / budget) * 100;
+                                                                    const Icon = iconMap[category.icon] || iconMap.MoreHorizontal;
+                                                                    const isExpanded = expandedBudgetId === category.id;
+                                                                    
+                                                                    return (
+                                                                        <div key={category.id}>
+                                                                            <div
+                                                                                className="flex flex-col cursor-pointer"
+                                                                                onClick={() => setExpandedBudgetId(isExpanded ? null : category.id)}
+                                                                            >
+                                                                                <div className="flex justify-between items-center text-sm mb-1.5">
+                                                                                    <div className="flex items-center gap-3 truncate">
+                                                                                        <Icon className="h-4 w-4 flex-shrink-0" style={{ color: category.color }} />
+                                                                                        <span className="font-medium text-white truncate">{category.name}</span>
+                                                                                        <ChevronDown className={`h-4 w-4 text-slate-500 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                                                                                    </div>
+                                                                                    <div className="font-semibold text-white flex-shrink-0 pl-2">
+                                                                                        {formatCurrency(spent)}
+                                                                                        <span className="text-slate-500 text-xs"> / {formatCurrency(budget)}</span>
+                                                                                    </div>
+                                                                                </div>
+                                                                                <ProgressBar percentage={percentage} color={getCategoryBarColor(percentage, category.color)} />
+                                                                            </div>
+                                                                            <AnimatePresence>
+                                                                                {isExpanded && (
+                                                                                    <motion.div
+                                                                                        initial={{ opacity: 0, height: 0, marginTop: 0 }}
+                                                                                        animate={{ opacity: 1, height: 'auto', marginTop: '1rem' }}
+                                                                                        exit={{ opacity: 0, height: 0, marginTop: 0 }}
+                                                                                        className="overflow-hidden"
+                                                                                    >
+                                                                                        <div className="ml-4 pl-4 border-l-2 border-slate-600/50 space-y-1">
+                                                                                            {monthlyTransactions.filter(t => t.categoryId === category.id)
+                                                                                                .sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime())
+                                                                                                .map(t => (
+                                                                                                    <StandardTransactionItem
+                                                                                                        key={t.id}
+                                                                                                        transaction={t}
+                                                                                                        onClick={() => handleTransactionClick(t)}
+                                                                                                        showSublineInList="date"
+                                                                                                    />
+                                                                                                ))
+                                                                                            }
+                                                                                            {monthlyTransactions.filter(t => t.categoryId === category.id).length === 0 && (
+                                                                                                <p className="text-slate-500 text-sm p-2">Keine Ausgaben diesen Monat.</p>
+                                                                                            )}
+                                                                                        </div>
+                                                                                    </motion.div>
+                                                                                )}
+                                                                            </AnimatePresence>
+                                                                        </div>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        </motion.div>
+                                                    )}
+                                                </AnimatePresence>
                                             </div>
-                                        </motion.div>
-                                    )}
-                                </AnimatePresence>
+                                        );
+                                    })}
+                                </div>
                             </div>
                         )}
                     </motion.div>
@@ -382,7 +360,7 @@ const QuickAddForm: FC = () => {
         addTransaction,
         addMultipleTransactions,
         categories, 
-        categoryGroups, 
+        visibleCategoryGroups, 
         allAvailableTags, 
         transactions 
     } = useApp();
@@ -501,7 +479,7 @@ const QuickAddForm: FC = () => {
                         <h4 className="text-sm font-semibold text-white mb-3">Kategorie wählen:</h4>
                         <CategoryButtons
                             categories={categories}
-                            categoryGroups={categoryGroups}
+                            categoryGroups={visibleCategoryGroups}
                             selectedCategoryId={categoryId}
                             onSelectCategory={setCategoryId}
                         />

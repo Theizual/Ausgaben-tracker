@@ -4,7 +4,8 @@ import { useTransactionData } from '../hooks/useTransactionData';
 import { useUI } from '../hooks/useUI';
 import { useSync, type SyncProps } from '../hooks/useSync';
 import { useUsers } from '../hooks/useUsers';
-import type { User, Category } from '../types';
+import { useUserSettings } from '../hooks/useUserSettings';
+import type { User, Category, UserSetting } from '../types';
 
 // Combine the return types of all hooks to define the shape of the context
 type AppContextType = 
@@ -12,10 +13,12 @@ type AppContextType =
     ReturnType<typeof useTransactionData> &
     ReturnType<typeof useUI> &
     ReturnType<typeof useUsers> &
+    ReturnType<typeof useUserSettings> &
     { currentUser: User | null } &
     ReturnType<typeof useSync> &
     { 
-        isDevModeEnabled: boolean; 
+        isDevModeEnabled: boolean;
+        visibleCategoryGroups: string[];
         upsertCategory: (categoryData: Omit<Category, 'lastModified' | 'version'> & { id: string }) => void;
         deleteCategory: (id: string) => void;
         addGroup: (groupName: string) => void;
@@ -38,6 +41,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const uiState = useUI();
     const usersState = useUsers();
     const categoriesState = useCategories();
+    const userSettingsState = useUserSettings();
     
     // --- Dev Mode Logic ---
     // Dev mode is considered active as long as the initial setup is not marked as "done".
@@ -71,12 +75,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         rawRecurringTransactions: transactionDataState.rawRecurringTransactions,
         rawAllAvailableTags: transactionDataState.rawAllAvailableTags,
         rawUsers: usersState.rawUsers,
+        rawUserSettings: userSettingsState.rawUserSettings,
         setCategories: categoriesState.setCategories,
         setCategoryGroups: categoriesState.setCategoryGroups,
         setTransactions: transactionDataState.setTransactions,
         setRecurringTransactions: transactionDataState.setRecurringTransactions,
         setAllAvailableTags: transactionDataState.setAllAvailableTags,
         setUsers: usersState.setUsers,
+        setUserSettings: userSettingsState.setUserSettings,
     });
     
     const currentUser = useMemo(() => {
@@ -90,6 +96,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             uiState.setCurrentUserId(usersState.users[0].id);
         }
     }, [usersState.users, uiState.currentUserId, uiState.setCurrentUserId]);
+
+    // Filter category groups based on the current user's settings
+    const visibleCategoryGroups = useMemo(() => {
+        if (!uiState.currentUserId) {
+            return categoriesState.categoryGroups; // No user selected, show all as fallback
+        }
+        return userSettingsState.getVisibleGroupsForUser(uiState.currentUserId, categoriesState.categoryGroups);
+    }, [uiState.currentUserId, categoriesState.categoryGroups, userSettingsState]);
+
 
     // --- Auto-sync logic with stale closure fix ---
 
@@ -139,6 +154,7 @@ const debouncedSync = useMemo(() => debounce(() => {
         transactionDataState.rawRecurringTransactions, 
         transactionDataState.rawAllAvailableTags,
         usersState.rawUsers,
+        userSettingsState.rawUserSettings,
         debouncedSync // This is stable, but good practice to include
     ]);
 
@@ -148,6 +164,8 @@ const debouncedSync = useMemo(() => debounce(() => {
         ...categoriesState,
         ...transactionDataState,
         ...usersState,
+        ...userSettingsState,
+        visibleCategoryGroups,
         currentUser,
         deleteMultipleTransactions: transactionDataState.deleteMultipleTransactions,
         addMultipleTransactions: transactionDataState.addMultipleTransactions,
