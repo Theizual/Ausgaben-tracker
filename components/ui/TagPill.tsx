@@ -31,9 +31,10 @@ const tagPillVariants = cva(
   }
 );
 
-export interface TagPillProps extends React.HTMLAttributes<HTMLButtonElement | HTMLDivElement>, VariantProps<typeof tagPillVariants> {
-  tagName: string;
-}
+export type TagPillProps = React.HTMLAttributes<HTMLButtonElement | HTMLDivElement> &
+  VariantProps<typeof tagPillVariants> & {
+    tagName: string;
+  };
 
 type TagPillElement = HTMLButtonElement | HTMLDivElement;
 

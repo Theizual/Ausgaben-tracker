@@ -58,20 +58,21 @@ const TagInput: FC<{
                 <Tag className="h-5 w-5 text-slate-400 shrink-0" />
                 <AnimatePresence>
                     {tags.map(tag => (
-                        <motion.span
+                        <motion.div
                             layout
                             key={tag}
                             initial={{ opacity: 0, scale: 0.8 }}
                             animate={{ opacity: 1, scale: 1 }}
                             exit={{ opacity: 0, scale: 0.8 }}
                             transition={{ duration: 0.15 }}
-                            className="flex items-center gap-1.5 bg-rose-500/20 text-rose-300 text-sm font-medium pl-2.5 pr-1 py-0.5 rounded-full"
+                            className="flex items-center gap-1.5 bg-rose-500 text-white text-sm font-medium pl-2.5 pr-1 py-1 rounded-full"
                         >
-                           #{tag}
-                            <button type="button" onClick={() => removeTag(tag)} className="bg-rose-500/30 hover:bg-rose-500/50 rounded-full p-0.5">
+                            <Tag className="h-3 w-3" />
+                            <span>{tag}</span>
+                            <button type="button" onClick={() => removeTag(tag)} className="bg-black/20 hover:bg-black/40 text-rose-100 hover:text-white rounded-full p-0.5 transition-colors">
                                 <X className="h-3 w-3" />
                             </button>
-                        </motion.span>
+                        </motion.div>
                     ))}
                 </AnimatePresence>
                 <input
