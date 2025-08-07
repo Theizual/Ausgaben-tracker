@@ -31,6 +31,7 @@ interface Mergeable {
 
 // Detect mobile device
 const isMobile = (): boolean => {
+    if (typeof window === 'undefined') return false;
     return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 };
 
@@ -115,7 +116,7 @@ const SyncPromptToast: FC<SyncPromptToastProps> = ({ lastSync, onSync, onDismiss
         ? `Letzte Synchronisierung: ${formatDistanceToNow(new Date(lastSync), { addSuffix: true, locale: de })}. Möchten Sie auf den neuesten Stand aktualisieren?`
         : 'Möchten Sie auf den neuesten Stand aktualisieren?';
 
-    return React.createElement(motion('div'), {
+    return React.createElement(motion.div, {
         initial: { opacity: 0, y: 50 },
         animate: { opacity: 1, y: 0 },
         exit: { opacity: 0, y: 50, transition: { duration: 0.2 } },
@@ -227,446 +228,158 @@ export const useSync = (props: SyncProps) => {
         
         const maxRetries = isMobile() ? 3 : 2;
         let lastError: Error | null = null;
-        
-        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        for (let i = 0; i < maxRetries; i++) {
             try {
-                console.log(`Loading attempt ${attempt}/${maxRetries}${isMobile() ? ' (mobile)' : ''}`);
-                
-                const response = await fetchWithMobileTimeout('/api/sheets/read', {
-                    method: 'POST',
-                });
-                
+                const response = await fetchWithMobileTimeout('/api/sheets/read', { method: 'POST' });
                 if (!response.ok) {
-                    const errorData = await response.json().catch(() => ({}));
-                    throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+                    const errorData = await response.json().catch(() => ({ error: 'Failed to parse error response' }));
+                    throw new Error(errorData.error || `Server responded with ${response.status}`);
                 }
+                const data: ReadApiResponse = await response.json();
                 
-                const data = await response.json();
-                
-                // Validierung der empfangenen Daten
-                if (!data || typeof data !== 'object') {
-                    throw new Error('Invalid response format');
-                }
-                
-                const { categories, transactions, recurringTransactions, allAvailableTags, users } = data;
-                
-                // Prüfe ob kritische Daten vorhanden sind
-                if (!Array.isArray(categories)) {
-                    throw new Error('Categories data is missing or invalid');
-                }
-                 if (!Array.isArray(users)) {
-                    throw new Error('Users data is missing or invalid');
-                }
-                
-                if (!Array.isArray(transactions)) {
-                    throw new Error('Transactions data is missing or invalid');
-                }
-                
-                if (!Array.isArray(allAvailableTags)) {
-                    throw new Error('Tags data is missing or invalid');
-                }
-                
-                if (!Array.isArray(recurringTransactions)) {
-                    throw new Error('Recurring transactions data is missing or invalid');
-                }
-                
-                // Erfolgreiche Daten verarbeiten
-                console.log('Data loaded successfully:', {
-                    categories: categories.length,
-                    transactions: transactions.length,
-                    recurringTransactions: recurringTransactions.length,
-                    allAvailableTags: allAvailableTags.length,
-                    users: users.length,
-                });
-                
-                // WICHTIG: Flag setzen während Datenupdate
                 isDataUpdatingRef.current = true;
-                
-                // Update der lokalen Daten
-                setUsers(users);
-                setCategories(categories);
-                const newGroups = [...new Set(categories.filter((c: Category) => !c.isDeleted).map((c: Category) => c.group))];
+                const newGroups = [...new Set(data.categories.map(c => c.group || 'Sonstiges'))];
+
+                setCategories(data.categories);
                 setCategoryGroups(newGroups);
-                setTransactions(transactions);
-                setRecurringTransactions(recurringTransactions);
-                setAllAvailableTags(allAvailableTags);
-                
-                // Flag zurücksetzen nach einem kurzen Timeout
-                setTimeout(() => {
-                    isDataUpdatingRef.current = false;
-                }, 1000);
-                
-                // Erfolg - kein weiterer Retry nötig
-                setIsLoading(false);
-                toast.success('Daten erfolgreich geladen!');
-                return;
-                
-            } catch (error) {
-                lastError = error as Error;
-                console.error(`Attempt ${attempt} failed:`, error);
-                
-                if (attempt < maxRetries) {
-                    const delay = 1000 * attempt; // 1s, 2s, 3s delays
-                    console.log(`Retrying in ${delay}ms...`);
-                    await new Promise(resolve => setTimeout(resolve, delay));
-                }
-            }
-        }
-        
-        // Alle Versuche fehlgeschlagen
-        isDataUpdatingRef.current = false;
-        setIsLoading(false);
-        const errorMessage = lastError?.message || 'Unbekannter Fehler beim Laden der Daten';
-        setError(errorMessage);
-        
-        // Spezielle Fehlermeldungen für mobile Geräte
-        if (isMobile()) {
-            if (errorMessage.includes('timeout')) {
-                toast.error('Timeout - Bitte überprüfen Sie Ihre Internetverbindung und versuchen Sie es erneut.');
-            } else if (errorMessage.includes('network')) {
-                toast.error('Netzwerkfehler - Bitte überprüfen Sie Ihre Internetverbindung.');
-            } else {
-                toast.error(`Fehler beim Laden: ${errorMessage}`);
-            }
-        } else {
-            toast.error(`Fehler beim Laden der Daten: ${errorMessage}`);
-        }
-    }, [isLoading, setCategories, setCategoryGroups, setTransactions, setRecurringTransactions, setAllAvailableTags, setUsers]);
-
-    // Optimierte Auto-Load Logik mit strengeren Guards
-    useEffect(() => {
-        if (!shouldAutoLoad || !isAutoSyncEnabled) return;
-        
-        // Auf mobilen Geräten weniger aggressive Auto-Loads
-        const autoLoadInterval = isMobile() ? 300000 : 180000; // 5min mobile, 3min desktop
-        
-        const intervalId = setInterval(() => {
-            // Nur laden wenn die App im Fokus ist UND nicht gerade synct/lädt
-            if (document.visibilityState === 'visible' && 
-                !syncInProgressRef.current && 
-                !isLoading && 
-                !isDataUpdatingRef.current) {
-                loadFromSheet();
-            }
-        }, autoLoadInterval);
-        
-        return () => clearInterval(intervalId);
-    }, [shouldAutoLoad, isAutoSyncEnabled, loadFromSheet, isLoading]);
-
-    // Verbesserte Connectivity-Erkennung für mobile
-    useEffect(() => {
-        const handleOnline = () => {
-            console.log('Back online, attempting to load data...');
-            // Nur laden wenn nicht bereits ein Sync läuft
-            if (!syncInProgressRef.current && !isLoading && !isDataUpdatingRef.current) {
-                if (isMobile()) {
-                    // Auf mobilen Geräten kurz warten bis die Verbindung stabil ist
-                    setTimeout(() => loadFromSheet(), 2000);
-                } else {
-                    loadFromSheet();
-                }
-            }
-        };
-        
-        const handleOffline = () => {
-            console.log('Gone offline');
-            toast.error('Keine Internetverbindung');
-        };
-        
-        window.addEventListener('online', handleOnline);
-        window.addEventListener('offline', handleOffline);
-        
-        return () => {
-            window.removeEventListener('online', handleOnline);
-            window.removeEventListener('offline', handleOffline);
-        };
-    }, [loadFromSheet, isLoading]);
-
-    const syncData = useCallback(async (options: { isAuto?: boolean; isConflictResolution?: boolean } = {}) => {
-        // VERSTÄRKTE GUARDS to prevent multiple/rapid syncs
-        if (syncInProgressRef.current || isSyncing || isLoading || isDataUpdatingRef.current) {
-            console.warn('Sync already in progress or data updating, ignoring request.');
-            return;
-        }
-
-        const { isAuto = false, isConflictResolution = false } = options;
-        
-        // Anti-Spam für manuelle Syncs
-        const now = Date.now();
-        const MIN_SYNC_INTERVAL = isAuto ? 30000 : 3000; // 30s für auto, 3s für manuell
-        
-        if (now - lastSyncAttemptRef.current < MIN_SYNC_INTERVAL) {
-            console.warn(`Sync attempted too frequently (${now - lastSyncAttemptRef.current}ms ago), ignoring.`);
-            return;
-        }
-        
-        lastSyncAttemptRef.current = now;
-
-        if (isConflictResolution) {
-            const lastConflictResolve = sessionStorage.getItem('lastConflictResolve');
-            if (lastConflictResolve && (now - parseInt(lastConflictResolve, 10)) < 5000) { // 5-second cooldown
-                console.warn('Conflict resolution attempted too frequently, ignoring.');
-                return;
-            }
-            sessionStorage.setItem('lastConflictResolve', now.toString());
-        }
-        
-        // Sync-Flags setzen
-        syncInProgressRef.current = true;
-        if (!isAuto) {
-            setSyncOperation('sync');
-        }
-
-        const syncPromise = new Promise<string>(async (resolve, reject) => {
-            try {
-                // 1. Write local data to sheet, which performs the version check
-                const writeResponse = await fetchWithMobileTimeout('/api/sheets/write', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        categories: rawCategories,
-                        transactions: rawTransactions,
-                        recurringTransactions: rawRecurringTransactions,
-                        allAvailableTags: rawAllAvailableTags,
-                        users: rawUsers,
-                    }),
-                });
-
-                if (!writeResponse.ok) {
-                    const errorBody = await writeResponse.text();
-                    let errorJson: WriteErrorResponse | null = null;
-                    try {
-                        errorJson = JSON.parse(errorBody);
-                    } catch(e) {
-                        throw new Error(errorBody || `Fehler beim Speichern (${writeResponse.status})`);
-                    }
-
-                    if (writeResponse.status === 409 && errorJson?.conflicts) {
-                        // CONFLICT DETECTED
-                        console.warn("Sync conflict detected. Merging server data.");
-                        
-                        // Zusätzlicher Guard: Verhindere Konflikt-Loop
-                        const conflictKey = `conflict-${Date.now()}`;
-                        if (sessionStorage.getItem('lastConflictKey') === conflictKey) {
-                            throw new Error('Konflikt-Loop erkannt. Sync abgebrochen.');
-                        }
-                        sessionStorage.setItem('lastConflictKey', conflictKey);
-                        
-                        const mergedUsers = mergeItems(rawUsers, [], errorJson.conflicts.users);
-                        const mergedCategories = mergeItems(rawCategories, [], errorJson.conflicts.categories);
-                        const mergedTransactions = mergeItems(rawTransactions, [], errorJson.conflicts.transactions);
-                        const mergedRecurring = mergeItems(rawRecurringTransactions, [], errorJson.conflicts.recurring);
-                        const mergedTags = mergeItems(rawAllAvailableTags, [], errorJson.conflicts.tags);
-                        
-                        // KRITISCH: Flag setzen während Merge
-                        isDataUpdatingRef.current = true;
-                        
-                        // Update local state with merged data
-                        setUsers(mergedUsers);
-                        setCategories(mergedCategories);
-                        const newGroups = [...new Set(mergedCategories.filter(c => !c.isDeleted).map(c => c.group))];
-                        setCategoryGroups(newGroups);
-                        setTransactions(mergedTransactions);
-                        setRecurringTransactions(mergedRecurring);
-                        setAllAvailableTags(mergedTags);
-                        
-                        // Kurz warten bis State-Updates verarbeitet sind
-                        await new Promise(resolve => setTimeout(resolve, 500));
-                        
-                        // Attempt ONE MORE TIME with the merged data
-                        console.log("Attempting final sync with merged data...");
-                        try {
-                            const finalWriteResponse = await fetchWithMobileTimeout('/api/sheets/write', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                    users: mergedUsers,
-                                    categories: mergedCategories,
-                                    transactions: mergedTransactions,
-                                    recurringTransactions: mergedRecurring,
-                                    allAvailableTags: mergedTags,
-                                }),
-                            });
-
-                            if (!finalWriteResponse.ok) {
-                                const finalErrorBody = await finalWriteResponse.text();
-                                let finalErrorJson: WriteErrorResponse | null = null;
-                                try {
-                                    finalErrorJson = JSON.parse(finalErrorBody);
-                                } catch(e) {
-                                    throw new Error(`Conflict resolution failed: ${finalErrorBody}`);
-                                }
-                                
-                                if (finalWriteResponse.status === 409) {
-                                    console.error("Persistent conflicts detected. Manual intervention required.");
-                                    throw new Error("Dauerhafte Konflikte erkannt. Bitte kontaktieren Sie den Support.");
-                                }
-                                
-                                throw new Error(finalErrorJson?.error || `Final sync failed (${finalWriteResponse.status})`);
-                            }
-                            
-                            // Successful final write - read back the data to be safe
-                            const readResponse = await fetchWithMobileTimeout('/api/sheets/read', { method: 'POST' });
-                            if (!readResponse.ok) {
-                                throw new Error(`Failed to read after conflict resolution (${readResponse.status})`);
-                            }
-                            
-                            const remoteData = await readResponse.json() as ReadApiResponse;
-                            
-                            // Update state to final server data
-                            setUsers(remoteData.users || []);
-                            setCategories(remoteData.categories || []);
-                            const finalGroups = [...new Set((remoteData.categories || []).filter((c: Category) => !c.isDeleted).map((c: Category) => c.group))];
-                            setCategoryGroups(finalGroups);
-                            setTransactions(remoteData.transactions || []);
-                            setRecurringTransactions(remoteData.recurringTransactions || []);
-                            setAllAvailableTags(remoteData.allAvailableTags || []);
-                            
-                            setLastSync(new Date().toISOString());
-                            resolve('Konflikt erfolgreich behoben und synchronisiert!');
-                            return;
-
-                        } catch (finalError: any) {
-                            console.error('Final conflict resolution sync failed:', finalError);
-                            throw new Error(`Conflict resolution failed: ${finalError.message}`);
-                        } finally {
-                            isDataUpdatingRef.current = false;
-                        }
-                    }
-                    throw new Error(errorJson?.error || `Fehler beim Speichern (${writeResponse.status})`);
-                }
-                
-                // If write was successful on the first try, read back the canonical state.
-                const readResponse = await fetchWithMobileTimeout('/api/sheets/read', { method: 'POST' });
-                const responseBody = await readResponse.text();
-
-                if (!readResponse.ok) {
-                    let errorJson: { error?: string } | null = null;
-                    try {
-                        errorJson = JSON.parse(responseBody);
-                    } catch(e) {
-                        throw new Error(responseBody || `Fehler beim Laden (${readResponse.status})`);
-                    }
-                    throw new Error(errorJson?.error || `Fehler beim Laden nach Speichern (${readResponse.status})`);
-                }
-
-                const remoteData = JSON.parse(responseBody) as ReadApiResponse;
-
-                // KRITISCH: Flag setzen während Datenupdate
-                isDataUpdatingRef.current = true;
-                
-                setUsers(remoteData.users || []);
-                setCategories(remoteData.categories || []);
-                const newGroups = [...new Set((remoteData.categories || []).filter((c: Category) => !c.isDeleted).map((c: Category) => c.group))];
-                setCategoryGroups(newGroups);
-                setTransactions(remoteData.transactions || []);
-                setRecurringTransactions(remoteData.recurringTransactions || []);
-                setAllAvailableTags(remoteData.allAvailableTags || []);
-                
+                setTransactions(data.transactions);
+                setRecurringTransactions(data.recurringTransactions);
+                setAllAvailableTags(data.allAvailableTags);
+                setUsers(data.users);
                 setLastSync(new Date().toISOString());
-                
-                // Flag nach kurzer Zeit zurücksetzen
-                setTimeout(() => {
-                    isDataUpdatingRef.current = false;
-                }, 1000);
-                
-                resolve('Daten erfolgreich synchronisiert!');
-
-            } catch (error: any) {
-                console.error('Sync Error:', error);
                 isDataUpdatingRef.current = false;
-                reject(error);
+                
+                setIsLoading(false);
+                toast.success('Daten erfolgreich geladen');
+                return; // Success
+            } catch (e: any) {
+                lastError = e;
+                console.error(`Load attempt ${i + 1} failed:`, e.message);
+                if (i < maxRetries - 1) {
+                    await new Promise(res => setTimeout(res, (1000 * Math.pow(2, i)) + Math.random() * 500)); // Exponential backoff with jitter
+                }
             }
-        });
-
-        if (!isAuto) {
-            toast.promise(syncPromise, {
-                loading: 'Synchronisiere Daten...',
-                success: (message) => String(message),
-                error: (err) => `Sync-Fehler: ${err.message}`,
-            });
-        } else {
-            syncPromise.catch(err => {
-                console.warn('Auto-sync failed in background:', err.message);
-            });
         }
         
-        syncPromise.finally(() => {
-            syncInProgressRef.current = false;
-            if (!isAuto) {
-                setSyncOperation(null);
-            }
-        });
+        // If all retries fail
+        if (lastError) {
+            setError(lastError.message);
+            toast.error(`Daten konnten nicht geladen werden: ${lastError.message}`);
+        }
+        
+        setIsLoading(false);
+    }, [isLoading, setCategories, setCategoryGroups, setTransactions, setRecurringTransactions, setAllAvailableTags, setUsers, setLastSync]);
+    
+    const handleMergeConflicts = useCallback(async (conflicts: ConflictData) => {
+        isDataUpdatingRef.current = true;
 
+        setCategories(mergeItems(rawCategories, [], conflicts.categories));
+        setTransactions(mergeItems(rawTransactions, [], conflicts.transactions));
+        setRecurringTransactions(mergeItems(rawRecurringTransactions, [], conflicts.recurring));
+        setAllAvailableTags(mergeItems(rawAllAvailableTags, [], conflicts.tags));
+        setUsers(mergeItems(rawUsers, [], conflicts.users));
+        
+        isDataUpdatingRef.current = false;
+        
+        toast.error('Konflikt! Daten wurden zusammengeführt. Bitte prüfen Sie Ihre Einträge.', { duration: 5000 });
     }, [
         rawCategories, rawTransactions, rawRecurringTransactions, rawAllAvailableTags, rawUsers,
-        setCategories, setCategoryGroups, setTransactions, setRecurringTransactions, setAllAvailableTags, setUsers,
-        setLastSync, isSyncing, isLoading
+        setCategories, setTransactions, setRecurringTransactions, setAllAvailableTags, setUsers
     ]);
 
-    // Sync Prompt Effect mit verstärkten Guards
-    useEffect(() => {
-        if (promptShownRef.current || 
-            syncInProgressRef.current || 
-            isSyncing || 
-            isLoading ||
-            isDataUpdatingRef.current) {
+    const syncData = useCallback(async (options: { isAuto?: boolean } = {}) => {
+        const now = Date.now();
+        const MIN_SYNC_INTERVAL = 5000;
+        if (syncInProgressRef.current || (now - lastSyncAttemptRef.current < MIN_SYNC_INTERVAL)) {
+            if (!options.isAuto) toast('Synchronisierung läuft bereits.');
             return;
         }
 
-        if (typeof window !== 'undefined' && sessionStorage.getItem('syncPromptShown') === '1') { 
-            return; 
-        }
+        syncInProgressRef.current = true;
+        lastSyncAttemptRef.current = now;
+        setSyncOperation('sync');
+        setError(null);
         
-        const SYNC_PROMPT_THRESHOLD = 60 * 60 * 1000; // 1 hour
-        let shouldPrompt = false;
+        if (!options.isAuto) toast.loading('Synchronisiere Daten...', { id: 'sync-toast' });
 
-        if (!lastSync) {
-            shouldPrompt = true;
-        } else {
-            try {
-                const timeSinceLastSync = new Date().getTime() - new Date(lastSync).getTime();
-                if (timeSinceLastSync > SYNC_PROMPT_THRESHOLD) {
-                    shouldPrompt = true;
+        try {
+            const body = JSON.stringify({
+                categories: rawCategories,
+                transactions: rawTransactions,
+                recurringTransactions: rawRecurringTransactions,
+                allAvailableTags: rawAllAvailableTags,
+                users: rawUsers,
+            });
+
+            const response = await fetchWithMobileTimeout('/api/sheets/write', {
+                method: 'POST',
+                body,
+            });
+
+            if (response.status === 409) {
+                const conflictData: WriteErrorResponse = await response.json();
+                if (conflictData.conflicts) {
+                    await handleMergeConflicts(conflictData.conflicts);
+                } else {
+                     throw new Error('Conflict error, but no conflict data received.');
                 }
-            } catch (e) {
-                shouldPrompt = true;
+            } else if (!response.ok) {
+                 const errorData = await response.json().catch(() => ({ error: 'Unbekannter Serverfehler' }));
+                 throw new Error(errorData.error || `Serverfehler: ${response.status}`);
             }
-        }
-        
-        if (shouldPrompt) {
-            if (typeof window !== 'undefined') { 
-                sessionStorage.setItem('syncPromptShown', '1'); 
-            }
-            promptShownRef.current = true;
+
+            const newSyncTime = new Date().toISOString();
+            setLastSync(newSyncTime);
             
-            setTimeout(() => {
-                toast.custom(
-                    (t: Toast) => React.createElement(SyncPromptToast, {
-                        lastSync: lastSync,
-                        onSync: () => syncData(),
-                        onDismiss: () => toast.dismiss(t.id),
-                    }),
-                    {
-                        id: 'sync-prompt',
-                        duration: Infinity,
-                        position: 'top-center'
-                    }
-                );
-            }, 500);
+            if (!options.isAuto) {
+                toast.success('Synchronisierung erfolgreich!', { id: 'sync-toast' });
+            }
+
+        } catch (e: any) {
+            setError(e.message);
+            if (!options.isAuto) toast.error(`Fehler: ${e.message}`, { id: 'sync-toast' });
+        } finally {
+            setSyncOperation(null);
+            syncInProgressRef.current = false;
         }
-    }, [lastSync, isSyncing, isLoading, syncData]);
+    }, [
+        rawCategories, rawTransactions, rawRecurringTransactions, rawAllAvailableTags, rawUsers,
+        handleMergeConflicts, setLastSync
+    ]);
+    
+    useEffect(() => {
+        if (shouldAutoLoad && !lastSync) {
+            loadFromSheet();
+        }
+    }, [shouldAutoLoad, lastSync, loadFromSheet]);
+
+    useEffect(() => {
+        if (!promptShownRef.current && !isAutoSyncEnabled && lastSync) {
+            const fiveHours = 5 * 60 * 60 * 1000;
+            if (Date.now() - new Date(lastSync).getTime() > fiveHours) {
+                promptShownRef.current = true;
+                toast.custom((t: Toast) => React.createElement(SyncPromptToast, {
+                    lastSync: lastSync,
+                    onSync: () => {
+                        syncData();
+                        toast.dismiss(t.id);
+                    },
+                    onDismiss: () => toast.dismiss(t.id),
+                }), { duration: Infinity, position: 'bottom-center' });
+            }
+        }
+    }, [isAutoSyncEnabled, lastSync, syncData]);
 
     return {
         syncOperation,
         isSyncing,
+        isLoading,
+        error,
         lastSync,
         isAutoSyncEnabled,
         setIsAutoSyncEnabled,
         syncData,
         loadFromSheet,
-        isLoading,
-        error,
-        isMobile: isMobile(),
+        handleMergeConflicts,
     };
 };

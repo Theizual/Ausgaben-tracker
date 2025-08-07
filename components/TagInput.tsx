@@ -4,9 +4,6 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Tag, X } from './Icons';
 import type { Tag as TagType } from '../types';
 
-const MotionSpan = motion('span');
-const MotionUl = motion('ul');
-
 const TagInput: FC<{
     tags: string[];
     setTags: (tags: string[]) => void;
@@ -61,7 +58,7 @@ const TagInput: FC<{
                 <Tag className="h-5 w-5 text-slate-400 shrink-0" />
                 <AnimatePresence>
                     {tags.map(tag => (
-                        <MotionSpan
+                        <motion.span
                             layout
                             key={tag}
                             initial={{ opacity: 0, scale: 0.8 }}
@@ -74,7 +71,7 @@ const TagInput: FC<{
                             <button type="button" onClick={() => removeTag(tag)} className="bg-rose-500/30 hover:bg-rose-500/50 rounded-full p-0.5">
                                 <X className="h-3 w-3" />
                             </button>
-                        </MotionSpan>
+                        </motion.span>
                     ))}
                 </AnimatePresence>
                 <input
@@ -90,7 +87,7 @@ const TagInput: FC<{
             </div>
             <AnimatePresence>
                 {suggestions.length > 0 && (
-                    <MotionUl 
+                    <motion.ul 
                         initial={{ opacity: 0, y: -5 }} 
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -5 }}
@@ -105,7 +102,7 @@ const TagInput: FC<{
                                 #{suggestion}
                             </li>
                         ))}
-                    </MotionUl>
+                    </motion.ul>
                 )}
             </AnimatePresence>
         </div>

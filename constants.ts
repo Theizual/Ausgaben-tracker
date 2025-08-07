@@ -1,8 +1,48 @@
 import type { Category } from './types';
 
-export const APP_VERSION = '0.80';
+export const APP_VERSION = '0.88';
 
 export const CHANGELOG = [
+    {
+        version: '0.88',
+        date: '07.08.2024, 11:00 Uhr',
+        title: 'UI- & Statistik-Generalüberholung',
+        changes: [
+            'Das Budget-Verlaufsdiagramm zeigt am Ende der Trendlinie nun einen Prognose-Punkt (grün/rot) an, der den erwarteten Budget-Ausgang signalisiert.',
+            'Die Kategorien-Übersicht im Statistik-Tab und die Budget-Übersicht auf dem Dashboard sind jetzt für mehr Übersichtlichkeit nach Gruppen strukturiert.',
+            'Die Anzeige von Transaktionen wurde in der gesamten App für ein einheitliches Design vereinheitlicht und zentralisiert.',
+            'Der veraltete Ausgaben-Graph auf der Übersichtsseite wurde entfernt.',
+        ]
+    },
+    {
+        version: '0.86',
+        date: '06.08.2024, 10:00 Uhr',
+        title: 'Verbesserte Statistik-Ansicht',
+        changes: [
+            'Das Budget-Burndown-Diagramm enthält jetzt eine Trendlinie pro Kategorie, um die Einhaltung des Budgets besser vorherzusagen.',
+            'Ein Fehler wurde behoben, bei dem die Seite beim Wechseln des Monats im Statistik-Kalender gesprungen ist.',
+        ]
+    },
+    {
+        version: '0.84',
+        date: '05.08.2024, 11:00 Uhr',
+        title: 'Verbesserte Verwaltung von Kategoriegruppen',
+        changes: [
+            'Die Löschfunktion für Gruppen wurde aus dem Umbenennen-Dialog entfernt, um die Bedienung eindeutiger zu machen.',
+            'Leere Kategoriegruppen können nun direkt über ein Mülleimer-Symbol in der Bibliotheksansicht gelöscht werden.',
+            'Die interne Logik zum Löschen von Gruppen wurde überarbeitet, um Fehler zu beheben und die Zuverlässigkeit zu erhöhen.',
+        ]
+    },
+    {
+        version: '0.83',
+        date: '02.08.2024, 15:00 Uhr',
+        title: 'Optimierung der Transaktionsansicht',
+        changes: [
+            'Die Funktion zum massenhaften Löschen von Transaktionen wurde entfernt, um die Oberfläche zu vereinfachen.',
+            'Bearbeiten- und Löschen-Buttons werden nicht mehr bei Maus-Hover angezeigt; die Verwaltung erfolgt nun zentral über das Detail-Fenster.',
+            'Das Layout der Listenansicht auf Mobilgeräten wurde optimiert, um abgeschnittene Beschreibungen zu vermeiden.',
+        ]
+    },
     {
         version: '0.80',
         date: '31.07.2024, 10:00 Uhr',

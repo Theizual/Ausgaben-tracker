@@ -1,8 +1,5 @@
 
 
-
-
-
 import React, { useState, useMemo, FC } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { AreaChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
@@ -15,8 +12,7 @@ import {
 } from '../utils/dateUtils';
 import { Hash, Coins, BarChart2, ChevronLeft, ChevronRight, X, Plus, Search } from './Icons';
 import StandardTransactionItem from './StandardTransactionItem';
-
-const MotionDiv = motion('div');
+import { TagPill } from './ui/TagPill';
 
 const AllTagsModal: FC<{
     allTags: Tag[];
@@ -34,14 +30,14 @@ const AllTagsModal: FC<{
     );
 
     return (
-        <MotionDiv
+        <motion.div
             className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50 p-4"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
         >
-            <MotionDiv
+            <motion.div
                 className="bg-slate-800 rounded-2xl w-full max-w-md shadow-2xl border border-slate-700 flex flex-col max-h-[70vh]"
                 initial={{ scale: 0.95, y: 20 }}
                 animate={{ scale: 1, y: 0 }}
@@ -63,22 +59,14 @@ const AllTagsModal: FC<{
                 </header>
                 <main className="p-4 overflow-y-auto">
                     <div className="flex flex-wrap gap-2">
-                         {filteredTags.map(tag => {
-                            const isSelected = selectedTagIds.includes(tag.id);
-                            return (
-                                <button
-                                    key={tag.id}
-                                    onClick={() => onTagClick(tag.id)}
-                                    className={`px-3 py-1.5 text-sm font-semibold rounded-full transition-colors ${
-                                        isSelected 
-                                            ? 'bg-rose-600 text-white' 
-                                            : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-                                    }`}
-                                >
-                                    #{tag.name}
-                                </button>
-                            );
-                        })}
+                         {filteredTags.map(tag => (
+                             <TagPill
+                                key={tag.id}
+                                tagName={tag.name}
+                                selected={selectedTagIds.includes(tag.id)}
+                                onClick={() => onTagClick(tag.id)}
+                            />
+                        ))}
                         {filteredTags.length === 0 && <p className="text-slate-500 text-center w-full">Keine passenden Tags gefunden.</p>}
                     </div>
                 </main>
@@ -87,8 +75,8 @@ const AllTagsModal: FC<{
                         Schließen
                     </button>
                 </footer>
-            </MotionDiv>
-        </MotionDiv>
+            </motion.div>
+        </motion.div>
     );
 };
 
@@ -118,22 +106,15 @@ const MultiTagPicker: FC<{
                 Tags zur Analyse auswählen
             </h4>
             <div className="flex flex-wrap gap-2">
-                {recentTags.map(tag => {
-                    const isSelected = selectedTagIds.includes(tag.id);
-                    return (
-                        <button
-                            key={tag.id}
-                            onClick={() => handleTagClick(tag.id)}
-                            className={`px-3 py-1.5 text-sm font-semibold rounded-full transition-all duration-200 flex items-center gap-1.5 ${
-                                isSelected 
-                                    ? 'bg-rose-600 text-white shadow-md'
-                                    : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-                            }`}
-                        >
-                            #{tag.name}
-                        </button>
-                    );
-                })}
+                {recentTags.map(tag => (
+                    <TagPill
+                        key={tag.id}
+                        tagName={tag.name}
+                        selected={selectedTagIds.includes(tag.id)}
+                        onClick={() => handleTagClick(tag.id)}
+                        size="md"
+                    />
+                ))}
                 {otherTags.length > 0 && (
                      <button
                         onClick={() => setIsModalOpen(true)}
@@ -216,7 +197,7 @@ const PeriodNavigator: FC<{
             
             <AnimatePresence mode="wait">
                 {periodType === 'custom' ? (
-                    <MotionDiv 
+                    <motion.div 
                         key="custom"
                         initial={{ opacity: 0, width: 0 }}
                         animate={{ opacity: 1, width: 'auto' }}
@@ -237,9 +218,9 @@ const PeriodNavigator: FC<{
                             onChange={(e) => setCustomDateRange({ ...customDateRange, end: e.target.value })}
                             className="bg-slate-700 border border-slate-600 rounded-md px-2 py-1.5 text-white text-sm"
                         />
-                    </MotionDiv>
+                    </motion.div>
                 ) : (
-                    <MotionDiv 
+                    <motion.div 
                         key="nav"
                         initial={{ opacity: 0, width: 0 }}
                         animate={{ opacity: 1, width: 'auto' }}
@@ -250,7 +231,7 @@ const PeriodNavigator: FC<{
                         <button onClick={() => changeDate('prev')} disabled={isNavDisabled} className="p-2 rounded-full hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed"><ChevronLeft className="h-5 w-5" /></button>
                         <span className="font-bold text-white w-40 text-center">{getPeriodLabel()}</span>
                         <button onClick={() => changeDate('next')} disabled={isNavDisabled} className="p-2 rounded-full hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed"><ChevronRight className="h-5 w-5" /></button>
-                    </MotionDiv>
+                    </motion.div>
                 )}
             </AnimatePresence>
         </div>
@@ -276,7 +257,7 @@ const TagDetailView: FC<{
     customDateRange: { start: string, end: string },
     appContext: AppContextSubset
 }> = ({ tagIds, periodType, currentDate, customDateRange, appContext }) => {
-    const { transactions, tagMap, handleTransactionClick, deleteTransaction } = appContext;
+    const { transactions, tagMap, handleTransactionClick } = appContext;
     const formattedTagNames = tagIds.map(id => `#${tagMap.get(id) || 'Unbekannt'}`).join(', ');
 
     const { filteredTransactions, interval } = useMemo(() => {
@@ -386,16 +367,16 @@ const TagDetailView: FC<{
 
     if (filteredTransactions.length === 0) {
         return (
-             <MotionDiv initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col items-center justify-center h-96 bg-slate-800/50 rounded-2xl border border-slate-700/50 p-6 text-center">
+             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col items-center justify-center h-96 bg-slate-800/50 rounded-2xl border border-slate-700/50 p-6 text-center">
                  <Hash className="text-slate-600 h-12 w-12 mb-4" />
                  <h2 className="text-xl font-bold text-white">Keine Daten für {formattedTagNames}</h2>
                  <p className="text-slate-400">Für den gewählten Zeitraum gibt es keine Transaktionen mit diesen Tags.</p>
-            </MotionDiv>
+            </motion.div>
         )
     }
 
     return (
-        <MotionDiv initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6">
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6">
             <h2 className="text-2xl font-bold text-white flex items-center gap-2 flex-wrap">
                 {formattedTagNames}
             </h2>
@@ -465,17 +446,12 @@ const TagDetailView: FC<{
                             key={t.id}
                             transaction={t}
                             onClick={() => handleTransactionClick(t)}
-                            onDelete={() => {
-                                if (window.confirm(`Möchten Sie die Ausgabe "${t.description}" wirklich löschen?`)) {
-                                    deleteTransaction(t.id);
-                                }
-                            }}
-                            showSubline="date"
+                            showSublineInList="date"
                         />
                     ))}
                 </div>
             </div>
-        </MotionDiv>
+        </motion.div>
     )
 }
 
@@ -547,7 +523,7 @@ const TagsPage: FC = () => {
 
             <AnimatePresence mode="wait">
                 {selectedTagIdsForAnalysis.length > 0 ? (
-                    <MotionDiv
+                    <motion.div
                         key={selectedTagIdsForAnalysis.join('-')}
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -561,7 +537,7 @@ const TagsPage: FC = () => {
                             customDateRange={tagsCustomDateRange}
                             appContext={{ ...rest, transactions }}
                         />
-                    </MotionDiv>
+                    </motion.div>
                 ) : (
                      <div className="flex flex-col items-center justify-center h-96 bg-slate-800/50 rounded-2xl border border-slate-700/50 text-center">
                          <Hash className="text-slate-600 h-12 w-12 mb-4" />

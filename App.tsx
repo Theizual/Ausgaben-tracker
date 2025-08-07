@@ -1,9 +1,4 @@
 
-
-
-
-
-
 import React, { useState, useRef, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Toaster } from 'react-hot-toast';
@@ -24,8 +19,6 @@ import Logo from './components/Logo';
 import type { User as UserType } from './types';
 import { APP_VERSION } from './constants';
 import useLocalStorage from './hooks/useLocalStorage';
-
-const MotionDiv = motion('div');
 
 // Main App Component (now a clean layout/composition root)
 const App: React.FC = () => {
@@ -116,7 +109,7 @@ const App: React.FC = () => {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">
                 <main className="mt-6">
                     <AnimatePresence mode="wait">
-                        <MotionDiv
+                        <motion.div
                             key={activeTab}
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
@@ -124,7 +117,7 @@ const App: React.FC = () => {
                             transition={{ duration: 0.3 }}
                         >
                             {renderContent()}
-                        </MotionDiv>
+                        </motion.div>
                     </AnimatePresence>
                 </main>
             </div>
@@ -211,7 +204,7 @@ const UserSelector: React.FC = () => {
             </button>
             <AnimatePresence>
                 {isOpen && (
-                     <MotionDiv 
+                     <motion.div 
                         initial={{ opacity: 0, y: -5, scale: 0.95 }} 
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: -5, scale: 0.95 }}
@@ -244,7 +237,7 @@ const UserSelector: React.FC = () => {
                             <Settings className="h-5 w-5"/>
                             <span className="font-medium">Einstellungen</span>
                         </button>
-                    </MotionDiv>
+                    </motion.div>
                 )}
             </AnimatePresence>
         </div>
@@ -327,7 +320,7 @@ const MainTabs: React.FC<{
                             <tab.icon className="h-6 w-6" />
                             <span className="text-xs font-medium">{tab.label}</span>
                              {activeTab === tab.id && (
-                                <MotionDiv className="absolute bottom-0 h-1 w-8 bg-rose-400 rounded-t-full" layoutId="underline" />
+                                <motion.div className="absolute bottom-0 h-1 w-8 bg-rose-400 rounded-t-full" layoutId="underline" />
                             )}
                         </button>
                     ))}

@@ -17,7 +17,7 @@ interface DayDetailPanelProps {
 }
 
 const DayDetailPanel: FC<DayDetailPanelProps> = ({ isOpen, date, transactions, onClose }) => {
-    const { handleTransactionClick, deleteTransaction } = useApp();
+    const { handleTransactionClick } = useApp();
     const panelRef = useRef<HTMLDivElement>(null);
 
     const dailyTotal = useMemo(() => transactions.reduce((sum, t) => sum + t.amount, 0), [transactions]);
@@ -83,12 +83,7 @@ const DayDetailPanel: FC<DayDetailPanelProps> = ({ isOpen, date, transactions, o
                                 key={t.id}
                                 transaction={t}
                                 onClick={() => handleTransactionClick(t)}
-                                onDelete={() => {
-                                    if(window.confirm(`Löschen: "${t.description}"?`)) {
-                                        deleteTransaction(t.id)
-                                    }
-                                }}
-                                showSubline="category"
+                                showSublineInList="category"
                             />
                         ))}
                     </div>

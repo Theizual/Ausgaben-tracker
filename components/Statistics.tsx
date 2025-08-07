@@ -10,11 +10,9 @@ import {
 import { de, addMonths, subMonths } from '../utils/dateUtils';
 import { ChevronLeft, ChevronRight, X, iconMap, ChevronDown } from './Icons';
 import { formatCurrency } from '../utils/dateUtils';
-import SpendingTimeSeries from './SpendingTimeSeries';
 import DayDetailPanel from './DayDetailPanel';
 import StandardTransactionItem from './StandardTransactionItem';
-
-const MotionDiv = motion('div');
+import BudgetBurndownChart from './BudgetBurndownChart';
 
 const Statistics: FC = () => {
     const { 
@@ -23,7 +21,8 @@ const Statistics: FC = () => {
         setStatisticsCurrentMonth,
         statisticsSelectedDay,
         setStatisticsSelectedDay,
-        handleTransactionClick
+        handleTransactionClick,
+        categoryMap,
     } = useApp();
 
     const monthlyTransactions = useMemo(() => {
@@ -55,19 +54,27 @@ const Statistics: FC = () => {
         }).sort((a,b) => b.amount - a.amount);
     }, [transactions, statisticsSelectedDay]);
 
-    const dateRangeForChart = useMemo(() => ({
-        from: startOfMonth(statisticsCurrentMonth),
-        to: endOfMonth(statisticsCurrentMonth),
-    }), [statisticsCurrentMonth]);
+    const handleMonthChange = (newMonth: Date) => {
+        // Only trigger updates if the month is actually different
+        if (!isSameMonth(newMonth, statisticsCurrentMonth)) {
+            setStatisticsCurrentMonth(newMonth);
+            // Resetting the selected day prevents layout jumps and keeps the UI consistent
+            setStatisticsSelectedDay(null);
+        }
+    };
 
     return (
         <div className="space-y-6">
              <h1 className="text-3xl font-bold text-white">Statistiken</h1>
+             <MonthlySummary
+                transactions={monthlyTransactions}
+                currentMonth={statisticsCurrentMonth}
+            />
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
                 <CalendarView
                     transactions={transactions}
                     currentMonth={statisticsCurrentMonth}
-                    setCurrentMonth={setStatisticsCurrentMonth}
+                    setCurrentMonth={handleMonthChange}
                     onDayClick={(day) => setStatisticsSelectedDay(prev => prev && isSameDay(prev, day) ? null : day)}
                     selectedDay={statisticsSelectedDay}
                 />
@@ -83,17 +90,12 @@ const Statistics: FC = () => {
                 </AnimatePresence>
             </div>
             <div className="lg:col-span-2">
-                 <SpendingTimeSeries 
-                    transactions={transactions} 
-                    aggregation="day" 
-                    dateRange={dateRangeForChart} 
-                    onDayClick={setStatisticsSelectedDay}
+                 <BudgetBurndownChart 
+                    transactions={monthlyTransactions} 
+                    categoryMap={categoryMap}
+                    currentMonth={statisticsCurrentMonth}
                  />
             </div>
-            <MonthlySummary
-                transactions={monthlyTransactions}
-                currentMonth={statisticsCurrentMonth}
-            />
             <MonthlyCategoryBreakdown
                 transactions={monthlyTransactions}
                 currentMonth={statisticsCurrentMonth}
@@ -160,7 +162,7 @@ const CalendarView: FC<{
     const startOffset = (firstDayOfMonth === 0 ? 6 : firstDayOfMonth - 1);
 
     return (
-        <MotionDiv 
+        <motion.div 
             layout
             initial={{ opacity: 0, y: 10 }} 
             animate={{ opacity: 1, y: 0 }} 
@@ -207,7 +209,7 @@ const CalendarView: FC<{
                     );
                 })}
             </div>
-        </MotionDiv>
+        </motion.div>
     );
 };
 
@@ -233,7 +235,7 @@ const MonthlySummary: FC<{ transactions: Transaction[], currentMonth: Date }> = 
     const periodLabel = format(currentMonth, 'MMMM yyyy', { locale: de });
 
     return (
-        <MotionDiv
+        <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
@@ -265,97 +267,157 @@ const MonthlySummary: FC<{ transactions: Transaction[], currentMonth: Date }> = 
                     </p>
                 </div>
             </div>
-        </MotionDiv>
+        </motion.div>
     );
 };
 
 const MonthlyCategoryBreakdown: FC<{ transactions: Transaction[], currentMonth: Date }> = ({ transactions, currentMonth }) => {
-    const { categoryMap, handleTransactionClick } = useApp();
-    const [expandedId, setExpandedId] = useState<string | null>(null);
+    const { categoryMap, handleTransactionClick, categoryGroups } = useApp();
+    const [expandedGroupId, setExpandedGroupId] = useState<string | null>(null);
+    const [expandedCategoryId, setExpandedCategoryId] = useState<string | null>(null);
 
-    const categoryBreakdown = useMemo(() => {
-        const spending = new Map<string, number>();
+    const groupedBreakdown = useMemo(() => {
+        const spendingByCategory = new Map<string, number>();
         transactions.forEach(t => {
-            if (t.categoryId) { // Ensure categoryId exists
-                spending.set(t.categoryId, (spending.get(t.categoryId) || 0) + t.amount);
+            if (t.categoryId) {
+                spendingByCategory.set(t.categoryId, (spendingByCategory.get(t.categoryId) || 0) + t.amount);
             }
         });
 
-        const sorted = [...spending.entries()].sort((a, b) => b[1] - a[1]);
         const totalMonthlySpending = transactions.reduce((sum, t) => sum + t.amount, 0);
 
-        return sorted.map(([id, amount]) => {
-            const category = categoryMap.get(id);
-            // Gracefully handle cases where a category might have been deleted
-            if (!category) return null;
+        const spendingByGroup = new Map<string, { total: number; categories: any[] }>();
 
-            return {
-                category,
-                amount,
-                percentage: totalMonthlySpending > 0 ? (amount / totalMonthlySpending) * 100 : 0
-            };
-        }).filter((item): item is NonNullable<typeof item> => item !== null); // Filter out nulls and ensure type safety
+        // Initialize groups from categoryGroups to maintain order
+        categoryGroups.forEach(groupName => {
+            spendingByGroup.set(groupName, { total: 0, categories: [] });
+        });
 
-    }, [transactions, categoryMap]);
+        // Populate with data
+        spendingByCategory.forEach((amount, categoryId) => {
+            const category = categoryMap.get(categoryId);
+            if (category) {
+                // Ensure group exists even if it's not in the main list (e.g., 'Sonstiges')
+                if (!spendingByGroup.has(category.group)) {
+                    spendingByGroup.set(category.group, { total: 0, categories: [] });
+                }
+                
+                const groupData = spendingByGroup.get(category.group)!;
+                groupData.total += amount;
+                groupData.categories.push({
+                    category,
+                    amount,
+                    percentage: totalMonthlySpending > 0 ? (amount / totalMonthlySpending) * 100 : 0
+                });
+            }
+        });
+
+        // Filter out empty groups and sort
+        return Array.from(spendingByGroup.entries())
+            .map(([groupName, data]) => ({
+                groupName,
+                totalAmount: data.total,
+                categories: data.categories.sort((a, b) => b.amount - a.amount)
+            }))
+            .filter(group => group.totalAmount > 0)
+            .sort((a, b) => b.totalAmount - a.totalAmount);
+
+    }, [transactions, categoryMap, categoryGroups]);
 
     return (
-        <MotionDiv initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-slate-800 p-6 rounded-2xl border border-slate-700">
+        <motion.div 
+            initial={{ opacity: 0, y: 10 }} 
+            animate={{ opacity: 1, y: 0 }} 
+            transition={{ delay: 0.2 }} 
+            className="bg-slate-800 p-6 rounded-2xl border border-slate-700"
+        >
             <h3 className="text-lg font-bold text-white mb-4">Kategorienübersicht ({format(currentMonth, 'MMMM', { locale: de })})</h3>
-            <div className="space-y-2">
-                {categoryBreakdown.length > 0 ? categoryBreakdown.map(({ category, amount, percentage }) => (
-                    <div key={category.id} className="bg-slate-800/50 rounded-lg p-3">
+            <div className="space-y-3">
+                {groupedBreakdown.length > 0 ? groupedBreakdown.map(group => (
+                    <div key={group.groupName} className="bg-slate-800/50 rounded-lg overflow-hidden">
                         <div 
-                            className="flex justify-between items-center cursor-pointer"
-                            onClick={() => setExpandedId(expandedId === category.id ? null : category.id)}
+                            className="flex justify-between items-center cursor-pointer p-4 hover:bg-slate-700/30"
+                            onClick={() => setExpandedGroupId(expandedGroupId === group.groupName ? null : group.groupName)}
                         >
-                            <div className="flex-1 min-w-0">
-                                <div className="flex justify-between items-center text-sm mb-1">
-                                    <div className="flex items-center gap-3">
-                                        <ChevronDown className={`h-4 w-4 text-slate-500 transition-transform ${expandedId === category.id ? 'rotate-180' : ''}`} />
-                                        <span className="font-medium text-slate-300 truncate">{category.name}</span>
-                                    </div>
-                                    <span className="font-bold text-white flex-shrink-0 pl-2">{formatCurrency(amount)}</span>
-                                </div>
-                                <div className="w-full bg-slate-700 rounded-full h-2.5 ml-7">
-                                    <MotionDiv
-                                        className="h-2.5 rounded-full"
-                                        style={{ backgroundColor: category.color }}
-                                        initial={{ width: 0 }}
-                                        animate={{ width: `${percentage}%` }}
-                                        transition={{ duration: 0.8, ease: "easeOut" }}
-                                    />
-                                </div>
-                            </div>
+                             <h4 className="font-bold text-white truncate pr-4">{group.groupName}</h4>
+                             <div className="flex items-center gap-4 flex-shrink-0">
+                                <span className="font-bold text-white">{formatCurrency(group.totalAmount)}</span>
+                                <ChevronDown className={`h-5 w-5 text-slate-400 transition-transform ${expandedGroupId === group.groupName ? 'rotate-180' : ''}`} />
+                             </div>
                         </div>
 
                         <AnimatePresence>
-                            {expandedId === category.id && (
-                                <MotionDiv
-                                    initial={{ opacity: 0, height: 0, marginTop: 0 }}
-                                    animate={{ opacity: 1, height: 'auto', marginTop: '1rem' }}
-                                    exit={{ opacity: 0, height: 0, marginTop: 0 }}
+                            {expandedGroupId === group.groupName && (
+                                <motion.div
+                                    initial={{ opacity: 0, height: 0 }}
+                                    animate={{ opacity: 1, height: 'auto' }}
+                                    exit={{ opacity: 0, height: 0 }}
+                                    transition={{ duration: 0.3 }}
                                     className="overflow-hidden"
                                 >
-                                    <div className="ml-4 pl-4 border-l-2 border-slate-600/50 space-y-1">
-                                        {transactions.filter(t => t.categoryId === category.id)
-                                            .sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime())
-                                            .map(t => (
-                                                <StandardTransactionItem
-                                                    key={t.id}
-                                                    transaction={t}
-                                                    onClick={() => handleTransactionClick(t)}
-                                                    showSubline="date"
-                                                />
-                                            ))
-                                        }
+                                    <div className="pt-2 pb-3 px-3 space-y-2">
+                                        {group.categories.map(({ category, amount, percentage }) => (
+                                            <div key={category.id} className="bg-slate-700/50 rounded-lg p-3">
+                                                <div 
+                                                    className="flex justify-between items-center cursor-pointer"
+                                                    onClick={() => setExpandedCategoryId(expandedCategoryId === category.id ? null : category.id)}
+                                                >
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex justify-between items-center text-sm mb-1">
+                                                            <div className="flex items-center gap-3">
+                                                                <ChevronDown className={`h-4 w-4 text-slate-500 transition-transform ${expandedCategoryId === category.id ? 'rotate-180' : ''}`} />
+                                                                <span className="font-medium text-slate-300 truncate">{category.name}</span>
+                                                            </div>
+                                                            <span className="font-bold text-white flex-shrink-0 pl-2">{formatCurrency(amount)}</span>
+                                                        </div>
+                                                        <div className="pl-7">
+                                                            <div className="w-full bg-slate-600 rounded-full h-2.5">
+                                                                <motion.div
+                                                                    className="h-2.5 rounded-full"
+                                                                    style={{ backgroundColor: category.color }}
+                                                                    initial={{ width: 0 }}
+                                                                    animate={{ width: `${percentage}%` }}
+                                                                    transition={{ duration: 0.8, ease: "easeOut" }}
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <AnimatePresence>
+                                                    {expandedCategoryId === category.id && (
+                                                        <motion.div
+                                                            initial={{ opacity: 0, height: 0, marginTop: 0 }}
+                                                            animate={{ opacity: 1, height: 'auto', marginTop: '1rem' }}
+                                                            exit={{ opacity: 0, height: 0, marginTop: 0 }}
+                                                            className="overflow-hidden"
+                                                        >
+                                                            <div className="ml-4 pl-4 border-l-2 border-slate-600/50 space-y-1">
+                                                                {transactions.filter(t => t.categoryId === category.id)
+                                                                    .sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime())
+                                                                    .map(t => (
+                                                                        <StandardTransactionItem
+                                                                            key={t.id}
+                                                                            transaction={t}
+                                                                            onClick={() => handleTransactionClick(t)}
+                                                                            showSublineInList="date"
+                                                                        />
+                                                                    ))
+                                                                }
+                                                            </div>
+                                                        </motion.div>
+                                                    )}
+                                                </AnimatePresence>
+                                            </div>
+                                        ))}
                                     </div>
-                                </MotionDiv>
+                                </motion.div>
                             )}
                         </AnimatePresence>
                     </div>
                 )) : <p className="text-slate-500 text-center py-4">Keine Ausgaben in diesem Monat.</p>}
             </div>
-        </MotionDiv>
+        </motion.div>
     );
 }
 

@@ -1,6 +1,3 @@
-
-
-
 import React, { createContext, useContext, useEffect, useMemo, useRef} from 'react';
 import { useCategories } from '../hooks/useCategories';
 import { useTransactionData } from '../hooks/useTransactionData';
@@ -17,7 +14,13 @@ type AppContextType =
     ReturnType<typeof useUsers> &
     { currentUser: User | null } &
     ReturnType<typeof useSync> &
-    { isDevModeEnabled: boolean; addCategoryFromLibrary: (category: Omit<Category, 'lastModified' | 'version'>) => void; }; // Explicitly add derived state
+    { 
+        isDevModeEnabled: boolean; 
+        upsertCategory: (categoryData: Omit<Category, 'lastModified' | 'version'> & { id: string }) => void;
+        deleteCategory: (id: string) => void;
+        addGroup: (groupName: string) => void;
+        deleteGroup: (groupName: string) => void;
+    };
 
 const AppContext = createContext<AppContextType | null>(null);
 

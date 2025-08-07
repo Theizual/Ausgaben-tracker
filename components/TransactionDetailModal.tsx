@@ -6,9 +6,7 @@ import type { Transaction, Category, Tag, CategoryId, User } from '../types';
 import { format, parseISO, formatCurrency } from '../utils/dateUtils';
 import { iconMap, X, Edit, Trash2, Tag as TagIcon, CheckSquare, Square, Plus } from './Icons';
 import CategoryButtons from './CategoryButtons';
-
-const MotionDiv = motion('div');
-const MotionButton = motion('button');
+import { TagPill } from './ui/TagPill';
 
 interface TransactionDetailModalProps {
     isOpen: boolean;
@@ -177,14 +175,14 @@ const TransactionDetailModal: FC<TransactionDetailModalProps> = ({
         <>
             <AnimatePresence>
                 {isOpen && (
-                    <MotionDiv
+                    <motion.div
                         className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50 p-4"
                         onClick={onClose}
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                     >
-                        <MotionDiv
+                        <motion.div
                             className="bg-slate-800 rounded-2xl w-full max-w-lg shadow-2xl border border-slate-700 flex flex-col overflow-hidden max-h-[90vh]"
                             onClick={e => e.stopPropagation()}
                             initial={{ scale: 0.95, opacity: 0 }}
@@ -198,7 +196,7 @@ const TransactionDetailModal: FC<TransactionDetailModalProps> = ({
                                          <button onClick={onClose} className="absolute top-4 right-4 p-2 rounded-full hover:bg-slate-700 transition-colors z-10">
                                             <X className="h-5 w-5" />
                                         </button>
-                                        <MotionButton 
+                                        <motion.button 
                                             whileHover={{ scale: 1.1 }}
                                             whileTap={{ scale: 0.95 }}
                                             onClick={() => setIsPickingCategory(true)}
@@ -207,10 +205,10 @@ const TransactionDetailModal: FC<TransactionDetailModalProps> = ({
                                             title="Kategorie ändern"
                                         >
                                             <Icon className="h-8 w-8 text-white" />
-                                        </MotionButton>
+                                        </motion.button>
                                         
                                         {isEditingAmount ? (
-                                            <MotionDiv initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} className="my-1">
+                                            <motion.div initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} className="my-1">
                                                  <input
                                                     type="text"
                                                     inputMode="decimal"
@@ -221,7 +219,7 @@ const TransactionDetailModal: FC<TransactionDetailModalProps> = ({
                                                     className="w-48 text-center bg-slate-700 border border-slate-600 rounded-lg py-2 text-4xl font-bold text-white focus:outline-none focus:ring-2 focus:ring-rose-500"
                                                     autoFocus
                                                 />
-                                            </MotionDiv>
+                                            </motion.div>
                                         ) : (
                                             <button onClick={() => { setAmountValue(String(formState.amount).replace('.', ',')); setIsEditingAmount(true); }} className="rounded-lg p-1 -m-1" title="Betrag ändern">
                                                 <p className="text-4xl font-bold text-white">{formatCurrency(formState.amount)}</p>
@@ -229,7 +227,7 @@ const TransactionDetailModal: FC<TransactionDetailModalProps> = ({
                                         )}
                                         
                                         {isEditingDescription ? (
-                                             <MotionDiv initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-sm mt-2">
+                                             <motion.div initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-sm mt-2">
                                                 <input
                                                     type="text"
                                                     value={descriptionValue}
@@ -239,7 +237,7 @@ const TransactionDetailModal: FC<TransactionDetailModalProps> = ({
                                                     className="w-full text-center bg-slate-700 border border-slate-600 rounded-lg py-1 text-lg font-semibold text-white focus:outline-none focus:ring-2 focus:ring-rose-500"
                                                     autoFocus
                                                 />
-                                             </MotionDiv>
+                                             </motion.div>
                                         ) : (
                                              <button onClick={() => { setDescriptionValue(formState.description); setIsEditingDescription(true); }} className="w-full rounded-lg p-1 -m-1 mt-2" title="Beschreibung ändern">
                                                 <p className="text-lg font-semibold text-white truncate">{formState.description}</p>
@@ -302,9 +300,11 @@ const TransactionDetailModal: FC<TransactionDetailModalProps> = ({
                                             {localTags.length > 0 ? (
                                                 <div className="flex flex-wrap justify-center gap-2">
                                                     {localTags.map(tagName => (
-                                                        <div key={tagName} className="text-sm font-medium bg-rose-500/20 text-rose-300 px-3 py-1 rounded-full">
-                                                            #{tagName}
-                                                        </div>
+                                                        <TagPill
+                                                            key={tagName}
+                                                            tagName={tagName}
+                                                            className="bg-rose-500/20 text-rose-300"
+                                                        />
                                                     ))}
                                                 </div>
                                             ) : (
@@ -323,8 +323,8 @@ const TransactionDetailModal: FC<TransactionDetailModalProps> = ({
                                     </div>
                                 </>
                             </div>
-                        </MotionDiv>
-                    </MotionDiv>
+                        </motion.div>
+                    </motion.div>
                 )}
             </AnimatePresence>
             <PickerModals
@@ -399,12 +399,12 @@ const PickerModals: FC<any> = ({
 };
 
 const PickerModalBase: FC<{onClose: () => void; title: string; children: React.ReactNode;}> = ({onClose, title, children}) => (
-    <MotionDiv
+    <motion.div
         className="fixed inset-0 bg-black/70 backdrop-blur-sm flex justify-center items-center z-[60] p-4"
         onClick={onClose}
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
     >
-        <MotionDiv
+        <motion.div
             className="bg-slate-900 rounded-2xl w-full max-w-2xl shadow-2xl border border-slate-700 flex flex-col max-h-[80vh]"
             onClick={e => e.stopPropagation()}
             initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
@@ -417,8 +417,8 @@ const PickerModalBase: FC<{onClose: () => void; title: string; children: React.R
             <div className="p-6 overflow-y-auto custom-scrollbar">
                 {children}
             </div>
-        </MotionDiv>
-    </MotionDiv>
+        </motion.div>
+    </motion.div>
 );
 
 const TagEditorModal: FC<{

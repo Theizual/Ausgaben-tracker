@@ -16,6 +16,20 @@
             fontFamily: {
               sans: ['Inter', 'sans-serif'],
             },
+            colors: {
+              'theme-primary': '#e11d48', // rose-600
+              'theme-primary-hover': '#f43f5e', // rose-500
+              'theme-secondary': '#334155', // slate-700
+              'theme-secondary-hover': '#475569', // slate-600
+              'theme-destructive': '#dc2626', // red-600
+              'theme-destructive-hover': '#ef4444', // red-500
+              'theme-card': '#1e293b', // slate-800
+              'theme-input': '#334155', // slate-700
+              'theme-border': '#475569', // slate-600
+              'theme-ring': '#f43f5e', // rose-500
+              'theme-text': '#f8fafc', // slate-50
+              'theme-text-muted': '#94a3b8', // slate-400
+            }
           },
         },
       }
@@ -50,6 +64,8 @@
 <script type="importmap">
 {
   "imports": {
+    "clsx": "https://esm.sh/clsx@^2.1.1",
+    "class-variance-authority": "https://esm.sh/class-variance-authority@^0.7.0",
     "@vercel/node": "https://esm.sh/@vercel/node@^5.3.8",
     "googleapis": "https://esm.sh/googleapis@^154.1.0",
     "google-auth-library": "https://esm.sh/google-auth-library@^10.2.0",

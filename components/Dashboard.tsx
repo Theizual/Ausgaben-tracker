@@ -10,14 +10,11 @@ import { iconMap, Plus, BarChart2, ChevronDown, Coins } from './Icons';
 import CategoryButtons from './CategoryButtons';
 import TagInput from './TagInput';
 import AvailableTags from './AvailableTags';
-import SpendingTimeSeries from './SpendingTimeSeries';
 import StandardTransactionItem from './StandardTransactionItem';
-
-const MotionDiv = motion('div');
 
 const ProgressBar: FC<{ percentage: number; color: string; }> = ({ percentage, color }) => (
     <div className="w-full bg-slate-700 rounded-full h-2">
-        <MotionDiv
+        <motion.div
             className="h-2 rounded-full"
             style={{ backgroundColor: color }}
             initial={{ width: 0 }}
@@ -44,6 +41,7 @@ const Dashboard: FC = () => {
     } = useApp();
 
     const [isCategoryBudgetOpen, setCategoryBudgetOpen] = useState(false);
+    const [expandedGroupId, setExpandedGroupId] = useState<string | null>(null);
     const [expandedBudgetId, setExpandedBudgetId] = useState<string | null>(null);
     
     const { filteredTransactions, totalExpenses, todaysExpenses, totalExpensesLabel, todaysExpensesLabel, monthlyTransactions } = useMemo(() => {
@@ -102,19 +100,39 @@ const Dashboard: FC = () => {
         };
     }, [transactions, dashboardViewMode]);
 
-    const { spendingByCategory, budgetedCategories } = useMemo(() => {
+    const { groupedBudgetedCategories, spendingByCategory } = useMemo(() => {
         const spendingMap = new Map<CategoryId, number>();
         monthlyTransactions.forEach(t => {
             spendingMap.set(t.categoryId, (spendingMap.get(t.categoryId) || 0) + t.amount);
         });
         
-        const budgetedCats = categories.filter(c => c.budget && c.budget > 0);
+        const spendingByGroup = new Map<string, { totalSpent: number, totalBudget: number, categories: Category[] }>();
+        categoryGroups.forEach(groupName => {
+            spendingByGroup.set(groupName, { totalSpent: 0, totalBudget: 0, categories: [] });
+        });
 
-        return { 
-            spendingByCategory: spendingMap,
-            budgetedCategories: budgetedCats
-        };
-    }, [monthlyTransactions, categories]);
+        categories.forEach(category => {
+            if (category.budget && category.budget > 0) {
+                const groupData = spendingByGroup.get(category.group);
+                if (groupData) {
+                    const spent = spendingMap.get(category.id) || 0;
+                    groupData.totalSpent += spent;
+                    groupData.totalBudget += category.budget!;
+                    groupData.categories.push(category);
+                }
+            }
+        });
+        
+        const result = Array.from(spendingByGroup.entries())
+            .map(([groupName, data]) => ({
+                groupName,
+                ...data,
+                categories: data.categories.sort((a,b) => (b.budget || 0) - (a.budget || 0)),
+            }))
+            .filter(group => group.categories.length > 0);
+
+        return { groupedBudgetedCategories: result, spendingByCategory: spendingMap };
+    }, [monthlyTransactions, categories, categoryGroups]);
 
     const totalBudgetPercentage = totalMonthlyBudget > 0 ? (totalSpentThisMonth / totalMonthlyBudget) * 100 : 0;
     
@@ -129,6 +147,8 @@ const Dashboard: FC = () => {
         if (percentage > 85) return '#f97316'; // orange-500
         return categoryColor;
     };
+    
+    const hasAnyBudgetedCategories = groupedBudgetedCategories.length > 0;
 
     return (
         <div className="space-y-6">
@@ -143,7 +163,7 @@ const Dashboard: FC = () => {
                 
                 {/* Right Column */}
                 <div className="space-y-6">
-                    <MotionDiv
+                    <motion.div
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.1 }}
@@ -178,8 +198,8 @@ const Dashboard: FC = () => {
                                 </div>
                             </div>
                         </div>
-                    </MotionDiv>
-                    <MotionDiv
+                    </motion.div>
+                    <motion.div
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         className="bg-slate-800/50 p-6 rounded-2xl border border-slate-700/50 flex flex-col"
@@ -203,95 +223,133 @@ const Dashboard: FC = () => {
                                 <ProgressBar percentage={totalBudgetPercentage} color={getTotalBarColor()} />
                             </div>
                         )}
-                        {budgetedCategories.length > 0 && (
+                         {hasAnyBudgetedCategories && (
                             <div className="mt-6 pt-6 border-t border-slate-700/50">
-                                <button 
+                                <button
                                     onClick={() => setCategoryBudgetOpen(!isCategoryBudgetOpen)}
                                     className="w-full flex justify-between items-center text-left"
                                     aria-expanded={isCategoryBudgetOpen}
                                 >
                                     <h4 className="text-sm font-semibold text-slate-300">Kategorienbudgets</h4>
-                                    <ChevronDown 
-                                        className={`h-5 w-5 text-slate-400 transition-transform duration-300 ${isCategoryBudgetOpen ? 'rotate-180' : ''}`} 
+                                    <ChevronDown
+                                        className={`h-5 w-5 text-slate-400 transition-transform duration-300 ${isCategoryBudgetOpen ? 'rotate-180' : ''}`}
                                     />
                                 </button>
                                 <AnimatePresence>
-                                {isCategoryBudgetOpen && (
-                                     <MotionDiv
-                                        initial={{ height: 0, opacity: 0 }}
-                                        animate={{ height: 'auto', opacity: 1 }}
-                                        exit={{ height: 0, opacity: 0 }}
-                                        transition={{ duration: 0.3, ease: 'easeInOut' }}
-                                        className="overflow-hidden"
-                                    >
-                                        <div className="space-y-4 mt-4">
-                                            {budgetedCategories.map(category => {
-                                                const spent = spendingByCategory.get(category.id) || 0;
-                                                const budget = category.budget!;
-                                                const percentage = (spent / budget) * 100;
-                                                const Icon = iconMap[category.icon] || iconMap.MoreHorizontal;
-                                                const isExpanded = expandedBudgetId === category.id;
-                                                
-                                                return (
-                                                    <div key={category.id} className="bg-slate-700/30 p-3 rounded-lg">
-                                                        <div 
-                                                            className="flex flex-col cursor-pointer"
-                                                            onClick={() => setExpandedBudgetId(isExpanded ? null : category.id)}
-                                                        >
-                                                            <div className="flex justify-between items-center text-sm mb-1.5">
-                                                                <div className="flex items-center gap-3 truncate">
-                                                                    <Icon className="h-4 w-4 flex-shrink-0" style={{ color: category.color }} />
-                                                                    <span className="font-medium text-white truncate">{category.name}</span>
-                                                                    <ChevronDown className={`h-4 w-4 text-slate-500 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
-                                                                </div>
-                                                                <div className="font-semibold text-white flex-shrink-0 pl-2">
-                                                                    {formatCurrency(spent)}
-                                                                    <span className="text-slate-500 text-xs"> / {formatCurrency(budget)}</span>
-                                                                </div>
-                                                            </div>
-                                                            <ProgressBar percentage={percentage} color={getCategoryBarColor(percentage, category.color)} />
-                                                        </div>
-                                                         <AnimatePresence>
-                                                            {isExpanded && (
-                                                                <MotionDiv
-                                                                    initial={{ opacity: 0, height: 0, marginTop: 0 }}
-                                                                    animate={{ opacity: 1, height: 'auto', marginTop: '1rem' }}
-                                                                    exit={{ opacity: 0, height: 0, marginTop: 0 }}
-                                                                    className="overflow-hidden"
-                                                                >
-                                                                    <div className="ml-4 pl-4 border-l-2 border-slate-600/50 space-y-1">
-                                                                        {monthlyTransactions.filter(t => t.categoryId === category.id)
-                                                                            .sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime())
-                                                                            .map(t => (
-                                                                                <StandardTransactionItem
-                                                                                    key={t.id}
-                                                                                    transaction={t}
-                                                                                    onClick={() => handleTransactionClick(t)}
-                                                                                    showSubline="date"
-                                                                                />
-                                                                            ))
-                                                                        }
-                                                                         {monthlyTransactions.filter(t => t.categoryId === category.id).length === 0 && (
-                                                                            <p className="text-slate-500 text-sm p-2">Keine Ausgaben diesen Monat.</p>
-                                                                        )}
+                                    {isCategoryBudgetOpen && (
+                                        <motion.div
+                                            initial={{ height: 0, opacity: 0 }}
+                                            animate={{ height: 'auto', opacity: 1 }}
+                                            exit={{ height: 0, opacity: 0 }}
+                                            transition={{ duration: 0.3, ease: 'easeInOut' }}
+                                            className="overflow-hidden"
+                                        >
+                                            <div className="space-y-3 mt-4">
+                                                {groupedBudgetedCategories.map(group => {
+                                                    const isGroupExpanded = expandedGroupId === group.groupName;
+                                                    const groupPercentage = group.totalBudget > 0 ? (group.totalSpent / group.totalBudget) * 100 : 0;
+                                                    const groupColor = getCategoryBarColor(groupPercentage, '#a855f7'); // default purple
+
+                                                    return (
+                                                        <div key={group.groupName} className="bg-slate-700/30 p-3 rounded-lg space-y-3">
+                                                            <div
+                                                                className="flex flex-col cursor-pointer"
+                                                                onClick={() => setExpandedGroupId(isGroupExpanded ? null : group.groupName)}
+                                                            >
+                                                                <div className="flex justify-between items-center text-sm mb-1.5">
+                                                                    <div className="flex items-center gap-3 truncate">
+                                                                        <span className="font-bold text-white truncate">{group.groupName}</span>
+                                                                        <ChevronDown className={`h-4 w-4 text-slate-500 transition-transform ${isGroupExpanded ? 'rotate-180' : ''}`} />
                                                                     </div>
-                                                                </MotionDiv>
-                                                            )}
-                                                        </AnimatePresence>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    </MotionDiv>
-                                )}
+                                                                    <div className="font-semibold text-white flex-shrink-0 pl-2">
+                                                                        {formatCurrency(group.totalSpent)}
+                                                                        <span className="text-slate-500 text-xs"> / {formatCurrency(group.totalBudget)}</span>
+                                                                    </div>
+                                                                </div>
+                                                                <ProgressBar percentage={groupPercentage} color={groupColor} />
+                                                            </div>
+
+                                                            <AnimatePresence>
+                                                                {isGroupExpanded && (
+                                                                    <motion.div
+                                                                        initial={{ opacity: 0, height: 0 }}
+                                                                        animate={{ opacity: 1, height: 'auto' }}
+                                                                        exit={{ opacity: 0, height: 0 }}
+                                                                        transition={{ duration: 0.3, ease: 'easeInOut' }}
+                                                                        className="overflow-hidden"
+                                                                    >
+                                                                        <div className="space-y-4 pt-3 ml-4 pl-4 border-l-2 border-slate-600/50">
+                                                                            {group.categories.map(category => {
+                                                                                const spent = spendingByCategory.get(category.id) || 0;
+                                                                                const budget = category.budget!;
+                                                                                const percentage = (spent / budget) * 100;
+                                                                                const Icon = iconMap[category.icon] || iconMap.MoreHorizontal;
+                                                                                const isExpanded = expandedBudgetId === category.id;
+                                                                                
+                                                                                return (
+                                                                                    <div key={category.id}>
+                                                                                        <div
+                                                                                            className="flex flex-col cursor-pointer"
+                                                                                            onClick={() => setExpandedBudgetId(isExpanded ? null : category.id)}
+                                                                                        >
+                                                                                            <div className="flex justify-between items-center text-sm mb-1.5">
+                                                                                                <div className="flex items-center gap-3 truncate">
+                                                                                                    <Icon className="h-4 w-4 flex-shrink-0" style={{ color: category.color }} />
+                                                                                                    <span className="font-medium text-white truncate">{category.name}</span>
+                                                                                                    <ChevronDown className={`h-4 w-4 text-slate-500 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                                                                                                </div>
+                                                                                                <div className="font-semibold text-white flex-shrink-0 pl-2">
+                                                                                                    {formatCurrency(spent)}
+                                                                                                    <span className="text-slate-500 text-xs"> / {formatCurrency(budget)}</span>
+                                                                                                </div>
+                                                                                            </div>
+                                                                                            <ProgressBar percentage={percentage} color={getCategoryBarColor(percentage, category.color)} />
+                                                                                        </div>
+                                                                                        <AnimatePresence>
+                                                                                            {isExpanded && (
+                                                                                                <motion.div
+                                                                                                    initial={{ opacity: 0, height: 0, marginTop: 0 }}
+                                                                                                    animate={{ opacity: 1, height: 'auto', marginTop: '1rem' }}
+                                                                                                    exit={{ opacity: 0, height: 0, marginTop: 0 }}
+                                                                                                    className="overflow-hidden"
+                                                                                                >
+                                                                                                    <div className="ml-4 pl-4 border-l-2 border-slate-600/50 space-y-1">
+                                                                                                        {monthlyTransactions.filter(t => t.categoryId === category.id)
+                                                                                                            .sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime())
+                                                                                                            .map(t => (
+                                                                                                                <StandardTransactionItem
+                                                                                                                    key={t.id}
+                                                                                                                    transaction={t}
+                                                                                                                    onClick={() => handleTransactionClick(t)}
+                                                                                                                    showSublineInList="date"
+                                                                                                                />
+                                                                                                            ))
+                                                                                                        }
+                                                                                                        {monthlyTransactions.filter(t => t.categoryId === category.id).length === 0 && (
+                                                                                                            <p className="text-slate-500 text-sm p-2">Keine Ausgaben diesen Monat.</p>
+                                                                                                        )}
+                                                                                                    </div>
+                                                                                                </motion.div>
+                                                                                            )}
+                                                                                        </AnimatePresence>
+                                                                                    </div>
+                                                                                );
+                                                                            })}
+                                                                        </div>
+                                                                    </motion.div>
+                                                                )}
+                                                            </AnimatePresence>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </motion.div>
+                                    )}
                                 </AnimatePresence>
                             </div>
                         )}
-                    </MotionDiv>
+                    </motion.div>
                 </div>
-            </div>
-             <div className="lg:col-span-2">
-                <SpendingTimeSeries />
             </div>
         </div>
     );
@@ -405,7 +463,7 @@ const QuickAddForm: FC = () => {
     };
 
     return (
-        <MotionDiv initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
             <div className="bg-slate-800/50 p-6 rounded-2xl border border-slate-700/50">
                 <h3 className="text-lg font-bold text-white mb-4">Ausgabe hinzufügen</h3>
                 <form onSubmit={handleSubmit} className="space-y-4">
@@ -474,7 +532,7 @@ const QuickAddForm: FC = () => {
                     </div>
                 </form>
             </div>
-        </MotionDiv>
+        </motion.div>
     );
 };
 

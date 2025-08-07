@@ -1,34 +1,40 @@
 import React, { FC, useMemo } from 'react';
+import { motion } from 'framer-motion';
 import { useApp } from '../contexts/AppContext';
-import type { Transaction } from '../types';
+import type { Transaction, User } from '../types';
 import { format, parseISO, formatCurrency } from '../utils/dateUtils';
-import { iconMap, Edit, Trash2 } from './Icons';
+import { iconMap } from './Icons';
+import { TagPill } from './ui/TagPill';
 
-interface StandardTransactionItemProps {
+export interface StandardTransactionItemProps {
     transaction: Transaction;
     onClick: (transaction: Transaction) => void;
-    onDelete?: (transaction: Transaction) => void;
-    showSubline?: 'category' | 'date';
+    viewMode?: 'list' | 'grid';
+    density?: 'normal' | 'compact';
+    showSublineInList?: 'category' | 'date';
 }
 
-const StandardTransactionItem: FC<StandardTransactionItemProps> = ({ 
-    transaction, 
+const StandardTransactionItem: FC<StandardTransactionItemProps> = ({
+    transaction,
     onClick,
-    onDelete,
-    showSubline = 'date'
+    viewMode = 'list',
+    density = 'compact',
+    showSublineInList = 'category',
 }) => {
     const { categoryMap, tagMap, users } = useApp();
-    
-    const category = categoryMap.get(transaction.categoryId);
+
+    const category = useMemo(() => categoryMap.get(transaction.categoryId), [transaction.categoryId, categoryMap]);
     const createdBy = useMemo(() => transaction.createdBy ? users.find(u => u.id === transaction.createdBy) : null, [transaction.createdBy, users]);
 
-    if (!category) return null;
+    if (!category) return null; // Or return a fallback UI
 
     const Icon = iconMap[category.icon] || iconMap.MoreHorizontal;
     const color = category.color;
+    const isCompact = density === 'compact';
+    const isDev = transaction.isDev;
 
     const userAvatar = createdBy ? (
-        <div 
+        <div
             className="w-5 h-5 rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0"
             style={{ backgroundColor: createdBy.color }}
             title={`Erstellt von: ${createdBy.name}`}
@@ -36,64 +42,116 @@ const StandardTransactionItem: FC<StandardTransactionItemProps> = ({
             {createdBy.name.charAt(0).toUpperCase()}
         </div>
     ) : null;
-    
-    const sublineText = showSubline === 'category' 
-        ? category.name 
-        : `${format(parseISO(transaction.date), 'dd.MM, HH:mm')} Uhr`;
 
-    return (
-        <div className="group flex items-center rounded-lg hover:bg-slate-700/50 transition-colors duration-150 gap-1 px-1 py-0.5">
-            <button
-                onClick={() => onClick(transaction)}
-                className="w-full flex items-center flex-1 min-w-0 text-left cursor-pointer gap-2 py-1"
-                aria-label={`Transaktion ansehen: ${transaction.description}, ${formatCurrency(transaction.amount)}`}
-            >
-                <div className="rounded-full flex items-center justify-center flex-shrink-0 w-8 h-8" style={{ backgroundColor: color }}>
-                    <Icon className="text-white h-4 w-4" />
+    const cardLayout = (
+        <motion.button
+            layout
+            onClick={() => onClick(transaction)}
+            className={`relative flex gap-3 transition-all duration-200 h-full w-full rounded-xl bg-slate-800 hover:bg-slate-700/50 text-left ${isCompact ? 'p-3' : 'p-4'}`}
+        >
+            {/* Column 1: Icon, Dev, User */}
+            <div className={`flex flex-col items-center justify-between flex-shrink-0 ${isCompact ? 'w-9 py-0.5' : 'w-10 py-1'}`}>
+                <div
+                    className={`rounded-full flex items-center justify-center flex-shrink-0 ${isCompact ? 'w-9 h-9' : 'w-10 h-10'}`}
+                    style={{ backgroundColor: color }}
+                    title={category?.name}
+                >
+                    <Icon className={`text-white ${isCompact ? 'h-4 w-4' : 'h-5 w-5'}`} />
                 </div>
-                <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-white truncate text-sm">{transaction.description}</p>
-                    <p className="text-xs text-slate-400 truncate">{sublineText}</p>
-                </div>
-
-                <div className="hidden md:flex items-center gap-1.5 flex-shrink-0 ml-auto pl-2">
-                    {transaction.tagIds?.slice(0, 2).map(id => {
-                        const tagName = tagMap.get(id);
-                        if (!tagName) return null;
-                        return (
-                            <span key={id} className="text-xs font-medium bg-slate-700 text-slate-300 px-2 py-0.5 rounded-full">
-                                #{tagName}
-                            </span>
-                        );
-                    })}
-                </div>
-                 <div className="ml-2 flex-shrink-0">
+                
+                <div className="flex flex-col items-center gap-1.5">
+                    {isDev && (
+                        <span className="bg-purple-600 text-white text-xs font-bold px-1.5 py-0.5 rounded-full flex-shrink-0">
+                            DEV
+                        </span>
+                    )}
                     {userAvatar}
                 </div>
-                <p className="font-bold text-white text-right w-24 flex-shrink-0 ml-2 text-base">{formatCurrency(transaction.amount)}</p>
-            </button>
-            <div className="flex items-center gap-0 pr-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                <button
-                    onClick={() => onClick(transaction)}
-                    className="p-2 rounded-full text-slate-400 hover:bg-slate-600 hover:text-white"
-                    title="Bearbeiten"
-                    aria-label={`Bearbeiten: ${transaction.description}`}
-                >
-                    <Edit className="h-4 w-4" />
-                </button>
-                {onDelete && (
-                     <button
-                        onClick={() => onDelete(transaction)}
-                        className="p-2 rounded-full text-slate-400 hover:bg-slate-600 hover:text-red-400"
-                        title="Löschen"
-                        aria-label={`Löschen: ${transaction.description}`}
-                    >
-                        <Trash2 className="h-4 w-4" />
-                    </button>
+            </div>
+    
+            {/* Column 2: Details */}
+            <div className="flex flex-col flex-grow min-w-0">
+                <p className={`font-semibold text-white truncate ${isCompact ? 'text-base' : 'text-lg'}`}>{transaction.description}</p>
+                <p className={`text-slate-400 truncate ${isCompact ? 'text-xs' : 'text-sm'}`}>{category?.name}</p>
+                
+                {transaction.tagIds && transaction.tagIds.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-auto pt-2">
+                        {transaction.tagIds.slice(0, 3).map(id => {
+                            const tagName = tagMap.get(id);
+                            if (!tagName) return null;
+                            return (
+                                <TagPill
+                                    key={id}
+                                    tagName={tagName}
+                                    size="sm"
+                                />
+                            );
+                        })}
+                    </div>
                 )}
             </div>
-        </div>
+    
+            {/* Column 3: Amount */}
+            <div className="flex flex-col items-end justify-start flex-shrink-0">
+                <p className={`font-bold text-white text-right ${isCompact ? 'text-lg' : 'text-xl'}`}>{formatCurrency(transaction.amount)}</p>
+            </div>
+        </motion.button>
     );
+    
+    const sublineText = showSublineInList === 'category'
+        ? category.name
+        : transaction.date ? `${format(parseISO(transaction.date), 'dd.MM, HH:mm')} Uhr` : '...';
+
+    const listLayout = (
+        <motion.button
+            layout
+            onClick={() => onClick(transaction)}
+            className={`w-full flex items-center rounded-lg transition-colors duration-150 hover:bg-slate-700/50 text-left ${isCompact ? 'gap-2 px-2 py-1' : 'gap-3 p-2'}`}
+        >
+            {/* Icon */}
+            <div className={`rounded-full flex items-center justify-center flex-shrink-0 ${isCompact ? 'w-8 h-8' : 'w-10 h-10'}`} style={{ backgroundColor: color }}>
+                <Icon className={`text-white ${isCompact ? 'h-4 w-4' : 'h-5 w-5'}`} />
+            </div>
+
+            {/* Description, Category, Tags */}
+            <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                    {isDev && (
+                        <span className="bg-purple-600 text-white text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0">
+                            DEV
+                        </span>
+                    )}
+                    <p className={`font-semibold text-white truncate ${isCompact ? 'text-sm' : ''}`}>{transaction.description}</p>
+                </div>
+                <div className="flex items-center gap-2 mt-0.5">
+                    <p className="text-xs text-slate-400 truncate">{sublineText}</p>
+                    <div className="hidden md:flex items-center gap-1.5 flex-shrink-0">
+                        {transaction.tagIds?.slice(0, 2).map(id => {
+                            const tagName = tagMap.get(id);
+                            if (!tagName) return null;
+                            return (
+                                <TagPill
+                                    key={id}
+                                    tagName={tagName}
+                                    size="sm"
+                                />
+                            );
+                        })}
+                    </div>
+                </div>
+            </div>
+
+            {/* Amount */}
+            <p className={`font-bold text-white text-right w-24 flex-shrink-0 ml-4 ${isCompact ? 'text-base' : 'text-md'}`}>{formatCurrency(transaction.amount)}</p>
+
+            {/* User Avatar */}
+            <div className="ml-2 flex-shrink-0 w-6 flex items-center justify-center">
+                {userAvatar}
+            </div>
+        </motion.button>
+    );
+    
+    return viewMode === 'grid' ? cardLayout : listLayout;
 };
 
 export default StandardTransactionItem;
