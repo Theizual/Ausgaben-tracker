@@ -1,14 +1,13 @@
-
 import React, { useState, useMemo, FC } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { useApp } from '../../contexts/AppContext';
+import { useApp } from '@/contexts/AppContext';
 import { isSameMonth, isSameDay, parseISO, startOfMonth, endOfMonth } from 'date-fns';
-import { Calendar } from '../../components/ui';
-import { CalendarView } from './components/CalendarView';
-import { DayDetailPanel } from './components/DayDetailPanel';
-import { MonthlySummary } from './components/MonthlySummary';
-import { MonthlyCategoryBreakdown } from './components/MonthlyCategoryBreakdown';
-import { BudgetBurndownChart } from './components/BudgetBurndownChart';
+import { Calendar } from '@/shared/ui';
+import { CalendarView } from './ui/CalendarView';
+import { DayDetailPanel } from './ui/DayDetailPanel';
+import { MonthlySummary } from './ui/MonthlySummary';
+import { MonthlyCategoryBreakdown } from './ui/MonthlyCategoryBreakdown';
+import { BudgetBurndownChart } from './ui/BudgetBurndownChart';
 
 const CalendarPlaceholder: FC = () => (
     <motion.div

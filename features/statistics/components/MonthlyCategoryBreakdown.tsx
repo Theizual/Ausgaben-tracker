@@ -1,13 +1,13 @@
 
 import React, { FC, useState, useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { useApp } from '../../../contexts/AppContext';
-import type { Transaction } from '../../../types';
+import { useApp } from '@/contexts/AppContext';
+import type { Transaction } from '@/shared/types';
 import { format, parseISO } from 'date-fns';
-import { ChevronDown, Home } from '../../../components/ui';
-import { formatCurrency } from '../../../utils/dateUtils';
-import StandardTransactionItem from '../../../components/StandardTransactionItem';
-import { FIXED_COSTS_GROUP_NAME } from '../../../constants';
+import { ChevronDown, Home } from '@/shared/ui';
+import { formatCurrency } from '@/shared/utils/dateUtils';
+import StandardTransactionItem from '@/components/StandardTransactionItem';
+import { FIXED_COSTS_GROUP_NAME } from '@/constants';
 
 export const MonthlyCategoryBreakdown: FC<{ transactions: Transaction[], currentMonth: Date }> = ({ transactions, currentMonth }) => {
     const { categoryMap, handleTransactionClick, visibleCategoryGroups, deLocale } = useApp();

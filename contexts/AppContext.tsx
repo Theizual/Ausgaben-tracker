@@ -1,16 +1,16 @@
 import React, { createContext, useContext, useEffect, useMemo, useRef, useReducer, useCallback, useState} from 'react';
-import { toast } from 'react-hot-toast';
+import { toast, Toast } from 'react-hot-toast';
 import { useTransactionData } from '../hooks/useTransactionData';
 import { useUI } from '../hooks/useUI';
 import { useSync, type SyncProps } from '../hooks/useSync';
 import { useUsers } from '../hooks/useUsers';
 import { useUserSettings } from '../hooks/useUserSettings';
-import type { User, Category, UserSetting, RecurringTransaction, ViewMode } from '../types';
-import { INITIAL_CATEGORIES, INITIAL_GROUPS, FIXED_COSTS_GROUP_NAME } from '../constants';
+import type { User, Category, UserSetting, RecurringTransaction, ViewMode } from '@/shared/types';
+import { INITIAL_CATEGORIES, INITIAL_GROUPS, FIXED_COSTS_GROUP_NAME } from '@/constants';
 import { isWithinInterval, parseISO, startOfMonth, endOfMonth } from 'date-fns';
 import type { Locale } from 'date-fns';
 import { de } from 'date-fns/locale';
-import { Loader2 } from '../components/Icons';
+import { Loader2 } from '@/shared/ui';
 
 type CategoryConfigState = {
     categories: Category[];
@@ -36,7 +36,7 @@ const categoryConfigReducer = (state: CategoryConfigState, action: CategoryActio
                 ...state,
                 categories: state.categories.map(cat =>
                     cat.id === action.payload.id
-                        ? { ...cat, ...action.payload.data, lastModified: now, version: (cat.version || 0) + 1 }
+                        ? { ...cat, ...cat, ...action.payload.data, lastModified: now, version: (cat.version || 0) + 1 }
                         : cat
                 )
             };
@@ -298,6 +298,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setUserSettings: userSettingsState.setUserSettings,
     });
     
+     // Side-effects for sync status
+     const { syncStatus, syncError } = syncState;
+     useEffect(() => {
+        if (syncStatus === 'syncing') toast.loading('Synchronisiere Daten...', { id: 'sync-toast' });
+        if (syncStatus === 'success' && toast.custom) { toast.success('Synchronisierung erfolgreich!', { id: 'sync-toast' });}
+        if (syncStatus === 'error' && syncError) toast.error(`Fehler: ${syncError}`, { id: 'sync-toast' });
+        if (syncStatus === 'conflict') toast.error('Konflikt! Daten wurden zusammengeführt.', { id: 'sync-toast', duration: 5000 });
+     }, [syncStatus, syncError]);
+
+
     const currentUser = useMemo(() => {
         if (!uiState.currentUserId) return null;
         return usersState.users.find(u => u.id === uiState.currentUserId) || null;
@@ -327,18 +337,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     useEffect(() => { syncStateRef.current = syncState; });
     const suppressAutoSyncRef = useRef(false);
     useEffect(() => {
-      if (!syncState.isSyncing) {
+      if (syncState.syncStatus !== 'syncing' && syncState.syncStatus !== 'loading') {
         suppressAutoSyncRef.current = true;
         // The debounce delay for auto-sync is 2000ms. This timeout must be longer
         // to prevent a sync-triggered state update from immediately queuing another sync.
         const t = setTimeout(() => { suppressAutoSyncRef.current = false; }, 2500);
         return () => clearTimeout(t);
       }
-    }, [syncState.isSyncing]);
+    }, [syncState.syncStatus]);
     const debouncedSync = useMemo(() => debounce(() => {
         if (suppressAutoSyncRef.current) return;
-        const { isAutoSyncEnabled, isSyncing, syncData } = syncStateRef.current;
-        if (isAutoSyncEnabled && !isSyncing) syncData({ isAuto: true });
+        const { isAutoSyncEnabled, syncStatus, syncData } = syncStateRef.current;
+        if (isAutoSyncEnabled && (syncStatus === 'idle' || syncStatus === 'success' || syncStatus === 'error')) syncData({ isAuto: true });
     }, 2000), []);
     const isInitialMount = useRef(true);
     useEffect(() => {

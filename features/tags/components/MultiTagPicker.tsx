@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, FC } from 'react';
 import { AnimatePresence } from 'framer-motion';
-import type { Tag } from '../../../types';
+import type { Tag } from '@/shared/types';
 import { Plus, TagPill } from '../../../components/ui';
 import { AllTagsModal } from './AllTagsModal';
 

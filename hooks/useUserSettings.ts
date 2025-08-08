@@ -1,8 +1,6 @@
-
-
 import { useReducer, useMemo, useCallback, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
-import type { UserSetting, Category } from '../types';
+import type { UserSetting, Category } from '@/shared/types';
 
 type UserSettingsState = {
     settings: UserSetting[];

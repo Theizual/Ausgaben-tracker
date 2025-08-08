@@ -14,17 +14,26 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
-    "jsx": "react-jsx"
+    "jsx": "react-jsx",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./*"],
+      "@/shared/*": ["shared/*"],
+      "@/features/*": ["features/*"],
+      "@/contexts/*": ["contexts/*"],
+      "@/processes/*": ["processes/*"]
+    }
   },
   "include": [
       "api", 
-      "components", 
-      "hooks", 
-      "utils", 
+      "contexts",
+      "features",
+      "hooks",
+      "processes",
+      "shared",
       "App.tsx", 
       "constants.ts", 
       "index.tsx", 
-      "types.ts",
       "vite.config.ts"
   ],
   "exclude": ["node_modules"]

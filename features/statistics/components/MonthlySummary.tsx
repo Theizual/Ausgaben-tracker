@@ -1,10 +1,10 @@
 
 import React, { FC, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { useApp } from '../../../contexts/AppContext';
-import type { Transaction } from '../../../types';
+import { useApp } from '@/contexts/AppContext';
+import type { Transaction } from '@/shared/types';
 import { format, isSameMonth, getDaysInMonth } from 'date-fns';
-import { formatCurrency } from '../../../utils/dateUtils';
+import { formatCurrency } from '@/shared/utils/dateUtils';
 
 export const MonthlySummary: FC<{ transactions: Transaction[], currentMonth: Date }> = ({ transactions, currentMonth }) => {
     const { deLocale } = useApp();

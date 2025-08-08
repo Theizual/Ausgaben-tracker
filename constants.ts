@@ -1,25 +1,7 @@
+import type { Category } from '@/shared/types';
 
-import type { Category } from './types';
-
-export const APP_VERSION = '0.500';
+export const APP_VERSION = '0.600';
 export const FIXED_COSTS_GROUP_NAME = 'Fixkosten';
-
-export const CHANGELOG = [
-    {
-        version: '0.500',
-        date: '12.08.2024, 18:00 Uhr',
-        title: 'Die große UI-Überarbeitung',
-        changes: [
-            '**Komplett neues Einstellungsmenü:** Die Einstellungen erstrahlen in neuem Glanz! Ein modernes, responsives Zwei-Spalten-Layout sorgt für eine bessere Übersicht auf dem Desktop und eine optimale Bedienung auf dem Handy.',
-            '**Zentralisierte Budgetverwaltung:** Die Reiter "Budgets" und "Fixkosten" wurden zu einem schlagkräftigen "Budget"-Tab zusammengefasst. Planen Sie jetzt alle Ihre Finanzen an einem Ort.',
-            '**Neue Budget-Übersicht:** Sehen Sie auf einen Blick, wie sich Ihr Gesamtbudget auf flexible Ausgaben und Fixkosten verteilt. Ein neuer Balken visualisiert das Verhältnis und hilft Ihnen, Ihre Finanzen besser zu verstehen.',
-            '**Verbesserte Navigation:** Beim Wechseln zwischen den Hauptreitern (Übersicht, Transaktionen etc.) wird die Ansicht nun automatisch nach ganz oben gescrollt.',
-            '**Optimierte Kategorie-Auswahl:** Die Schnellauswahl der Kategorien wurde überarbeitet. Der neue "+"-Button ist kompakter und fügt sich nahtlos in das Design ein.',
-            '**Feinschliff & Korrekturen:** Diverse kleine Verbesserungen, wie z.B. in der Kalenderansicht der Statistiken, sorgen für ein runderes Gesamterlebnis.'
-        ]
-    }
-];
-
 
 // This is the source of truth for the initial setup.
 const initialSetup: { name: string; categories: Omit<Category, 'group' | 'lastModified' | 'version'>[] }[] = [

@@ -2,8 +2,8 @@
 import React, { FC, useMemo } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useApp } from '../../../contexts/AppContext';
-import { formatCurrency, format, parseISO, addMonths, addDays, differenceInDays, startOfDay, isWithinInterval } from '../../../utils/dateUtils';
-import type { Transaction, PeriodType } from '../../../types';
+import { formatCurrency, format, parseISO, addMonths, addDays, differenceInDays, startOfDay, isWithinInterval } from '@/shared/utils/dateUtils';
+import type { Transaction, PeriodType } from '@/shared/types';
 
 export const CustomTooltip = ({ active, payload, label, tagMap, deLocale }: any) => {
     if (active && payload && payload.length) {

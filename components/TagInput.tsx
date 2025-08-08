@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import type { FC } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Tag, X } from './ui';
-import type { Tag as TagType } from '../types';
+import type { Tag as TagType } from '@/shared/types';
 
 const TagInput: FC<{
     tags: string[];

@@ -1,18 +1,18 @@
 
 import React, { useState, useMemo, useEffect, FC } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { useApp } from '../../contexts/AppContext';
-import type { Transaction, ViewMode } from '../../types';
+import { useApp } from '@/contexts/AppContext';
+import type { Transaction, ViewMode } from '@/shared/types';
 import { format, parseISO, isWithinInterval, startOfMonth, endOfMonth, startOfWeek, endOfWeek, isSameDay } from 'date-fns';
-import { formatCurrency } from '../../utils/dateUtils';
-import { BarChart2, Coins, Home, getIconComponent } from '../../components/ui';
-import { FIXED_COSTS_GROUP_NAME } from '../../constants';
-import StandardTransactionItem from '../../components/StandardTransactionItem';
-import { CategoryPieChart } from './components/CategoryPieChart';
-import { QuickAddForm } from './components/QuickAddForm';
-import { MoreCategoriesModal } from './components/MoreCategoriesModal';
-import { ViewTabs } from './components/ViewTabs';
-import { ProgressBar } from '../../components/ui';
+import { formatCurrency } from '@/shared/utils/dateUtils';
+import { BarChart2, Coins, Home, getIconComponent } from '@/shared/ui';
+import { FIXED_COSTS_GROUP_NAME } from '@/constants';
+import StandardTransactionItem from '@/components/StandardTransactionItem';
+import { CategoryPieChart } from './ui/CategoryPieChart';
+import { QuickAddForm } from './ui/QuickAddForm';
+import { MoreCategoriesModal } from './ui/MoreCategoriesModal';
+import { ViewTabs } from './ui/ViewTabs';
+import { ProgressBar } from '@/shared/ui';
 
 const DashboardPage: FC = () => {
     const {

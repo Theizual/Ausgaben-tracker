@@ -2,7 +2,7 @@
 import React, { FC } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useApp } from '../../../contexts/AppContext';
-import type { PeriodType } from '../../../types';
+import type { PeriodType } from '@/shared/types';
 import { format, addMonths, addYears } from 'date-fns';
 import { ChevronLeft, ChevronRight } from '../../../components/ui';
 

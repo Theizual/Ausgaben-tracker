@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useCallback, useEffect, FC, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useApp } from '../../contexts/AppContext';
-import type { SettingsTab } from '../../types';
+import type { SettingsTab } from '@/shared/types';
 import { Settings, X, LayoutGrid, Target, SlidersHorizontal, Repeat, History, Users, ChevronLeft, ChevronRight } from '../../components/ui';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
 import { GeneralSettings } from './components/GeneralSettings';

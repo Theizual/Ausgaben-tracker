@@ -1,14 +1,13 @@
-
 import React, { useState, useMemo, FC } from 'react';
 import { motion } from 'framer-motion';
-import { useApp } from '../../contexts/AppContext';
-import type { QuickFilterId } from '../../types';
+import { useApp } from '@/contexts/AppContext';
+import type { QuickFilterId } from '@/shared/types';
 import { format, subDays, startOfMonth, endOfMonth } from 'date-fns';
-import { SlidersHorizontal } from '../../components/ui';
-import { ViewSwitch } from './components/ViewSwitch';
-import { QuickFilters } from './components/QuickFilters';
-import { TransactionList } from './components/TransactionList';
-import { FilterModal } from './components/FilterModal';
+import { SlidersHorizontal } from '@/shared/ui';
+import { ViewSwitch } from './ui/ViewSwitch';
+import { QuickFilters } from './ui/QuickFilters';
+import { TransactionList } from './ui/TransactionList';
+import { FilterModal } from './ui/FilterModal';
 
 const TransactionsPage: FC = () => {
     const { 

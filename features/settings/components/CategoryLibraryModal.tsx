@@ -3,7 +3,7 @@ import React, { useState, useMemo, FC } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { useApp } from '../../../contexts/AppContext';
-import type { Category } from '../../../types';
+import type { Category } from '@/shared/types';
 import { useEscapeKey } from '../../../hooks/useEscapeKey';
 import { Modal, Button, iconMap, X, Trash2, Plus, DownloadCloud } from '../../../components/ui';
 import { FIXED_COSTS_GROUP_NAME, INITIAL_CATEGORIES } from '../../../constants';
@@ -114,91 +114,86 @@ export const CategoryLibraryModal: FC<{ isOpen: boolean; onClose: () => void; }>
                                     group.categories.map(category => {
                                         const Icon = iconMap[category.icon] || iconMap.MoreHorizontal;
                                         return (
-                                            <button key={category.id} type="button" onClick={() => handleOpenEditor(category)} className="w-12 h-12 flex items-center justify-center rounded-lg transition-colors duration-200 border-2 bg-slate-700/50 opacity-80 hover:opacity-100 relative" style={{ borderColor: category.color }} title={`${category.name} (Bearbeiten)`}>
-                                                <Icon className="h-6 w-6" style={{ color: category.color }} />
-                                                <button onClick={(e) => { e.stopPropagation(); deleteCategory(category.id);}} className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full h-5 w-5 flex items-center justify-center ring-2 ring-slate-900 hover:bg-red-400 transition-colors" title={`${category.name} entfernen`}><X className="h-3 w-3" /></button>
+                                            <button key={category.id} type="button" onClick={() => handleOpenEditor(category)} className="flex items-center gap-2 px-3 py-2 text-white font-medium rounded-lg transition-colors duration-200 border-2 bg-theme-card hover:bg-theme-input" style={{ borderColor: category.color }} title={category.name}>
+                                                <Icon className="h-5 w-5 shrink-0" style={{ color: category.color }} />
+                                                <span className="text-sm">{category.name}</span>
                                             </button>
                                         );
                                     })
-                                ) : (
-                                    <div className="flex items-center w-full">
-                                        <p className="text-sm text-slate-500 italic px-2">In dieser Gruppe befindet sich keine Kategorie.</p>
-                                        {group.name !== 'Sonstiges' && (
-                                            <Button variant="destructive-ghost" size="icon-auto" onClick={() => handleDeleteGroup(group.name)} title={`Leere Gruppe "${group.name}" löschen`}><Trash2 className="h-4 w-4" /></Button>
-                                        )}
-                                    </div>
-                                )}
+                                ) : <p className="text-sm text-slate-500 italic ml-1">Keine Kategorien in dieser Gruppe.</p>}
+                                <button onClick={() => handleOpenEditor({ id: `new_${Date.now()}`, name: '', icon: 'MoreHorizontal', color: '#808080', group: group.name })} className="w-12 h-12 flex items-center justify-center rounded-lg transition-colors duration-200 border-2 border-dashed border-slate-500 hover:border-slate-400 bg-theme-card hover:bg-theme-input" title="Neue Kategorie hinzufügen">
+                                    <Plus className="h-6 w-6 text-slate-400" />
+                                </button>
+                                <button onClick={() => handleDeleteGroup(group.name)} className="w-12 h-12 flex items-center justify-center rounded-lg transition-colors duration-200 border-2 border-dashed border-red-500/50 hover:border-red-400 bg-theme-card hover:bg-red-900/40" title="Gruppe löschen">
+                                    <Trash2 className="h-5 w-5 text-red-500" />
+                                </button>
                             </div>
                         </div>
                     ))}
-
-                    <Separator />
-
-                    {/* 2. FIXED GROUP */}
-                    {fixedGroupData && (
-                        <div key={fixedGroupData.name}>
-                            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3 ml-1">{fixedGroupData.name}</h4>
-                            <div className="flex flex-wrap gap-2">
-                                {fixedGroupData.categories.map(category => {
-                                    const Icon = iconMap[category.icon] || iconMap.MoreHorizontal;
-                                    return (
-                                        <button key={category.id} type="button" onClick={() => handleOpenEditor(category)} className="w-12 h-12 flex items-center justify-center rounded-lg transition-colors duration-200 border-2 bg-slate-700/50 opacity-80 hover:opacity-100 relative" style={{ borderColor: category.color }} title={`${category.name} (Bearbeiten)`}>
-                                            <Icon className="h-6 w-6" style={{ color: category.color }} />
-                                            <button onClick={(e) => { e.stopPropagation(); deleteCategory(category.id);}} className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full h-5 w-5 flex items-center justify-center ring-2 ring-slate-900 hover:bg-red-400 transition-colors" title={`${category.name} entfernen`}><X className="h-3 w-3" /></button>
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    )}
-
-                    <Separator />
-
-                    {/* 3. UNASSIGNED CATEGORIES */}
-                    {unassignedCategories.length > 0 && (
-                        <div>
-                            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3 ml-1">Nicht zugeordnete Kategorien</h4>
-                            <div className="flex flex-wrap gap-2">
-                                {unassignedCategories.map(category => {
-                                    const Icon = iconMap[category.icon] || iconMap.MoreHorizontal;
-                                    return (
-                                        <button key={category.id} type="button" onClick={() => handleOpenEditor(category)} className="w-12 h-12 flex items-center justify-center rounded-lg bg-slate-700/80 hover:bg-slate-700 border-2 transition-colors duration-200" style={{ borderColor: category.color }} title={`${category.name} (Hinzufügen)`}>
-                                            <Icon className="h-6 w-6" style={{ color: category.color }} />
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    )}
-
-                     <Separator />
-
-                    {/* 4. NEW GROUP INPUT */}
-                    <div>
-                        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3 ml-1">Neue Kategoriegruppe</h4>
-                        <div className="flex items-center gap-3">
-                            <input type="text" value={newGroupName} onChange={(e) => setNewGroupName(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') handleAddGroup(); }} placeholder="Name der neuen Gruppe" className={`flex-grow w-full bg-theme-input border border-theme-border rounded-md px-3 py-2 text-white placeholder-theme-text-muted focus:outline-none focus:ring-2 focus:ring-theme-ring`} />
-                            <Button onClick={handleAddGroup} variant="primary" size="icon" title="Neue Gruppe hinzufügen"><Plus className="h-5 w-5" /></Button>
-                        </div>
-                    </div>
                     
                     <Separator />
 
-                    {/* 5. PRESETS */}
+                    {/* 2. ADD NEW GROUP */}
+                    <div className="flex gap-3">
+                        <input type="text" value={newGroupName} onChange={e => setNewGroupName(e.target.value)} placeholder="Neue Gruppe hinzufügen..." className="w-full max-w-xs bg-theme-input border border-theme-border rounded-md px-3 py-2 text-white placeholder-theme-text-muted focus:outline-none focus:ring-2 focus:ring-theme-ring" />
+                        <Button onClick={handleAddGroup}><Plus className="h-4 w-4"/> Gruppe erstellen</Button>
+                    </div>
+                    
+                    <Separator />
+                    
+                    {/* 3. FIXED COSTS GROUP (Non-editable structure) */}
+                    {fixedGroupData && (
+                        <div>
+                             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3 ml-1">{fixedGroupData.name}</h4>
+                             <div className="flex flex-wrap gap-2">
+                                {fixedGroupData.categories.map(category => {
+                                    const Icon = iconMap[category.icon] || iconMap.MoreHorizontal;
+                                    return (
+                                        <button key={category.id} type="button" onClick={() => handleOpenEditor(category)} className="flex items-center gap-2 px-3 py-2 text-white font-medium rounded-lg transition-colors duration-200 border-2 bg-theme-card hover:bg-theme-input" style={{ borderColor: category.color }} title={category.name}>
+                                            <Icon className="h-5 w-5 shrink-0" style={{ color: category.color }} />
+                                            <span className="text-sm">{category.name}</span>
+                                        </button>
+                                    );
+                                })}
+                             </div>
+                        </div>
+                    )}
+                    
+                    <Separator />
+
+                    {/* 4. UNASSIGNED & STANDARD */}
                     <div>
-                        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3 ml-1">Voreinstellungen</h4>
-                        <Button onClick={loadStandardConfiguration} variant="secondary" className="w-full justify-center">
-                            <DownloadCloud className="h-4 w-4 mr-2" />
+                         <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3 ml-1">Verfügbare Standard-Kategorien</h4>
+                         <p className="text-sm text-slate-400 mb-4">Fügen Sie Kategorien aus der Standardbibliothek zu Ihren Gruppen hinzu oder laden Sie die komplette Standardkonfiguration.</p>
+                         <div className="flex flex-wrap gap-2 mb-6">
+                            {unassignedCategories.map(category => {
+                                 const Icon = iconMap[category.icon] || iconMap.MoreHorizontal;
+                                return (
+                                    <button key={category.id} type="button" onClick={() => handleOpenEditor(category)} className="flex items-center gap-2 px-3 py-2 text-white font-medium rounded-lg transition-colors duration-200 border-2 border-dashed border-slate-500 hover:border-slate-400 bg-theme-card hover:bg-theme-input" title={`"${category.name}" hinzufügen`}>
+                                        <Icon className="h-5 w-5 shrink-0" style={{ color: category.color }} />
+                                        <span className="text-sm">{category.name}</span>
+                                    </button>
+                                );
+                            })}
+                         </div>
+                         <Button onClick={loadStandardConfiguration} variant="secondary">
+                            <DownloadCloud className="h-4 w-4" />
                             Standardkonfiguration laden
                         </Button>
                     </div>
 
                 </div>
             </Modal>
+
             <AnimatePresence>
-            {editingCategory && (
-                <CategoryEditModal isOpen={!!editingCategory} onClose={() => setEditingCategory(null)} categoryData={editingCategory} onSave={handleSaveCategory} />
-            )}
+                {editingCategory && (
+                    <CategoryEditModal
+                        isOpen={!!editingCategory}
+                        onClose={() => setEditingCategory(null)}
+                        categoryData={editingCategory}
+                        onSave={handleSaveCategory}
+                    />
+                )}
             </AnimatePresence>
         </>
     );

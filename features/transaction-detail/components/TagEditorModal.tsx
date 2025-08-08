@@ -1,10 +1,10 @@
 
 import React, { useState, useMemo, FC } from 'react';
-import type { Tag } from '../../../types';
-import { useApp } from '../../../contexts/AppContext';
-import { Modal, Button } from '../../../components/ui';
-import TagInput from '../../../components/TagInput';
-import AvailableTags from '../../../components/AvailableTags';
+import type { Tag } from '@/shared/types';
+import { useApp } from '@/contexts/AppContext';
+import { Modal, Button } from '@/shared/ui';
+import TagInput from '@/components/TagInput';
+import AvailableTags from '@/components/AvailableTags';
 
 export const TagEditorModal: FC<{
     initialTagNames: string[];

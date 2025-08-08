@@ -1,6 +1,6 @@
 import { useReducer, useMemo, useCallback, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
-import type { User } from '../types';
+import type { User } from '@/shared/types';
 
 type UsersState = {
     users: User[];

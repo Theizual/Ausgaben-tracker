@@ -1,9 +1,8 @@
 
-
 import { useState, useCallback, useEffect, useMemo } from 'react';
-import { format, subDays } from '../utils/dateUtils';
-import type { Transaction, ViewMode, PeriodType, QuickFilterId, SettingsTab } from '../types';
-import useLocalStorage from './useLocalStorage';
+import { format, subDays } from '@/shared/utils/dateUtils';
+import type { Transaction, ViewMode, PeriodType, QuickFilterId, SettingsTab } from '@/shared/types';
+import useLocalStorage from '@/shared/hooks/useLocalStorage';
 
 const isMobile = () => {
     if (typeof window === 'undefined') return false;

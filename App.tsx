@@ -2,22 +2,23 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Toaster } from 'react-hot-toast';
-import { useApp } from './contexts/AppContext';
-import { DashboardPage } from './features/dashboard';
-import { StatisticsPage } from './features/statistics';
-import { TransactionsPage } from './features/transactions';
-import { TagsPage } from './features/tags';
-import { SettingsModal } from './features/settings';
-import { ConfirmationModal } from './features/confirmation';
-import { TransactionDetailModal } from './features/transaction-detail';
-import { ChangelogModal } from './features/changelog';
-import { formatGermanDate } from './utils/dateUtils';
-import { Settings, Loader2, LayoutGrid, Repeat, BarChart2, Tags, RefreshCw, User, CheckCircle2, Users } from './components/ui';
+import { useApp } from '@/contexts/AppContext';
+import { DashboardPage } from '@/features/dashboard';
+import { StatisticsPage } from '@/features/statistics';
+import { TransactionsPage } from '@/features/transactions';
+import { TagsPage } from '@/features/tags';
+import { SettingsModal } from '@/features/settings';
+import { ConfirmationModal } from '@/features/confirmation';
+import { TransactionDetailModal } from '@/features/transaction-detail';
+import { ChangelogModal } from '@/features/changelog';
+import { formatGermanDate } from '@/shared/utils/dateUtils';
+import { Settings, Loader2, LayoutGrid, Repeat, BarChart2, Tags, RefreshCw, User, CheckCircle2, Users } from '@/shared/ui';
 import { formatDistanceToNow } from 'date-fns';
-import Logo from './components/Logo';
-import type { User as UserType } from './types';
-import { APP_VERSION } from './constants';
-import useLocalStorage from './hooks/useLocalStorage';
+import Logo from '@/components/Logo';
+import type { User as UserType } from '@/shared/types';
+import { APP_VERSION } from '@/constants';
+import useLocalStorage from '@/shared/hooks/useLocalStorage';
+import { SyncPromptToast } from '@/features/sync-prompt/ui/SyncPromptToast';
 
 // Main App Component (now a clean layout/composition root)
 const App: React.FC = () => {
@@ -160,6 +161,7 @@ const App: React.FC = () => {
                     />
                 )}
             </AnimatePresence>
+            <SyncPromptToast />
         </div>
     );
 };

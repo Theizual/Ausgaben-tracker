@@ -3,12 +3,12 @@ import React, { useState, useMemo, useCallback, useEffect, FC, useRef } from 're
 import { AnimatePresence, motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { useApp } from '../../../contexts/AppContext';
-import type { Category, RecurringTransaction } from '../../../types';
+import type { Category, RecurringTransaction } from '@/shared/types';
 import { format, parseISO } from 'date-fns';
-import { formatCurrency } from '../../../utils/dateUtils';
+import { formatCurrency } from '@/shared/utils/dateUtils';
 import { getIconComponent, Plus, Trash2, Edit, ChevronDown, ProgressBar, Button } from '../../../components/ui';
 import { FIXED_COSTS_GROUP_NAME } from '../../../constants';
-import { generateUUID } from '../../../utils/uuid';
+import { generateUUID } from '@/shared/utils/uuid';
 
 const BASE_INPUT_CLASSES = "w-full bg-theme-input border border-theme-border rounded-md px-3 py-2 text-white placeholder-theme-text-muted focus:outline-none focus:ring-2 focus:ring-theme-ring";
 

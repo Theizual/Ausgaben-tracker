@@ -2,7 +2,7 @@
 import React, { useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useApp } from '../../contexts/AppContext';
-import type { Tag } from '../../types';
+import type { Tag } from '@/shared/types';
 import { parseISO } from 'date-fns';
 import { Hash } from '../../components/ui';
 import { PeriodNavigator } from './components/PeriodNavigator';

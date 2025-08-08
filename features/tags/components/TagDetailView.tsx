@@ -2,7 +2,7 @@
 import React, { FC, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useApp } from '../../../contexts/AppContext';
-import type { PeriodType } from '../../../types';
+import type { PeriodType } from '@/shared/types';
 import { format, parseISO, isWithinInterval, addMonths, subMonths, addYears, subYears, addDays, differenceInDays, startOfDay, endOfDay, startOfMonth, endOfMonth, startOfYear, endOfYear } from 'date-fns';
 import { Hash, Coins, BarChart2 } from '../../../components/ui';
 import StandardTransactionItem from '../../../components/StandardTransactionItem';

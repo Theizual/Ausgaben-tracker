@@ -1,11 +1,11 @@
 
 import React, { FC, useMemo, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { useApp } from '../../../contexts/AppContext';
-import type { Transaction } from '../../../types';
-import { formatCurrency, formatGermanDate } from '../../../utils/dateUtils';
-import { X } from '../../../components/ui';
-import StandardTransactionItem from '../../../components/StandardTransactionItem';
+import { useApp } from '@/contexts/AppContext';
+import type { Transaction } from '@/shared/types';
+import { formatCurrency, formatGermanDate } from '@/shared/utils/dateUtils';
+import { X } from '@/shared/ui';
+import StandardTransactionItem from '@/components/StandardTransactionItem';
 
 const MotionDiv = motion('div');
 

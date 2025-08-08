@@ -1,8 +1,7 @@
-
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
-import { AppProvider } from './contexts/AppContext';
+import { AppProvider } from '@/contexts/AppContext';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {

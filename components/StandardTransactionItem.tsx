@@ -1,8 +1,9 @@
+
 import React, { FC, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useApp } from '../contexts/AppContext';
-import type { Transaction, User } from '../types';
-import { format, parseISO, formatCurrency } from '../utils/dateUtils';
+import type { Transaction, User } from '@/shared/types';
+import { format, parseISO, formatCurrency } from '@/shared/utils/dateUtils';
 import { iconMap, FlaskConical } from './ui';
 import { TagPill } from './ui/TagPill';
 

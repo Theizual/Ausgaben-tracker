@@ -2,8 +2,8 @@
 import React, { useEffect, useMemo, FC } from 'react';
 import { motion } from 'framer-motion';
 import { useApp } from '../../contexts/AppContext';
-import type { Transaction } from '../../types';
-import { formatCurrency } from '../../utils/dateUtils';
+import type { Transaction } from '@/shared/types';
+import { formatCurrency } from '@/shared/utils/dateUtils';
 import { isWithinInterval, parseISO, startOfMonth, endOfMonth } from 'date-fns';
 import { iconMap, CheckCircle2 } from '../../components/ui';
 

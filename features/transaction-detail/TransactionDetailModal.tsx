@@ -2,14 +2,14 @@
 import React, { useState, useEffect, useMemo, FC, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
-import { useApp } from '../../contexts/AppContext';
-import type { Transaction, CategoryId, User } from '../../types';
+import { useApp } from '@/contexts/AppContext';
+import type { Transaction, CategoryId, User } from '@/shared/types';
 import { format, parseISO } from 'date-fns';
-import { formatCurrency } from '../../utils/dateUtils';
-import { iconMap, X, Edit, Trash2, Plus, FlaskConical } from '../../components/ui';
+import { formatCurrency } from '@/shared/utils/dateUtils';
+import { iconMap, X, Edit, Trash2, Plus, FlaskConical } from '@/shared/ui';
 import { TagEditorModal } from './components/TagEditorModal';
 import { PickerModals } from './components/PickerModals';
-import { TagPill } from '../../components/ui';
+import { TagPill } from '@/shared/ui';
 
 interface TransactionDetailModalProps {
     isOpen: boolean;
