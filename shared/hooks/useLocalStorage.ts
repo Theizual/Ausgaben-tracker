@@ -18,7 +18,7 @@ function useLocalStorage<T>(key: string, initialValue: T | (() => T)): [T, React
         try {
             const serializedState = JSON.stringify(storedValue);
             window.localStorage.setItem(key, serializedState);
-        } catch (error) => {
+        } catch (error) {
             // console.error(error);
         }
     }, [key, storedValue]);
