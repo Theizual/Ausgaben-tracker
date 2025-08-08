@@ -1,99 +1,36 @@
-import {
-    format,
-    startOfWeek,
-    endOfWeek,
-    startOfMonth,
-    endOfMonth,
-    isWithinInterval,
-    parseISO,
-    eachDayOfInterval,
-    startOfDay,
-    addMonths,
-    subMonths,
-    subDays,
-    startOfYear,
-    endOfYear,
-    getWeek,
-    getMonth,
-    getYear,
-    differenceInDays,
-    isSameDay,
-    endOfDay,
-    getDay,
-    isSameMonth,
-    isToday,
-    isYesterday,
-    getDaysInMonth,
-    addYears,
-    subYears,
-    addDays,
-    isValid,
-} from 'date-fns';
+import { format, parseISO, subDays, isValid, isWithinInterval, addMonths, addDays, differenceInDays, startOfDay } from 'date-fns';
 import { de } from 'date-fns/locale';
-import type { Transaction } from '../types';
+import type { Locale } from 'date-fns';
 
-export const formatGermanDate = (date: Date): string => {
-    return format(date, "EEEE, d. MMMM yyyy", { locale: de });
+/**
+ * Formats a date object into a long German date string (e.g., "Montag, 1. Januar 2024").
+ * @param date The date to format.
+ * @param locale The date-fns locale object.
+ * @returns The formatted date string.
+ */
+export const formatGermanDate = (date: Date, locale: Locale): string => {
+    return format(date, "EEEE, d. MMMM yyyy", { locale });
 };
 
+/**
+ * Formats a number into a German currency string (e.g., "1.234,56 €").
+ * @param value The number to format.
+ * @returns The formatted currency string.
+ */
 export const formatCurrency = (value: number): string => {
     return value.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' });
 };
 
-export const getWeekInterval = (date: Date) => {
-    return {
-        start: startOfWeek(date, { weekStartsOn: 1 }), // Monday
-        end: endOfWeek(date, { weekStartsOn: 1 }),
-    };
-};
-
-export const getMonthInterval = (date: Date) => {
-    return {
-        start: startOfMonth(date),
-        end: endOfMonth(date),
-    };
-};
-
-export const getYearInterval = (date: Date) => {
-    return {
-        start: startOfYear(date),
-        end: endOfYear(date),
-    };
-};
-
-export const filterTransactionsByInterval = (transactions: Transaction[], interval: { start: Date, end: Date }): Transaction[] => {
-    return transactions.filter(t => isWithinInterval(parseISO(t.date), interval));
-};
-
+// Re-exporting from date-fns for consistent usage across the app
 export {
     format,
-    parseISO,
-    eachDayOfInterval,
-    startOfDay,
-    addMonths,
-    subMonths,
-    subDays,
-    startOfMonth,
-    endOfMonth,
-    startOfWeek,
-    endOfWeek,
-    startOfYear,
-    endOfYear,
-    getWeek,
-    getMonth,
-    getYear,
-    differenceInDays,
-    isSameDay,
-    de,
-    endOfDay,
-    getDay,
-    isSameMonth,
-    isToday,
-    isYesterday,
-    getDaysInMonth,
-    isWithinInterval,
-    addYears,
-    subYears,
-    addDays,
     isValid,
+    parseISO,
+    subDays,
+    de,
+    isWithinInterval,
+    addMonths,
+    addDays,
+    differenceInDays,
+    startOfDay,
 };

@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { useApp } from '../contexts/AppContext';
 import type { Transaction, User } from '../types';
 import { format, parseISO, formatCurrency } from '../utils/dateUtils';
-import { iconMap } from './Icons';
+import { iconMap, FlaskConical } from './ui';
 import { TagPill } from './ui/TagPill';
 
 export interface StandardTransactionItemProps {
@@ -31,7 +31,7 @@ const StandardTransactionItem: FC<StandardTransactionItemProps> = ({
     const Icon = iconMap[category.icon] || iconMap.MoreHorizontal;
     const color = category.color;
     const isCompact = density === 'compact';
-    const isDev = transaction.isDev;
+    const isDemo = transaction.isDemo;
 
     const userAvatar = createdBy ? (
         <div
@@ -49,7 +49,7 @@ const StandardTransactionItem: FC<StandardTransactionItemProps> = ({
             onClick={() => onClick(transaction)}
             className={`relative flex gap-3 transition-all duration-200 h-full w-full rounded-xl bg-slate-800 hover:bg-slate-700/50 text-left ${isCompact ? 'p-3' : 'p-4'}`}
         >
-            {/* Column 1: Icon, Dev, User */}
+            {/* Column 1: Icon, Demo, User */}
             <div className={`flex flex-col items-center justify-between flex-shrink-0 ${isCompact ? 'w-9 py-0.5' : 'w-10 py-1'}`}>
                 <div
                     className={`rounded-full flex items-center justify-center flex-shrink-0 ${isCompact ? 'w-9 h-9' : 'w-10 h-10'}`}
@@ -60,9 +60,10 @@ const StandardTransactionItem: FC<StandardTransactionItemProps> = ({
                 </div>
                 
                 <div className="flex flex-col items-center gap-1.5">
-                    {isDev && (
-                        <span className="bg-purple-600 text-white text-xs font-bold px-1.5 py-0.5 rounded-full flex-shrink-0">
-                            DEV
+                    {isDemo && (
+                        <span className="flex items-center gap-1 bg-purple-600 text-white text-xs font-bold px-1.5 py-0.5 rounded-full flex-shrink-0" title="Demo Eintrag">
+                            <FlaskConical className="h-3 w-3" />
+                            DEMO
                         </span>
                     )}
                     {userAvatar}
@@ -116,9 +117,10 @@ const StandardTransactionItem: FC<StandardTransactionItemProps> = ({
             {/* Description, Category, Tags */}
             <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                    {isDev && (
-                        <span className="bg-purple-600 text-white text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0">
-                            DEV
+                    {isDemo && (
+                        <span className="flex items-center gap-1 bg-purple-600 text-white text-xs font-bold px-1.5 py-0.5 rounded-full flex-shrink-0" title="Demo Eintrag">
+                             <FlaskConical className="h-3 w-3" />
+                             DEMO
                         </span>
                     )}
                     <p className={`font-semibold text-white truncate ${isCompact ? 'text-sm' : ''}`}>{transaction.description}</p>

@@ -31,7 +31,7 @@ const initializer = (): UsersState => {
             return { users: storedUsers };
         }
     } catch (error) {
-        console.error("Failed to parse users from localStorage, starting fresh.", error);
+        // Failed to parse users from localStorage, will start fresh.
     }
     
     // If localStorage is empty or corrupt, create the default user.

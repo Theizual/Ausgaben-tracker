@@ -1,6 +1,7 @@
 
+
 import { useState, useCallback, useEffect, useMemo } from 'react';
-import { format, subDays, getMonthInterval, getWeekInterval } from '../utils/dateUtils';
+import { format, subDays } from '../utils/dateUtils';
 import type { Transaction, ViewMode, PeriodType, QuickFilterId, SettingsTab } from '../types';
 import useLocalStorage from './useLocalStorage';
 
@@ -34,7 +35,7 @@ export const useUI = () => {
     
     // Statistics
     const [statisticsCurrentMonth, setStatisticsCurrentMonth] = useState(new Date());
-    const [statisticsSelectedDay, setStatisticsSelectedDay] = useState<Date | null>(new Date());
+    const [statisticsSelectedDay, setStatisticsSelectedDay] = useState<Date | null>(null);
     
     // TagsPage
     const [tagsPeriodType, setTagsPeriodType] = useState<PeriodType>('last3Months');

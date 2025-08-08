@@ -3,18 +3,17 @@ import React, { useState, useRef, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Toaster } from 'react-hot-toast';
 import { useApp } from './contexts/AppContext';
-import Dashboard from './components/Dashboard';
-import Statistics from './components/Statistics';
-import TransactionsPage from './components/Transactions';
-import TagsPage from './components/TagsPage';
-import SettingsModal from './components/SettingsModal';
-import ConfirmationModal from './components/ConfirmationModal';
-import TransactionDetailModal from './components/TransactionDetailModal';
-import ChangelogModal from './components/ChangelogModal';
+import { DashboardPage } from './features/dashboard';
+import { StatisticsPage } from './features/statistics';
+import { TransactionsPage } from './features/transactions';
+import { TagsPage } from './features/tags';
+import { SettingsModal } from './features/settings';
+import { ConfirmationModal } from './features/confirmation';
+import { TransactionDetailModal } from './features/transaction-detail';
+import { ChangelogModal } from './features/changelog';
 import { formatGermanDate } from './utils/dateUtils';
-import { Settings, Loader2, LayoutGrid, Repeat, BarChart2, Tags, RefreshCw, User, CheckCircle2, Users } from './components/Icons';
+import { Settings, Loader2, LayoutGrid, Repeat, BarChart2, Tags, RefreshCw, User, CheckCircle2, Users } from './components/ui';
 import { formatDistanceToNow } from 'date-fns';
-import { de } from 'date-fns/locale';
 import Logo from './components/Logo';
 import type { User as UserType } from './types';
 import { APP_VERSION } from './constants';
@@ -45,6 +44,7 @@ const App: React.FC = () => {
         syncData,
         // User State
         users,
+        deLocale,
     } = useApp();
 
     const [lastSeenVersion, setLastSeenVersion] = useLocalStorage('lastSeenVersion', '0.0.0');
@@ -56,6 +56,11 @@ const App: React.FC = () => {
         }
     }, []); // Run only once on mount
 
+    // Scroll to top when the main tab changes
+    useEffect(() => {
+        window.scrollTo(0, 0);
+    }, [activeTab]);
+
     const handleCloseChangelog = () => {
         closeChangelog();
         setLastSeenVersion(APP_VERSION);
@@ -64,9 +69,9 @@ const App: React.FC = () => {
 
     const renderContent = () => {
         switch (activeTab) {
-            case 'dashboard': return <Dashboard />;
+            case 'dashboard': return <DashboardPage />;
             case 'transactions': return <TransactionsPage />;
-            case 'statistics': return <Statistics />;
+            case 'statistics': return <StatisticsPage />;
             case 'tags': return <TagsPage />;
             default: return null;
         }
@@ -98,6 +103,7 @@ const App: React.FC = () => {
                         onSyncClick={() => syncData()}
                         syncOperation={syncOperation}
                         lastSync={lastSync}
+                        deLocale={deLocale}
                     />
                     {/* Responsive Tabs are now part of the sticky header */}
                     <MainTabs activeTab={activeTab} setActiveTab={setActiveTab} />
@@ -251,14 +257,15 @@ const Header: React.FC<{
     onSyncClick: () => void; 
     syncOperation: 'sync' | null;
     lastSync: string | null;
-}> = ({ users, onSettingsClick, onSyncClick, syncOperation, lastSync }) => {
+    deLocale: any;
+}> = ({ users, onSettingsClick, onSyncClick, syncOperation, lastSync, deLocale }) => {
     const isSyncing = syncOperation !== null;
 
     const renderLastSyncText = () => {
         if (!lastSync) return 'Noch nicht synchronisiert';
         try {
             const lastSyncDate = new Date(lastSync);
-            return `Zuletzt synchronisiert: ${formatDistanceToNow(lastSyncDate, { addSuffix: true, locale: de })}`;
+            return `Zuletzt synchronisiert: ${formatDistanceToNow(lastSyncDate, { addSuffix: true, locale: deLocale })}`;
         } catch {
             return 'Sync-Status unbekannt';
         }
@@ -269,7 +276,7 @@ const Header: React.FC<{
             <Logo />
             <div className="flex items-center gap-1 sm:gap-2">
                 <div className="text-right hidden sm:block">
-                    <p className="text-slate-400 text-sm">{formatGermanDate(new Date())}</p>
+                    <p className="text-slate-400 text-sm">{formatGermanDate(new Date(), deLocale)}</p>
                      <p className="text-xs text-slate-500">{renderLastSyncText()}</p>
                 </div>
                  <button 

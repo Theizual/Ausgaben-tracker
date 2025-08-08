@@ -1,15 +1,17 @@
+
 import React, { useMemo } from 'react';
 import type { FC } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import type { Category, CategoryId } from '../types';
-import { iconMap } from './Icons';
+import { iconMap, Plus } from './ui';
 
 const CategoryButtons: FC<{
     categories: Category[];
     categoryGroups: string[];
     selectedCategoryId: CategoryId;
     onSelectCategory: (id: CategoryId) => void;
-}> = ({ categories, categoryGroups, selectedCategoryId, onSelectCategory }) => {
+    onShowMoreClick?: () => void;
+}> = ({ categories, categoryGroups, selectedCategoryId, onSelectCategory, onShowMoreClick }) => {
     
     const groupedCategories = useMemo(() => {
         const groupMap = new Map<string, Category[]>();
@@ -29,7 +31,7 @@ const CategoryButtons: FC<{
 
     return (
         <div className="space-y-4">
-            {groupedCategories.map(group => (
+            {groupedCategories.map((group, groupIndex) => (
                 <div key={group.name}>
                     <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2 ml-1">{group.name}</h4>
                     <div className="flex flex-wrap gap-2">
@@ -72,9 +74,34 @@ const CategoryButtons: FC<{
                                 </motion.button>
                             );
                         })}
+                        {/* Append button to the last group's flow */}
+                        {onShowMoreClick && groupIndex === groupedCategories.length - 1 && (
+                            <motion.button
+                                type="button"
+                                onClick={onShowMoreClick}
+                                layout
+                                className="w-12 h-12 flex items-center justify-center rounded-lg transition-colors duration-200 border-2 border-dashed border-slate-500 hover:border-slate-400 bg-theme-card hover:bg-theme-input"
+                                title="Weitere Kategorien"
+                            >
+                                <Plus className="h-6 w-6 text-slate-400" />
+                            </motion.button>
+                        )}
                     </div>
                 </div>
             ))}
+
+            {/* Fallback for when no groups with categories are rendered */}
+            {groupedCategories.length === 0 && onShowMoreClick && (
+                <motion.button
+                    type="button"
+                    onClick={onShowMoreClick}
+                    layout
+                    className="w-12 h-12 flex items-center justify-center rounded-lg transition-colors duration-200 border-2 border-dashed border-slate-500 hover:border-slate-400 bg-theme-card hover:bg-theme-input"
+                    title="Weitere Kategorien"
+                >
+                    <Plus className="h-6 w-6 text-slate-400" />
+                </motion.button>
+            )}
         </div>
     );
 };

@@ -109,8 +109,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
 
   } catch (error: unknown) {
-    console.error('💥 API Error in read.ts:', error);
-    
     let errorMessage = 'An unknown error occurred.';
     if (error instanceof Error) {
       errorMessage = error.message;

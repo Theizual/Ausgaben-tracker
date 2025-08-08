@@ -1,5 +1,4 @@
 
-
 export interface User {
   id: string;
   name: string;
@@ -17,7 +16,7 @@ export interface Tag {
   isDeleted?: boolean;
   version: number;
   conflicted?: boolean;
-  isDev?: boolean;
+  isDemo?: boolean;
 }
 
 export interface Category {
@@ -46,7 +45,7 @@ export interface Transaction {
   version: number;
   conflicted?: boolean;
   createdBy?: string; // ID of the user who created the transaction
-  isDev?: boolean; // Flag for temporary development/test transactions
+  isDemo?: boolean; // Flag for temporary development/test transactions
 }
 
 export interface RecurringTransaction {
@@ -65,8 +64,8 @@ export interface RecurringTransaction {
 
 export interface UserSetting {
   userId: string;
-  settingKey: 'visibleGroups';
-  settingValue: string; // Comma-separated list of group names
+  settingKey: 'visibleGroups' | 'groupColors' | 'categoryConfiguration';
+  settingValue: string; // Comma-separated list for visibleGroups, JSON string for groupColors/categoryConfiguration
   lastModified: string;
   version: number;
   isDeleted?: boolean;
@@ -78,4 +77,4 @@ export type ViewMode = 'woche' | 'monat';
 export type PeriodType = 'last3Months' | 'month' | 'year' | 'custom';
 export type QuickFilterId = 'current' | 'month' | 'all';
 export type CategoryId = string;
-export type SettingsTab = 'general' | 'display' | 'users' | 'budget' | 'recurring';
+export type SettingsTab = 'general' | 'display' | 'users' | 'budget';

@@ -10,7 +10,7 @@ function useLocalStorage<T>(key: string, initialValue: T | (() => T)): [T, React
             }
             return initialValue instanceof Function ? initialValue() : initialValue;
         } catch (error) {
-            console.error(error);
+            // console.error(error);
             return initialValue instanceof Function ? initialValue() : initialValue;
         }
     });
@@ -20,7 +20,7 @@ function useLocalStorage<T>(key: string, initialValue: T | (() => T)): [T, React
             const serializedState = JSON.stringify(storedValue);
             window.localStorage.setItem(key, serializedState);
         } catch (error) {
-            console.error(error);
+            // console.error(error);
         }
     }, [key, storedValue]);
 

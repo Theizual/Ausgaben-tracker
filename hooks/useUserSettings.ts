@@ -1,7 +1,8 @@
 
+
 import { useReducer, useMemo, useCallback, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
-import type { UserSetting } from '../types';
+import type { UserSetting, Category } from '../types';
 
 type UserSettingsState = {
     settings: UserSetting[];
@@ -78,10 +79,80 @@ export const useUserSettings = () => {
         toast.success("Anzeigeeinstellungen gespeichert.");
     }, [rawUserSettings]);
 
+    const getGroupColorsForUser = useCallback((userId: string): Record<string, string> => {
+        const setting = liveUserSettings.find(s => s.userId === userId && s.settingKey === 'groupColors');
+        if (setting && setting.settingValue) {
+            try {
+                return JSON.parse(setting.settingValue);
+            } catch (e) {
+                console.error("Failed to parse groupColors setting:", e);
+                return {};
+            }
+        }
+        return {};
+    }, [liveUserSettings]);
+
+    const setGroupColorsForUser = useCallback((userId: string, colors: Record<string, string>) => {
+        const now = new Date().toISOString();
+        const existingSetting = rawUserSettings.find(s => s.userId === userId && s.settingKey === 'groupColors');
+
+        const newSetting: UserSetting = {
+            userId,
+            settingKey: 'groupColors',
+            settingValue: JSON.stringify(colors),
+            lastModified: now,
+            version: (existingSetting?.version || 0) + 1,
+            isDeleted: false,
+        };
+        dispatch({ type: 'UPDATE_SETTING', payload: newSetting });
+    }, [rawUserSettings]);
+
+    const updateGroupColor = useCallback((userId: string, groupName: string, color: string) => {
+        const currentColors = getGroupColorsForUser(userId);
+        const newColors = { ...currentColors, [groupName]: color };
+        setGroupColorsForUser(userId, newColors);
+    }, [getGroupColorsForUser, setGroupColorsForUser]);
+    
+    const getCategoryConfigurationForUser = useCallback((userId: string): { categories: Category[], groups: string[] } | null => {
+        const setting = liveUserSettings.find(s => s.userId === userId && s.settingKey === 'categoryConfiguration');
+        if (setting && setting.settingValue) {
+            try {
+                const config = JSON.parse(setting.settingValue);
+                if (Array.isArray(config.categories) && Array.isArray(config.groups)) {
+                    return config;
+                }
+            } catch (e) {
+                console.error("Failed to parse categoryConfiguration:", e);
+                return null;
+            }
+        }
+        return null;
+    }, [liveUserSettings]);
+
+    const updateCategoryConfigurationForUser = useCallback((userId: string, config: { categories: Category[], groups: string[] }) => {
+        const now = new Date().toISOString();
+        const existingSetting = rawUserSettings.find(s => s.userId === userId && s.settingKey === 'categoryConfiguration');
+        const newSetting: UserSetting = {
+            userId,
+            settingKey: 'categoryConfiguration',
+            settingValue: JSON.stringify(config),
+            lastModified: now,
+            version: (existingSetting?.version || 0) + 1,
+            isDeleted: false,
+        };
+        dispatch({ type: 'UPDATE_SETTING', payload: newSetting });
+    }, [rawUserSettings]);
+
+
     return {
         rawUserSettings,
         setUserSettings,
         getVisibleGroupsForUser,
         updateVisibleGroups,
+        getGroupColorsForUser,
+        updateGroupColor,
+        setGroupColorsForUser,
+        getCategoryConfigurationForUser,
+        updateCategoryConfigurationForUser,
     };
 };

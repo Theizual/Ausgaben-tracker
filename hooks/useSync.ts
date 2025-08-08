@@ -8,14 +8,11 @@ import type { Category, Transaction, RecurringTransaction, Tag, User, UserSettin
 import { RefreshCw, X } from '../components/Icons';
 
 export interface SyncProps {
-    rawCategories: Category[];
     rawTransactions: Transaction[];
     rawRecurringTransactions: RecurringTransaction[];
     rawAllAvailableTags: Tag[];
     rawUsers: User[];
     rawUserSettings: UserSetting[];
-    setCategories: (data: Category[]) => void;
-    setCategoryGroups: (data: string[]) => void;
     setTransactions: (data: Transaction[]) => void;
     setRecurringTransactions: (data: RecurringTransaction[]) => void;
     setAllAvailableTags: (data: Tag[]) => void;
@@ -200,13 +197,12 @@ export const useSync = (props: SyncProps) => {
     }, []);
 
     const {
-        rawCategories, rawTransactions, rawRecurringTransactions, rawAllAvailableTags, rawUsers, rawUserSettings,
-        setCategories, setCategoryGroups, setTransactions, setRecurringTransactions, setAllAvailableTags, setUsers, setUserSettings
+        rawTransactions, rawRecurringTransactions, rawAllAvailableTags, rawUsers, rawUserSettings,
+        setTransactions, setRecurringTransactions, setAllAvailableTags, setUsers, setUserSettings
     } = props;
     
     const [syncOperation, setSyncOperation] = useState<'sync' | null>(null);
     const [lastSync, setLastSync] = useLocalStorage<string | null>('lastSyncTimestamp', null);
-    const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [shouldAutoLoad] = useState(true); // You can make this configurable
     
@@ -220,75 +216,60 @@ export const useSync = (props: SyncProps) => {
     const lastAutoLoadRef = useRef<number>(0);
     const isDataUpdatingRef = useRef(false);
 
-    // Verbesserte loadFromSheet Funktion mit Anti-Loop-Schutz
     const loadFromSheet = useCallback(async () => {
-        // Anti-Loop: Mindestabstand zwischen Loads
         const now = Date.now();
-        const MIN_LOAD_INTERVAL = 5000; // 5 Sekunden
+        const MIN_LOAD_INTERVAL = 5000;
         
-        if (now - lastAutoLoadRef.current < MIN_LOAD_INTERVAL) {
-            console.log('Load attempted too soon, skipping...');
+        if (syncInProgressRef.current || now - lastAutoLoadRef.current < MIN_LOAD_INTERVAL) {
             return;
         }
         
-        if (isLoading || isDataUpdatingRef.current) {
-            console.log('Load already in progress or data updating, skipping...');
-            return;
-        }
-        
+        syncInProgressRef.current = true;
         lastAutoLoadRef.current = now;
-        setIsLoading(true);
         setError(null);
         
         const maxRetries = isMobile() ? 3 : 2;
         let lastError: Error | null = null;
-        for (let i = 0; i < maxRetries; i++) {
-            try {
-                const response = await fetchWithMobileTimeout('/api/sheets/read', { method: 'POST' });
-                if (!response.ok) {
-                    const errorData = await response.json().catch(() => ({ error: 'Failed to parse error response' }));
-                    throw new Error(errorData.error || `Server responded with ${response.status}`);
-                }
-                const data: ReadApiResponse = await response.json();
-                
-                isDataUpdatingRef.current = true;
-                const newGroups = [...new Set(data.categories.map(c => c.group || 'Sonstiges'))];
-
-                setCategories(data.categories);
-                setCategoryGroups(newGroups);
-                setTransactions(data.transactions);
-                setRecurringTransactions(data.recurringTransactions);
-                setAllAvailableTags(data.allAvailableTags);
-                setUsers(data.users);
-                setUserSettings(data.userSettings);
-                setLastSync(new Date().toISOString());
-                isDataUpdatingRef.current = false;
-                
-                setIsLoading(false);
-                toast.success('Daten erfolgreich geladen');
-                return; // Success
-            } catch (e: any) {
-                lastError = e;
-                console.error(`Load attempt ${i + 1} failed:`, e.message);
-                if (i < maxRetries - 1) {
-                    await new Promise(res => setTimeout(res, (1000 * Math.pow(2, i)) + Math.random() * 500)); // Exponential backoff with jitter
+        try {
+            for (let i = 0; i < maxRetries; i++) {
+                try {
+                    const response = await fetchWithMobileTimeout('/api/sheets/read', { method: 'POST' });
+                    if (!response.ok) {
+                        const errorData = await response.json().catch(() => ({ error: 'Failed to parse error response' }));
+                        throw new Error(errorData.error || `Server responded with ${response.status}`);
+                    }
+                    const data: ReadApiResponse = await response.json();
+                    
+                    isDataUpdatingRef.current = true;
+                    setTransactions(data.transactions);
+                    setRecurringTransactions(data.recurringTransactions);
+                    setAllAvailableTags(data.allAvailableTags);
+                    setUsers(data.users);
+                    setUserSettings(data.userSettings);
+                    setLastSync(new Date().toISOString());
+                    isDataUpdatingRef.current = false;
+                    
+                    return; // Success
+                } catch (e: any) {
+                    lastError = e;
+                    if (i < maxRetries - 1) {
+                        await new Promise(res => setTimeout(res, (1000 * Math.pow(2, i)) + Math.random() * 500)); // Exponential backoff with jitter
+                    }
                 }
             }
+            
+            if (lastError) {
+                setError(lastError.message);
+                toast.error(`Daten konnten nicht geladen werden: ${lastError.message}`);
+            }
+        } finally {
+            syncInProgressRef.current = false;
         }
-        
-        // If all retries fail
-        if (lastError) {
-            setError(lastError.message);
-            toast.error(`Daten konnten nicht geladen werden: ${lastError.message}`);
-        }
-        
-        setIsLoading(false);
-    }, [isLoading, setCategories, setCategoryGroups, setTransactions, setRecurringTransactions, setAllAvailableTags, setUsers, setUserSettings, setLastSync]);
+    }, [setTransactions, setRecurringTransactions, setAllAvailableTags, setUsers, setUserSettings, setLastSync]);
     
     const handleMergeConflicts = useCallback(async (conflicts: ConflictData) => {
         isDataUpdatingRef.current = true;
 
-        setCategories(mergeItems(rawCategories, [], conflicts.categories));
         setTransactions(mergeItems(rawTransactions, [], conflicts.transactions));
         setRecurringTransactions(mergeItems(rawRecurringTransactions, [], conflicts.recurring));
         setAllAvailableTags(mergeItems(rawAllAvailableTags, [], conflicts.tags));
@@ -299,8 +280,8 @@ export const useSync = (props: SyncProps) => {
         
         toast.error('Konflikt! Daten wurden zusammengeführt. Bitte prüfen Sie Ihre Einträge.', { duration: 5000 });
     }, [
-        rawCategories, rawTransactions, rawRecurringTransactions, rawAllAvailableTags, rawUsers, rawUserSettings,
-        setCategories, setTransactions, setRecurringTransactions, setAllAvailableTags, setUsers, setUserSettings
+        rawTransactions, rawRecurringTransactions, rawAllAvailableTags, rawUsers, rawUserSettings,
+        setTransactions, setRecurringTransactions, setAllAvailableTags, setUsers, setUserSettings
     ]);
 
     const syncData = useCallback(async (options: { isAuto?: boolean } = {}) => {
@@ -320,7 +301,6 @@ export const useSync = (props: SyncProps) => {
 
         try {
             const body = JSON.stringify({
-                categories: rawCategories,
                 transactions: rawTransactions,
                 recurringTransactions: rawRecurringTransactions,
                 allAvailableTags: rawAllAvailableTags,
@@ -360,7 +340,7 @@ export const useSync = (props: SyncProps) => {
             syncInProgressRef.current = false;
         }
     }, [
-        rawCategories, rawTransactions, rawRecurringTransactions, rawAllAvailableTags, rawUsers, rawUserSettings,
+        rawTransactions, rawRecurringTransactions, rawAllAvailableTags, rawUsers, rawUserSettings,
         handleMergeConflicts, setLastSync
     ]);
     
@@ -390,7 +370,7 @@ export const useSync = (props: SyncProps) => {
     return {
         syncOperation,
         isSyncing,
-        isLoading,
+        isLoading: syncInProgressRef.current,
         error,
         lastSync,
         isAutoSyncEnabled,

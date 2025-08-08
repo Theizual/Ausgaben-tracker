@@ -1,9 +1,12 @@
 
+
+
 import { useCallback, useEffect, useMemo, useReducer, useRef } from 'react';
 import { toast } from 'react-hot-toast';
 import type { Transaction, RecurringTransaction, Tag } from '../types';
-import { addMonths, addYears, isSameDay, parseISO, getMonthInterval, isWithinInterval, isValid, format, subDays } from '../utils/dateUtils';
+import { addMonths, addYears, isSameDay, parseISO, isWithinInterval, isValid, format, subDays, startOfMonth, endOfMonth } from 'date-fns';
 import { generateUUID } from '../utils/uuid';
+import { INITIAL_CATEGORIES, FIXED_COSTS_GROUP_NAME } from '../constants';
 
 // --- CONSTANTS & HELPERS ---
 const TAG_MIN_LENGTH = 1;
@@ -13,38 +16,40 @@ const MAX_RECURRING_ITERATIONS = 100;
 const sortTransactions = (transactions: Transaction[]): Transaction[] => 
     [...transactions].sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime());
 
-const DEV_TAGS: Tag[] = [
-    { id: 'dev-tag-1', name: 'Urlaub', lastModified: new Date().toISOString(), version: 1, isDev: true },
-    { id: 'dev-tag-2', name: 'Projekt', lastModified: new Date().toISOString(), version: 1, isDev: true },
-    { id: 'dev-tag-3', name: 'Wochenende', lastModified: new Date().toISOString(), version: 1, isDev: true },
-    { id: 'dev-tag-4', name: 'Auto', lastModified: new Date().toISOString(), version: 1, isDev: true },
-    { id: 'dev-tag-5', name: 'Fitness', lastModified: new Date().toISOString(), version: 1, isDev: true },
+const DEMO_TAGS: Tag[] = [
+    { id: 'dev-tag-1', name: 'Urlaub', lastModified: new Date().toISOString(), version: 1, isDemo: true },
+    { id: 'dev-tag-2', name: 'Projekt', lastModified: new Date().toISOString(), version: 1, isDemo: true },
+    { id: 'dev-tag-3', name: 'Wochenende', lastModified: new Date().toISOString(), version: 1, isDemo: true },
+    { id: 'dev-tag-4', name: 'Auto', lastModified: new Date().toISOString(), version: 1, isDemo: true },
+    { id: 'dev-tag-5', name: 'Fitness', lastModified: new Date().toISOString(), version: 1, isDemo: true },
 ];
 
-const makeDevTransactions = (): Transaction[] => {
+const makeDemoTransactions = (): Transaction[] => {
     const now = new Date();
     const standardUser = '1001';
     return [
-        { id: 'dev-1', amount: 12.34, description: 'Kaffee & Croissant', categoryId: 'cat_baecker', date: new Date().toISOString(), isDev: true, lastModified: now.toISOString(), version: 1, createdBy: standardUser },
-        { id: 'dev-2', amount: 99.99, description: 'Wocheneinkauf Supermarkt', categoryId: 'cat_supermarkt', date: subDays(now, 1).toISOString(), isDev: true, tagIds: ['dev-tag-3'], lastModified: now.toISOString(), version: 1, createdBy: standardUser },
-        { id: 'dev-3', amount: 7.50, description: 'Parkgebühren', categoryId: 'cat_sonstiges', date: subDays(now, 2).toISOString(), isDev: true, tagIds: ['dev-tag-4'], lastModified: now.toISOString(), version: 1, createdBy: standardUser },
-        { id: 'dev-4', amount: 25.00, description: 'Pizza Lieferservice', categoryId: 'cat_gastro', date: subDays(now, 2).toISOString(), isDev: true, tagIds: ['dev-tag-3'], lastModified: now.toISOString(), version: 1, createdBy: standardUser },
-        { id: 'dev-5', amount: 125.60, description: 'Neuer Reifen', categoryId: 'cat_sonstiges', date: subDays(now, 3).toISOString(), isDev: true, tagIds: ['dev-tag-4'], lastModified: now.toISOString(), version: 1, createdBy: standardUser },
-        { id: 'dev-6', amount: 55.00, description: 'Baumarkt-Einkauf', categoryId: 'cat_sonstiges', date: subDays(now, 4).toISOString(), isDev: true, tagIds: ['dev-tag-2'], lastModified: now.toISOString(), version: 1, createdBy: standardUser },
-        { id: 'dev-7', amount: 8.20, description: 'Gemüse vom Markt', categoryId: 'cat_gemuese', date: subDays(now, 5).toISOString(), isDev: true, lastModified: now.toISOString(), version: 1, createdBy: standardUser },
-        { id: 'dev-8', amount: 42.00, description: 'Geschenk für Freund', categoryId: 'cat_sonstiges', date: subDays(now, 6).toISOString(), isDev: true, lastModified: now.toISOString(), version: 1, createdBy: standardUser },
-        { id: 'dev-9', amount: 330.00, description: 'Hotel für Wochenende', categoryId: 'cat_gastro', date: subDays(now, 7).toISOString(), isDev: true, tagIds: ['dev-tag-1', 'dev-tag-3'], lastModified: now.toISOString(), version: 1, createdBy: standardUser },
-        { id: 'dev-10', amount: 18.00, description: 'Kino-Tickets', categoryId: 'cat_gastro', date: subDays(now, 8).toISOString(), isDev: true, tagIds: ['dev-tag-3'], lastModified: now.toISOString(), version: 1, createdBy: standardUser },
-        { id: 'dev-11', amount: 22.50, description: 'Apothekenkauf', categoryId: 'cat_pflege', date: subDays(now, 9).toISOString(), isDev: true, lastModified: now.toISOString(), version: 1, createdBy: standardUser },
-        { id: 'dev-12', amount: 64.95, description: 'Online-Bestellung Kleidung', categoryId: 'cat_sonstiges', date: subDays(now, 10).toISOString(), isDev: true, lastModified: now.toISOString(), version: 1, createdBy: standardUser },
-        { id: 'dev-13', amount: 35.00, description: 'Tankfüllung Test', categoryId: 'cat_sonstiges', date: subDays(now, 11).toISOString(), isDev: true, tagIds: ['dev-tag-4'], lastModified: now.toISOString(), version: 1, createdBy: standardUser },
-        { id: 'dev-14', amount: 19.99, description: 'Fitnessstudio Monatsbeitrag', categoryId: 'cat_pflege', date: subDays(now, 12).toISOString(), isDev: true, tagIds: ['dev-tag-5'], lastModified: now.toISOString(), version: 1, createdBy: standardUser },
-        { id: 'dev-15', amount: 29.99, description: 'Proteinpulver', categoryId: 'cat_supermarkt', date: subDays(now, 13).toISOString(), isDev: true, tagIds: ['dev-tag-5'], lastModified: now.toISOString(), version: 1, createdBy: standardUser },
-        { id: 'dev-16', amount: 75.00, description: 'Laufschuhe', categoryId: 'cat_sonstiges', date: subDays(now, 14).toISOString(), isDev: true, tagIds: ['dev-tag-5'], lastModified: now.toISOString(), version: 1, createdBy: standardUser },
+        { id: 'dev-1', amount: 12.34, description: 'Kaffee & Croissant', categoryId: 'cat_baecker', date: new Date().toISOString(), isDemo: true, lastModified: now.toISOString(), version: 1, createdBy: standardUser },
+        { id: 'dev-2', amount: 99.99, description: 'Wocheneinkauf Supermarkt', categoryId: 'cat_supermarkt', date: subDays(now, 1).toISOString(), isDemo: true, tagIds: ['dev-tag-3'], lastModified: now.toISOString(), version: 1, createdBy: standardUser },
+        { id: 'dev-3', amount: 7.50, description: 'Parkgebühren', categoryId: 'cat_auto', date: subDays(now, 2).toISOString(), isDemo: true, tagIds: ['dev-tag-4'], lastModified: now.toISOString(), version: 1, createdBy: standardUser },
+        { id: 'dev-4', amount: 25.00, description: 'Pizza Lieferservice', categoryId: 'cat_gastro', date: subDays(now, 2).toISOString(), isDemo: true, tagIds: ['dev-tag-3'], lastModified: now.toISOString(), version: 1, createdBy: standardUser },
+        { id: 'dev-5', amount: 125.60, description: 'Neue Winterjacke', categoryId: 'cat_kleidung', date: subDays(now, 3).toISOString(), isDemo: true, lastModified: now.toISOString(), version: 1, createdBy: standardUser },
+        { id: 'dev-6', amount: 55.00, description: 'Gartenerde & Pflanzen', categoryId: 'cat_garten', date: subDays(now, 4).toISOString(), isDemo: true, tagIds: ['dev-tag-2'], lastModified: now.toISOString(), version: 1, createdBy: standardUser },
+        { id: 'dev-7', amount: 8.20, description: 'Gemüse vom Markt', categoryId: 'cat_supermarkt', date: subDays(now, 5).toISOString(), isDemo: true, lastModified: now.toISOString(), version: 1, createdBy: standardUser },
+        { id: 'dev-8', amount: 42.00, description: 'Geburtstagsgeschenk', categoryId: 'cat_geschenke', date: subDays(now, 6).toISOString(), isDemo: true, lastModified: now.toISOString(), version: 1, createdBy: standardUser },
+        { id: 'dev-9', amount: 330.00, description: 'Hotel für Wochenende', categoryId: 'cat_urlaub', date: subDays(now, 7).toISOString(), isDemo: true, tagIds: ['dev-tag-1', 'dev-tag-3'], lastModified: now.toISOString(), version: 1, createdBy: standardUser },
+        { id: 'dev-10', amount: 18.00, description: 'Kino-Tickets', categoryId: 'cat_kultur', date: subDays(now, 8).toISOString(), isDemo: true, tagIds: ['dev-tag-3'], lastModified: now.toISOString(), version: 1, createdBy: standardUser },
+        { id: 'dev-11', amount: 22.50, description: 'Apothekenkauf', categoryId: 'cat_gesundheit', date: subDays(now, 9).toISOString(), isDemo: true, lastModified: now.toISOString(), version: 1, createdBy: standardUser },
+        { id: 'dev-12', amount: 64.95, description: 'Neues Videospiel', categoryId: 'cat_technik', date: subDays(now, 10).toISOString(), isDemo: true, lastModified: now.toISOString(), version: 1, createdBy: standardUser },
+        { id: 'dev-13', amount: 35.00, description: 'Tankfüllung', categoryId: 'cat_tanken', date: subDays(now, 11).toISOString(), isDemo: true, tagIds: ['dev-tag-4'], lastModified: now.toISOString(), version: 1, createdBy: standardUser },
+        { id: 'dev-14', amount: 19.99, description: 'Fitnessstudio Monatsbeitrag', categoryId: 'cat_hobbies', date: subDays(now, 12).toISOString(), isDemo: true, tagIds: ['dev-tag-5'], lastModified: now.toISOString(), version: 1, createdBy: standardUser },
+        { id: 'dev-15', amount: 29.99, description: 'Proteinpulver', categoryId: 'cat_supermarkt', date: subDays(now, 13).toISOString(), isDemo: true, tagIds: ['dev-tag-5'], lastModified: now.toISOString(), version: 1, createdBy: standardUser },
+        { id: 'dev-16', amount: 75.00, description: 'Laufschuhe', categoryId: 'cat_kleidung', date: subDays(now, 14).toISOString(), isDemo: true, tagIds: ['dev-tag-5'], lastModified: now.toISOString(), version: 1, createdBy: standardUser },
+        { id: 'dev-17', amount: 49.99, description: 'Streaming Dienst Jahresabo', categoryId: 'cat_abos', date: subDays(now, 15).toISOString(), isDemo: true, lastModified: now.toISOString(), version: 1, createdBy: standardUser },
+        { id: 'dev-18', amount: 15.50, description: 'Haarschnitt', categoryId: 'cat_friseur', date: subDays(now, 16).toISOString(), isDemo: true, lastModified: now.toISOString(), version: 1, createdBy: standardUser },
     ];
 };
 
-const DEV_TRANSACTIONS = makeDevTransactions();
+const DEMO_TRANSACTIONS = makeDemoTransactions();
 
 // --- STATE MANAGEMENT ---
 
@@ -95,24 +100,52 @@ const dataReducer = (state: DataState, action: Action): DataState => {
     }
 };
 
-const emptyState: DataState = { transactions: [], tags: [], recurring: [] };
+const createInitialRecurringTransactions = (): RecurringTransaction[] => {
+    const now = new Date();
+    const startDate = now.toISOString().split('T')[0];
+    const lastModified = now.toISOString();
+
+    return INITIAL_CATEGORIES
+        .filter(cat => cat.group === FIXED_COSTS_GROUP_NAME && cat.budget && cat.budget > 0)
+        .map(cat => ({
+            id: `rec_${cat.id}`, // A predictable ID
+            amount: cat.budget!,
+            description: cat.name,
+            categoryId: cat.id,
+            frequency: 'monthly' as const,
+            startDate: startDate,
+            lastModified: lastModified,
+            version: 1,
+        }));
+};
+
 const initializer = (): DataState => {
     try {
         const storedTransactions = JSON.parse(window.localStorage.getItem('transactions') || '[]') as Transaction[];
         const storedTags = JSON.parse(window.localStorage.getItem('allAvailableTags') || '[]') as Tag[];
-        const storedRecurring = JSON.parse(window.localStorage.getItem('recurringTransactions') || '[]') as RecurringTransaction[];
-        if (!Array.isArray(storedTransactions) || !Array.isArray(storedTags) || !Array.isArray(storedRecurring)) {
-            return emptyState;
+        // Use 'null' as default to distinguish between "not set" and "empty array"
+        const storedRecurring = JSON.parse(window.localStorage.getItem('recurringTransactions') || 'null') as RecurringTransaction[] | null;
+        
+        if (!Array.isArray(storedTransactions) || !Array.isArray(storedTags)) {
+             // If basic data is corrupt, start completely fresh
+            return { transactions: [], tags: [], recurring: createInitialRecurringTransactions() };
         }
-        return { transactions: sortTransactions(storedTransactions), tags: storedTags, recurring: storedRecurring };
+
+        // Only create initial recurring if they have never been set before.
+        const recurring = Array.isArray(storedRecurring) 
+            ? storedRecurring 
+            : createInitialRecurringTransactions();
+
+        return { transactions: sortTransactions(storedTransactions), tags: storedTags, recurring: recurring };
     } catch (error) {
-        return emptyState;
+        // Fallback in case of any parsing error
+        return { transactions: [], tags: [], recurring: createInitialRecurringTransactions() };
     }
 };
 
-interface useTransactionDataProps { showConfirmation: (data: { transactions: Transaction[]; totalSpentBefore: number }) => void; closeTransactionDetail: () => void; currentUserId: string | null; isDevModeEnabled: boolean; }
+interface useTransactionDataProps { showConfirmation: (data: { transactions: Transaction[]; totalSpentBefore: number }) => void; closeTransactionDetail: () => void; currentUserId: string | null; isDemoModeEnabled: boolean; }
 
-export const useTransactionData = ({ showConfirmation, closeTransactionDetail, currentUserId, isDevModeEnabled }: useTransactionDataProps) => {
+export const useTransactionData = ({ showConfirmation, closeTransactionDetail, currentUserId, isDemoModeEnabled }: useTransactionDataProps) => {
     const [rawState, dispatch] = useReducer(dataReducer, undefined, initializer);
 
     useEffect(() => { window.localStorage.setItem('transactions', JSON.stringify(rawState.transactions)); }, [rawState.transactions]);
@@ -121,8 +154,8 @@ export const useTransactionData = ({ showConfirmation, closeTransactionDetail, c
 
     const liveTransactions = useMemo(() => rawState.transactions.filter(t => !t.isDeleted), [rawState.transactions]);
     const liveTags = useMemo(() => rawState.tags.filter(t => !t.isDeleted), [rawState.tags]);
-    const transactions = useMemo(() => isDevModeEnabled ? sortTransactions([...DEV_TRANSACTIONS, ...liveTransactions]) : liveTransactions, [liveTransactions, isDevModeEnabled]);
-    const allAvailableTags = useMemo(() => isDevModeEnabled ? [...DEV_TAGS, ...liveTags] : liveTags, [liveTags, isDevModeEnabled]);
+    const transactions = useMemo(() => isDemoModeEnabled ? sortTransactions([...DEMO_TRANSACTIONS, ...liveTransactions]) : liveTransactions, [liveTransactions, isDemoModeEnabled]);
+    const allAvailableTags = useMemo(() => isDemoModeEnabled ? [...DEMO_TAGS, ...liveTags] : liveTags, [liveTags, isDemoModeEnabled]);
     const recurringTransactions = useMemo(() => rawState.recurring.filter(r => !r.isDeleted), [rawState.recurring]);
     const tagMap = useMemo(() => new Map(allAvailableTags.map(t => [t.id, t.name])), [allAvailableTags]);
     
@@ -131,7 +164,7 @@ export const useTransactionData = ({ showConfirmation, closeTransactionDetail, c
         return (date: Date): number => {
             const key = format(date, 'yyyy-MM');
             if (cache.has(key)) return cache.get(key)!;
-            const monthInterval = getMonthInterval(date);
+            const monthInterval = { start: startOfMonth(date), end: endOfMonth(date) };
             const total = transactions.filter(t => { try { return isWithinInterval(parseISO(t.date), monthInterval); } catch { return false; } }).reduce((sum, t) => sum + t.amount, 0);
             cache.set(key, total);
             return total;

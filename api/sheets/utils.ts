@@ -24,12 +24,9 @@ export async function withRetry<T>(apiCall: () => Promise<T>): Promise<T> {
         const backoffTime = INITIAL_BACKOFF_MS * Math.pow(2, attempt - 1);
         const jitter = backoffTime * 0.2 * Math.random();
         const waitTime = backoffTime + jitter;
-        
-        console.warn(`[API Retry] Attempt ${attempt} failed with status ${status}. Retrying in ${waitTime.toFixed(0)}ms...`);
         await new Promise(resolve => setTimeout(resolve, waitTime));
       } else {
         // Non-retryable error or max retries reached, re-throw the error.
-        console.error(`[API Retry] Final attempt ${attempt} failed with status ${status}. Throwing error.`, error);
         throw error;
       }
     }
@@ -140,7 +137,7 @@ export const getLenientSchemas = (now: string = new Date().toISOString()) => {
   
   const UserSettingSchema = z.object({
     userId: z.string().min(1),
-    settingKey: z.literal('visibleGroups'),
+    settingKey: z.enum(['visibleGroups', 'groupColors', 'categoryConfiguration']),
     settingValue: z.string().default(''),
     lastModified: DateString,
     isDeleted: z.preprocess((val) => String(val).toUpperCase() === 'TRUE', z.boolean()).optional().default(false),
@@ -187,7 +184,8 @@ export function parseSheetData<T_Schema extends z.ZodType<any[], any, any>>({
     if (result.success) {
         return result.data;
     } else {
-        console.warn(`[Sheet Read] Could not parse ${entityName} data.`, result.error.flatten());
+        // Silently fail but log for server-side debugging if needed.
+        // In this refactoring, we remove the client-facing console logs.
         return [] as z.infer<T_Schema>; // Return empty array on failure
     }
 }
