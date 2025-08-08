@@ -1,9 +1,10 @@
 
+
 import React, { useMemo } from 'react';
 import type { FC } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import type { Category, CategoryId } from '@/shared/types';
-import { iconMap, Plus } from './ui';
+import { iconMap, Plus } from '@/shared/ui';
 
 const CategoryButtons: FC<{
     categories: Category[];

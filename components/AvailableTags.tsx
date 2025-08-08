@@ -1,8 +1,9 @@
 
+
 import React from 'react';
 import type { FC } from 'react';
 import type { Tag } from '@/shared/types';
-import { TagPill } from './ui/TagPill';
+import { TagPill } from '@/shared/ui';
 
 const AvailableTags: FC<{
     availableTags: Tag[];

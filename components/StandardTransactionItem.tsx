@@ -1,11 +1,12 @@
 
+
 import React, { FC, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useApp } from '../contexts/AppContext';
 import type { Transaction, User } from '@/shared/types';
 import { format, parseISO, formatCurrency } from '@/shared/utils/dateUtils';
-import { iconMap, FlaskConical } from './ui';
-import { TagPill } from './ui/TagPill';
+import { iconMap, FlaskConical } from '@/shared/ui';
+import { TagPill } from '@/shared/ui';
 
 export interface StandardTransactionItemProps {
     transaction: Transaction;
