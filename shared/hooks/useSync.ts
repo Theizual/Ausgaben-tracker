@@ -6,11 +6,13 @@ import type { Category, Transaction, RecurringTransaction, Tag, User, UserSettin
 import { apiGet, apiPost, HttpError } from '@/shared/lib/http';
 
 export interface SyncProps {
+    rawCategories: Category[];
     rawTransactions: Transaction[];
     rawRecurringTransactions: RecurringTransaction[];
     rawAllAvailableTags: Tag[];
     rawUsers: User[];
     rawUserSettings: UserSetting[];
+    setCategories: (data: Category[]) => void;
     setTransactions: (data: Transaction[]) => void;
     setRecurringTransactions: (data: RecurringTransaction[]) => void;
     setAllAvailableTags: (data: Tag[]) => void;
@@ -67,8 +69,8 @@ type SyncStatus = 'idle' | 'loading' | 'syncing' | 'success' | 'error' | 'confli
 
 export const useSync = (props: SyncProps) => {
     const {
-        rawTransactions, rawRecurringTransactions, rawAllAvailableTags, rawUsers, rawUserSettings,
-        setTransactions, setRecurringTransactions, setAllAvailableTags, setUsers, setUserSettings,
+        rawCategories, rawTransactions, rawRecurringTransactions, rawAllAvailableTags, rawUsers, rawUserSettings,
+        setCategories, setTransactions, setRecurringTransactions, setAllAvailableTags, setUsers, setUserSettings,
         isInitialSetupDone, isDemoModeEnabled
     } = props;
     
@@ -83,6 +85,7 @@ export const useSync = (props: SyncProps) => {
     const syncInProgressRef = useRef(false);
     
     const handleMergeConflicts = useCallback(async (conflicts: ConflictData) => {
+        setCategories(mergeItems<Category>(rawCategories, [], conflicts.categories));
         setTransactions(mergeItems<Transaction>(rawTransactions, [], conflicts.transactions));
         setRecurringTransactions(mergeItems<RecurringTransaction>(rawRecurringTransactions, [], conflicts.recurring));
         setAllAvailableTags(mergeItems<Tag>(rawAllAvailableTags, [], conflicts.tags));
@@ -90,8 +93,8 @@ export const useSync = (props: SyncProps) => {
         setUserSettings(mergeItems<UserSetting>(rawUserSettings, [], conflicts.userSettings));
         setSyncStatus('conflict');
     }, [
-        rawTransactions, rawRecurringTransactions, rawAllAvailableTags, rawUsers, rawUserSettings,
-        setTransactions, setRecurringTransactions, setAllAvailableTags, setUsers, setUserSettings
+        rawCategories, rawTransactions, rawRecurringTransactions, rawAllAvailableTags, rawUsers, rawUserSettings,
+        setCategories, setTransactions, setRecurringTransactions, setAllAvailableTags, setUsers, setUserSettings
     ]);
 
     const syncData = useCallback(async (options: { isAuto?: boolean } = {}) => {
@@ -105,10 +108,12 @@ export const useSync = (props: SyncProps) => {
 
         try {
             const remoteData: ReadApiResponse = await apiPost('/api/sheets/write', {
+                categories: rawCategories,
                 transactions: rawTransactions, recurring: rawRecurringTransactions,
                 tags: rawAllAvailableTags, users: rawUsers, userSettings: rawUserSettings,
             });
             
+            setCategories(mergeItems<Category>(rawCategories, remoteData.categories));
             setTransactions(mergeItems<Transaction>(rawTransactions, remoteData.transactions));
             setRecurringTransactions(mergeItems<RecurringTransaction>(rawRecurringTransactions, remoteData.recurring));
             setAllAvailableTags(mergeItems<Tag>(rawAllAvailableTags, remoteData.tags));
@@ -134,8 +139,8 @@ export const useSync = (props: SyncProps) => {
         }
     }, [
         isInitialSetupDone, isDemoModeEnabled,
-        rawTransactions, rawRecurringTransactions, rawAllAvailableTags, rawUsers, rawUserSettings,
-        handleMergeConflicts, setLastSync, setTransactions, setRecurringTransactions, setAllAvailableTags, setUsers, setUserSettings
+        rawCategories, rawTransactions, rawRecurringTransactions, rawAllAvailableTags, rawUsers, rawUserSettings,
+        handleMergeConflicts, setLastSync, setCategories, setTransactions, setRecurringTransactions, setAllAvailableTags, setUsers, setUserSettings
     ]);
 
     const loadFromSheet = useCallback(async () => {
@@ -146,6 +151,7 @@ export const useSync = (props: SyncProps) => {
 
         try {
             const data: ReadApiResponse = await apiGet('/api/sheets/read');
+            setCategories(data.categories);
             setTransactions(data.transactions);
             setRecurringTransactions(data.recurring);
             setAllAvailableTags(data.tags);
@@ -159,7 +165,7 @@ export const useSync = (props: SyncProps) => {
         } finally {
             syncInProgressRef.current = false;
         }
-    }, [isDemoModeEnabled, setTransactions, setRecurringTransactions, setAllAvailableTags, setUsers, setUserSettings, setLastSync]);
+    }, [isDemoModeEnabled, setCategories, setTransactions, setRecurringTransactions, setAllAvailableTags, setUsers, setUserSettings, setLastSync]);
 
 
     useEffect(() => {

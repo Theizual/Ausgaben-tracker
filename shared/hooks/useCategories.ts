@@ -123,6 +123,10 @@ export const useCategories = ({ rawUserSettings, updateCategoryConfigurationForU
         persistChanges(INITIAL_CATEGORIES, INITIAL_GROUPS);
         toast.success("Standardkonfiguration geladen.");
     }, [persistChanges]);
+    
+    const setCategories = useCallback((newCategories: Category[]) => {
+        persistChanges(newCategories, categoryGroups);
+    }, [categoryGroups, persistChanges]);
 
     return {
         rawCategories: categories,
@@ -136,5 +140,6 @@ export const useCategories = ({ rawUserSettings, updateCategoryConfigurationForU
         deleteGroup,
         unassignedCategories,
         loadStandardConfiguration,
+        setCategories,
     };
 };

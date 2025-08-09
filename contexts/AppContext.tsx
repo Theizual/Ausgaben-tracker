@@ -123,11 +123,13 @@ const ReadyAppProvider: React.FC<{
         rawAllAvailableTags: transactionDataState.rawAllAvailableTags,
         rawUsers: usersState.rawUsers,
         rawUserSettings: userSettingsState.rawUserSettings,
+        rawCategories: categoryState.rawCategories,
         setTransactions: transactionDataState.setTransactions,
         setRecurringTransactions: transactionDataState.setRecurringTransactions,
         setAllAvailableTags: transactionDataState.setAllAvailableTags,
         setUsers: usersState.setUsers,
         setUserSettings: userSettingsState.setUserSettings,
+        setCategories: categoryState.setCategories,
         isInitialSetupDone: isInitialSetupDone,
         isDemoModeEnabled,
     });
