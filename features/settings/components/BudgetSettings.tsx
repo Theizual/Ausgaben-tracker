@@ -1,6 +1,9 @@
 
 
 
+
+
+
 import React, { useState, useMemo, useCallback, useEffect, FC, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
@@ -33,9 +36,10 @@ export const BudgetSettings: FC = () => {
     } = useApp();
 
     // --- State for Flexible Budgets ---
-    const [flexExpandedGroups, setFlexExpandedGroups] = useState<string[]>(() =>
-        categoryGroups.filter(g => g !== FIXED_COSTS_GROUP_NAME)
-    );
+    const [flexExpandedGroups, setFlexExpandedGroups] = useState<string[]>(() => {
+        const initialGroups = categoryGroups.filter(g => g !== FIXED_COSTS_GROUP_NAME);
+        return initialGroups.length > 0 ? [initialGroups[0]] : [];
+    });
     const [groupBudgetInputs, setGroupBudgetInputs] = useState<Record<string, string>>({});
     const [categoryBudgetInputs, setCategoryBudgetInputs] = useState<Record<string, string>>({});
     const focusedInputRef = useRef<string | null>(null);

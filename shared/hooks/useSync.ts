@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import useLocalStorage from '@/shared/hooks/useLocalStorage';
 import type { Category, Transaction, RecurringTransaction, Tag, User, UserSetting } from '@/shared/types';
+import { apiGet, apiPost, HttpError } from '@/shared/lib/http';
 
 export interface SyncProps {
     rawTransactions: Transaction[];
@@ -26,31 +27,6 @@ interface Mergeable {
     version: number;
     conflicted?: boolean;
 }
-
-const isMobile = (): boolean => {
-    if (typeof window === 'undefined') return false;
-    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-};
-
-const fetchWithMobileTimeout = async (url: string, options: RequestInit = {}): Promise<Response> => {
-    const timeoutMs = isMobile() ? 15000 : 8000;
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-
-    try {
-        const response = await fetch(url, {
-            ...options,
-            signal: controller.signal,
-            headers: { 'Content-Type': 'application/json', 'User-Agent': navigator.userAgent, ...options.headers },
-        });
-        clearTimeout(timeoutId);
-        return response;
-    } catch (error: any) {
-        clearTimeout(timeoutId);
-        if (error.name === 'AbortError') throw new Error('Request timeout - please try again');
-        throw error;
-    }
-};
 
 const getItemKey = (item: any): string => {
     if (item.id) return item.id;
@@ -86,7 +62,6 @@ interface ConflictData {
     categories: Category[]; transactions: Transaction[]; recurring: RecurringTransaction[];
     tags: Tag[]; users: User[]; userSettings: UserSetting[];
 }
-interface WriteErrorResponse { error: string; conflicts?: ConflictData; }
 
 type SyncStatus = 'idle' | 'loading' | 'syncing' | 'success' | 'error' | 'conflict';
 
@@ -129,23 +104,10 @@ export const useSync = (props: SyncProps) => {
         setSyncError(null);
 
         try {
-            const response = await fetchWithMobileTimeout('/api/sheets/write', {
-                method: 'POST',
-                body: JSON.stringify({
-                    transactions: rawTransactions, recurring: rawRecurringTransactions,
-                    tags: rawAllAvailableTags, users: rawUsers, userSettings: rawUserSettings,
-                }),
+            const remoteData: ReadApiResponse = await apiPost('/api/sheets/write', {
+                transactions: rawTransactions, recurring: rawRecurringTransactions,
+                tags: rawAllAvailableTags, users: rawUsers, userSettings: rawUserSettings,
             });
-
-            if (response.status === 409) {
-                const conflictData: WriteErrorResponse = await response.json();
-                if (conflictData.conflicts) await handleMergeConflicts(conflictData.conflicts);
-                else throw new Error('Conflict error, but no conflict data received.');
-            } else if (!response.ok) {
-                const errorData = await response.json().catch(() => ({ error: 'Unbekannter Serverfehler' }));
-                throw new Error(errorData.error || `Serverfehler: ${response.status}`);
-            }
-            const remoteData: ReadApiResponse = await response.json();
             
             setTransactions(mergeItems<Transaction>(rawTransactions, remoteData.transactions));
             setRecurringTransactions(mergeItems<RecurringTransaction>(rawRecurringTransactions, remoteData.recurring));
@@ -156,8 +118,17 @@ export const useSync = (props: SyncProps) => {
             setLastSync(new Date().toISOString());
             setSyncStatus('success');
         } catch (e: any) {
-            setSyncError(e.message);
-            setSyncStatus('error');
+            if (e instanceof HttpError && e.status === 409) {
+                if (e.body?.conflicts) {
+                    await handleMergeConflicts(e.body.conflicts);
+                } else {
+                    setSyncError('Conflict error, but no conflict data received.');
+                    setSyncStatus('error');
+                }
+            } else {
+                setSyncError(e.message);
+                setSyncStatus('error');
+            }
         } finally {
             syncInProgressRef.current = false;
         }
@@ -174,12 +145,7 @@ export const useSync = (props: SyncProps) => {
         setSyncError(null);
 
         try {
-            const response = await fetchWithMobileTimeout('/api/sheets/read');
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({ error: 'Failed to parse error response' }));
-                throw new Error(errorData.error || `Server responded with ${response.status}`);
-            }
-            const data: ReadApiResponse = await response.json();
+            const data: ReadApiResponse = await apiGet('/api/sheets/read');
             setTransactions(data.transactions);
             setRecurringTransactions(data.recurring);
             setAllAvailableTags(data.tags);

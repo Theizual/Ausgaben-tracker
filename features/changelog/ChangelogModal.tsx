@@ -4,12 +4,15 @@ import { motion } from 'framer-motion';
 import { X, Gift, Loader2 } from '@/shared/ui';
 import { ToggleSwitch } from '@/shared/ui';
 import { APP_VERSION } from '@/constants';
+import { apiGet } from '@/shared/lib/http';
+
+const toArray = <T,>(v: T[] | undefined | null): T[] => (Array.isArray(v) ? v : []);
 
 interface ChangelogEntry {
     version: string;
     date: string;
     title: string;
-    changes: string[];
+    changes?: string[];
 }
 
 interface ChangelogModalProps {
@@ -34,8 +37,7 @@ const ChangelogModal: FC<ChangelogModalProps> = ({
         };
         window.addEventListener('keydown', handleKeyDown);
 
-        fetch('/changelog.json')
-            .then(res => res.json())
+        apiGet('/changelog.json')
             .then(data => {
                 setChangelogData(data);
                 setIsLoading(false);
@@ -80,13 +82,23 @@ const ChangelogModal: FC<ChangelogModalProps> = ({
                         <div className="flex justify-center items-center h-full">
                             <Loader2 className="h-8 w-8 animate-spin text-slate-500" />
                         </div>
-                    ) : latestChange ? (
+                    ) : latestChange && Array.isArray(latestChange.changes) ? (
                         <div className="prose prose-sm prose-invert max-w-none prose-ul:list-disc prose-ul:pl-5 prose-strong:text-white">
                             <p className="text-xs text-slate-500 font-semibold mb-4">{latestChange.date}</p>
                             <ul className="space-y-2">
-                            {latestChange.changes.map((change, index) => (
-                                <li key={index} dangerouslySetInnerHTML={{ __html: change.replace(/\\*\\*(.*?)\\*\\*/g, '<strong>$1</strong>') }} />
-                            ))}
+                            {toArray(latestChange?.changes).length === 0 ? (
+                                <li className="text-slate-400">Keine Änderungen vorhanden.</li>
+                            ) : (
+                                toArray(latestChange?.changes).map((change, index) => (
+                                    <li
+                                    key={index}
+                                    dangerouslySetInnerHTML={{
+                                        __html: change.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                                        }}
+                                        />
+                                ))
+
+                            )}
                             </ul>
                         </div>
                     ) : (

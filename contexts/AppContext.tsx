@@ -6,11 +6,13 @@ import { useSync } from '@/shared/hooks/useSync';
 import { useUsers } from '@/shared/hooks/useUsers';
 import { useUserSettings } from '@/shared/hooks/useUserSettings';
 import { useCategories } from '@/shared/hooks/useCategories';
+import useLocalStorage from '@/shared/hooks/useLocalStorage';
 import type { User, Category, RecurringTransaction } from '@/shared/types';
 import { FIXED_COSTS_GROUP_NAME } from '@/constants';
 import { isWithinInterval, parseISO, startOfMonth, endOfMonth } from 'date-fns';
 import type { Locale } from 'date-fns';
 import { de } from 'date-fns/locale';
+import { Loader2 } from '@/shared/ui';
 
 // Combine the return types of all hooks to define the shape of the context
 type AppContextType = 
@@ -23,6 +25,8 @@ type AppContextType =
     ReturnType<typeof useSync> &
     { 
         isDemoModeEnabled: boolean;
+        isInitialSetupDone: boolean;
+        setIsInitialSetupDone: React.Dispatch<React.SetStateAction<boolean>>;
         flexibleCategories: Category[];
         fixedCategories: Category[];
         totalMonthlyBudget: number; // Flexible budget
@@ -45,25 +49,38 @@ function debounce(func: (...args: any[]) => void, delay: number) {
     };
 }
 
-export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+// This component holds the actual app state, and is only rendered when the core state is stable.
+const ReadyAppProvider: React.FC<{
+    children: React.ReactNode;
+    isDemoModeEnabled: boolean;
+    isInitialSetupDone: boolean;
+    setIsInitialSetupDone: React.Dispatch<React.SetStateAction<boolean>>;
+    uiState: ReturnType<typeof useUI>;
+    usersState: ReturnType<typeof useUsers>;
+}> = ({
+    children,
+    isDemoModeEnabled,
+    isInitialSetupDone,
+    setIsInitialSetupDone,
+    uiState,
+    usersState
+}) => {
+    // uiState and usersState are now stable and passed as props.
+    // The currentUserId is guaranteed to be valid here.
     const deLocale = de;
-    
-    // Instantiate hooks in an order that resolves dependencies.
-    // The `isDemoModeEnabled` flag is crucial for namespacing localStorage.
-    const [isInitialSetupDone, setIsInitialSetupDone] = useUI().isInitialSetupState;
-    const isDemoModeEnabled = !isInitialSetupDone;
 
-    const uiState = useUI({ isDemoModeEnabled });
-    const usersState = useUsers({ isDemoModeEnabled });
-    const userSettingsState = useUserSettings({ isDemoModeEnabled });
-    
+    // This effect transitions the app from demo mode to production mode.
     useEffect(() => {
         if (!isInitialSetupDone) {
             const firstUser = usersState.users[0];
-            if (firstUser && firstUser.name !== 'Benutzer') setIsInitialSetupDone(true);
+            if (firstUser && firstUser.name !== 'Benutzer') {
+                setIsInitialSetupDone(true);
+            }
         }
     }, [usersState.users, isInitialSetupDone, setIsInitialSetupDone]);
 
+    // Now that uiState and usersState are stable, initialize the rest of the app's state.
+    const userSettingsState = useUserSettings({ isDemoModeEnabled });
     const categoryState = useCategories({
         rawUserSettings: userSettingsState.rawUserSettings,
         updateCategoryConfigurationForUser: userSettingsState.updateCategoryConfigurationForUser,
@@ -100,7 +117,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             }, 0);
     }, [transactionDataState.recurringTransactions, fixedCategoryIds]);
 
-    // Sync needs data and setters from all other domains.
     const syncState = useSync({
         rawTransactions: transactionDataState.rawTransactions,
         rawRecurringTransactions: transactionDataState.rawRecurringTransactions,
@@ -116,7 +132,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         isDemoModeEnabled,
     });
     
-     // Side-effects for sync status
      const { syncStatus, syncError } = syncState;
      useEffect(() => {
         if (syncStatus === 'syncing') toast.loading('Synchronisiere Daten...', { id: 'sync-toast' });
@@ -131,16 +146,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return usersState.users.find(u => u.id === uiState.currentUserId) || null;
     }, [usersState.users, uiState.currentUserId]);
 
-    // This effect ensures a user is always selected if users exist
-    useEffect(() => {
-        if (usersState.users.length > 0 && (!uiState.currentUserId || !usersState.users.some(u => u.id === uiState.currentUserId))) {
-            uiState.setCurrentUserId(usersState.users[0].id);
-        }
-    }, [usersState.users, uiState.currentUserId, uiState.setCurrentUserId]);
-
-    // Filter category groups based on the current user's settings
     const visibleCategoryGroups = useMemo(() => {
-        if (!uiState.currentUserId) return categoryState.categoryGroups; // No user selected, show all as fallback
+        if (!uiState.currentUserId) return categoryState.categoryGroups;
         return userSettingsState.getVisibleGroupsForUser(uiState.currentUserId, categoryState.categoryGroups);
     }, [uiState.currentUserId, categoryState.categoryGroups, userSettingsState]);
 
@@ -149,16 +156,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return userSettingsState.getGroupColorsForUser(uiState.currentUserId);
     }, [uiState.currentUserId, userSettingsState]);
 
-
-    // --- Auto-sync logic with stale closure fix ---
     const syncStateRef = useRef(syncState);
     useEffect(() => { syncStateRef.current = syncState; });
     const suppressAutoSyncRef = useRef(false);
     useEffect(() => {
       if (syncState.syncStatus !== 'syncing' && syncState.syncStatus !== 'loading') {
         suppressAutoSyncRef.current = true;
-        // The debounce delay for auto-sync is 2000ms. This timeout must be longer
-        // to prevent a sync-triggered state update from immediately queuing another sync.
         const t = setTimeout(() => { suppressAutoSyncRef.current = false; }, 2500);
         return () => clearTimeout(t);
       }
@@ -194,7 +197,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             
             keysToClear.forEach(key => window.localStorage.removeItem(`${prefix}${key}`));
 
-            // Also clear non-prefixed keys if resetting production data
             if (!isDemoModeEnabled) {
                 window.localStorage.removeItem('initialSetupDone');
             }
@@ -223,16 +225,90 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         selectTotalSpentForMonth: transactionDataState.selectTotalSpentForMonth,
         ...syncState,
         isDemoModeEnabled,
+        isInitialSetupDone,
+        setIsInitialSetupDone,
         deLocale,
         resetAppData,
     };
-
+    
     return (
         <AppContext.Provider value={value}>
             {children}
         </AppContext.Provider>
     );
 };
+
+// This component is a "Gatekeeper". It ensures the core user state is stable before rendering the rest of the app.
+const AppStateContainer: React.FC<{
+    children: React.ReactNode;
+    isDemoModeEnabled: boolean;
+    isInitialSetupDone: boolean;
+    setIsInitialSetupDone: React.Dispatch<React.SetStateAction<boolean>>;
+}> = (props) => {
+    const { children, ...rest } = props;
+
+    // These two hooks determine the core readiness of the app.
+    const uiState = useUI({ isDemoModeEnabled: props.isDemoModeEnabled });
+    const usersState = useUsers({ isDemoModeEnabled: props.isDemoModeEnabled });
+    
+    const [isReady, setIsReady] = useState(false);
+
+    useEffect(() => {
+        // This effect ensures we have a valid user selected before proceeding.
+        if (usersState.users.length > 0) {
+            const currentUserIsValid = uiState.currentUserId && usersState.users.some(u => u.id === uiState.currentUserId);
+            
+            if (!currentUserIsValid) {
+                // If current user is not set or is invalid, set it to the first available user.
+                // This triggers a re-render. We are not "ready" yet.
+                uiState.setCurrentUserId(usersState.users[0].id);
+                setIsReady(false);
+            } else {
+                // The current user ID is valid. We are ready to render the full app.
+                setIsReady(true);
+            }
+        }
+    }, [usersState.users, uiState.currentUserId, uiState.setCurrentUserId]);
+
+    if (!isReady) {
+        // Display a loading screen while the user state stabilizes.
+        // This prevents downstream hooks from running with invalid state.
+        return (
+            <div className="fixed inset-0 bg-slate-900 flex items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-slate-500" />
+            </div>
+        );
+    }
+    
+    // Once ready, render the full provider with the now-stable state.
+    return (
+        <ReadyAppProvider
+            {...rest}
+            uiState={uiState}
+            usersState={usersState}
+        >
+            {children}
+        </ReadyAppProvider>
+    );
+};
+
+// The main provider now only manages the top-level mode switch.
+export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+    const [isInitialSetupDone, setIsInitialSetupDone] = useLocalStorage<boolean>('initialSetupDone', false);
+    const isDemoModeEnabled = !isInitialSetupDone;
+
+    return (
+        <AppStateContainer
+            key={isDemoModeEnabled ? 'demo' : 'prod'}
+            isDemoModeEnabled={isDemoModeEnabled}
+            isInitialSetupDone={isInitialSetupDone}
+            setIsInitialSetupDone={setIsInitialSetupDone}
+        >
+            {children}
+        </AppStateContainer>
+    );
+};
+
 
 // Custom hook to easily consume the context in components
 export const useApp = () => {

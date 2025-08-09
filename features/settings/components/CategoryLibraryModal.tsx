@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, FC } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
@@ -5,7 +6,7 @@ import { useApp } from '@/contexts/AppContext';
 import type { Category } from '@/shared/types';
 import { useEscapeKey } from '@/shared/hooks/useEscapeKey';
 import { Modal, Button, iconMap, X, Trash2, Plus, DownloadCloud } from '@/shared/ui';
-import { FIXED_COSTS_GROUP_NAME, INITIAL_CATEGORIES } from '@/constants';
+import { FIXED_COSTS_GROUP_NAME, DEFAULT_GROUP } from '@/constants';
 import { CategoryEditModal, CategoryFormData } from './CategoryEditModal';
 
 export const CategoryLibraryModal: FC<{ isOpen: boolean; onClose: () => void; }> = ({ isOpen, onClose }) => {
@@ -67,11 +68,11 @@ export const CategoryLibraryModal: FC<{ isOpen: boolean; onClose: () => void; }>
     };
     
     const handleDeleteGroup = (groupName: string) => {
-        if (groupName === 'Sonstiges' || groupName === FIXED_COSTS_GROUP_NAME) {
+        if (groupName === DEFAULT_GROUP || groupName === FIXED_COSTS_GROUP_NAME) {
             toast.error(`Die Gruppe "${groupName}" kann nicht gelöscht werden.`);
             return;
         }
-        if (window.confirm(`Gruppe "${groupName}" wirklich löschen? Zugehörige Kategorien werden automatisch in "Sonstiges" verschoben.`)) {
+        if (window.confirm(`Gruppe "${groupName}" wirklich löschen? Zugehörige Kategorien werden automatisch in "${DEFAULT_GROUP}" verschoben.`)) {
             deleteGroup(groupName);
         }
     };

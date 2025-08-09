@@ -24,7 +24,6 @@ export const useUI = (props?: { isDemoModeEnabled: boolean }) => {
     
     // Non-namespaced settings
     const [isChangelogAutoShowEnabled, setIsChangelogAutoShowEnabled] = useLocalStorage('changelogAutoShowEnabled', true);
-    const [isInitialSetupDone, setIsInitialSetupDone] = useLocalStorage<boolean>('initialSetupDone', false);
     
     // User Management - UI Preference ONLY (namespaced)
     const [currentUserId, setCurrentUserId] = useLocalStorage<string | null>(`${prefix}app-current-user-id`, null);
@@ -107,9 +106,6 @@ export const useUI = (props?: { isDemoModeEnabled: boolean }) => {
         // User Management UI preference
         currentUserId,
         setCurrentUserId,
-
-        // Initial Setup State
-        isInitialSetupState: [isInitialSetupDone, setIsInitialSetupDone] as const,
         
         // Dashboard state
         dashboardViewMode,

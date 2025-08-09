@@ -3,7 +3,7 @@
 import React, { FC } from 'react';
 import { motion } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
-import { Sheet, Wallet, Info, ChevronRight, ToggleSwitch } from '@/shared/ui';
+import { Sheet, Wallet, Info, ChevronRight, ToggleSwitch, Trash2, Button } from '@/shared/ui';
 import { APP_VERSION } from '@/constants';
 
 const MotionDiv = motion.div;
@@ -14,7 +14,7 @@ export const GeneralSettings: FC<{
     onOpenTagManager: () => void;
     onOpenCategoryLibrary: () => void;
 }> = ({ onOpenTagManager, onOpenCategoryLibrary }) => {
-    const { isAutoSyncEnabled, setIsAutoSyncEnabled, openChangelog } = useApp();
+    const { isAutoSyncEnabled, setIsAutoSyncEnabled, openChangelog, resetAppData } = useApp();
 
     return (
         <MotionDiv key="general" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }}>
@@ -57,6 +57,21 @@ export const GeneralSettings: FC<{
                         <div className="flex justify-between items-center text-sm px-1">
                             <span className="text-slate-400">App-Version</span>
                             <span className="font-mono text-slate-500 bg-slate-700/50 px-2 py-1 rounded-md">{APP_VERSION}</span>
+                        </div>
+                    </div>
+                </div>
+
+                 <div>
+                    <h4 className="text-md font-semibold mb-3 text-red-400 flex items-center gap-2">Gefahrenzone</h4>
+                    <div className="pt-4 mt-4 border-t border-slate-700/50 space-y-3 bg-red-900/20 border-red-500/30 border p-4 rounded-lg">
+                        <div className="flex justify-between items-center">
+                            <div>
+                                <h5 className="font-bold text-white">Anwendungsdaten zurücksetzen</h5>
+                                <p className="text-xs text-slate-400 mt-1">Löscht alle lokalen Daten (Transaktionen, Benutzer etc.) für den aktuellen Modus. Dies kann nicht rückgängig gemacht werden.</p>
+                            </div>
+                            <Button variant="destructive" onClick={resetAppData}>
+                                <Trash2 className="h-4 w-4" /> Daten löschen
+                            </Button>
                         </div>
                     </div>
                 </div>

@@ -1,9 +1,7 @@
-
-
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useMemo, useCallback } from 'react';
 import { toast } from 'react-hot-toast';
 import { generateUUID } from '@/shared/utils/uuid';
-import { INITIAL_CATEGORIES, INITIAL_GROUPS, FIXED_COSTS_GROUP_NAME, DEFAULT_GROUP } from '@/constants';
+import { INITIAL_CATEGORIES, INITIAL_GROUPS, DEFAULT_GROUP } from '@/constants';
 import type { Category, UserSetting } from '@/shared/types';
 
 interface UseCategoriesProps {
@@ -12,43 +10,44 @@ interface UseCategoriesProps {
     currentUserId: string | null;
 }
 
-export const useCategories = ({ rawUserSettings, updateCategoryConfigurationForUser, currentUserId }: UseCategoriesProps) => {
-    const [categories, setCategories] = useState<Category[]>([]);
-    const [categoryGroups, setCategoryGroups] = useState<string[]>([]);
-
-    // This effect handles loading category configuration.
-    // It prioritizes loading from the current user's settings.
-    // If no settings are found (e.g., for a new user), it loads the initial default configuration.
-    useEffect(() => {
-        if (currentUserId) {
-            const setting = rawUserSettings.find(s => s.userId === currentUserId && s.key === 'categoryConfiguration' && !s.isDeleted);
-            if (setting && setting.value) {
-                try {
-                    const config = JSON.parse(setting.value);
-                    if (Array.isArray(config.categories) && Array.isArray(config.groups)) {
-                        setCategories(config.categories);
-                        setCategoryGroups(config.groups);
-                        return; // Successfully loaded from settings
-                    }
-                } catch (e) { console.error("Failed to parse category configuration", e); }
+// Helper to load configuration synchronously from settings
+const loadConfiguration = (userId: string | null, userSettings: UserSetting[]): { categories: Category[], groups: string[] } => {
+    if (userId) {
+        const setting = userSettings.find(s => s.userId === userId && s.key === 'categoryConfiguration' && !s.isDeleted);
+        if (setting && setting.value) {
+            try {
+                const config = JSON.parse(setting.value);
+                if (Array.isArray(config.categories) && Array.isArray(config.groups)) {
+                    // Ensure all categories have a valid lastModified and version
+                    const validatedCategories = config.categories.map((c: any) => ({
+                        ...c,
+                        lastModified: c.lastModified || new Date().toISOString(),
+                        version: c.version || 1,
+                    }));
+                    return { categories: validatedCategories, groups: config.groups };
+                }
+            } catch (e) {
+                console.error("Failed to parse category configuration, falling back to default.", e);
             }
         }
-        
-        // Fallback for new users or if no user is selected.
-        // It's safe to load initial categories here because any subsequent user changes will be persisted
-        // and loaded correctly by the logic above on the next render.
-        setCategories(INITIAL_CATEGORIES);
-        setCategoryGroups(INITIAL_GROUPS);
-    }, [currentUserId, rawUserSettings]);
+    }
+    // Fallback to initial default configuration
+    return { categories: INITIAL_CATEGORIES, groups: INITIAL_GROUPS };
+};
 
-    // This function persists changes to the user's settings in localStorage via the userSettings hook.
-    // It is now independent of `isInitialSetupDone` to ensure even the default user's changes are saved locally.
+export const useCategories = ({ rawUserSettings, updateCategoryConfigurationForUser, currentUserId }: UseCategoriesProps) => {
+    // Derive config directly from props. This ensures the hook is reactive to changes in user or settings.
+    const config = useMemo(() => loadConfiguration(currentUserId, rawUserSettings), [currentUserId, rawUserSettings]);
+    
+    const { categories, groups: categoryGroups } = config;
+
     const persistChanges = useCallback((newCategories: Category[], newGroups: string[]) => {
         if (currentUserId) {
             updateCategoryConfigurationForUser(currentUserId, { categories: newCategories, groups: newGroups });
+        } else {
+             // This case should ideally not be hit in a normal user flow.
+            toast.error("Änderungen konnten nicht gespeichert werden: Kein Benutzer ausgewählt.");
         }
-        setCategories(newCategories);
-        setCategoryGroups(newGroups);
     }, [currentUserId, updateCategoryConfigurationForUser]);
 
     const liveCategories = useMemo(() => categories.filter(c => !c.isDeleted), [categories]);
@@ -85,26 +84,27 @@ export const useCategories = ({ rawUserSettings, updateCategoryConfigurationForU
     }, [categories, categoryGroups, persistChanges]);
 
     const addGroup = useCallback((groupName: string) => {
-        if (categoryGroups.includes(groupName)) {
-            toast.error(`Gruppe "${groupName}" existiert bereits.`);
+        const trimmedName = groupName.trim();
+        if (categoryGroups.some(g => g.toLowerCase() === trimmedName.toLowerCase())) {
+            toast.error(`Gruppe "${trimmedName}" existiert bereits.`);
             return;
         }
-        if (!categoryGroups.includes(DEFAULT_GROUP)) {
-            // Ensure the default group exists before adding others
-             const newGroups = [...categoryGroups, DEFAULT_GROUP, groupName];
-             persistChanges(categories, newGroups);
-        } else {
-            const newGroups = [...categoryGroups, groupName];
-            persistChanges(categories, newGroups);
-        }
-        toast.success(`Gruppe "${groupName}" hinzugefügt.`);
+        const newGroups = [...categoryGroups, trimmedName];
+        persistChanges(categories, newGroups);
+        toast.success(`Gruppe "${trimmedName}" hinzugefügt.`);
     }, [categories, categoryGroups, persistChanges]);
 
     const renameGroup = useCallback((oldName: string, newName: string) => {
-        const newCategories = categories.map(c => c.group === oldName ? { ...c, group: newName } : c);
-        const newGroups = categoryGroups.map(g => g === oldName ? newName : g);
+        const trimmedNewName = newName.trim();
+        if (oldName.toLowerCase() === trimmedNewName.toLowerCase()) return;
+        if (categoryGroups.some(g => g.toLowerCase() === trimmedNewName.toLowerCase() && g.toLowerCase() !== oldName.toLowerCase())) {
+            toast.error(`Gruppe "${trimmedNewName}" existiert bereits.`);
+            return;
+        }
+        const newCategories = categories.map(c => c.group === oldName ? { ...c, group: trimmedNewName } : c);
+        const newGroups = categoryGroups.map(g => g === oldName ? trimmedNewName : g);
         persistChanges(newCategories, newGroups);
-        toast.success(`Gruppe umbenannt in "${newName}".`);
+        toast.success(`Gruppe umbenannt in "${trimmedNewName}".`);
     }, [categories, categoryGroups, persistChanges]);
 
     const deleteGroup = useCallback((groupName: string) => {
