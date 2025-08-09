@@ -14,12 +14,21 @@ export function rowsToObjects(sheet: SheetName, rows: any[][] = []): any[] {
   return rows.map(r => {
     const obj: Record<string, any> = {};
     headers.forEach((h, i) => { obj[h] = r[i] ?? ''; });
+    
     if (sheet === 'Transactions' || sheet === 'Recurring') {
       if (obj.amount !== '') obj.amount = Number(String(obj.amount).replace(',', '.')) || 0;
     }
-    if (obj.tags && typeof obj.tags === 'string') obj.tags = obj.tags ? String(obj.tags).split(',').map((t: string) => t.trim()) : [];
-    if (obj.isDeleted === 'TRUE') obj.isDeleted = true;
-    if (obj.active === 'FALSE') obj.active = false;
+    if (obj.tags && typeof obj.tags === 'string') {
+        obj.tags = obj.tags ? String(obj.tags).split(',').map((t: string) => t.trim()) : [];
+    }
+
+    // Robust boolean parsing
+    obj.isDeleted = obj.isDeleted === 'TRUE';
+    if (sheet === 'Recurring') {
+      // For recurring transactions, 'active' defaults to true unless the cell is literally 'FALSE'.
+      obj.active = obj.active !== 'FALSE';
+    }
+
     return obj;
   });
 }
