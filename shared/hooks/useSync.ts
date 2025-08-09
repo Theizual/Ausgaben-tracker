@@ -1,6 +1,6 @@
 
-
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { toast } from 'react-hot-toast';
 import useLocalStorage from '@/shared/hooks/useLocalStorage';
 import type { Category, Transaction, RecurringTransaction, Tag, User, UserSetting } from '@/shared/types';
 import { apiGet, apiPost, HttpError } from '@/shared/lib/http';
@@ -20,6 +20,7 @@ export interface SyncProps {
     setUserSettings: (data: UserSetting[]) => void;
     isInitialSetupDone: boolean;
     isDemoModeEnabled: boolean;
+    setIsInitialSetupDone: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 interface Mergeable {
@@ -71,7 +72,7 @@ export const useSync = (props: SyncProps) => {
     const {
         rawCategories, rawTransactions, rawRecurringTransactions, rawAllAvailableTags, rawUsers, rawUserSettings,
         setCategories, setTransactions, setRecurringTransactions, setAllAvailableTags, setUsers, setUserSettings,
-        isInitialSetupDone, isDemoModeEnabled
+        isInitialSetupDone, isDemoModeEnabled, setIsInitialSetupDone
     } = props;
     
     const prefix = isDemoModeEnabled ? 'demo_' : '';
@@ -98,10 +99,48 @@ export const useSync = (props: SyncProps) => {
     ]);
 
     const syncData = useCallback(async (options: { isAuto?: boolean } = {}) => {
-        if (!isInitialSetupDone || isDemoModeEnabled) {
-            return; // Guard against sync attempts before initial setup or in demo mode.
-        }
         if (syncInProgressRef.current) return;
+
+        if (isDemoModeEnabled) {
+            if (!window.confirm("Möchten Sie Ihre Daten aus Google Sheets laden? Dadurch wird der Demo-Modus beendet und die aktuellen Demo-Daten werden überschrieben.")) {
+                return;
+            }
+            
+            syncInProgressRef.current = true;
+            setSyncStatus('syncing');
+            setSyncError(null);
+            const toastId = 'initial-load-toast';
+            toast.loading('Lade Daten aus Google Sheets...', { id: toastId });
+
+            try {
+                const data: ReadApiResponse = await apiGet('/api/sheets/read');
+                
+                setCategories(data.categories);
+                setTransactions(data.transactions);
+                setRecurringTransactions(data.recurring);
+                setAllAvailableTags(data.tags);
+                setUsers(data.users);
+                setUserSettings(data.userSettings);
+
+                setLastSync(new Date().toISOString());
+                setSyncStatus('success');
+                setIsInitialSetupDone(true);
+                
+                toast.success('Daten erfolgreich geladen! Die App wird neu gestartet, um den Produktiv-Modus zu aktivieren.', { id: toastId, duration: 4000 });
+                
+                setTimeout(() => window.location.reload(), 1500);
+
+            } catch (e: any) {
+                setSyncError(e.message);
+                setSyncStatus('error');
+                toast.error(`Fehler beim Laden der Daten: ${e.message}`, { id: toastId });
+            } finally {
+                syncInProgressRef.current = false;
+            }
+            return;
+        }
+        
+        // --- Regular Production Sync ---
         syncInProgressRef.current = true;
         setSyncStatus(options.isAuto ? 'loading' : 'syncing');
         setSyncError(null);
@@ -138,8 +177,7 @@ export const useSync = (props: SyncProps) => {
             syncInProgressRef.current = false;
         }
     }, [
-        isInitialSetupDone, isDemoModeEnabled,
-        rawCategories, rawTransactions, rawRecurringTransactions, rawAllAvailableTags, rawUsers, rawUserSettings,
+        isDemoModeEnabled, setIsInitialSetupDone, rawCategories, rawTransactions, rawRecurringTransactions, rawAllAvailableTags, rawUsers, rawUserSettings,
         handleMergeConflicts, setLastSync, setCategories, setTransactions, setRecurringTransactions, setAllAvailableTags, setUsers, setUserSettings
     ]);
 
@@ -176,13 +214,9 @@ export const useSync = (props: SyncProps) => {
     }, [syncStatus]);
 
     useEffect(() => {
-        // Only attempt to load from the sheet automatically if the initial setup has been completed
-        // and there's no record of a previous sync. This prevents API errors for new users
-        // who haven't configured their backend credentials yet.
         if (isInitialSetupDone && !lastSync && !isDemoModeEnabled) {
             loadFromSheet();
         }
-        // Recommend a sync if auto-sync is off and the last sync was a long time ago.
         else if (lastSync && !isAutoSyncEnabled && !isDemoModeEnabled && (Date.now() - new Date(lastSync).getTime() > 5 * 60 * 60 * 1000)) {
             setIsSyncRecommended(true);
         }

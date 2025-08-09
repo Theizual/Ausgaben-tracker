@@ -132,6 +132,7 @@ const ReadyAppProvider: React.FC<{
         setCategories: categoryState.setCategories,
         isInitialSetupDone: isInitialSetupDone,
         isDemoModeEnabled,
+        setIsInitialSetupDone: setIsInitialSetupDone,
     });
     
      const { syncStatus, syncError } = syncState;
