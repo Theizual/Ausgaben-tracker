@@ -14,11 +14,11 @@ function getAuth() {
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
 
-  const spreadsheetId = (req.query.sheetId as string) || getEnv('GOOGLE_SHEET_ID');
-  const auth = getAuth();
-  const sheets = google.sheets({ version: 'v4', auth });
-
   try {
+    const spreadsheetId = (req.query.sheetId as string) || getEnv('GOOGLE_SHEET_ID');
+    const auth = getAuth();
+    const sheets = google.sheets({ version: 'v4', auth });
+
     const ranges = ['Categories!A2:I','Transactions!A2:K','Recurring!A2:M','Tags!A2:F','Users!A2:F','UserSettings!A2:E'];
     const resp: any = await withRetry(() => sheets.spreadsheets.values.batchGet({ spreadsheetId, ranges }));
 
@@ -43,8 +43,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   } catch (e: any) {
     const msg = e?.message || String(e);
     const code = e?.code || e?.response?.status;
-    console.error('Sheets API error:', { msg, code, stack: e?.stack });
-    return res.status(500).json({ error: 'Failed to read/write',message: msg, code, });
-    //return res.status(500).json({ error: `Failed to read: ${e?.message || e}` });
+    console.error('Sheets API read error:', { msg, code, stack: e?.stack });
+    return res.status(500).json({ error: 'Failed to read from sheet.', message: msg, code });
   }
 }

@@ -1,4 +1,5 @@
 
+
 export const HEADERS = {
   Categories: ['id','name','color','group','budget','icon','lastModified','version','isDeleted'],
   Transactions: ['id','amount','description','categoryId','date','tagIds','lastModified','isDeleted','recurringId','version','userId'],
@@ -46,51 +47,63 @@ function parseGermanDateToISO(dateString: string): string {
 
 export function rowsToObjects(sheet: SheetName, rows: any[][] = []): any[] {
   const headers = HEADERS[sheet];
-  return rows.map(r => {
-    const obj: Record<string, any> = {};
-    headers.forEach((h, i) => { obj[h] = r[i] ?? ''; });
-    
-    // Robust number parsing for currency fields
-    if (sheet === 'Transactions' || sheet === 'Recurring') {
-      obj.amount = parseGermanNumber(obj.amount);
-    }
-    if (sheet === 'Categories') {
-        obj.budget = parseGermanNumber(obj.budget);
-    }
-    
-    // Robust date parsing
-    if (sheet === 'Transactions') {
-      if(obj.date) obj.date = parseGermanDateToISO(obj.date);
-    }
-    if (sheet === 'Recurring') {
-      if (obj.startDate) obj.startDate = parseGermanDateToISO(obj.startDate);
-      if (obj.endDate) obj.endDate = parseGermanDateToISO(obj.endDate);
-      if (obj.lastProcessedDate) obj.lastProcessedDate = parseGermanDateToISO(obj.lastProcessedDate);
-    }
-    
-    // Transaction-specific transformations
-    if (sheet === 'Transactions') {
-        // Handle tagIds
-        if (obj.tagIds && typeof obj.tagIds === 'string') {
-            obj.tagIds = String(obj.tagIds).split(',').map((t: string) => t.trim()).filter(Boolean);
-        } else {
-            obj.tagIds = [];
-        }
-        // Map userId from sheet to createdBy in app object
-        if (obj.userId) {
-            obj.createdBy = obj.userId;
-            delete obj.userId;
-        }
-    }
+  const allRows = rows || [];
 
-    // Robust boolean parsing
-    obj.isDeleted = obj.isDeleted === 'TRUE';
-    if (sheet === 'Recurring') {
-      // For recurring transactions, 'active' defaults to true unless the cell is literally 'FALSE'.
-      obj.active = obj.active !== 'FALSE';
-    }
+  return allRows.filter(r => {
+      // Filter out empty rows or rows that don't have a valid key.
+      if (!Array.isArray(r) || r.length === 0) return false;
+      if (sheet === 'UserSettings') {
+          // UserSettings needs both userId (r[0]) and key (r[1]) to be non-empty.
+          return r[0] && String(r[0]).trim() !== '' && r[1] && String(r[1]).trim() !== '';
+      }
+      // All other sheets are identified by a non-empty id (r[0]).
+      return r[0] && String(r[0]).trim() !== '';
+    })
+    .map(r => {
+        const obj: Record<string, any> = {};
+        headers.forEach((h, i) => { obj[h] = r[i] ?? ''; });
+        
+        // Robust number parsing for currency fields
+        if (sheet === 'Transactions' || sheet === 'Recurring') {
+          obj.amount = parseGermanNumber(obj.amount);
+        }
+        if (sheet === 'Categories') {
+            obj.budget = parseGermanNumber(obj.budget);
+        }
+        
+        // Robust date parsing
+        if (sheet === 'Transactions') {
+          if(obj.date) obj.date = parseGermanDateToISO(obj.date);
+        }
+        if (sheet === 'Recurring') {
+          if (obj.startDate) obj.startDate = parseGermanDateToISO(obj.startDate);
+          if (obj.endDate) obj.endDate = parseGermanDateToISO(obj.endDate);
+          if (obj.lastProcessedDate) obj.lastProcessedDate = parseGermanDateToISO(obj.lastProcessedDate);
+        }
+        
+        // Transaction-specific transformations
+        if (sheet === 'Transactions') {
+            // Handle tagIds
+            if (obj.tagIds && typeof obj.tagIds === 'string') {
+                obj.tagIds = String(obj.tagIds).split(',').map((t: string) => t.trim()).filter(Boolean);
+            } else {
+                obj.tagIds = [];
+            }
+            // Map userId from sheet to createdBy in app object
+            if (obj.userId) {
+                obj.createdBy = obj.userId;
+                delete obj.userId;
+            }
+        }
 
-    return obj;
+        // Robust boolean parsing
+        obj.isDeleted = obj.isDeleted === 'TRUE';
+        if (sheet === 'Recurring') {
+          // For recurring transactions, 'active' defaults to true unless the cell is literally 'FALSE'.
+          obj.active = obj.active !== 'FALSE';
+        }
+
+        return obj;
   });
 }
 

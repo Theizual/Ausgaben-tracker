@@ -19,11 +19,11 @@ type Payload = {
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const spreadsheetId = (req.query.sheetId as string) || getEnv('GOOGLE_SHEET_ID');
-  const auth = getAuth();
-  const sheets = google.sheets({ version: 'v4', auth });
-
   try {
+    const spreadsheetId = (req.query.sheetId as string) || getEnv('GOOGLE_SHEET_ID');
+    const auth = getAuth();
+    const sheets = google.sheets({ version: 'v4', auth });
+
     const body = (req.body || {}) as Payload;
     const items = {
       categories: body.categories ?? [],
@@ -70,6 +70,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     return res.status(200).json(out);
   } catch (e: any) {
-    return res.status(500).json({ error: `Failed to write: ${e?.message || e}` });
+    const msg = e?.message || String(e);
+    const code = e?.code || e?.response?.status;
+    console.error('Sheets API write error:', { msg, code, stack: e?.stack });
+    return res.status(500).json({ error: 'Failed to write to sheet.', message: msg, code });
   }
 }
