@@ -37,7 +37,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const dataToWrite = [
       { range: 'Categories!A1:I', values: [HEADERS.Categories, ...objectsToRows('Categories', items.categories)] },
       { range: 'Transactions!A1:K', values: [HEADERS.Transactions, ...objectsToRows('Transactions', items.transactions)] },
-      { range: 'Recurring!A1:L', values: [HEADERS.Recurring, ...objectsToRows('Recurring', items.recurring)] },
+      { range: 'Recurring!A1:M', values: [HEADERS.Recurring, ...objectsToRows('Recurring', items.recurring)] },
       { range: 'Tags!A1:F', values: [HEADERS.Tags, ...objectsToRows('Tags', items.tags)] },
       { range: 'Users!A1:F', values: [HEADERS.Users, ...objectsToRows('Users', items.users)] },
       { range: 'UserSettings!A1:E', values: [HEADERS.UserSettings, ...objectsToRows('UserSettings', items.userSettings)] }
@@ -49,7 +49,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }));
     
     // After writing, re-read all data and send it back to the client
-    const rangesToRead = ['Categories!A2:I','Transactions!A2:K','Recurring!A2:L','Tags!A2:F','Users!A2:F','UserSettings!A2:E'];
+    const rangesToRead = ['Categories!A2:I','Transactions!A2:K','Recurring!A2:M','Tags!A2:F','Users!A2:F','UserSettings!A2:E'];
     const readResp: any = await withRetry(() => sheets.spreadsheets.values.batchGet({ spreadsheetId, ranges: rangesToRead }));
 
     if (!readResp || !readResp.data || !Array.isArray(readResp.data.valueRanges)) {

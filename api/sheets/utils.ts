@@ -1,7 +1,9 @@
+
+
 export const HEADERS = {
   Categories: ['id','name','color','group','budget','icon','lastModified','version','isDeleted'],
   Transactions: ['id','date','description','amount','categoryId','tags','userId','recurringId','lastModified','version','isDeleted'],
-  Recurring: ['id','amount','description','categoryId','frequency','dayOfMonth','startDate','endDate','active','lastModified','version','isDeleted'],
+  Recurring: ['id','amount','description','categoryId','frequency','dayOfMonth','startDate','endDate','lastProcessedDate','active','lastModified','version','isDeleted'],
   Tags: ['id','name','color','lastModified','version','isDeleted'],
   Users: ['id','name','color','lastModified','version','isDeleted'],
   UserSettings: ['userId','key','value','lastModified','version']
@@ -9,15 +11,65 @@ export const HEADERS = {
 
 export type SheetName = keyof typeof HEADERS;
 
+function parseGermanNumber(numString: string): number {
+    if (typeof numString !== 'string' || numString.trim() === '') return 0;
+    // Remove thousand separators (dots) and then replace comma with a dot for decimal point
+    const cleanedString = numString.replace(/\./g, '').replace(',', '.');
+    return Number(cleanedString) || 0;
+}
+
+function parseGermanDateToISO(dateString: string): string {
+    if (!dateString || typeof dateString !== 'string') return '';
+    
+    // Regex to capture DD.MM.YYYY and optional HH:mm or HH:mm:ss
+    const match = dateString.match(/(\d{1,2})\.(\d{1,2})\.(\d{4})(?:\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/);
+
+    if (match) {
+        // Construct a string that `new Date()` can parse reliably: YYYY-MM-DDTHH:mm:ss
+        const [, day, month, year, hours, minutes, seconds] = match;
+        const isoLikeString = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}T${String(hours || '00').padStart(2, '0')}:${String(minutes || '00').padStart(2, '0')}:${String(seconds || '00').padStart(2, '0')}`;
+        
+        const d = new Date(isoLikeString);
+        if (!isNaN(d.getTime())) {
+            return d.toISOString();
+        }
+    }
+    
+    // If it doesn't match the German format, try to parse it as is (might be ISO already)
+    const d = new Date(dateString);
+    if (!isNaN(d.getTime())) {
+        return d.toISOString();
+    }
+
+    // If all fails, return empty string to indicate failure
+    return '';
+}
+
 export function rowsToObjects(sheet: SheetName, rows: any[][] = []): any[] {
   const headers = HEADERS[sheet];
   return rows.map(r => {
     const obj: Record<string, any> = {};
     headers.forEach((h, i) => { obj[h] = r[i] ?? ''; });
     
+    // Robust number parsing for currency fields
     if (sheet === 'Transactions' || sheet === 'Recurring') {
-      if (obj.amount !== '') obj.amount = Number(String(obj.amount).replace(',', '.')) || 0;
+      obj.amount = parseGermanNumber(obj.amount);
     }
+    if (sheet === 'Categories') {
+        obj.budget = parseGermanNumber(obj.budget);
+    }
+    
+    // Robust date parsing
+    if (sheet === 'Transactions') {
+      if(obj.date) obj.date = parseGermanDateToISO(obj.date);
+    }
+    if (sheet === 'Recurring') {
+      if (obj.startDate) obj.startDate = parseGermanDateToISO(obj.startDate);
+      if (obj.endDate) obj.endDate = parseGermanDateToISO(obj.endDate);
+      if (obj.lastProcessedDate) obj.lastProcessedDate = parseGermanDateToISO(obj.lastProcessedDate);
+    }
+    
+    // Handle tags (client will convert names to IDs)
     if (obj.tags && typeof obj.tags === 'string') {
         obj.tags = obj.tags ? String(obj.tags).split(',').map((t: string) => t.trim()) : [];
     }
@@ -35,5 +87,18 @@ export function rowsToObjects(sheet: SheetName, rows: any[][] = []): any[] {
 
 export function objectsToRows(sheet: SheetName, items: any[] = []): any[][] {
   const headers = HEADERS[sheet];
-  return items.map(it => headers.map(h => Array.isArray(it[h]) ? it[h].join(',') : (it[h] ?? '')));
+  return items.map(it => headers.map(h => {
+      const val = it[h];
+      if (Array.isArray(val)) return val.join(',');
+      if (typeof val === 'number') return val.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      if (h === 'date' || h === 'startDate' || h === 'endDate' || h === 'lastModified' || h === 'lastProcessedDate') {
+          try {
+              const d = new Date(val);
+              if (!isNaN(d.getTime())) {
+                  return `${d.getDate().toString().padStart(2, '0')}.${(d.getMonth() + 1).toString().padStart(2, '0')}.${d.getFullYear()}`;
+              }
+          } catch {}
+      }
+      return val ?? '';
+  }));
 }
