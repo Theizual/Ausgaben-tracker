@@ -3,6 +3,8 @@ import React, { FC } from 'react';
 import { motion } from 'framer-motion';
 import { useApp } from '../../../contexts/AppContext';
 
+const MotionDiv = motion.div;
+
 export const DisplaySettings: FC = () => {
     const { categoryGroups, visibleCategoryGroups, updateVisibleGroups, currentUserId, groupColors, updateGroupColor } = useApp();
 
@@ -22,7 +24,7 @@ export const DisplaySettings: FC = () => {
     const DEFAULT_GROUP_COLOR = '#a855f7'; // A default fallback color
 
     return (
-        <motion.div key="display" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }}>
+        <MotionDiv key="display" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }}>
             <h3 className="text-lg font-semibold text-white mb-1">Anzeige anpassen</h3>
             <p className="text-sm text-slate-400 mb-6">
                 Passen Sie das Erscheinungsbild der App an. Wählen Sie aus, welche Kategoriegruppen sichtbar sein sollen und weisen Sie jeder Gruppe eine eindeutige Farbe zu.
@@ -50,6 +52,6 @@ export const DisplaySettings: FC = () => {
                     </div>
                 ))}
             </div>
-        </motion.div>
+        </MotionDiv>
     );
 };

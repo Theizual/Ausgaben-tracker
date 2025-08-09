@@ -1,7 +1,8 @@
 
+
 import React, { FC } from 'react';
-import { useApp } from '../../../contexts/AppContext';
-import { Modal, Tag, Trash2, Button } from '../../../components/ui';
+import { useApp } from '@/contexts/AppContext';
+import { Modal, Tag, Trash2, Button } from '@/shared/ui';
 
 const TRANSPARENT_INPUT_CLASSES = "bg-transparent font-medium text-white w-full focus:outline-none focus:bg-slate-600/50 rounded px-2 py-1";
 

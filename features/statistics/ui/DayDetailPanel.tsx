@@ -1,13 +1,12 @@
 
+
 import React, { FC, useMemo, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { useApp } from '../../../contexts/AppContext';
+import { useApp } from '@/contexts/AppContext';
 import type { Transaction } from '@/shared/types';
 import { formatCurrency, formatGermanDate } from '@/shared/utils/dateUtils';
 import { X } from '@/shared/ui';
-import StandardTransactionItem from '@/components/StandardTransactionItem';
-
-const MotionDiv = motion('div');
+import { StandardTransactionItem } from '@/shared/ui';
 
 interface DayDetailPanelProps {
     isOpen: boolean;
@@ -49,7 +48,7 @@ export const DayDetailPanel: FC<DayDetailPanelProps> = ({ isOpen, date, transact
     }
 
     return (
-        <MotionDiv
+        <motion.div
             ref={panelRef}
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -93,6 +92,6 @@ export const DayDetailPanel: FC<DayDetailPanelProps> = ({ isOpen, date, transact
                     </div>
                 )}
             </main>
-        </MotionDiv>
+        </motion.div>
     );
 };

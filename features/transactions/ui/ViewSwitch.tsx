@@ -2,12 +2,11 @@
 import React, { FC, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LayoutGrid, List } from '@/shared/ui';
-
-type ViewMode = 'list' | 'grid';
+import type { TransactionViewMode } from '@/shared/types';
 
 interface ViewSwitchProps {
-  viewMode: ViewMode;
-  onChange: (mode: ViewMode) => void;
+  viewMode: TransactionViewMode;
+  onChange: (mode: TransactionViewMode) => void;
 }
 
 export const ViewSwitch: FC<ViewSwitchProps> = ({ viewMode, onChange }) => {
@@ -31,7 +30,7 @@ export const ViewSwitch: FC<ViewSwitchProps> = ({ viewMode, onChange }) => {
     }
   };
 
-  const buttons: { mode: ViewMode, label: string, icon: FC<any> }[] = [
+  const buttons: { mode: TransactionViewMode, label: string, icon: FC<any> }[] = [
     { mode: 'list', label: 'Listenansicht', icon: List },
     { mode: 'grid', label: 'Kartenansicht', icon: LayoutGrid },
   ];

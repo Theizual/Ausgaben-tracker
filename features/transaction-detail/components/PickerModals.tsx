@@ -1,10 +1,9 @@
-
 import React, { FC, useMemo } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import type { User, Transaction } from '@/shared/types';
 import { useApp } from '@/contexts/AppContext';
 import { Modal, CheckSquare } from '@/shared/ui';
-import CategoryButtons from '@/components/CategoryButtons';
+import CategoryButtons from '@/shared/ui/CategoryButtons';
 import { TagEditorModal } from './TagEditorModal';
 
 export const PickerModals: FC<{

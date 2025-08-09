@@ -7,8 +7,8 @@ import type { Transaction, CategoryId, User } from '@/shared/types';
 import { format, parseISO } from 'date-fns';
 import { formatCurrency } from '@/shared/utils/dateUtils';
 import { iconMap, X, Edit, Trash2, Plus, FlaskConical } from '@/shared/ui';
-import { TagEditorModal } from './components/TagEditorModal';
-import { PickerModals } from './components/PickerModals';
+import { TagEditorModal } from './ui/TagEditorModal';
+import { PickerModals } from './ui/PickerModals';
 import { TagPill } from '@/shared/ui';
 
 interface TransactionDetailModalProps {
@@ -283,54 +283,48 @@ const TransactionDetailModal: FC<TransactionDetailModalProps> = ({
                                             {formState.isDemo && (
                                                  <div className="flex justify-between items-center">
                                                     <span className="text-slate-400 font-medium">Status</span>
-                                                    <span className="flex items-center gap-1.5 bg-purple-600 text-white text-xs font-bold px-2 py-1 rounded-full">
+                                                    <span className="flex items-center gap-1.5 bg-purple-500/20 text-purple-300 text-xs font-bold px-2 py-1 rounded-full">
                                                         <FlaskConical className="h-3 w-3" />
-                                                        <span>DEMO EINTRAG</span>
+                                                        Demo-Eintrag
                                                     </span>
                                                 </div>
                                             )}
                                         </div>
 
+                                        {/* Tags Section */}
                                         <div className="w-full max-w-sm mt-4 pt-4 border-t border-slate-700/50">
-                                            <div className="flex items-center justify-center gap-2 mb-2">
-                                                <h4 className="text-sm font-medium text-slate-400">Tags</h4>
-                                                {localTags.length > 0 && (
-                                                    <button onClick={() => setIsEditingTags(true)} className="p-1 rounded-full text-slate-400 hover:text-white hover:bg-slate-700" title="Tags bearbeiten">
-                                                        <Edit className="h-3 w-3"/>
-                                                    </button>
+                                             <button onClick={() => setIsEditingTags(true)} className="w-full text-left rounded-lg p-1 -m-1" title="Tags bearbeiten">
+                                                 <h3 className="text-sm font-semibold text-white mb-2">Tags</h3>
+                                                {localTags.length > 0 ? (
+                                                     <div className="flex flex-wrap gap-2 justify-center">
+                                                         {localTags.map(tag => <TagPill key={tag} tagName={tag} />)}
+                                                    </div>
+                                                ) : (
+                                                    <p className="text-slate-500 text-center">Keine Tags hinzugefügt</p>
                                                 )}
-                                            </div>
-                                            {localTags.length > 0 ? (
-                                                <div className="flex flex-wrap justify-center gap-2">
-                                                    {localTags.map(tagName => (
-                                                        <TagPill
-                                                            key={tagName}
-                                                            tagName={tagName}
-                                                            className="bg-rose-500/20 text-rose-300"
-                                                        />
-                                                    ))}
-                                                </div>
-                                            ) : (
-                                                <button onClick={() => setIsEditingTags(true)} className="w-full text-center py-2 text-rose-400 font-medium rounded-lg hover:bg-slate-700/50 flex items-center justify-center gap-1" title="Tags hinzufügen">
-                                                     <Plus className="h-4 w-4" />
-                                                     <span>Tags hinzufügen</span>
-                                                </button>
-                                            )}
+                                             </button>
                                         </div>
                                     </div>
-                                    <div className="p-4 bg-slate-800/50 border-t border-slate-700">
-                                        <button onClick={handleDelete} className="w-full px-4 py-3 rounded-lg text-sm font-semibold text-red-400 bg-slate-700/50 hover:bg-red-500/20 transition-colors flex items-center justify-center gap-2">
-                                            <Trash2 className="h-5 w-5" />
-                                            <span>Löschen</span>
-                                        </button>
-                                    </div>
+                                    
+                                    {!formState.isDemo && (
+                                        <div className="p-4 bg-slate-900/50 flex justify-end">
+                                            <motion.button
+                                                whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.98 }}
+                                                onClick={handleDelete}
+                                                className="flex items-center gap-2 text-sm font-semibold text-red-400 hover:text-red-300 hover:bg-red-500/10 px-4 py-2 rounded-lg"
+                                            >
+                                                <Trash2 className="h-4 w-4" />
+                                                Löschen
+                                            </motion.button>
+                                        </div>
+                                    )}
                                 </>
                             </div>
                         </motion.div>
                     </motion.div>
                 )}
             </AnimatePresence>
-            <PickerModals
+            <PickerModals 
                 isPickingCategory={isPickingCategory}
                 setIsPickingCategory={setIsPickingCategory}
                 handleCategoryUpdate={handleCategoryUpdate}

@@ -1,12 +1,11 @@
-
 import React, { useState, useMemo, FC } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
-import { useApp } from '../../../contexts/AppContext';
+import { useApp } from '@/contexts/AppContext';
 import type { Category } from '@/shared/types';
-import { useEscapeKey } from '../../../hooks/useEscapeKey';
-import { Modal, Button, iconMap, X, Trash2, Plus, DownloadCloud } from '../../../components/ui';
-import { FIXED_COSTS_GROUP_NAME, INITIAL_CATEGORIES } from '../../../constants';
+import { useEscapeKey } from '@/shared/hooks/useEscapeKey';
+import { Modal, Button, iconMap, X, Trash2, Plus, DownloadCloud } from '@/shared/ui';
+import { FIXED_COSTS_GROUP_NAME, INITIAL_CATEGORIES } from '@/constants';
 import { CategoryEditModal, CategoryFormData } from './CategoryEditModal';
 
 export const CategoryLibraryModal: FC<{ isOpen: boolean; onClose: () => void; }> = ({ isOpen, onClose }) => {

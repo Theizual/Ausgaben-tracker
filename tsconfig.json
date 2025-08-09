@@ -1,40 +1,32 @@
 {
   "compilerOptions": {
     "target": "ESNext",
-    "useDefineForClassFields": true,
     "lib": ["DOM", "DOM.Iterable", "ESNext"],
-    "allowJs": false,
-    "skipLibCheck": true,
-    "esModuleInterop": true,
-    "allowSyntheticDefaultImports": true,
-    "strict": true,
-    "forceConsistentCasingInFileNames": true,
+    "jsx": "react-jsx",
     "module": "ESNext",
-    "moduleResolution": "bundler",
+    "moduleResolution": "Bundler",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["*"]
+    },
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
-    "jsx": "react-jsx",
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["./*"],
-      "@/shared/*": ["shared/*"],
-      "@/features/*": ["features/*"],
-      "@/contexts/*": ["contexts/*"],
-      "@/processes/*": ["processes/*"]
-    }
+    "strict": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true
   },
   "include": [
-      "api", 
-      "contexts",
-      "features",
-      "hooks",
-      "processes",
-      "shared",
-      "App.tsx", 
-      "constants.ts", 
-      "index.tsx", 
-      "vite.config.ts"
+    "api",
+    "contexts",
+    "features",
+    "processes",
+    "shared",
+    "App.tsx",
+    "constants.ts",
+    "index.tsx",
+    "vite.config.ts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules", "dist"]
 }

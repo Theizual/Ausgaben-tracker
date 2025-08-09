@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useEffect, FC } from 'react';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { useApp } from '@/contexts/AppContext';

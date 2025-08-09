@@ -1,13 +1,14 @@
 
+
 import React, { useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { useApp } from '../../contexts/AppContext';
+import { useApp } from '@/contexts/AppContext';
 import type { Tag } from '@/shared/types';
 import { parseISO } from 'date-fns';
-import { Hash } from '../../components/ui';
-import { PeriodNavigator } from './components/PeriodNavigator';
-import { MultiTagPicker } from './components/MultiTagPicker';
-import { TagDetailView } from './components/TagDetailView';
+import { Hash } from '@/shared/ui';
+import { PeriodNavigator } from './ui/PeriodNavigator';
+import { MultiTagPicker } from './ui/MultiTagPicker';
+import { TagDetailView } from './ui/TagDetailView';
 
 const TagsPage: React.FC = () => {
     const { 

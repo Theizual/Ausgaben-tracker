@@ -1,7 +1,6 @@
-
 import React, { useState, useMemo, FC } from 'react';
-import { useEscapeKey } from '../../../hooks/useEscapeKey';
-import { iconMap, Search } from '../../../components/ui';
+import { useEscapeKey } from '@/shared/hooks/useEscapeKey';
+import { iconMap, Search } from '@/shared/ui';
 
 export const IconPicker: FC<{ onSelect: (iconName: string) => void; onClose: () => void; }> = ({ onSelect, onClose }) => {
     const [searchTerm, setSearchTerm] = useState('');

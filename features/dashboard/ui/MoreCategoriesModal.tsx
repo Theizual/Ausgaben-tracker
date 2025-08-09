@@ -1,4 +1,3 @@
-
 import React, { FC } from 'react';
 import type { Category } from '@/shared/types';
 import { Modal, iconMap } from '@/shared/ui';

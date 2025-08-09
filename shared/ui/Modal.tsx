@@ -2,7 +2,7 @@
 import React, { FC } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X } from './Icons';
-import { useEscapeKey } from '@/hooks/useEscapeKey';
+import { useEscapeKey } from '@/shared/hooks/useEscapeKey';
 import { clsx } from 'clsx';
 
 const modalSizeClasses = {

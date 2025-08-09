@@ -1,7 +1,8 @@
 
+
 import React, { FC, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { useApp } from '../../../contexts/AppContext';
+import { useApp } from '@/contexts/AppContext';
 import type { Transaction } from '@/shared/types';
 import { format, isSameMonth, getDaysInMonth } from 'date-fns';
 import { formatCurrency } from '@/shared/utils/dateUtils';

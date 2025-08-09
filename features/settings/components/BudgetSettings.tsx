@@ -1,14 +1,19 @@
 
+
+
 import React, { useState, useMemo, useCallback, useEffect, FC, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
-import { useApp } from '../../../contexts/AppContext';
+import { useApp } from '@/contexts/AppContext';
 import type { Category, RecurringTransaction } from '@/shared/types';
 import { format, parseISO } from 'date-fns';
 import { formatCurrency } from '@/shared/utils/dateUtils';
-import { getIconComponent, Plus, Trash2, Edit, ChevronDown, ProgressBar, Button } from '../../../components/ui';
-import { FIXED_COSTS_GROUP_NAME } from '../../../constants';
+import { getIconComponent, Plus, Trash2, Edit, ChevronDown, ProgressBar, Button } from '@/shared/ui';
+import { FIXED_COSTS_GROUP_NAME } from '@/constants';
 import { generateUUID } from '@/shared/utils/uuid';
+import { BudgetGroup } from './BudgetGroup';
+
+const MotionDiv = motion.div;
 
 const BASE_INPUT_CLASSES = "w-full bg-theme-input border border-theme-border rounded-md px-3 py-2 text-white placeholder-theme-text-muted focus:outline-none focus:ring-2 focus:ring-theme-ring";
 
@@ -28,10 +33,9 @@ export const BudgetSettings: FC = () => {
     } = useApp();
 
     // --- State for Flexible Budgets ---
-    const [flexExpandedGroups, setFlexExpandedGroups] = useState<string[]>(() => {
-        const initialGroups = categoryGroups.filter(g => g !== FIXED_COSTS_GROUP_NAME);
-        return initialGroups.length > 0 ? [initialGroups[0]] : [];
-    });
+    const [flexExpandedGroups, setFlexExpandedGroups] = useState<string[]>(() =>
+        categoryGroups.filter(g => g !== FIXED_COSTS_GROUP_NAME)
+    );
     const [groupBudgetInputs, setGroupBudgetInputs] = useState<Record<string, string>>({});
     const [categoryBudgetInputs, setCategoryBudgetInputs] = useState<Record<string, string>>({});
     const focusedInputRef = useRef<string | null>(null);
@@ -47,8 +51,8 @@ export const BudgetSettings: FC = () => {
     const totalOverallBudget = totalMonthlyBudget + totalMonthlyFixedCosts;
     const flexPercentage = totalOverallBudget > 0 ? (totalMonthlyBudget / totalOverallBudget) * 100 : 0;
     const fixedPercentage = totalOverallBudget > 0 ? (totalMonthlyFixedCosts / totalOverallBudget) * 100 : 0;
-    const flexColor = '#e11d48'; // theme-primary rose-600
-    const fixedColor = '#0ea5e9'; // sky-500
+    const flexColor = '#0ea5e9'; // sky-500
+    const fixedColor = '#e11d48'; // theme-primary rose-600
     
     const recurringMapByCatId = useMemo(() => {
         const map = new Map<string, RecurringTransaction>();
@@ -200,9 +204,24 @@ export const BudgetSettings: FC = () => {
         setCategoryBudgetInputs(prev => ({ ...prev, ...newCatInputs }));
     }, [groupedBudgetData, totalMonthlyBudget]);
 
+     const handleGroupBudgetBlur = (groupName: string) => {
+        focusedInputRef.current = null;
+        setGroupBudgetInputs(p => ({
+            ...p,
+            [groupName]: (parseFloat((p[groupName] || '0').replace(',', '.')) || 0).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+        }));
+    };
+
+    const handleIndividualBudgetBlur = (categoryId: string) => {
+        focusedInputRef.current = null;
+        setCategoryBudgetInputs(p => ({
+            ...p,
+            [categoryId]: (parseFloat((p[categoryId] || '0').replace(',', '.')) || 0).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+        }));
+    };
 
     return (
-        <motion.div key="budget" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }}>
+        <MotionDiv key="budget" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }}>
             <h3 className="text-lg font-semibold text-white mb-1">Budgetverwaltung</h3>
             <p className="text-sm text-slate-400 mb-6">Verwalten Sie hier Ihr gesamtes monatliches Budget, aufgeteilt in flexible Ausgaben und Fixkosten.</p>
             
@@ -243,26 +262,21 @@ export const BudgetSettings: FC = () => {
                             <div className="p-3 border-t border-slate-600/50 space-y-3">
                                 <h5 className="text-xs font-semibold uppercase tracking-wider text-slate-400">Flexibles Budget</h5>
                                 {groupedBudgetData.map(group => (
-                                    <div key={group.groupName} className="bg-slate-700/30 p-2.5 rounded-lg">
-                                        <div className="flex justify-between items-center gap-2">
-                                            <button onClick={() => toggleFlexGroup(group.groupName)} className="flex items-center gap-2 text-left flex-grow rounded-md -m-2 p-2"><ChevronDown className={`h-5 w-5 text-slate-400 transition-transform flex-shrink-0 ${flexExpandedGroups.includes(group.groupName) ? 'rotate-180' : ''}`} /><h4 className="text-sm font-semibold text-white truncate">{group.groupName}</h4></button>
-                                            <div className="relative w-full sm:w-36 flex-shrink-0" onClick={e => e.stopPropagation()}><span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">€</span><input type="text" inputMode="decimal" value={groupBudgetInputs[group.groupName] || ''} onChange={e => handleGroupBudgetChange(group.groupName, e.currentTarget.value)} onFocus={() => focusedInputRef.current = `group-${group.groupName}`} onBlur={() => { focusedInputRef.current = null; setGroupBudgetInputs(p => ({...p, [group.groupName]: (parseFloat((p[group.groupName]||'0').replace(',','.')) || 0).toLocaleString('de-DE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}))}} onKeyDown={e => {if (e.key === 'Enter') (e.target as HTMLInputElement).blur()}} placeholder="Gesamt" className="w-full bg-theme-input border border-theme-border rounded-md pl-7 pr-2 py-0.5 text-white text-sm font-semibold text-right focus:outline-none focus:ring-2 focus:ring-theme-ring"/></div>
-                                        </div>
-                                        <AnimatePresence>
-                                        {flexExpandedGroups.includes(group.groupName) && (
-                                            <motion.div initial={{ opacity: 0, height: 0, marginTop: 0 }} animate={{ opacity: 1, height: 'auto', marginTop: '0.75rem' }} exit={{ opacity: 0, height: 0, marginTop: 0 }} className="overflow-hidden">
-                                                <div className="pt-2 border-t border-slate-600/50 space-y-2">
-                                                    {group.categories.map(category => {
-                                                        const Icon = getIconComponent(category.icon);
-                                                        return (
-                                                            <div key={category.id} className="flex flex-col"><div className="flex justify-between items-center text-sm mb-1"><div className="flex items-center gap-3 truncate"><Icon className="h-4 w-4 flex-shrink-0" style={{ color: category.color }} /><span className="font-medium text-white truncate">{category.name}</span></div><div className="relative w-28 flex-shrink-0 ml-2"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">€</span><input type="text" inputMode="decimal" value={categoryBudgetInputs[category.id] ?? ''} onChange={e => handleIndividualBudgetChange(category, e.target.value)} onFocus={() => focusedInputRef.current = `cat-${category.id}`} onBlur={() => { focusedInputRef.current = null; setCategoryBudgetInputs(p => ({...p, [category.id]: (parseFloat((p[category.id]||'0').replace(',','.'))||0).toLocaleString('de-DE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}))}} onKeyDown={e => {if (e.key === 'Enter') (e.target as HTMLInputElement).blur()}} placeholder="Budget" className="w-full bg-theme-input border border-theme-border rounded-md pl-7 pr-2 py-0.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-theme-ring"/></div></div><ProgressBar percentage={(category.budget || 0) / (group.groupTotalBudget || 1) * 100} color={category.color} className="h-1.5" /></div>
-                                                        );
-                                                    })}
-                                                </div>
-                                            </motion.div>
-                                        )}
-                                        </AnimatePresence>
-                                    </div>
+                                    <BudgetGroup
+                                        key={group.groupName}
+                                        groupName={group.groupName}
+                                        categories={group.categories}
+                                        groupTotalBudget={group.groupTotalBudget}
+                                        groupBudgetInputs={groupBudgetInputs}
+                                        categoryBudgetInputs={categoryBudgetInputs}
+                                        onGroupBudgetChange={handleGroupBudgetChange}
+                                        onIndividualBudgetChange={handleIndividualBudgetChange}
+                                        onGroupBudgetBlur={handleGroupBudgetBlur}
+                                        onIndividualBudgetBlur={handleIndividualBudgetBlur}
+                                        isExpanded={flexExpandedGroups.includes(group.groupName)}
+                                        onToggle={() => toggleFlexGroup(group.groupName)}
+                                        focusedInputRef={focusedInputRef}
+                                    />
                                 ))}
                                 
                                 <div className="pt-3 mt-3 border-t border-slate-700/50">
@@ -324,6 +338,6 @@ export const BudgetSettings: FC = () => {
                     })}
                 </div>
             </div>
-        </motion.div>
+        </MotionDiv>
     );
 };

@@ -1,3 +1,4 @@
+
 export interface User {
   id: string;
   name: string;
@@ -11,6 +12,7 @@ export interface User {
 export interface Tag {
   id: string;
   name: string;
+  color?: string;
   lastModified: string; // ISO string
   isDeleted?: boolean;
   version: number;
@@ -38,13 +40,13 @@ export interface Transaction {
   categoryId: string;
   date: string; // ISO string format
   tagIds?: string[];
-  recurringId?: string; // Verknüpfung zur wiederkehrenden Ausgabe
+  recurringId?: string;
   lastModified: string; // ISO string
   isDeleted?: boolean;
   version: number;
   conflicted?: boolean;
-  createdBy?: string; // ID of the user who created the transaction
-  isDemo?: boolean; // Flag for temporary development/test transactions
+  createdBy?: string;
+  isDemo?: boolean;
 }
 
 export interface RecurringTransaction {
@@ -53,7 +55,10 @@ export interface RecurringTransaction {
   description: string;
   categoryId: string;
   frequency: 'monthly' | 'yearly';
+  dayOfMonth?: number;
   startDate: string; // ISO string
+  endDate?: string;
+  active?: boolean;
   lastProcessedDate?: string; // ISO string
   lastModified: string; // ISO string
   isDeleted?: boolean;
@@ -63,16 +68,16 @@ export interface RecurringTransaction {
 
 export interface UserSetting {
   userId: string;
-  settingKey: 'visibleGroups' | 'groupColors' | 'categoryConfiguration';
-  settingValue: string; // Comma-separated list for visibleGroups, JSON string for groupColors/categoryConfiguration
+  key: 'visibleGroups' | 'groupColors' | 'categoryConfiguration';
+  value: string; // Comma-separated list for visibleGroups, JSON string for groupColors/categoryConfiguration
   lastModified: string;
   version: number;
   isDeleted?: boolean;
   conflicted?: boolean;
 }
 
-
 export type ViewMode = 'woche' | 'monat';
+export type TransactionViewMode = 'list' | 'grid';
 export type PeriodType = 'last3Months' | 'month' | 'year' | 'custom';
 export type QuickFilterId = 'current' | 'month' | 'all';
 export type CategoryId = string;

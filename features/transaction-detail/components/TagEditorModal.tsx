@@ -1,10 +1,9 @@
-
 import React, { useState, useMemo, FC } from 'react';
 import type { Tag } from '@/shared/types';
 import { useApp } from '@/contexts/AppContext';
 import { Modal, Button } from '@/shared/ui';
-import TagInput from '@/components/TagInput';
-import AvailableTags from '@/components/AvailableTags';
+import TagInput from '@/shared/ui/TagInput';
+import AvailableTags from '@/shared/ui/AvailableTags';
 
 export const TagEditorModal: FC<{
     initialTagNames: string[];
@@ -42,15 +41,14 @@ export const TagEditorModal: FC<{
             onClose={onClose} 
             title="Tags bearbeiten"
             footer={footer}
-            size="md"
         >
-            <div className="space-y-4">
+           <div className="space-y-4">
                 <TagInput
                     tags={currentTags}
                     setTags={setCurrentTags}
                     allAvailableTags={allAvailableTags}
                 />
-                <AvailableTags 
+                <AvailableTags
                     availableTags={recentlyUsedTags}
                     selectedTags={currentTags}
                     onTagClick={handleTagClick}

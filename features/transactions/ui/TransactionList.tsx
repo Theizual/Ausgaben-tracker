@@ -2,11 +2,11 @@
 import React, { FC, useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
-import type { Transaction } from '@/shared/types';
-import { format, parseISO, isToday, isYesterday, startOfWeek, endOfWeek, getWeek } from 'date-fns';
+import type { Transaction, TransactionViewMode } from '@/shared/types';
+import { format, parseISO, isToday, isYesterday, startOfWeek, endOfWeek, getWeek, isValid, startOfDay, endOfDay } from 'date-fns';
 import { formatCurrency } from '@/shared/utils/dateUtils';
 import { Search } from '@/shared/ui';
-import StandardTransactionItem from '@/components/StandardTransactionItem';
+import { StandardTransactionItem } from '@/shared/ui';
 
 type GroupedTransactions = {
     date: string;
@@ -15,7 +15,7 @@ type GroupedTransactions = {
 }[];
 
 export const TransactionList: FC<{
-    viewMode?: 'list' | 'grid';
+    viewMode?: TransactionViewMode;
 }> = ({ viewMode = 'list' }) => {
     const { 
         handleTransactionClick, 
@@ -51,19 +51,20 @@ export const TransactionList: FC<{
             try {
                 if (!t.date || typeof t.date !== 'string') return false; 
                 const tDate = parseISO(t.date);
-                if (isNaN(tDate.getTime())) return false;
+                if (!isValid(tDate)) return false;
                 
                 if (transactionFilters.startDate) {
-                    const startDate = new Date(transactionFilters.startDate);
-                    if (tDate < startDate) return false;
+                    const filterStart = startOfDay(parseISO(transactionFilters.startDate));
+                    if (!isValid(filterStart)) return false;
+                    if (tDate < filterStart) return false;
                 }
                 if (transactionFilters.endDate) {
-                    const endDate = new Date(transactionFilters.endDate);
-                    endDate.setHours(23, 59, 59, 999);
-                    if (tDate > endDate) return false;
+                    const filterEnd = endOfDay(parseISO(transactionFilters.endDate));
+                    if (!isValid(filterEnd)) return false;
+                    if (tDate > filterEnd) return false;
                 }
             } catch (e) { 
-                return true; 
+                return false; 
             }
 
             return true;

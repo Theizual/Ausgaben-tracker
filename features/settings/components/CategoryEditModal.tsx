@@ -1,10 +1,9 @@
-
 import React, { useState, useMemo, useEffect, FC } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
-import { useApp } from '../../../contexts/AppContext';
-import { Modal, Button, getIconComponent } from '../../../components/ui';
-import { useEscapeKey } from '../../../hooks/useEscapeKey';
+import { useApp } from '@/contexts/AppContext';
+import { Modal, Button, getIconComponent } from '@/shared/ui';
+import { useEscapeKey } from '@/shared/hooks/useEscapeKey';
 import { IconPicker } from './IconPicker';
 
 const BASE_INPUT_CLASSES = "w-full bg-theme-input border border-theme-border rounded-md px-3 py-2 text-white placeholder-theme-text-muted focus:outline-none focus:ring-2 focus:ring-theme-ring";

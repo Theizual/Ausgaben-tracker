@@ -1,0 +1,149 @@
+import { useState, useCallback, useEffect, useMemo } from 'react';
+import { format, subDays } from '@/shared/utils/dateUtils';
+import type { Transaction, ViewMode, PeriodType, QuickFilterId, SettingsTab, TransactionViewMode } from '@/shared/types';
+import useLocalStorage from '@/shared/hooks/useLocalStorage';
+
+const isMobile = () => {
+    if (typeof window === 'undefined') return false;
+    return window.innerWidth < 768; // md breakpoint
+};
+
+export const useUI = (props?: { isDemoModeEnabled: boolean }) => {
+    const isDemoModeEnabled = props?.isDemoModeEnabled ?? false;
+    const prefix = isDemoModeEnabled ? 'demo_' : '';
+    
+    // General App Navigation
+    const [activeTab, setActiveTab] = useState<'dashboard' | 'transactions' | 'statistics' | 'tags'>('dashboard');
+
+    // Modals and Global UI Elements
+    const [isSettingsOpen, setSettingsOpen] = useState(false);
+    const [initialSettingsTab, setInitialSettingsTab] = useState<SettingsTab>('general');
+    const [confirmationData, setConfirmationData] = useState<{ transactions: Transaction[]; totalSpentBefore: number; } | null>(null);
+    const [transactionForDetail, setTransactionForDetail] = useState<{ transaction: Transaction } | null>(null);
+    const [isChangelogOpen, setIsChangelogOpen] = useState(false);
+    
+    // Non-namespaced settings
+    const [isChangelogAutoShowEnabled, setIsChangelogAutoShowEnabled] = useLocalStorage('changelogAutoShowEnabled', true);
+    const [isInitialSetupDone, setIsInitialSetupDone] = useLocalStorage<boolean>('initialSetupDone', false);
+    
+    // User Management - UI Preference ONLY (namespaced)
+    const [currentUserId, setCurrentUserId] = useLocalStorage<string | null>(`${prefix}app-current-user-id`, null);
+    
+
+    // Page-specific persistent states
+    // Dashboard
+    const [dashboardViewMode, setDashboardViewMode] = useState<ViewMode>('woche');
+    
+    // Statistics
+    const [statisticsCurrentMonth, setStatisticsCurrentMonth] = useState(new Date());
+    const [statisticsSelectedDay, setStatisticsSelectedDay] = useState<Date | null>(null);
+    
+    // TagsPage
+    const [tagsPeriodType, setTagsPeriodType] = useState<PeriodType>('last3Months');
+    const [tagsCurrentDate, setTagsCurrentDate] = useState(new Date());
+    const [tagsCustomDateRange, setTagsCustomDateRange] = useState({
+        start: format(subDays(new Date(), 30), 'yyyy-MM-dd'),
+        end: format(new Date(), 'yyyy-MM-dd'),
+    });
+    const [selectedTagIdsForAnalysis, setSelectedTagIdsForAnalysis] = useState<string[]>([]);
+    
+    // TransactionsPage (namespaced view mode)
+    const [transactionFilters, setTransactionFilters] = useState(() => {
+        const now = new Date();
+        return {
+            text: '',
+            tags: '',
+            categories: [] as string[],
+            minAmount: '',
+            maxAmount: '',
+            startDate: format(subDays(now, 2), 'yyyy-MM-dd'),
+            endDate: format(now, 'yyyy-MM-dd'),
+        };
+    });
+    const [transactionActiveQuickFilter, setTransactionActiveQuickFilter] = useState<QuickFilterId | null>('current');
+    
+    const [transactionViewMode, setTransactionViewMode] = useLocalStorage<TransactionViewMode>(`${prefix}transactionViewMode`, isMobile() ? 'grid' : 'list');
+
+
+    // Callbacks for Modals
+    const openSettings = useCallback((tab: SettingsTab = 'general') => {
+        setInitialSettingsTab(tab);
+        setSettingsOpen(true);
+    }, []);
+    const closeSettings = useCallback(() => setSettingsOpen(false), []);
+    const showConfirmation = useCallback((data: { transactions: Transaction[]; totalSpentBefore: number; }) => setConfirmationData(data), []);
+    const closeConfirmation = useCallback(() => setConfirmationData(null), []);
+    const showTransactionDetail = useCallback((transaction: Transaction) => {
+        setTransactionForDetail({ transaction });
+    }, []);
+    const closeTransactionDetail = useCallback(() => setTransactionForDetail(null), []);
+    const openChangelog = useCallback(() => setIsChangelogOpen(true), []);
+    const closeChangelog = useCallback(() => setIsChangelogOpen(false), []);
+
+    // Cross-tab navigation handlers
+    const handleTagAnalyticsClick = useCallback((tagId: string) => {
+        setActiveTab('tags');
+        setSelectedTagIdsForAnalysis([tagId]);
+    }, []);
+    const handleSelectTagForAnalysis = useCallback((tagIds: string[]) => {
+        setSelectedTagIdsForAnalysis(tagIds);
+    }, []);
+
+    return {
+        activeTab,
+        setActiveTab,
+        isSettingsOpen,
+        openSettings,
+        closeSettings,
+        initialSettingsTab,
+        confirmationData,
+        showConfirmation,
+        closeConfirmation,
+        transactionForDetail,
+        handleTransactionClick: showTransactionDetail,
+        closeTransactionDetail,
+        handleTagAnalyticsClick,
+        
+        // User Management UI preference
+        currentUserId,
+        setCurrentUserId,
+
+        // Initial Setup State
+        isInitialSetupState: [isInitialSetupDone, setIsInitialSetupDone] as const,
+        
+        // Dashboard state
+        dashboardViewMode,
+        setDashboardViewMode,
+        
+        // Statistics state
+        statisticsCurrentMonth,
+        setStatisticsCurrentMonth,
+        statisticsSelectedDay,
+        setStatisticsSelectedDay,
+        
+        // TagsPage state
+        tagsPeriodType,
+        setTagsPeriodType,
+        tagsCurrentDate,
+        setTagsCurrentDate,
+        tagsCustomDateRange,
+        setTagsCustomDateRange,
+        selectedTagIdsForAnalysis,
+        handleSelectTagForAnalysis,
+
+        // TransactionsPage state
+        transactionFilters,
+        setTransactionFilters,
+        transactionActiveQuickFilter,
+        setTransactionActiveQuickFilter,
+        transactionViewMode,
+        setTransactionViewMode,
+
+        // Changelog UI State
+        isChangelogOpen,
+        openChangelog,
+        closeChangelog,
+        isChangelogAutoShowEnabled,
+        setIsChangelogAutoShowEnabled,
+    };
+};

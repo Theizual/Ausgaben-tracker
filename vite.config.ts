@@ -8,10 +8,6 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./', import.meta.url)),
-      '@/shared': fileURLToPath(new URL('./shared', import.meta.url)),
-      '@/features': fileURLToPath(new URL('./features', import.meta.url)),
-      '@/contexts': fileURLToPath(new URL('./contexts', import.meta.url)),
-      '@/processes': fileURLToPath(new URL('./processes', import.meta.url)),
     }
   }
 })

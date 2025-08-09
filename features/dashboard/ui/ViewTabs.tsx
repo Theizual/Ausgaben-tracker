@@ -1,4 +1,3 @@
-
 import React, { FC } from 'react';
 import type { ViewMode } from '@/shared/types';
 

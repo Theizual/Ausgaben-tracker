@@ -5,9 +5,7 @@ import { toast } from 'react-hot-toast';
 import { useApp } from '@/contexts/AppContext';
 import type { Transaction, Category, ViewMode, CategoryId, Tag } from '@/shared/types';
 import { Plus, Coins } from '@/shared/ui';
-import CategoryButtons from '@/components/CategoryButtons';
-import TagInput from '@/components/TagInput';
-import AvailableTags from '@/components/AvailableTags';
+import { CategoryButtons, TagInput, AvailableTags } from '@/shared/ui';
 import { MoreCategoriesModal } from './MoreCategoriesModal';
 import { parseISO } from 'date-fns';
 

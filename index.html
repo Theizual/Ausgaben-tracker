@@ -1,96 +1,47 @@
 <!DOCTYPE html>
 <html lang="de" class="dark">
-<head>
+  <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Ausgaben Tracker</title>
+
+    <!-- Tailwind via CDN (einfach, kein Build nötig) -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <script>
-      tailwind.config = {
-        darkMode: 'class',
-        theme: {
-          extend: {
-            fontFamily: {
-              sans: ['Inter', 'sans-serif'],
-            },
-            colors: {
-              'theme-primary': '#e11d48', // rose-600
-              'theme-primary-hover': '#f43f5e', // rose-500
-              'theme-secondary': '#334155', // slate-700
-              'theme-secondary-hover': '#475569', // slate-600
-              'theme-destructive': '#dc2626', // red-600
-              'theme-destructive-hover': '#ef4444', // red-500
-              'theme-card': '#1e293b', // slate-800
-              'theme-input': '#334155', // slate-700
-              'theme-border': '#475569', // slate-600
-              'theme-ring': '#f43f5e', // rose-500
-              'theme-text': '#f8fafc', // slate-50
-              'theme-text-muted': '#94a3b8', // slate-400
-            }
-          },
-        },
-      }
-    </script>
-    <style>
-        /* Custom Scrollbar for Webkit Browsers */
-        .custom-scrollbar::-webkit-scrollbar {
-            width: 8px; /* Width of the scrollbar */
-        }
 
-        .custom-scrollbar::-webkit-scrollbar-track {
-            background: transparent; /* Transparent track */
-        }
+    <!-- Fonts optional -->
+    <link rel="preconnect" href="https://fonts.googleapis.com"/>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet"/>
 
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-            background-color: #475569; /* slate-600 */
-            border-radius: 10px; /* Rounded corners */
-            border: 2px solid transparent; /* Creates padding around the thumb */
-            background-clip: padding-box;
-        }
-
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-            background-color: #64748b; /* slate-500 */
-        }
-        
-        /* Custom Scrollbar for Firefox */
-        .custom-scrollbar {
-            scrollbar-width: thin;
-            scrollbar-color: #475569 transparent; /* thumb color track color */
-        }
-    </style>
-<script type="importmap">
+    <!-- optional: eigene Basisklasse -->
+    <link rel="stylesheet" href="/index.css" />
+  <script type="importmap">
 {
   "imports": {
-    "clsx": "https://esm.sh/clsx@^2.1.1",
-    "class-variance-authority": "https://esm.sh/class-variance-authority@^0.7.0",
-    "@vercel/node": "https://esm.sh/@vercel/node@^5.3.8",
-    "googleapis": "https://esm.sh/googleapis@^154.1.0",
-    "google-auth-library": "https://esm.sh/google-auth-library@^10.2.0",
-    "vite": "https://esm.sh/vite@^7.0.6",
     "react": "https://esm.sh/react@^19.1.1",
     "react/": "https://esm.sh/react@^19.1.1/",
     "react-dom/": "https://esm.sh/react-dom@^19.1.1/",
-    "lucide-react": "https://esm.sh/lucide-react@^0.536.0",
-    "recharts": "https://esm.sh/recharts@^3.1.0",
-    "@vitejs/plugin-react": "https://esm.sh/vite@^4.7.0",
-    "date-fns": "https://esm.sh/date-fns@^3.6.0",
-    "date-fns/": "https://esm.sh/date-fns@^3.6.0/",
+    "class-variance-authority": "https://esm.sh/class-variance-authority@^0.7.1",
+    "recharts": "https://esm.sh/recharts@^3.1.2",
+    "clsx": "https://esm.sh/clsx@^2.1.1",
     "framer-motion": "https://esm.sh/framer-motion@^12.23.12",
-    "react-hot-toast": "https://esm.sh/react-hot-toast@2.4.1",
-    "zod": "https://esm.sh/zod@3.23.8",
-    "lodash.debounce": "https://esm.sh/lodash.debounce@^4.0.8",
-    "nanoid": "https://esm.sh/nanoid@^5.0.7",
-    "buffer": "https://esm.sh/buffer@^6.0.3"
+    "react-hot-toast": "https://esm.sh/react-hot-toast@^2.5.2",
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.0.0",
+    "vite": "https://esm.sh/vite@^7.1.1",
+    "date-fns": "https://esm.sh/date-fns@^4.1.0",
+    "date-fns/": "https://esm.sh/date-fns@^4.1.0/",
+    "google-auth-library": "https://esm.sh/google-auth-library@^10.2.1",
+    "lucide-react": "https://esm.sh/lucide-react@^0.539.0",
+    "googleapis": "https://esm.sh/googleapis@^155.0.1",
+    "nanoid": "https://esm.sh/nanoid@^5.1.5",
+    "@vercel/node": "https://esm.sh/@vercel/node@^5.3.11"
   }
 }
 </script>
 <link rel="stylesheet" href="/index.css">
 </head>
-<body class="bg-slate-900 text-slate-200 antialiased">
+  <body class="bg-slate-900 text-slate-200 antialiased">
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
-</body>
+  </body>
 </html>

@@ -1,10 +1,9 @@
+
 import React, { FC, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { X, Gift, Loader2 } from '@/shared/ui';
 import { ToggleSwitch } from '@/shared/ui';
 import { APP_VERSION } from '@/constants';
-
-const MotionDiv = motion('div');
 
 interface ChangelogEntry {
     version: string;
@@ -52,7 +51,7 @@ const ChangelogModal: FC<ChangelogModalProps> = ({
     const latestChange = changelogData?.[0];
 
     return (
-        <MotionDiv
+        <motion.div
             className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50 p-4"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -110,7 +109,7 @@ const ChangelogModal: FC<ChangelogModalProps> = ({
                     </button>
                 </footer>
             </motion.div>
-        </MotionDiv>
+        </motion.div>
     );
 };
 

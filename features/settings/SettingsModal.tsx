@@ -1,17 +1,16 @@
 
-import React, { useState, useMemo, useCallback, useEffect, FC, useRef } from 'react';
+
+import React, { useState, useCallback, useEffect, FC } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { useApp } from '../../contexts/AppContext';
+import { useApp } from '@/contexts/AppContext';
 import type { SettingsTab } from '@/shared/types';
-import { Settings, X, LayoutGrid, Target, SlidersHorizontal, Repeat, History, Users, ChevronLeft, ChevronRight } from '../../components/ui';
-import { useEscapeKey } from '../../hooks/useEscapeKey';
+import { Settings, X, LayoutGrid, Target, SlidersHorizontal, Users, ChevronLeft, ChevronRight } from '@/shared/ui';
 import { GeneralSettings } from './components/GeneralSettings';
 import { UserSettings } from './components/UserSettings';
 import { BudgetSettings } from './components/BudgetSettings';
 import { DisplaySettings } from './components/DisplaySettings';
 import { TagManagerModal } from './components/TagManagerModal';
 import { CategoryLibraryModal } from './components/CategoryLibraryModal';
-
 
 const ANIMATION_CONFIG = {
     MODAL_SPRING: { type: 'spring' as const, bounce: 0.2, duration: 0.4 },
@@ -26,11 +25,6 @@ const TABS: { id: SettingsTab; label: string; icon: FC<any>; }[] = [
 ];
 
 const SettingsModal: FC<{ isOpen: boolean; onClose: () => void; initialTab?: SettingsTab; }> = ({ isOpen, onClose, initialTab }) => {
-    const {
-        allAvailableTags, handleUpdateTag, handleDeleteTag,
-        categoryGroups, visibleCategoryGroups, updateVisibleGroups, currentUserId, groupColors, updateGroupColor
-    } = useApp();
-
     const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab || 'general');
     const [isTagManagerOpen, setTagManagerOpen] = useState(false);
     const [isCategoryLibraryOpen, setCategoryLibraryOpen] = useState(false);

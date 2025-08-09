@@ -1,15 +1,14 @@
 
-import React, { useMemo, FC, useState } from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+
+import React, { useMemo, FC } from 'react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceDot } from 'recharts';
 import { motion } from 'framer-motion';
 import type { Transaction, Category } from '@/shared/types';
-import { eachDayOfInterval, format, parseISO, startOfMonth, endOfMonth, isSameDay } from 'date-fns';
+import { eachDayOfInterval, format, parseISO, startOfMonth, endOfMonth, isAfter, getDate, getDaysInMonth } from 'date-fns';
 import { formatCurrency } from '@/shared/utils/dateUtils';
 import { TrendingDown } from '@/shared/ui';
 import { FIXED_COSTS_GROUP_NAME } from '@/constants';
 import { useApp } from '@/contexts/AppContext';
-
-type ChartViewMode = 'category' | 'group';
 
 interface BudgetBurndownChartProps {
     transactions: Transaction[];
@@ -19,42 +18,60 @@ interface BudgetBurndownChartProps {
     groupColors: Record<string, string>;
 }
 
-interface GroupInfo {
+interface ItemInfo {
     name: string;
     budget: number;
     color: string;
+    itemIds: string[]; // Category IDs belonging to this item
 }
 
-type ActiveItem = Category | GroupInfo;
+interface ItemInfoWithTrend extends ItemInfo {
+    averageDailySpend: number;
+    projectedEndValue: number;
+    isTrendNegative: boolean;
+}
 
-const CustomTooltip = ({ active, payload, label, activeItems, deLocale }: any) => {
-    if (active && payload && payload.length && activeItems) {
+const CustomTooltip = ({ active, payload, label, deLocale }: any) => {
+    if (active && payload && payload.length) {
         const date = parseISO(label);
         const formattedDate = format(date, 'd. MMMM', { locale: deLocale });
 
-        const totalSpent = payload.reduce((sum: number, p: any) => sum + p.value, 0);
+        const sortedPayload = payload
+            .filter((p: any) => p.value !== null && p.value !== undefined && !p.dataKey.endsWith('_trend'))
+            .map((p: any) => {
+                const trendPayload = payload.find((tp: any) => tp.dataKey === `${p.dataKey}_trend`);
+                return {
+                    name: p.name,
+                    value: p.value,
+                    color: p.stroke,
+                    trendValue: trendPayload ? trendPayload.value : undefined,
+                };
+            })
+            .sort((a: any, b: any) => b.value - a.value);
+
+        if (sortedPayload.length === 0) return null;
 
         return (
-            <div className="bg-slate-700 p-3 rounded-lg border border-slate-600 shadow-xl min-w-[250px]">
-                <div className="flex justify-between items-baseline mb-2">
-                    <p className="font-bold text-white">{formattedDate}</p>
-                    <p className="text-sm text-slate-400">Gesamt: <span className="font-bold text-white">{formatCurrency(totalSpent)}</span></p>
-                </div>
-                <div className="space-y-1">
-                    {payload.map((p: any) => {
-                        const item = activeItems.find((i: ActiveItem) => i.name === p.name);
-                        if (!item || p.value === 0) return null;
-                        
-                        return (
-                            <div key={p.dataKey} className="flex justify-between items-center text-sm gap-4">
+            <div className="bg-slate-700 p-3 rounded-lg border border-slate-600 shadow-xl min-w-[280px]">
+                <p className="font-bold text-white mb-2">{formattedDate}</p>
+                <div className="space-y-1.5">
+                    {sortedPayload.map((p: any) => (
+                        <div key={p.name}>
+                             <div className="flex justify-between items-center text-sm gap-4">
                                 <div className="flex items-center gap-2 truncate">
-                                    <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }} />
-                                    <span className="text-slate-300 truncate" style={{ color: item.color }}>{p.name}</span>
+                                    <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: p.color }} />
+                                    <span className="text-slate-300 truncate" style={{ color: p.color }}>{p.name}</span>
                                 </div>
                                 <span className="font-mono text-white font-semibold flex-shrink-0">{formatCurrency(p.value)}</span>
                             </div>
-                        );
-                    }).filter(Boolean)}
+                            {p.trendValue !== undefined && (
+                                <div className="flex justify-between items-center text-xs gap-4 pl-4">
+                                    <span className="text-slate-400">Prognose</span>
+                                    <span className="font-mono text-slate-400">{formatCurrency(p.trendValue)}</span>
+                                </div>
+                            )}
+                        </div>
+                    ))}
                 </div>
             </div>
         );
@@ -63,62 +80,88 @@ const CustomTooltip = ({ active, payload, label, activeItems, deLocale }: any) =
 };
 
 export const BudgetBurndownChart: FC<BudgetBurndownChartProps> = ({ transactions, categoryMap, currentMonth, visibleCategoryGroups, groupColors }) => {
-    const { deLocale } = useApp();
-    const [viewMode, setViewMode] = useState<ChartViewMode>('group');
+    const { deLocale, flexibleCategories } = useApp();
 
-    const { data, activeItems } = useMemo(() => {
-        const flexibleTransactions = transactions.filter(t => categoryMap.get(t.categoryId)?.group !== FIXED_COSTS_GROUP_NAME);
-        
-        const itemsToTrack: (Category | GroupInfo)[] = viewMode === 'category'
-            ? Array.from(categoryMap.values()).filter(c => c.group !== FIXED_COSTS_GROUP_NAME && c.budget && c.budget > 0 && visibleCategoryGroups.includes(c.group))
-            : visibleCategoryGroups
-                .filter(g => g !== FIXED_COSTS_GROUP_NAME)
-                .map(groupName => {
-                    const groupCategories = Array.from(categoryMap.values()).filter(c => c.group === groupName);
-                    const groupBudget = groupCategories.reduce((sum, c) => sum + (c.budget || 0), 0);
-                    return { name: groupName, budget: groupBudget, color: groupColors[groupName] || '#a855f7' };
-                })
-                .filter(g => g.budget > 0);
+    const { data, activeItems, endangeredGroups } = useMemo(() => {
+        const itemsToTrack: ItemInfo[] = visibleCategoryGroups
+            .filter(g => g !== FIXED_COSTS_GROUP_NAME)
+            .map(groupName => {
+                const groupCategories = flexibleCategories.filter(c => c.group === groupName);
+                const groupBudget = groupCategories.reduce((sum, c) => sum + (c.budget || 0), 0);
+                return {
+                    name: groupName, budget: groupBudget, color: groupColors[groupName] || '#a855f7',
+                    itemIds: groupCategories.map(c => c.id)
+                };
+            }).filter(g => g.budget > 0);
 
-        const daysInMonth = eachDayOfInterval({ start: startOfMonth(currentMonth), end: endOfMonth(currentMonth) });
-        const itemMapByName = new Map(itemsToTrack.map(item => [item.name, item]));
+        const today = new Date();
+        const startOfCurrentMonth = startOfMonth(currentMonth);
+        const endOfCurrentMonth = endOfMonth(currentMonth);
+        const daysInMonthArray = eachDayOfInterval({ start: startOfCurrentMonth, end: endOfCurrentMonth });
+        const totalDaysInMonth = getDaysInMonth(currentMonth);
 
-        let cumulativeSpending: Record<string, number> = {};
-        itemsToTrack.forEach(item => { cumulativeSpending[item.name] = 0; });
+        const spendingPerDayPerCategory = new Map<string, Map<string, number>>();
+        transactions.forEach(t => {
+            try {
+                if (!t.date) return;
+                const dayKey = format(parseISO(t.date), 'yyyy-MM-dd');
+                if (!spendingPerDayPerCategory.has(dayKey)) spendingPerDayPerCategory.set(dayKey, new Map<string, number>());
+                const dayMap = spendingPerDayPerCategory.get(dayKey)!;
+                dayMap.set(t.categoryId, (dayMap.get(t.categoryId) || 0) + t.amount);
+            } catch {}
+        });
 
-        const chartData = daysInMonth.map(day => {
-            const dailyTransactions = flexibleTransactions.filter(t => {
-                try {
-                    return isSameDay(parseISO(t.date), day);
-                } catch {
-                    return false;
+        const itemsWithTrend: ItemInfoWithTrend[] = itemsToTrack.map(item => {
+            let totalSpentToDate = 0;
+            for (const day of daysInMonthArray) {
+                if (isAfter(day, today)) break;
+                const dailySpendingMap = spendingPerDayPerCategory.get(format(day, 'yyyy-MM-dd'));
+                if (dailySpendingMap) {
+                    totalSpentToDate += item.itemIds.reduce((sum, catId) => sum + (dailySpendingMap.get(catId) || 0), 0);
                 }
-            });
+            }
             
-            const dailySpending: Record<string, number> = {};
-            itemsToTrack.forEach(item => { dailySpending[item.name] = 0; });
+            const daysPassed = isAfter(today, endOfCurrentMonth) ? totalDaysInMonth : (isAfter(today, startOfCurrentMonth) ? getDate(today) : 0);
+            const averageDailySpend = daysPassed > 0 ? totalSpentToDate / daysPassed : 0;
+            const projectedEndValue = item.budget - (averageDailySpend * totalDaysInMonth);
 
-            dailyTransactions.forEach(t => {
-                const category = categoryMap.get(t.categoryId);
-                if (!category) return;
+            return { ...item, averageDailySpend, projectedEndValue, isTrendNegative: projectedEndValue < 0 };
+        });
+
+        let cumulativeSpending = new Map<string, number>();
+        itemsToTrack.forEach(item => cumulativeSpending.set(item.name, 0));
+        let lastKnownRemaining = new Map<string, number>();
+
+        const chartData = daysInMonthArray.map(day => {
+            const dayKey = format(day, 'yyyy-MM-dd');
+            const dayNumber = getDate(day);
+            const dataPoint: { [key: string]: any } = { date: dayKey };
+
+            itemsWithTrend.forEach(item => {
+                dataPoint[`${item.name}_trend`] = Math.max(0, item.budget - (item.averageDailySpend * dayNumber));
                 
-                const key = viewMode === 'category' ? category.name : category.group;
-                if (itemMapByName.has(key)) {
-                    dailySpending[key] = (dailySpending[key] || 0) + t.amount;
+                if (!isAfter(day, today)) {
+                    let dailySpendOnItem = 0;
+                    const dailySpendingMap = spendingPerDayPerCategory.get(dayKey);
+                    if(dailySpendingMap) dailySpendOnItem = item.itemIds.reduce((sum, catId) => sum + (dailySpendingMap.get(catId) || 0), 0);
+                    const newCumulative = (cumulativeSpending.get(item.name) || 0) + dailySpendOnItem;
+                    cumulativeSpending.set(item.name, newCumulative);
+                    const remaining = item.budget - newCumulative;
+                    dataPoint[item.name] = remaining;
+                    lastKnownRemaining.set(item.name, remaining);
+                } else {
+                    dataPoint[item.name] = lastKnownRemaining.get(item.name) ?? item.budget;
                 }
             });
-
-            const dataPoint: { [key: string]: any } = { date: format(day, 'yyyy-MM-dd') };
-            itemsToTrack.forEach(item => {
-                cumulativeSpending[item.name] = (cumulativeSpending[item.name] || 0) + (dailySpending[item.name] || 0);
-                dataPoint[item.name] = cumulativeSpending[item.name];
-            });
-            
             return dataPoint;
         });
 
-        return { data: chartData, activeItems: itemsToTrack };
-    }, [viewMode, transactions, categoryMap, currentMonth, visibleCategoryGroups, groupColors]);
+        const endangeredGroups = itemsWithTrend.filter(item => item.isTrendNegative);
+
+        return { data: chartData, activeItems: itemsWithTrend, endangeredGroups };
+    }, [flexibleCategories, transactions, currentMonth, visibleCategoryGroups, groupColors, categoryMap]);
+    
+    const chartHeight = Math.max(320, 150 + activeItems.length * 20);
 
     if (activeItems.length === 0) {
         return (
@@ -134,43 +177,59 @@ export const BudgetBurndownChart: FC<BudgetBurndownChartProps> = ({ transactions
     return (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-slate-800 p-6 rounded-2xl border border-slate-700">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
-                <h3 className="text-lg font-bold text-white flex items-center gap-2"><TrendingDown className="h-5 w-5 text-rose-400" /> Ausgabenverlauf nach Budget</h3>
-                <div className="bg-slate-700/50 p-1 rounded-full flex items-center self-end sm:self-center">
-                    {(['group', 'category'] as ChartViewMode[]).map(mode => (
-                        <button
-                            key={mode}
-                            onClick={() => setViewMode(mode)}
-                            className={`px-3 py-1 text-xs font-semibold rounded-full transition-colors duration-300 ${
-                                viewMode === mode ? 'bg-rose-600 text-white' : 'text-slate-300 hover:bg-slate-600/50'
-                            }`}
-                        >
-                            {mode === 'group' ? 'Nach Gruppe' : 'Nach Kategorie'}
-                        </button>
-                    ))}
-                </div>
+                <h3 className="text-lg font-bold text-white flex items-center gap-2"><TrendingDown className="h-5 w-5 text-rose-400" /> Budget-Verlauf (Gruppen)</h3>
             </div>
-            <div className="h-80 pr-4 -ml-4">
+            <div style={{ height: `${chartHeight}px` }} className="pr-4 -ml-4">
                 <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={data} margin={{ top: 5, right: 10, left: 0, bottom: 20 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#475569" strokeOpacity={0.3} />
                         <XAxis dataKey="date" tickFormatter={(d) => format(parseISO(d), 'd. MMM', { locale: deLocale })} stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} dy={10} />
-                        <YAxis tickFormatter={(v) => formatCurrency(v)} stroke="#94a3b8" fontSize={12} width={80} axisLine={false} tickLine={false} />
-                        <Tooltip content={<CustomTooltip activeItems={activeItems} deLocale={deLocale} />} cursor={{ stroke: '#f43f5e', strokeWidth: 1, strokeDasharray: '3 3' }} />
-                        <Legend wrapperStyle={{paddingTop: '20px'}} />
+                        <YAxis tickFormatter={(v) => formatCurrency(v)} stroke="#94a3b8" fontSize={12} width={80} axisLine={false} tickLine={false} domain={[0, 'auto']} />
+                        <Tooltip content={<CustomTooltip deLocale={deLocale} />} cursor={{ stroke: '#f43f5e', strokeWidth: 1, strokeDasharray: '3 3' }} />
+                        <Legend wrapperStyle={{paddingTop: '20px'}} formatter={(value) => {
+                                const item = activeItems.find(i => i.name === value);
+                                return (
+                                    <span className="flex items-center gap-1.5 text-slate-300 text-sm">
+                                        {value}
+                                        {item?.isTrendNegative && <span title="Prognose: Budget wird überschritten"><TrendingDown className="h-4 w-4 text-red-500"/></span>}
+                                    </span>
+                                );
+                            }}/>
+                        
                         {activeItems.map(item => (
-                            <Line
-                                key={item.name}
-                                type="monotone"
-                                dataKey={item.name}
-                                stroke={item.color}
-                                strokeWidth={2.5}
-                                dot={false}
-                                activeDot={{ r: 6, stroke: '#111827', strokeWidth: 2, fill: item.color }}
+                             <React.Fragment key={item.name}>
+                                <Line type="monotone" dataKey={item.name} stroke={item.color} strokeWidth={2.5} dot={false} activeDot={{ r: 6, stroke: '#1e293b', strokeWidth: 2, fill: item.color }} connectNulls={false} />
+                                <Line type="monotone" dataKey={`${item.name}_trend`} stroke={item.color} strokeWidth={1.5} strokeDasharray="5 5" dot={false} legendType="none" activeDot={false} />
+                            </React.Fragment>
+                        ))}
+
+                        {activeItems.map(item => (
+                            <ReferenceDot
+                                key={`dot-${item.name}`}
+                                x={format(endOfMonth(currentMonth), 'yyyy-MM-dd')}
+                                y={item.projectedEndValue < 0 ? 0 : item.projectedEndValue}
+                                r={5}
+                                fill={item.isTrendNegative ? '#ef4444' : '#22c55e'}
+                                stroke="#1e293b"
+                                strokeWidth={2}
                             />
                         ))}
                     </LineChart>
                 </ResponsiveContainer>
             </div>
+            {endangeredGroups.length > 0 && (
+                <div className="mt-6 pt-4 border-t border-slate-700">
+                    <h4 className="text-sm font-semibold text-red-400 mb-3">Budget gefährdet:</h4>
+                    <div className="flex flex-wrap gap-2">
+                        {endangeredGroups.map(group => (
+                            <div key={group.name} className="flex items-center gap-2 px-2 py-1 bg-slate-700/50 rounded-md text-xs text-slate-300">
+                                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: group.color }} />
+                                <span>{group.name}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
         </motion.div>
     );
 };

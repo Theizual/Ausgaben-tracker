@@ -1,7 +1,8 @@
 
+
 import React, { FC, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { useApp } from '../../../contexts/AppContext';
+import { useApp } from '@/contexts/AppContext';
 import type { Transaction } from '@/shared/types';
 import { format, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isToday, isSameDay, subMonths, addMonths } from 'date-fns';
 import { ChevronLeft, ChevronRight } from '@/shared/ui';
