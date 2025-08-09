@@ -4,6 +4,7 @@ import { toast } from 'react-hot-toast';
 import useLocalStorage from '@/shared/hooks/useLocalStorage';
 import type { Category, Transaction, RecurringTransaction, Tag, User, UserSetting } from '@/shared/types';
 import { apiGet, apiPost, HttpError } from '@/shared/lib/http';
+import { INITIAL_GROUPS } from '@/constants';
 
 export interface SyncProps {
     rawCategories: Category[];
@@ -115,19 +116,58 @@ export const useSync = (props: SyncProps) => {
             try {
                 const data: ReadApiResponse = await apiGet('/api/sheets/read');
                 
-                setCategories(data.categories);
-                setTransactions(data.transactions);
-                setRecurringTransactions(data.recurring);
-                setAllAvailableTags(data.tags);
-                setUsers(data.users);
-                setUserSettings(data.userSettings);
+                const { categories, transactions, recurring, tags, users } = data;
+                let { userSettings } = data;
 
-                setLastSync(new Date().toISOString());
-                setSyncStatus('success');
+                // Ensure there's a main user to associate categories with
+                const mainUser = users.find(u => !u.isDeleted);
+                if (!mainUser) {
+                    throw new Error("Kein aktiver Benutzer in den Google Sheet-Daten gefunden.");
+                }
+
+                // Create or update the category configuration for the main user
+                const allGroupsFromData = [...new Set(categories.map(c => c.group))];
+                const finalInitialGroups = INITIAL_GROUPS.filter(g => allGroupsFromData.includes(g));
+                const newGroupsFromData = allGroupsFromData.filter(g => !INITIAL_GROUPS.includes(g));
+                const allSortedGroups = [...finalInitialGroups, ...newGroupsFromData];
+                
+                const categoryConfigValue = JSON.stringify({ categories: categories, groups: allSortedGroups });
+                const now = new Date().toISOString();
+
+                const existingConfigIndex = userSettings.findIndex(s => s.userId === mainUser.id && s.key === 'categoryConfiguration');
+                if (existingConfigIndex > -1) {
+                    const existing = userSettings[existingConfigIndex];
+                    userSettings[existingConfigIndex] = {
+                        ...existing,
+                        value: categoryConfigValue,
+                        lastModified: now,
+                        version: (existing.version || 0) + 1,
+                    };
+                } else {
+                    userSettings.push({
+                        userId: mainUser.id,
+                        key: 'categoryConfiguration',
+                        value: categoryConfigValue,
+                        lastModified: now,
+                        version: 1,
+                    });
+                }
+
+                // Manually write all data to production localStorage keys
+                window.localStorage.setItem('transactions', JSON.stringify(transactions || []));
+                window.localStorage.setItem('recurringTransactions', JSON.stringify(recurring || []));
+                window.localStorage.setItem('allAvailableTags', JSON.stringify(tags || []));
+                window.localStorage.setItem('users', JSON.stringify(users || []));
+                window.localStorage.setItem('userSettings', JSON.stringify(userSettings || []));
+                window.localStorage.setItem('lastSyncTimestamp', JSON.stringify(now));
+                window.localStorage.setItem('app-current-user-id', JSON.stringify(mainUser.id));
+                
+                // Set app to "production mode" for the next load
                 setIsInitialSetupDone(true);
                 
                 toast.success('Daten erfolgreich geladen! Die App wird neu gestartet, um den Produktiv-Modus zu aktivieren.', { id: toastId, duration: 4000 });
                 
+                // Reload the page to apply the new state from production storage
                 setTimeout(() => window.location.reload(), 1500);
 
             } catch (e: any) {
