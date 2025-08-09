@@ -1,4 +1,5 @@
 
+
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'react-hot-toast';
 import useLocalStorage from '@/shared/hooks/useLocalStorage';
@@ -153,23 +154,8 @@ export const useSync = (props: SyncProps) => {
                     });
                 }
                 
-                const tagNameIdMap = new Map<string, string>();
-                tags.forEach(tag => {
-                    if(tag.name) tagNameIdMap.set(tag.name.toLowerCase(), tag.id);
-                });
-
-                const transactionsWithTagIds = transactions.map(t => {
-                    const tagNames = (t as any).tags as string[] || [];
-                    const tagIds = tagNames
-                        .map(name => tagNameIdMap.get(name.toLowerCase()))
-                        .filter((id): id is string => !!id);
-                    
-                    const { tags, ...restOfTransaction } = t as any;
-                    return { ...restOfTransaction, tagIds };
-                });
-
                 // Manually write all data to production localStorage keys
-                window.localStorage.setItem('transactions', JSON.stringify(transactionsWithTagIds || []));
+                window.localStorage.setItem('transactions', JSON.stringify(transactions || []));
                 window.localStorage.setItem('recurringTransactions', JSON.stringify(recurring || []));
                 window.localStorage.setItem('allAvailableTags', JSON.stringify(tags || []));
                 window.localStorage.setItem('users', JSON.stringify(users || []));

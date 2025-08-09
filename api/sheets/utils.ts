@@ -1,8 +1,7 @@
 
-
 export const HEADERS = {
   Categories: ['id','name','color','group','budget','icon','lastModified','version','isDeleted'],
-  Transactions: ['id','date','description','amount','categoryId','tags','userId','recurringId','lastModified','version','isDeleted'],
+  Transactions: ['id','amount','description','categoryId','date','tagIds','lastModified','isDeleted','recurringId','version','userId'],
   Recurring: ['id','amount','description','categoryId','frequency','dayOfMonth','startDate','endDate','lastProcessedDate','active','lastModified','version','isDeleted'],
   Tags: ['id','name','color','lastModified','version','isDeleted'],
   Users: ['id','name','color','lastModified','version','isDeleted'],
@@ -69,9 +68,19 @@ export function rowsToObjects(sheet: SheetName, rows: any[][] = []): any[] {
       if (obj.lastProcessedDate) obj.lastProcessedDate = parseGermanDateToISO(obj.lastProcessedDate);
     }
     
-    // Handle tags (client will convert names to IDs)
-    if (obj.tags && typeof obj.tags === 'string') {
-        obj.tags = obj.tags ? String(obj.tags).split(',').map((t: string) => t.trim()) : [];
+    // Transaction-specific transformations
+    if (sheet === 'Transactions') {
+        // Handle tagIds
+        if (obj.tagIds && typeof obj.tagIds === 'string') {
+            obj.tagIds = String(obj.tagIds).split(',').map((t: string) => t.trim()).filter(Boolean);
+        } else {
+            obj.tagIds = [];
+        }
+        // Map userId from sheet to createdBy in app object
+        if (obj.userId) {
+            obj.createdBy = obj.userId;
+            delete obj.userId;
+        }
     }
 
     // Robust boolean parsing
@@ -88,7 +97,9 @@ export function rowsToObjects(sheet: SheetName, rows: any[][] = []): any[] {
 export function objectsToRows(sheet: SheetName, items: any[] = []): any[][] {
   const headers = HEADERS[sheet];
   return items.map(it => headers.map(h => {
-      const val = it[h];
+      // Map createdBy from app object to userId for the sheet
+      const val = h === 'userId' && sheet === 'Transactions' ? it.createdBy : it[h];
+
       if (Array.isArray(val)) return val.join(',');
       if (typeof val === 'number') return val.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
       if (h === 'date' || h === 'startDate' || h === 'endDate' || h === 'lastModified' || h === 'lastProcessedDate') {
