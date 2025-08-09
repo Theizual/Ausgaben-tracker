@@ -3,7 +3,7 @@ import { google } from 'googleapis';
 import { JWT } from 'google-auth-library';
 import { withRetry } from '../../shared/lib/retry.js';
 import { rowsToObjects } from './utils.js';
-import { getEnv } from './env';
+import { getEnv } from './env.js';
 
 function getAuth() {
   const email = getEnv('GOOGLE_SERVICE_ACCOUNT_EMAIL');
@@ -41,6 +41,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     };
     return res.status(200).json(out);
   } catch (e: any) {
-    return res.status(500).json({ error: `Failed to read: ${e?.message || e}` });
+    const msg = e?.message || String(e);
+    const code = e?.code || e?.response?.status;
+    console.error('Sheets API error:', { msg, code, stack: e?.stack });
+    return res.status(500).json({ error: 'Failed to read/write',message: msg, code, });
+    //return res.status(500).json({ error: `Failed to read: ${e?.message || e}` });
   }
 }

@@ -3,7 +3,7 @@ import { google } from 'googleapis';
 import { JWT } from 'google-auth-library';
 import { withRetry } from '../../shared/lib/retry.js';
 import { HEADERS, objectsToRows, rowsToObjects } from './utils.js';
-import { getEnv } from './env';
+import { getEnv } from './env.js';
 
 function getAuth() {
   const email = getEnv('GOOGLE_SERVICE_ACCOUNT_EMAIL');
