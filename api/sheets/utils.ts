@@ -54,6 +54,7 @@ export function rowsToObjects(sheet: SheetName, rows: any[][] = []): any[] {
         if (!obj.value && (obj as any).settingValue) obj.value = (obj as any).settingValue;
       }
 
+      // Robust number parsing
       if (sheet === 'Transactions' || sheet === 'Recurring') {
         obj.amount = parseGermanNumber(obj.amount);
       }
@@ -61,6 +62,7 @@ export function rowsToObjects(sheet: SheetName, rows: any[][] = []): any[] {
         obj.budget = parseGermanNumber(obj.budget);
       }
 
+      // Robust date parsing
       if (sheet === 'Transactions') {
         if (obj.date) obj.date = parseGermanDateToISO(obj.date);
       }
@@ -70,18 +72,63 @@ export function rowsToObjects(sheet: SheetName, rows: any[][] = []): any[] {
         if (obj.lastProcessedDate) obj.lastProcessedDate = parseGermanDateToISO(obj.lastProcessedDate);
       }
 
+      // Transaction-specific transformations
       if (sheet === 'Transactions') {
         if (obj.tagIds && typeof obj.tagIds === 'string') {
           obj.tagIds = String(obj.tagIds).split(',').map(t => t.trim()).filter(Boolean);
         } else {
           obj.tagIds = [];
         }
+        // Map userId (Sheet) -> createdBy (App)
         if (obj.userId) {
           obj.createdBy = obj.userId;
           delete obj.userId;
         }
       }
 
+      // Booleans & Version normalisieren
       if ('isDeleted' in obj) {
         obj.isDeleted = String(obj.isDeleted).toUpperCase() === 'TRUE';
+      } else {
+        (obj as any).isDeleted = false;
       }
+
+      if (sheet === 'Recurring') {
+        // active defaultet auf true, außer explizit 'FALSE'
+        obj.active = String(obj.active).toUpperCase() !== 'FALSE';
+      }
+
+      if ('version' in obj) {
+        obj.version = Number(obj.version) || 0;
+      } else {
+        (obj as any).version = 0;
+      }
+
+      return obj;
+    });
+}
+
+export function objectsToRows(sheet: SheetName, items: any[] = []): any[][] {
+  const headers = HEADERS[sheet];
+  return items.map(it => headers.map(h => {
+    // Map createdBy (App) -> userId (Sheet) für Transactions
+    const val = h === 'userId' && sheet === 'Transactions' ? it.createdBy : it[h];
+
+    if (Array.isArray(val)) return val.join(',');
+    if (typeof val === 'number')
+      return val.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    if (h === 'date' || h === 'startDate' || h === 'endDate' || h === 'lastModified' || h === 'lastProcessedDate') {
+      try {
+        const d = new Date(val);
+        if (!isNaN(d.getTime())) {
+          const dd = d.getDate().toString().padStart(2, '0');
+          const mm = (d.getMonth() + 1).toString().padStart(2, '0');
+          const yyyy = d.getFullYear();
+          return `${dd}.${mm}.${yyyy}`;
+        }
+      } catch {}
+    }
+    return val ?? '';
+  }));
+}
