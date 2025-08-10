@@ -1,3 +1,4 @@
+
 export interface User {
   id: string;
   name: string;
@@ -25,7 +26,7 @@ export interface Category {
   color: string;
   icon: string;
   budget?: number;
-  group: string;
+  groupId: string;
   lastModified: string; // ISO string
   isDeleted?: boolean;
   version: number;

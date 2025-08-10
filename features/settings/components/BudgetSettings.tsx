@@ -1,16 +1,8 @@
-
-
-
-
-
-
-
-
 import React, { useState, useMemo, useCallback, useEffect, FC, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { useApp } from '@/contexts/AppContext';
-import type { Category, RecurringTransaction } from '@/shared/types';
+import type { Category, RecurringTransaction, Group } from '@/shared/types';
 import { format, parseISO } from 'date-fns';
 import { formatCurrency } from '@/shared/utils/dateUtils';
 import { getIconComponent, Plus, Trash2, Edit, ChevronDown, ProgressBar, Button } from '@/shared/ui';
@@ -26,7 +18,8 @@ export const BudgetSettings: FC = () => {
     const {
         flexibleCategories,
         upsertCategory,
-        groupNames,
+        groups,
+        groupMap,
         totalMonthlyBudget, // flex budget
         totalMonthlyFixedCosts,
         fixedCategories,
@@ -35,13 +28,12 @@ export const BudgetSettings: FC = () => {
         updateRecurringTransaction,
         deleteRecurringTransaction,
         categories,
-        groupMap,
     } = useApp();
 
     // --- State for Flexible Budgets ---
     const [flexExpandedGroups, setFlexExpandedGroups] = useState<string[]>(() => {
-        const initialGroups = groupNames.filter(g => groupMap.get(g) !== FIXED_COSTS_GROUP_ID);
-        return initialGroups.length > 0 ? [initialGroups[0]] : [];
+        const initialGroups = groups.filter(g => g.id !== FIXED_COSTS_GROUP_ID);
+        return initialGroups.length > 0 ? [initialGroups[0].id] : [];
     });
     const [groupBudgetInputs, setGroupBudgetInputs] = useState<Record<string, string>>({});
     const [categoryBudgetInputs, setCategoryBudgetInputs] = useState<Record<string, string>>({});
@@ -74,11 +66,11 @@ export const BudgetSettings: FC = () => {
 
 
     // --- Handlers for Flexible Budgets ---
-    const toggleFlexGroup = useCallback((groupName: string) => {
+    const toggleFlexGroup = useCallback((groupId: string) => {
         setFlexExpandedGroups(prev =>
-            prev.includes(groupName)
-                ? prev.filter(g => g !== groupName)
-                : [...prev, groupName]
+            prev.includes(groupId)
+                ? prev.filter(g => g !== groupId)
+                : [...prev, groupId]
         );
     }, []);
 
@@ -94,13 +86,10 @@ export const BudgetSettings: FC = () => {
         }
     }, [upsertCategory]);
 
-    const handleGroupBudgetChange = useCallback((groupName: string, newTotalStr: string) => {
-        setGroupBudgetInputs(prev => ({ ...prev, [groupName]: newTotalStr }));
+    const handleGroupBudgetChange = useCallback((groupId: string, newTotalStr: string) => {
+        setGroupBudgetInputs(prev => ({ ...prev, [groupId]: newTotalStr }));
         const newTotal = parseFloat(newTotalStr.replace(',', '.'));
         if (isNaN(newTotal) || newTotal < 0) return;
-
-        const groupId = Array.from(groupMap.entries()).find(([, name]) => name === groupName)?.[0];
-        if (!groupId) return;
 
         const groupCategories = flexibleCategories.filter(c => c.groupId === groupId);
         if (groupCategories.length === 0) return;
@@ -137,7 +126,7 @@ export const BudgetSettings: FC = () => {
         }
         
         updatedCategoriesData.forEach(catData => { if (catData.id) upsertCategory(catData as Category) });
-    }, [flexibleCategories, upsertCategory, groupMap]);
+    }, [flexibleCategories, upsertCategory]);
     
     // --- Handlers for Fixed & Recurring Costs ---
     const handleFixedAmountUpdate = (categoryId: string, amountStr: string) => {
@@ -178,31 +167,27 @@ export const BudgetSettings: FC = () => {
 
     // --- Data for Rendering ---
     const groupedBudgetData = useMemo(() => {
-        const groupsToBudget = groupNames.filter(gName => groupMap.get(Array.from(groupMap.keys()).find(key => groupMap.get(key) === gName) || '') !== FIXED_COSTS_GROUP_ID);
-
-        return groupsToBudget
-            .map(groupName => {
-                const groupId = Array.from(groupMap.keys()).find(key => groupMap.get(key) === groupName);
-                if (!groupId) return null;
-                const groupCategories = flexibleCategories.filter(c => c.groupId === groupId);
-
+        return groups
+            .filter(g => g.id !== FIXED_COSTS_GROUP_ID)
+            .map(group => {
+                const groupCategories = flexibleCategories.filter(c => c.groupId === group.id);
                 const sortedCategories = [...groupCategories].sort((a, b) => (b.budget || 0) - (a.budget || 0));
                 const groupTotalBudget = groupCategories.reduce((sum, cat) => sum + (cat.budget || 0), 0);
-                return { groupName, categories: sortedCategories, groupTotalBudget };
+                return { group, categories: sortedCategories, groupTotalBudget };
             })
-            .filter((g): g is NonNullable<typeof g> => g !== null && g.categories.length > 0);
-    }, [flexibleCategories, groupNames, groupMap]);
+            .filter(g => g.categories.length > 0);
+    }, [flexibleCategories, groups]);
     
     // Effect to update non-focused inputs
     useEffect(() => {
         const newGroupInputs: Record<string, string> = {};
         const newCatInputs: Record<string, string> = {};
 
-        groupedBudgetData.forEach(group => {
-            if (focusedInputRef.current !== `group-${group.groupName}`) {
-                newGroupInputs[group.groupName] = group.groupTotalBudget > 0 ? group.groupTotalBudget.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';
+        groupedBudgetData.forEach(data => {
+            if (focusedInputRef.current !== `group-${data.group.id}`) {
+                newGroupInputs[data.group.id] = data.groupTotalBudget > 0 ? data.groupTotalBudget.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';
             }
-            group.categories.forEach(category => {
+            data.categories.forEach(category => {
                 if (focusedInputRef.current !== `cat-${category.id}`) {
                     newCatInputs[category.id] = category.budget ? category.budget.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';
                 }
@@ -212,11 +197,11 @@ export const BudgetSettings: FC = () => {
         setCategoryBudgetInputs(prev => ({ ...prev, ...newCatInputs }));
     }, [groupedBudgetData, totalMonthlyBudget]);
 
-     const handleGroupBudgetBlur = (groupName: string) => {
+     const handleGroupBudgetBlur = (groupId: string) => {
         focusedInputRef.current = null;
         setGroupBudgetInputs(p => ({
             ...p,
-            [groupName]: (parseFloat((p[groupName] || '0').replace(',', '.')) || 0).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+            [groupId]: (parseFloat((p[groupId] || '0').replace(',', '.')) || 0).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
         }));
     };
 
@@ -269,20 +254,20 @@ export const BudgetSettings: FC = () => {
                         <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
                             <div className="p-3 border-t border-slate-600/50 space-y-3">
                                 <h5 className="text-xs font-semibold uppercase tracking-wider text-slate-400">Flexibles Budget</h5>
-                                {groupedBudgetData.map(group => (
+                                {groupedBudgetData.map(({ group, categories, groupTotalBudget }) => (
                                     <BudgetGroup
-                                        key={group.groupName}
-                                        groupName={group.groupName}
-                                        categories={group.categories}
-                                        groupTotalBudget={group.groupTotalBudget}
+                                        key={group.id}
+                                        group={group}
+                                        categories={categories}
+                                        groupTotalBudget={groupTotalBudget}
                                         groupBudgetInputs={groupBudgetInputs}
                                         categoryBudgetInputs={categoryBudgetInputs}
-                                        onGroupBudgetChange={handleGroupBudgetChange}
+                                        onGroupBudgetChange={(value) => handleGroupBudgetChange(group.id, value)}
                                         onIndividualBudgetChange={handleIndividualBudgetChange}
-                                        onGroupBudgetBlur={handleGroupBudgetBlur}
+                                        onGroupBudgetBlur={() => handleGroupBudgetBlur(group.id)}
                                         onIndividualBudgetBlur={handleIndividualBudgetBlur}
-                                        isExpanded={flexExpandedGroups.includes(group.groupName)}
-                                        onToggle={() => toggleFlexGroup(group.groupName)}
+                                        isExpanded={flexExpandedGroups.includes(group.id)}
+                                        onToggle={() => toggleFlexGroup(group.id)}
                                         focusedInputRef={focusedInputRef}
                                     />
                                 ))}

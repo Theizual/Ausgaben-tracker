@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, FC } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';

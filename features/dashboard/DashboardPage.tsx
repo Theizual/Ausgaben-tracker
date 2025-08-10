@@ -1,6 +1,3 @@
-
-
-
 import React, { useState, useMemo, useEffect, FC } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
@@ -8,7 +5,7 @@ import type { Transaction, ViewMode } from '@/shared/types';
 import { format, parseISO, isWithinInterval, startOfMonth, endOfMonth, startOfWeek, endOfWeek, isSameDay } from 'date-fns';
 import { formatCurrency } from '@/shared/utils/dateUtils';
 import { BarChart2, Coins, Home, getIconComponent } from '@/shared/ui';
-import { FIXED_COSTS_GROUP_ID } from '@/constants';
+import { FIXED_COSTS_GROUP_ID, DEFAULT_GROUP_COLOR } from '@/constants';
 import { StandardTransactionItem } from '@/shared/ui';
 import { CategoryPieChart } from './ui/CategoryPieChart';
 import { QuickAddForm } from './ui/QuickAddForm';
@@ -31,6 +28,7 @@ const DashboardPage: FC = () => {
         groupColors,
         deLocale,
         groupMap,
+        groups,
     } = useApp();
 
     const [expandedBudgetId, setExpandedBudgetId] = useState<string | null>(null);
@@ -95,18 +93,16 @@ const DashboardPage: FC = () => {
             spendingMap.set(t.categoryId, (spendingMap.get(t.categoryId) || 0) + t.amount);
         });
         
-        const spendingByGroup = new Map<string, { totalSpent: number, totalBudget: number, categories: any[] }>();
-        visibleCategoryGroups
-            .filter(groupName => groupMap.get(groupName) !== FIXED_COSTS_GROUP_ID)
-            .forEach(groupName => {
-                spendingByGroup.set(groupName, { totalSpent: 0, totalBudget: 0, categories: [] });
+        const spendingByGroup = new Map<string, { totalSpent: number, totalBudget: number, categories: any[], group: any }>();
+        groups
+            .filter(g => g.id !== FIXED_COSTS_GROUP_ID && visibleCategoryGroups.includes(g.name))
+            .forEach(group => {
+                spendingByGroup.set(group.id, { totalSpent: 0, totalBudget: 0, categories: [], group });
             });
 
         flexibleCategories.forEach(category => {
             if (category.budget && category.budget > 0) {
-                 const groupName = groupMap.get(category.groupId)?.name;
-                 if(!groupName) return;
-                const groupData = spendingByGroup.get(groupName);
+                const groupData = spendingByGroup.get(category.groupId);
                 if (groupData) {
                     const spent = spendingMap.get(category.id) || 0;
                     groupData.totalSpent += spent;
@@ -116,16 +112,16 @@ const DashboardPage: FC = () => {
             }
         });
         
-        const result = Array.from(spendingByGroup.entries())
-            .map(([groupName, data]) => ({
-                groupName,
+        const result = Array.from(spendingByGroup.values())
+            .map(data => ({
                 ...data,
                 categories: data.categories.sort((a,b) => (b.budget || 0) - (a.budget || 0)),
             }))
-            .filter(group => group.categories.length > 0);
+            .filter(group => group.categories.length > 0)
+            .sort((a,b) => a.group.sortIndex - b.group.sortIndex);
 
         return { groupedBudgetedCategories: result, spendingByCategory: spendingMap };
-    }, [monthlyTransactions, flexibleCategories, visibleCategoryGroups, groupMap]);
+    }, [monthlyTransactions, flexibleCategories, visibleCategoryGroups, groups]);
 
     const totalBudgetPercentage = totalMonthlyBudget > 0 ? (totalSpentThisMonth / totalMonthlyBudget) * 100 : 0;
     
@@ -234,26 +230,27 @@ const DashboardPage: FC = () => {
                         >
                             <h4 className="text-sm font-semibold text-slate-300">Kategorienbudgets (Flexibel)</h4>
                             <div className="space-y-3 mt-4">
-                                {groupedBudgetedCategories.map(group => {
-                                    const groupPercentage = group.totalBudget > 0 ? (group.totalSpent / group.totalBudget) * 100 : 0;
+                                {groupedBudgetedCategories.map(({group, ...data}) => {
+                                    const groupPercentage = data.totalBudget > 0 ? (data.totalSpent / data.totalBudget) * 100 : 0;
+                                    const groupColor = groupColors[group.name] || group.color || DEFAULT_GROUP_COLOR;
                                     
                                     return (
-                                        <div key={group.groupName} className="bg-slate-700/30 p-3 rounded-lg space-y-3">
+                                        <div key={group.id} className="bg-slate-700/30 p-3 rounded-lg space-y-3">
                                             <div className="flex flex-col">
                                                 <div className="flex justify-between items-center text-sm mb-1.5">
                                                     <div className="flex items-center gap-3 truncate">
-                                                        <span className="font-bold text-white truncate">{group.groupName}</span>
+                                                        <span className="font-bold text-white truncate">{group.name}</span>
                                                     </div>
                                                     <div className="font-semibold text-white flex-shrink-0 pl-2">
-                                                        {formatCurrency(group.totalSpent)}
-                                                        <span className="text-slate-500 text-xs"> / {formatCurrency(group.totalBudget)}</span>
+                                                        {formatCurrency(data.totalSpent)}
+                                                        <span className="text-slate-500 text-xs"> / {formatCurrency(data.totalBudget)}</span>
                                                     </div>
                                                 </div>
-                                                <BudgetProgressBar percentage={groupPercentage} color={groupColors[group.groupName] || '#a855f7'} />
+                                                <BudgetProgressBar percentage={groupPercentage} color={groupColor} />
                                             </div>
 
                                             <div className="space-y-4 pt-3 ml-4 pl-4 border-l-2 border-slate-600/50">
-                                                {group.categories.map(category => {
+                                                {data.categories.map(category => {
                                                     const spent = spendingByCategory.get(category.id) || 0;
                                                     const budget = category.budget!;
                                                     const percentage = (spent / budget) * 100;

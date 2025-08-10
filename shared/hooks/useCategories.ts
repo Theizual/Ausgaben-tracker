@@ -1,34 +1,71 @@
-import { useMemo, useCallback } from 'react';
+import { useMemo, useCallback, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import { generateUUID } from '@/shared/utils/uuid';
-import { INITIAL_CATEGORIES, INITIAL_GROUPS, DEFAULT_GROUP_ID } from '@/constants';
+import { INITIAL_CATEGORIES, INITIAL_GROUPS, DEFAULT_GROUP_ID, DEFAULT_GROUP_NAME } from '@/constants';
 import type { Category, UserSetting, Group } from '@/shared/types';
 
 interface UseCategoriesProps {
     rawUserSettings: UserSetting[];
     updateCategoryConfigurationForUser: (userId: string, config: { categories: Category[], groups: Group[] }) => void;
     currentUserId: string | null;
+    isDemoModeEnabled: boolean;
 }
 
+const migrateLegacyCategories = (categories: any[], groups: Group[]): { migrated: boolean, categories: Category[] } => {
+    let wasMigrated = false;
+    const groupNameMap = new Map(groups.map(g => [g.name.toLowerCase(), g.id]));
+    const defaultGroupId = groups.find(g => g.name === DEFAULT_GROUP_NAME)?.id || DEFAULT_GROUP_ID;
+
+    const migratedCategories = categories.map(c => {
+        // If groupId is a string like "Fixkosten", it's legacy data.
+        if (c.groupId && !c.groupId.startsWith('grpid_')) {
+            wasMigrated = true;
+            const newGroupId = groupNameMap.get(c.groupId.toLowerCase()) || defaultGroupId;
+            return { ...c, groupId: newGroupId, group: undefined }; // Remove old 'group' field
+        }
+        return c;
+    });
+
+    return { migrated: wasMigrated, categories: migratedCategories };
+};
+
+
 // Helper to load configuration synchronously from settings
-const loadConfiguration = (userId: string | null, userSettings: UserSetting[]): { categories: Category[], groups: Group[] } => {
+const loadConfiguration = (userId: string | null, userSettings: UserSetting[], isDemoModeEnabled: boolean): { categories: Category[], groups: Group[] } => {
+    // In demo mode, always use the fresh initial constants.
+    if (isDemoModeEnabled) {
+        return { categories: INITIAL_CATEGORIES, groups: INITIAL_GROUPS };
+    }
+
     if (userId) {
         const setting = userSettings.find(s => s.userId === userId && s.key === 'categoryConfiguration' && !s.isDeleted);
         if (setting && setting.value) {
             try {
                 const config = JSON.parse(setting.value);
-                if (Array.isArray(config.categories) && Array.isArray(config.groups)) {
-                    // Ensure all items have a valid lastModified and version
-                    const validatedCategories = config.categories.map((c: any) => ({
+                
+                // Ensure groups exist, fallback to initial if not.
+                const groups = (Array.isArray(config.groups) && config.groups.length > 0) ? config.groups : INITIAL_GROUPS;
+
+                if (Array.isArray(config.categories)) {
+                    // Migrate legacy data if necessary
+                    const { migrated, categories: migratedCategories } = migrateLegacyCategories(config.categories, groups);
+                    
+                    const validatedCategories = migratedCategories.map((c: any) => ({
                         ...c,
                         lastModified: c.lastModified || new Date().toISOString(),
                         version: c.version || 1,
                     }));
-                    const validatedGroups = config.groups.map((g: any) => ({
+                    const validatedGroups = groups.map((g: any) => ({
                         ...g,
                         lastModified: g.lastModified || new Date().toISOString(),
                         version: g.version || 1,
                     }));
+
+                    // If a migration happened, the caller should persist this change.
+                    if (migrated) {
+                        return { categories: validatedCategories, groups: validatedGroups, needsPersistence: true } as any;
+                    }
+
                     return { categories: validatedCategories, groups: validatedGroups };
                 }
             } catch (e) {
@@ -36,24 +73,35 @@ const loadConfiguration = (userId: string | null, userSettings: UserSetting[]): 
             }
         }
     }
-    // Fallback to initial default configuration
+    // Fallback to initial default configuration for new users or errors.
     return { categories: INITIAL_CATEGORIES, groups: INITIAL_GROUPS };
 };
 
-export const useCategories = ({ rawUserSettings, updateCategoryConfigurationForUser, currentUserId }: UseCategoriesProps) => {
+export const useCategories = ({ rawUserSettings, updateCategoryConfigurationForUser, currentUserId, isDemoModeEnabled }: UseCategoriesProps) => {
     // Derive config directly from props. This ensures the hook is reactive to changes in user or settings.
-    const config = useMemo(() => loadConfiguration(currentUserId, rawUserSettings), [currentUserId, rawUserSettings]);
+    const config = useMemo(() => loadConfiguration(currentUserId, rawUserSettings, isDemoModeEnabled), [currentUserId, rawUserSettings, isDemoModeEnabled]);
     
     const { categories, groups } = config;
 
+    // Persist changes if migration occurred on load.
+    useEffect(() => {
+        if ((config as any).needsPersistence && currentUserId) {
+            console.log("Persisting migrated category configuration...");
+            updateCategoryConfigurationForUser(currentUserId, { categories, groups });
+        }
+    }, [config, currentUserId, updateCategoryConfigurationForUser, categories, groups]);
+
+
     const persistChanges = useCallback((newCategories: Category[], newGroups: Group[]) => {
-        if (currentUserId) {
+        if (currentUserId && !isDemoModeEnabled) {
             updateCategoryConfigurationForUser(currentUserId, { categories: newCategories, groups: newGroups });
+        } else if (isDemoModeEnabled) {
+            // In demo mode, changes are ephemeral and not persisted via this hook.
+            // The state will be managed locally by the reducer in AppContext, if any.
         } else {
-             // This case should ideally not be hit in a normal user flow.
             toast.error("Änderungen konnten nicht gespeichert werden: Kein Benutzer ausgewählt.");
         }
-    }, [currentUserId, updateCategoryConfigurationForUser]);
+    }, [currentUserId, updateCategoryConfigurationForUser, isDemoModeEnabled]);
 
     const liveCategories = useMemo(() => categories.filter(c => !c.isDeleted), [categories]);
     const categoryMap = useMemo(() => new Map(liveCategories.map(c => [c.id, c])), [liveCategories]);

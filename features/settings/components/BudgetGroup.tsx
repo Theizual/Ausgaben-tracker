@@ -1,17 +1,17 @@
 import React, { FC } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import type { Category } from '@/shared/types';
+import type { Category, Group } from '@/shared/types';
 import { getIconComponent, ChevronDown, ProgressBar } from '@/shared/ui';
 
 interface BudgetGroupProps {
-    groupName: string;
+    group: Group;
     categories: Category[];
     groupTotalBudget: number;
     groupBudgetInputs: Record<string, string>;
     categoryBudgetInputs: Record<string, string>;
-    onGroupBudgetChange: (groupName: string, value: string) => void;
+    onGroupBudgetChange: (value: string) => void;
     onIndividualBudgetChange: (category: Category, value: string) => void;
-    onGroupBudgetBlur: (groupName: string) => void;
+    onGroupBudgetBlur: () => void;
     onIndividualBudgetBlur: (categoryId: string) => void;
     isExpanded: boolean;
     onToggle: () => void;
@@ -19,7 +19,7 @@ interface BudgetGroupProps {
 }
 
 export const BudgetGroup: FC<BudgetGroupProps> = ({
-    groupName,
+    group,
     categories,
     groupTotalBudget,
     groupBudgetInputs,
@@ -35,17 +35,17 @@ export const BudgetGroup: FC<BudgetGroupProps> = ({
     return (
         <div className="bg-slate-700/30 p-2.5 rounded-lg">
             <button onClick={onToggle} className="w-full flex justify-between items-center gap-2 text-left">
-                <h4 className="text-sm font-semibold text-white truncate">{groupName}</h4>
+                <h4 className="text-sm font-semibold text-white truncate">{group.name}</h4>
                 <div className="flex items-center gap-2">
                     <div className="relative w-full sm:w-36 flex-shrink-0" onClick={e => e.stopPropagation()}>
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">€</span>
                         <input
                             type="text"
                             inputMode="decimal"
-                            value={groupBudgetInputs[groupName] || ''}
-                            onChange={e => onGroupBudgetChange(groupName, e.currentTarget.value)}
-                            onFocus={() => focusedInputRef.current = `group-${groupName}`}
-                            onBlur={() => onGroupBudgetBlur(groupName)}
+                            value={groupBudgetInputs[group.id] || ''}
+                            onChange={e => onGroupBudgetChange(e.currentTarget.value)}
+                            onFocus={() => focusedInputRef.current = `group-${group.id}`}
+                            onBlur={onGroupBudgetBlur}
                             onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
                             placeholder="Gesamt"
                             className="w-full bg-theme-input border border-theme-border rounded-md pl-7 pr-2 py-0.5 text-white text-sm font-semibold text-right focus:outline-none focus:ring-2 focus:ring-theme-ring"

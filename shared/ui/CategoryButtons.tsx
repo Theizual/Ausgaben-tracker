@@ -1,33 +1,24 @@
-
 import React, { useMemo } from 'react';
 import type { FC } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import type { Category, CategoryId } from '@/shared/types';
+import type { Category, CategoryId, Group } from '@/shared/types';
 import { iconMap, Plus } from '@/shared/ui';
 
 const CategoryButtons: FC<{
     categories: Category[];
-    categoryGroups: string[];
+    groups: Group[];
     selectedCategoryId: CategoryId;
     onSelectCategory: (id: CategoryId) => void;
     onShowMoreClick?: () => void;
-}> = ({ categories, categoryGroups, selectedCategoryId, onSelectCategory, onShowMoreClick }) => {
+}> = ({ categories, groups, selectedCategoryId, onSelectCategory, onShowMoreClick }) => {
     
     const groupedCategories = useMemo(() => {
-        const groupMap = new Map<string, Category[]>();
-        categories.forEach(category => {
-            if (!groupMap.has(category.group)) {
-                groupMap.set(category.group, []);
-            }
-            groupMap.get(category.group)!.push(category);
-        });
-
-        return categoryGroups.map(groupName => ({
-            name: groupName,
-            categories: groupMap.get(groupName) || []
+        return groups.map(group => ({
+            name: group.name,
+            categories: categories.filter(category => category.groupId === group.id)
         })).filter(group => group.categories.length > 0);
 
-    }, [categories, categoryGroups]);
+    }, [categories, groups]);
 
     return (
         <div className="space-y-4">

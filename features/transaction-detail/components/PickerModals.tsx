@@ -22,10 +22,8 @@ export const PickerModals: FC<{
     isEditingTags, setIsEditingTags, handleTagsUpdate,
     currentTransaction,
 }) => {
-    const { categories, groups, users, allAvailableTags, tagMap } = useApp();
+    const { categories, groups, users, tagMap } = useApp();
     const currentTagNames = useMemo(() => (currentTransaction.tagIds || []).map((id:string) => tagMap.get(id)).filter(Boolean) as string[], [currentTransaction.tagIds, tagMap]);
-
-    const groupNames = useMemo(() => groups.map(g => g.name), [groups]);
 
     return (
         <>
@@ -34,7 +32,7 @@ export const PickerModals: FC<{
                      <Modal isOpen={isPickingCategory} onClose={() => setIsPickingCategory(false)} title="Kategorie ändern">
                         <CategoryButtons 
                             categories={categories}
-                            categoryGroups={groupNames}
+                            groups={groups}
                             selectedCategoryId={currentTransaction.categoryId}
                             onSelectCategory={handleCategoryUpdate}
                         />

@@ -1,19 +1,20 @@
-
 import React, { useState, useMemo, FC } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { useApp } from '@/contexts/AppContext';
-import type { Transaction, Category, ViewMode, CategoryId, Tag } from '@/shared/types';
+import type { Transaction, Category, ViewMode, CategoryId, Tag, Group } from '@/shared/types';
 import { Plus, Coins } from '@/shared/ui';
 import { CategoryButtons, TagInput, AvailableTags } from '@/shared/ui';
 import { MoreCategoriesModal } from './MoreCategoriesModal';
 import { parseISO } from 'date-fns';
+import { FIXED_COSTS_GROUP_ID } from '@/constants';
 
 export const QuickAddForm: FC = () => {
     const { 
         addTransaction,
         addMultipleTransactions,
         flexibleCategories, 
+        groups,
         visibleCategoryGroups, 
         allAvailableTags, 
         transactions,
@@ -102,6 +103,11 @@ export const QuickAddForm: FC = () => {
         );
     };
 
+    const visibleGroups = useMemo(() => {
+        const visibleNames = new Set(visibleCategoryGroups);
+        return groups.filter(g => g.id !== FIXED_COSTS_GROUP_ID && visibleNames.has(g.name));
+    }, [groups, visibleCategoryGroups]);
+
     return (
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
             <div className="bg-slate-800/50 p-6 rounded-2xl border border-slate-700/50">
@@ -141,7 +147,7 @@ export const QuickAddForm: FC = () => {
                         <h4 className="text-sm font-semibold text-white mb-3">Kategorie wählen:</h4>
                         <CategoryButtons
                             categories={flexibleCategories}
-                            categoryGroups={visibleCategoryGroups.filter(g => g !== 'Fixkosten')}
+                            groups={visibleGroups}
                             selectedCategoryId={categoryId}
                             onSelectCategory={setCategoryId}
                             onShowMoreClick={() => setIsMoreCategoriesModalOpen(true)}

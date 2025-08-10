@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useMemo, useRef, useCallback, useState} from 'react';
 import { toast } from 'react-hot-toast';
 import { useTransactionData } from '@/shared/hooks/useTransactionData';
@@ -85,6 +86,7 @@ const ReadyAppProvider: React.FC<{
         rawUserSettings: userSettingsState.rawUserSettings,
         updateCategoryConfigurationForUser: userSettingsState.updateCategoryConfigurationForUser,
         currentUserId: uiState.currentUserId,
+        isDemoModeEnabled: isDemoModeEnabled,
     });
 
     const flexibleCategories = useMemo(() => categoryState.categories.filter(c => c.groupId !== FIXED_COSTS_GROUP_ID), [categoryState.categories]);

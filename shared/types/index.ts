@@ -1,4 +1,5 @@
 
+
 export interface User {
   id: string;
   name: string;
@@ -13,6 +14,8 @@ export interface Group {
   id: string;
   name: string;
   sortIndex: number;
+  color?: string;
+  isDefault?: boolean;
   lastModified: string; // ISO string
   isDeleted?: boolean;
   version: number;

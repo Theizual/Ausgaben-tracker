@@ -1,14 +1,11 @@
-
-
-
 import React, { useMemo, FC } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceDot } from 'recharts';
 import { motion } from 'framer-motion';
-import type { Transaction, Category } from '@/shared/types';
+import type { Transaction, Category, Group } from '@/shared/types';
 import { eachDayOfInterval, format, parseISO, startOfMonth, endOfMonth, isAfter, getDate, getDaysInMonth } from 'date-fns';
 import { formatCurrency } from '@/shared/utils/dateUtils';
 import { TrendingDown } from '@/shared/ui';
-import { FIXED_COSTS_GROUP_ID } from '@/constants';
+import { FIXED_COSTS_GROUP_ID, DEFAULT_GROUP_COLOR } from '@/constants';
 import { useApp } from '@/contexts/AppContext';
 
 interface BudgetBurndownChartProps {
@@ -84,18 +81,14 @@ export const BudgetBurndownChart: FC<BudgetBurndownChartProps> = ({ transactions
     const { deLocale, flexibleCategories, groupMap } = useApp();
 
     const { data, activeItems, endangeredGroups } = useMemo(() => {
-        const itemsToTrack: ItemInfo[] = visibleCategoryGroups
-            .map(groupName => {
-                const groupId = Array.from(groupMap.keys()).find(key => groupMap.get(key) === groupName);
-                return { groupName, groupId };
-            })
-            .filter(({ groupId }) => groupId !== FIXED_COSTS_GROUP_ID)
-            .map(({ groupName, groupId }) => {
-                if (!groupId) return null;
-                const groupCategories = flexibleCategories.filter(c => c.groupId === groupId);
+        const itemsToTrack: ItemInfo[] = Array.from(groupMap.values())
+            .filter(group => group.id !== FIXED_COSTS_GROUP_ID && visibleCategoryGroups.includes(group.name))
+            .map(group => {
+                const groupCategories = flexibleCategories.filter(c => c.groupId === group.id);
                 const groupBudget = groupCategories.reduce((sum, c) => sum + (c.budget || 0), 0);
+                const color = groupColors[group.name] || group.color || DEFAULT_GROUP_COLOR;
                 return {
-                    name: groupName, budget: groupBudget, color: groupColors[groupName] || '#a855f7',
+                    name: group.name, budget: groupBudget, color,
                     itemIds: groupCategories.map(c => c.id)
                 };
             }).filter((g): g is ItemInfo => g !== null && g.budget > 0);

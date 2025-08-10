@@ -1,6 +1,6 @@
 export const HEADERS = {
-  Groups:       ['id','name','sortIndex','lastModified','version','isDeleted'],
-  Categories:   ['id','name','color','groupId','budget','icon','lastModified','version','isDeleted'],
+  Groups:       ['id','name','sortIndex','lastModified','version','isDeleted', 'color', 'isDefault'],
+  Categories:   ['id','name','color','group','budget','icon','lastModified','version','isDeleted', 'groupId'],
   Transactions: ['id','amount','description','categoryId','date','tagIds','lastModified','isDeleted','recurringId','version','userId'],
   Recurring:    ['id','amount','description','categoryId','frequency','dayOfMonth','startDate','endDate','lastProcessedDate','active','lastModified','version','isDeleted'],
   Tags:         ['id','name','color','lastModified','version','isDeleted'],
@@ -48,6 +48,13 @@ export function rowsToObjects(sheet: SheetName, rows: any[][] = []): any[] {
     .map(r => {
       const obj: Record<string, any> = {};
       headers.forEach((h, i) => { obj[h] = r[i] ?? ''; });
+      
+      // Abwärtskompatibilität: Priorisiere groupId, falle zurück auf group
+      if (sheet === 'Categories') {
+          if (!obj.groupId && obj.group) {
+              obj.groupId = obj.group;
+          }
+      }
 
       // Backwards-Compat: settingKey/settingValue auf key/value mappen
       if (sheet === 'UserSettings') {
@@ -96,6 +103,10 @@ export function rowsToObjects(sheet: SheetName, rows: any[][] = []): any[] {
       } else {
         (obj as any).isDeleted = false;
       }
+      
+      if (sheet === 'Groups') {
+        obj.isDefault = String(obj.isDefault).toUpperCase() === 'TRUE';
+      }
 
       if (sheet === 'Recurring') {
         // active defaultet auf true, außer explizit 'FALSE'
@@ -115,6 +126,9 @@ export function rowsToObjects(sheet: SheetName, rows: any[][] = []): any[] {
 export function objectsToRows(sheet: SheetName, items: any[] = []): any[][] {
   const headers = HEADERS[sheet];
   return items.map(it => headers.map(h => {
+    // Schreibe immer groupId, ignoriere den alten 'group' Header
+    if (h === 'group' && sheet === 'Categories') return '';
+    
     // Map createdBy (App) -> userId (Sheet) für Transactions
     const val = h === 'userId' && sheet === 'Transactions' ? it.createdBy : it[h];
 

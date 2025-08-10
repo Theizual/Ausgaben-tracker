@@ -1,4 +1,7 @@
+
+
 import type { Category, Tag, User } from '../types';
+import { withRetry } from './retry';
 
 // --- bleibt wie bei dir ---
 export class HttpError extends Error {
@@ -66,7 +69,6 @@ const fetchWithTimeout = (url: RequestInfo, options: RequestInit = {}, timeout =
 };
 
 // --- NEU: webe die Retry-Logik ein ---
-import { withRetry } from './retry';
 
 export async function apiGet(url: string, init?: RequestInit) {
   return withRetry(async () => {
@@ -103,32 +105,32 @@ type ApiResponse = {
 function normalizeApi(resp: ApiResponse): ApiResponse {
   const norm = <T>(xs?: T[]) => Array.isArray(xs) ? xs : [];
 
-  const categories = norm(resp.categories).map(c => ({
+  const categories = norm(resp.categories).map((c: any) => ({
     ...c,
     isDeleted: asBool(c?.isDeleted, false),
     version: Number(c?.version) || 0,
   }));
 
-  const tags = norm(resp.tags).map(t => ({
+  const tags = norm(resp.tags).map((t: any) => ({
     ...t,
     isDeleted: asBool(t?.isDeleted, false),
     version: Number(t?.version) || 0,
   }));
 
-  const users = norm(resp.users).map(u => ({
+  const users = norm(resp.users).map((u: any) => ({
     ...u,
     isDeleted: asBool(u?.isDeleted, false),
     version: Number(u?.version) || 0,
   }));
 
-  const recurring = norm(resp.recurring).map(r => ({
+  const recurring = norm(resp.recurring).map((r: any) => ({
     ...r,
     isDeleted: asBool(r?.isDeleted, false),
     active: asBool(r?.active, true),
     version: Number(r?.version) || 0,
   }));
 
-  const transactions = norm(resp.transactions).map(tx => {
+  const transactions = norm(resp.transactions).map((tx: any) => {
     const tagIds = Array.isArray(tx?.tagIds)
       ? tx.tagIds
       : (typeof tx?.tagIds === 'string'
@@ -144,7 +146,7 @@ function normalizeApi(resp: ApiResponse): ApiResponse {
     };
   });
 
-  const userSettings = norm(resp.userSettings).map(s => ({
+  const userSettings = norm(resp.userSettings).map((s: any) => ({
     ...s,
     key: s?.key ?? s?.settingKey ?? '',
     value: s?.value ?? s?.settingValue ?? '',
@@ -167,8 +169,8 @@ function enrich(resp: ApiResponse) {
       category,                // kann null sein → UI prüft mit Null-Check
       user,
       tags: fullTags,          // ohne nulls
-      hasActiveCategory: !!(category && category.isDeleted !== true),
-      activeTags: fullTags.filter(t => t.isDeleted !== true),
+      hasActiveCategory: !!(category && !category.isDeleted),
+      activeTags: fullTags.filter(t => !t.isDeleted),
     };
   });
 

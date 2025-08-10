@@ -1,6 +1,3 @@
-
-
-
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'react-hot-toast';
 import useLocalStorage from '@/shared/hooks/useLocalStorage';

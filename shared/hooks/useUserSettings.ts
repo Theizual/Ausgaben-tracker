@@ -1,8 +1,6 @@
-
-
 import { useReducer, useMemo, useCallback, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
-import type { UserSetting, Category } from '@/shared/types';
+import type { UserSetting, Category, Group } from '@/shared/types';
 
 type UserSettingsState = {
     settings: UserSetting[];
@@ -119,7 +117,7 @@ export const useUserSettings = ({ isDemoModeEnabled }: { isDemoModeEnabled: bool
         setGroupColorsForUser(userId, newColors);
     }, [getGroupColorsForUser, setGroupColorsForUser]);
     
-    const getCategoryConfigurationForUser = useCallback((userId: string): { categories: Category[], groups: string[] } | null => {
+    const getCategoryConfigurationForUser = useCallback((userId: string): { categories: Category[], groups: Group[] } | null => {
         const setting = liveUserSettings.find(s => s.userId === userId && s.key === 'categoryConfiguration');
         if (setting && setting.value) {
             try {
@@ -135,7 +133,7 @@ export const useUserSettings = ({ isDemoModeEnabled }: { isDemoModeEnabled: bool
         return null;
     }, [liveUserSettings]);
 
-    const updateCategoryConfigurationForUser = useCallback((userId: string, config: { categories: Category[], groups: string[] }) => {
+    const updateCategoryConfigurationForUser = useCallback((userId: string, config: { categories: Category[], groups: Group[] }) => {
         const now = new Date().toISOString();
         const existingSetting = rawUserSettings.find(s => s.userId === userId && s.key === 'categoryConfiguration');
         const newSetting: UserSetting = {

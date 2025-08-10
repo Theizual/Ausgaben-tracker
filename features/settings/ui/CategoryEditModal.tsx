@@ -13,13 +13,13 @@ export type CategoryFormData = {
     id: string;
     name: string;
     icon: string;
-    group: string;
+    groupId: string;
     color: string;
     budget?: number;
 };
 
 export const CategoryEditModal: FC<{ isOpen: boolean; onClose: () => void; categoryData: CategoryFormData | null; onSave: (data: CategoryFormData) => void; }> = ({ isOpen, onClose, categoryData, onSave }) => {
-    const { categoryGroups } = useApp();
+    const { groups } = useApp();
     const [formData, setFormData] = useState(categoryData);
     const [isIconPickerOpen, setIconPickerOpen] = useState(false);
 
@@ -79,8 +79,8 @@ export const CategoryEditModal: FC<{ isOpen: boolean; onClose: () => void; categ
                     </div>
                     <div>
                         <label htmlFor="cat-group" className="text-xs text-slate-400">Gruppe</label>
-                        <select id="cat-group" value={formData.group} onChange={e => setFormData({ ...formData, group: e.target.value })} className={BASE_INPUT_CLASSES}>
-                            {categoryGroups.map(g => <option key={g} value={g}>{g}</option>)}
+                        <select id="cat-group" value={formData.groupId} onChange={e => setFormData({ ...formData, groupId: e.target.value })} className={BASE_INPUT_CLASSES}>
+                            {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
                         </select>
                     </div>
                 </div>

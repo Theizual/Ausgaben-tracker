@@ -1,15 +1,12 @@
-
-
-
 import React, { FC, useState, useMemo, useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
-import type { Transaction, Category } from '@/shared/types';
+import type { Transaction, Category, Group } from '@/shared/types';
 import { format, parseISO } from 'date-fns';
 import { ChevronDown, getIconComponent } from '@/shared/ui';
 import { formatCurrency } from '@/shared/utils/dateUtils';
 import { StandardTransactionItem } from '@/shared/ui';
-import { FIXED_COSTS_GROUP_NAME } from '@/constants';
+import { FIXED_COSTS_GROUP_ID, FIXED_COSTS_GROUP_NAME, DEFAULT_GROUP_COLOR } from '@/constants';
 import { BudgetProgressBar } from '@/shared/ui/BudgetProgressBar';
 
 export const MonthlyCategoryBreakdown: FC<{ transactions: Transaction[], currentMonth: Date }> = ({ transactions, currentMonth }) => {
@@ -29,13 +26,12 @@ export const MonthlyCategoryBreakdown: FC<{ transactions: Transaction[], current
 
         const categoriesWithSpending = Array.from(spendingMap.keys()).map(id => categoryMap.get(id)).filter((c): c is Category => !!c);
 
-        const groupDataMap = new Map<string, { totalSpent: number; totalBudget: number; categories: Category[] }>();
+        const groupDataMap = new Map<string, { totalSpent: number; totalBudget: number; categories: Category[]; group: Group }>();
         
-        visibleCategoryGroups.forEach(groupName => {
-             const groupId = Array.from(groupMap.keys()).find(key => groupMap.get(key) === groupName);
-             if (groupId) {
-                 groupDataMap.set(groupId, { totalSpent: 0, totalBudget: 0, categories: [] });
-             }
+        Array.from(groupMap.values()).forEach(group => {
+            if (visibleCategoryGroups.includes(group.name)) {
+                groupDataMap.set(group.id, { totalSpent: 0, totalBudget: 0, categories: [], group });
+            }
         });
 
         categoriesWithSpending.forEach(category => {
@@ -52,17 +48,16 @@ export const MonthlyCategoryBreakdown: FC<{ transactions: Transaction[], current
             data.categories.sort((a, b) => (spendingMap.get(b.id) || 0) - (spendingMap.get(a.id) || 0));
         });
 
-        const allGroupData = Array.from(groupDataMap.entries())
-            .map(([groupId, data]) => ({ groupName: groupMap.get(groupId)?.name || 'Unbekannt', ...data }))
+        const allGroupData = Array.from(groupDataMap.values())
             .filter(group => group.totalSpent > 0);
 
-        const supergroupMap = new Map<string, { totalSpent: number; totalBudget: number; groups: any[] }>([
+        const supergroupMap = new Map<string, { totalSpent: number; totalBudget: number; groups: typeof allGroupData }>([
             ['Fixkosten', { totalSpent: 0, totalBudget: 0, groups: [] }],
             ['Variable Kosten', { totalSpent: 0, totalBudget: 0, groups: [] }],
         ]);
 
         allGroupData.forEach(groupData => {
-            const supergroupName = groupData.groupName === FIXED_COSTS_GROUP_NAME ? 'Fixkosten' : 'Variable Kosten';
+            const supergroupName = groupData.group.id === FIXED_COSTS_GROUP_ID ? 'Fixkosten' : 'Variable Kosten';
             const supergroup = supergroupMap.get(supergroupName)!;
             if (supergroup) {
                 supergroup.totalSpent += groupData.totalSpent;
@@ -80,8 +75,8 @@ export const MonthlyCategoryBreakdown: FC<{ transactions: Transaction[], current
 
     useEffect(() => {
         if (supergroupedData.length > 0 && !defaultExpandedSet.current) {
-            const allGroupNames = supergroupedData.flatMap(sg => sg.groups.map(g => g.groupName));
-            setExpandedGroups(allGroupNames);
+            const allGroupIds = supergroupedData.flatMap(sg => sg.groups.map(g => g.group.id));
+            setExpandedGroups(allGroupIds);
             defaultExpandedSet.current = true;
         }
     }, [supergroupedData]);
@@ -90,8 +85,8 @@ export const MonthlyCategoryBreakdown: FC<{ transactions: Transaction[], current
         setExpandedSupergroups(prev => prev.includes(name) ? prev.filter(g => g !== name) : [...prev, name]);
     };
     
-    const toggleGroup = (groupName: string) => {
-        setExpandedGroups(prev => prev.includes(groupName) ? prev.filter(g => g !== groupName) : [...prev, groupName]);
+    const toggleGroup = (groupId: string) => {
+        setExpandedGroups(prev => prev.includes(groupId) ? prev.filter(g => g !== groupId) : [...prev, groupId]);
     };
 
     return (
@@ -127,28 +122,30 @@ export const MonthlyCategoryBreakdown: FC<{ transactions: Transaction[], current
                                         className="overflow-hidden"
                                     >
                                         <div className="p-4 border-t border-slate-700/50 space-y-3">
-                                            {supergroup.groups.map(group => {
-                                                const isGroupExpanded = expandedGroups.includes(group.groupName);
-                                                const groupHasBudget = group.totalBudget > 0;
-                                                const groupPercentage = groupHasBudget ? (group.totalSpent / group.totalBudget) * 100 : 0;
+                                            {supergroup.groups.map(groupData => {
+                                                const isGroupExpanded = expandedGroups.includes(groupData.group.id);
+                                                const groupHasBudget = groupData.totalBudget > 0;
+                                                const groupPercentage = groupHasBudget ? (groupData.totalSpent / groupData.totalBudget) * 100 : 0;
+                                                const groupColor = groupColors[groupData.group.name] || groupData.group.color || DEFAULT_GROUP_COLOR;
+
 
                                                 return (
-                                                    <div key={group.groupName} className="bg-slate-700/30 p-3 rounded-lg space-y-3">
+                                                    <div key={groupData.group.id} className="bg-slate-700/30 p-3 rounded-lg space-y-3">
                                                         <div
                                                             className="flex flex-col cursor-pointer"
-                                                            onClick={() => toggleGroup(group.groupName)}
+                                                            onClick={() => toggleGroup(groupData.group.id)}
                                                         >
                                                             <div className="flex justify-between items-center text-sm mb-1.5">
                                                                 <div className="flex items-center gap-3 truncate">
                                                                     <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform ${isGroupExpanded ? 'rotate-180' : ''}`} />
-                                                                    <span className="font-bold text-white truncate">{group.groupName}</span>
+                                                                    <span className="font-bold text-white truncate">{groupData.group.name}</span>
                                                                 </div>
                                                                 <div className="font-semibold text-white flex-shrink-0 pl-2">
-                                                                    {formatCurrency(group.totalSpent)}
-                                                                    {groupHasBudget && <span className="text-slate-500 text-xs"> / {formatCurrency(group.totalBudget)}</span>}
+                                                                    {formatCurrency(groupData.totalSpent)}
+                                                                    {groupHasBudget && <span className="text-slate-500 text-xs"> / {formatCurrency(groupData.totalBudget)}</span>}
                                                                 </div>
                                                             </div>
-                                                            {groupHasBudget && <BudgetProgressBar percentage={groupPercentage} color={groupColors[group.groupName] || '#a855f7'} />}
+                                                            {groupHasBudget && <BudgetProgressBar percentage={groupPercentage} color={groupColor} />}
                                                         </div>
 
                                                         <AnimatePresence>
@@ -161,7 +158,7 @@ export const MonthlyCategoryBreakdown: FC<{ transactions: Transaction[], current
                                                                     className="overflow-hidden"
                                                                 >
                                                                     <div className="space-y-4 pt-3 ml-4 pl-4 border-l-2 border-slate-600/50">
-                                                                        {group.categories.map((category: Category) => {
+                                                                        {groupData.categories.map((category: Category) => {
                                                                             const spent = spendingByCategory.get(category.id) || 0;
                                                                             const budget = category.budget;
                                                                             const hasBudget = budget !== undefined && budget > 0;
