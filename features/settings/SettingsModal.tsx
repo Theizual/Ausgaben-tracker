@@ -1,7 +1,9 @@
 
 
-import React, { useState, useCallback, useEffect } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+
+
+import React, { useState, useCallback, useEffect, useRef } from 'react';
+import { AnimatePresence, motion, MotionProps } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
 import type { SettingsTab } from '@/shared/types';
 import { Settings, X, LayoutGrid, Target, SlidersHorizontal, Users, BookOpen } from '@/shared/ui';
@@ -28,6 +30,26 @@ const TABS: { id: SettingsTab; label: string; icon: React.FC<any>; }[] = [
 const SettingsModal = ({ isOpen, onClose, initialTab }: { isOpen: boolean; onClose: () => void; initialTab?: SettingsTab; }) => {
     const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab || 'general');
     const [isTagManagerOpen, setTagManagerOpen] = useState(false);
+    const navRef = useRef<HTMLElement>(null);
+    const [isNavCompact, setIsNavCompact] = useState(false);
+
+    useEffect(() => {
+        if (!isOpen) return;
+        const nav = navRef.current;
+        if (!nav) return;
+
+        const observer = new ResizeObserver(entries => {
+            const navWidth = entries[0]?.contentRect.width;
+            if (navWidth) {
+                const isRow = getComputedStyle(nav).flexDirection === 'row';
+                // Threshold based on approximate width of all tabs with labels.
+                setIsNavCompact(isRow && navWidth < 450);
+            }
+        });
+        
+        observer.observe(nav);
+        return () => observer.disconnect();
+    }, [isOpen]);
 
     useEffect(() => {
         if (isOpen) {
@@ -74,20 +96,28 @@ const SettingsModal = ({ isOpen, onClose, initialTab }: { isOpen: boolean; onClo
 
     if (!isOpen) return null;
 
+    const backdropAnimation: MotionProps = {
+        initial: { opacity: 0 },
+        animate: { opacity: 1 },
+        exit: { opacity: 0 },
+    };
+    
+    const modalAnimation: MotionProps = {
+        initial: { scale: 0.95, opacity: 0 },
+        animate: { scale: 1, opacity: 1 },
+        exit: { scale: 0.95, opacity: 0 },
+        transition: ANIMATION_CONFIG.MODAL_SPRING,
+    };
+
     return (
         <>
             <motion.div 
                 className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50 p-4" 
                 onClick={onClose} 
-                initial={{ opacity: 0 }} 
-                animate={{ opacity: 1 }} 
-                exit={{ opacity: 0 }}
+                {...backdropAnimation}
             >
                 <motion.div 
-                    initial={{ scale: 0.95, opacity: 0 }} 
-                    animate={{ scale: 1, opacity: 1 }} 
-                    exit={{ scale: 0.95, opacity: 0 }} 
-                    transition={ANIMATION_CONFIG.MODAL_SPRING}
+                    {...modalAnimation}
                     className="bg-slate-800/80 backdrop-blur-md rounded-xl w-full max-w-4xl shadow-2xl border border-slate-700 flex flex-col h-[90vh] md:h-[85vh]" 
                     onClick={e => e.stopPropagation()}
                 >
@@ -97,9 +127,10 @@ const SettingsModal = ({ isOpen, onClose, initialTab }: { isOpen: boolean; onClo
                            <div className="p-4 hidden md:block">
                              <h2 className="text-lg font-bold text-white">Einstellungen</h2>
                            </div>
-                            <nav className="flex flex-row md:flex-col p-2 md:p-4 md:space-y-1 justify-around md:justify-start">
+                            <nav ref={navRef} className="flex flex-row md:flex-col p-2 md:p-4 md:space-y-1 justify-around md:justify-start">
                                 {TABS.map(tab => {
                                     const isActive = activeTab === tab.id;
+                                    const showLabel = isActive || !isNavCompact;
                                     return (
                                         <button 
                                             key={tab.id} 
@@ -114,7 +145,7 @@ const SettingsModal = ({ isOpen, onClose, initialTab }: { isOpen: boolean; onClo
                                             aria-selected={isActive}
                                         >
                                             <tab.icon className="h-5 w-5 flex-shrink-0"/>
-                                            <span className={isActive ? 'inline' : 'hidden md:inline'}>{tab.label}</span>
+                                            <span className={showLabel ? 'inline' : 'hidden'}>{tab.label}</span>
                                         </button>
                                     );
                                 })}

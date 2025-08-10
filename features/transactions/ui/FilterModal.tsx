@@ -1,5 +1,7 @@
+
+
 import React, { useState, useEffect, FC } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion, MotionProps } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
 import { Modal, Search, Tag, ChevronDown } from '@/shared/ui';
 import { MultiCategoryPicker } from './MultiCategoryPicker';
@@ -47,6 +49,12 @@ export const FilterModal: FC<{
         </div>
     );
 
+    const advancedFilterAnimation: MotionProps = {
+        initial: { opacity: 0, height: 0 },
+        animate: { opacity: 1, height: 'auto' },
+        exit: { opacity: 0, height: 0 },
+    };
+
     return (
          <Modal
             isOpen={isOpen}
@@ -88,7 +96,7 @@ export const FilterModal: FC<{
 
                 <AnimatePresence>
                 {showAdvanced && (
-                    <motion.div initial={{opacity: 0, height: 0}} animate={{opacity: 1, height: 'auto'}} exit={{opacity: 0, height: 0}} className="overflow-hidden">
+                    <motion.div {...advancedFilterAnimation} className="overflow-hidden">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4">
                             <div className="md:col-span-2">
                                 <p className="text-sm font-medium text-slate-300 mb-2">Kategorien</p>

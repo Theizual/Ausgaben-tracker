@@ -1,7 +1,9 @@
 
 
+
+
 import React, { FC, useMemo } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion, MotionProps } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
 import type { Transaction } from '@/shared/types';
 import { format, parseISO, isToday, isYesterday, startOfWeek, endOfWeek, getWeek, isValid, startOfDay, endOfDay } from 'date-fns';
@@ -130,6 +132,13 @@ export const TransactionList: FC = () => {
         );
     }
     
+    const groupAnimation: MotionProps = {
+        initial: { opacity: 0, y: 20 },
+        animate: { opacity: 1, y: 0 },
+        exit: { opacity: 0, y: 20 },
+        transition: { duration: 0.3 },
+    };
+
     return (
         <div className="space-y-4">
             <AnimatePresence>
@@ -137,10 +146,7 @@ export const TransactionList: FC = () => {
                     return (
                         <motion.div 
                             key={group.date}
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: 20 }}
-                            transition={{ duration: 0.3 }}
+                            {...groupAnimation}
                             className="bg-slate-800/20 rounded-xl"
                         >
                             <header className="p-3 border-b border-slate-700/50 sticky top-[70px] md:top-[105px] bg-slate-800/80 backdrop-blur-sm z-10">

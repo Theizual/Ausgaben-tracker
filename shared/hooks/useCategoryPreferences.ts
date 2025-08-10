@@ -46,6 +46,12 @@ export const useCategoryPreferences = ({ userId, isDemoModeEnabled }: { userId: 
         });
     }, [userId, favoriteIds, setRecentIds]);
 
+    const removeCategoryFromPreferences = useCallback((categoryId: string) => {
+        if (!userId) return;
+        setFavoriteIds(prev => prev.filter(id => id !== categoryId));
+        setRecentIds(prev => prev.filter(id => id !== categoryId));
+    }, [userId, setFavoriteIds, setRecentIds]);
+
     const toggleFavorite = useCallback((categoryId: string) => {
         if (!userId) {
             toast.error("Bitte wähle zuerst einen Benutzer aus.");
@@ -69,5 +75,6 @@ export const useCategoryPreferences = ({ userId, isDemoModeEnabled }: { userId: 
         recentCategoryIds,
         addRecent,
         toggleFavorite,
+        removeCategoryFromPreferences,
     };
 };

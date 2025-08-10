@@ -191,7 +191,6 @@ export const useCategories = ({ rawUserSettings, updateCategoryConfigurationForU
 
     const deleteCategory = useCallback((id: string) => {
         dispatch({ type: 'DELETE_CATEGORY', payload: id });
-        toast.success("Kategorie gelöscht.");
     }, []);
 
     const updateGroup = useCallback((id: string, updates: Partial<Omit<Group, 'id'>>) => {

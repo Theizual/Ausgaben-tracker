@@ -1,9 +1,14 @@
 
 
+
+
+
+
+
 import React from 'react';
-import { motion } from 'framer-motion';
+import { motion, MotionProps } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
-import { Sheet, Wallet, Info, ChevronRight, ToggleSwitch, Trash2, Button } from '@/shared/ui';
+import { FileText, Wallet, Info, ChevronRight, ToggleSwitch, Trash2, Button, DownloadCloud } from '@/shared/ui';
 import { APP_VERSION } from '@/constants';
 
 const MotionDiv = motion.div;
@@ -13,22 +18,46 @@ const MANAGER_LIST_ITEM_CLASSES = "w-full text-left bg-slate-700/50 hover:bg-sla
 export const GeneralSettings = ({ onOpenTagManager }: {
     onOpenTagManager: () => void;
 }) => {
-    const { isAutoSyncEnabled, setIsAutoSyncEnabled, openChangelog, resetAppData } = useApp();
+    const { isAutoSyncEnabled, setIsAutoSyncEnabled, openChangelog, resetAppData, loadFromSheet } = useApp();
+
+    const settingsAnimation: MotionProps = {
+        initial: { opacity: 0, x: 10 },
+        animate: { opacity: 1, x: 0 },
+        exit: { opacity: 0, x: -10 }
+    };
 
     return (
-        <MotionDiv key="general" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }}>
+        <MotionDiv {...settingsAnimation} key="general">
             <h3 className="text-lg font-semibold text-white mb-1">Allgemeine Einstellungen</h3>
             <p className="text-sm text-slate-400 mb-6">Verwalten Sie hier die Kerneinstellungen der Anwendung.</p>
             
             <div className="space-y-8">
                 <div>
-                    <h4 className="text-md font-semibold mb-3 text-white flex items-center gap-2"><Sheet className="h-5 w-5 text-green-400" /> Google Sheets Sync</h4>
+                    <h4 className="text-md font-semibold mb-3 text-white flex items-center gap-2"><FileText className="h-5 w-5 text-green-400" /> Google Sheets Sync</h4>
                     <div className="flex items-center justify-between pt-4 mt-4 border-t border-slate-700/50">
                         <div>
                             <label htmlFor="auto-sync-toggle" className="block text-sm font-medium text-slate-300">Automatische Hintergrund-Synchronisierung</label>
                             <p className="text-xs text-slate-400 mt-1">Speichert Änderungen nach kurzer Inaktivität automatisch.</p>
                         </div>
                         <ToggleSwitch id="auto-sync-toggle" enabled={isAutoSyncEnabled} setEnabled={setIsAutoSyncEnabled} />
+                    </div>
+                     <div className="flex items-center justify-between pt-4 mt-4 border-t border-slate-700/50">
+                        <div>
+                            <p className="block text-sm font-medium text-slate-300">Vom Server neu laden</p>
+                            <p className="text-xs text-slate-400 mt-1">Überschreibt lokale Daten mit dem Stand aus Google Sheets. Nützlich bei Synchronisierungsproblemen.</p>
+                        </div>
+                        <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => {
+                                if (window.confirm("Sind Sie sicher? Alle nicht synchronisierten lokalen Änderungen gehen verloren. Dies kann nicht rückgängig gemacht werden.")) {
+                                    loadFromSheet();
+                                }
+                            }}
+                        >
+                            <DownloadCloud className="h-4 w-4" />
+                            Neu laden
+                        </Button>
                     </div>
                 </div>
 

@@ -1,6 +1,7 @@
 
+
 import React, { useState, useMemo, FC } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion, MotionProps } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { useApp } from '@/contexts/AppContext';
 import type { Transaction, Category, ViewMode, CategoryId, Tag, Group } from '@/shared/types';
@@ -123,8 +124,14 @@ export const QuickAddForm: FC = () => {
         );
     };
 
+    const formAnimation: MotionProps = {
+        initial: { opacity: 0, y: -10 },
+        animate: { opacity: 1, y: 0 },
+        transition: { delay: 0.1 }
+    };
+
     return (
-        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+        <motion.div {...formAnimation}>
             <div className="bg-slate-800/50 p-3 rounded-2xl border border-slate-700/50">
                 <h3 className="text-lg font-bold text-white mb-2">Schnell hinzufügen</h3>
                 <form onSubmit={handleSubmit} className="space-y-2.5">

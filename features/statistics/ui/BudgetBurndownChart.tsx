@@ -1,6 +1,8 @@
+
+
 import React, { useMemo, FC } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceDot } from 'recharts';
-import { motion } from 'framer-motion';
+import { motion, MotionProps } from 'framer-motion';
 import type { Transaction, Category, Group } from '@/shared/types';
 import { eachDayOfInterval, format, parseISO, startOfMonth, endOfMonth, isAfter, getDate, getDaysInMonth } from 'date-fns';
 import { formatCurrency } from '@/shared/utils/dateUtils';
@@ -159,9 +161,15 @@ export const BudgetBurndownChart: FC<BudgetBurndownChartProps> = ({ transactions
     
     const chartHeight = Math.max(320, 150 + activeItems.length * 20);
 
+    const chartAnimation: MotionProps = {
+        initial: { opacity: 0, y: 10 },
+        animate: { opacity: 1, y: 0 },
+        transition: { delay: 0.2 },
+    };
+
     if (activeItems.length === 0) {
         return (
-             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-slate-800 p-6 rounded-2xl border border-slate-700">
+             <motion.div {...chartAnimation} className="bg-slate-800 p-6 rounded-2xl border border-slate-700">
                 <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2"><TrendingDown className="h-5 w-5 text-rose-400" /> Ausgabenverlauf nach Budget</h3>
                 <div className="flex flex-col items-center justify-center text-center h-80">
                     <p className="text-slate-500">Keine budgetierten Kategorien für diesen Monat vorhanden.</p>
@@ -171,7 +179,7 @@ export const BudgetBurndownChart: FC<BudgetBurndownChartProps> = ({ transactions
     }
 
     return (
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-slate-800 p-6 rounded-2xl border border-slate-700">
+        <motion.div {...chartAnimation} className="bg-slate-800 p-6 rounded-2xl border border-slate-700">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
                 <h3 className="text-lg font-bold text-white flex items-center gap-2"><TrendingDown className="h-5 w-5 text-rose-400" /> Budget-Verlauf (Gruppen)</h3>
             </div>

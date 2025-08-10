@@ -1,7 +1,9 @@
 
 
+
+
 import React, { useEffect, useMemo } from 'react';
-import { motion } from 'framer-motion';
+import { motion, MotionProps } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
 import type { Transaction } from '@/shared/types';
 import { formatCurrency } from '@/shared/utils/dateUtils';
@@ -88,26 +90,44 @@ const ConfirmationModal = ({
         return defaultColor;
     };
 
+    const backdropAnimation: MotionProps = {
+        initial: { opacity: 0 },
+        animate: { opacity: 1 },
+        exit: { opacity: 0 },
+    };
+    
+    const modalAnimation: MotionProps = {
+        initial: { y: "100%" },
+        animate: { y: 0 },
+        exit: { y: "100%" },
+        transition: { type: 'spring', bounce: 0.4, duration: 0.5 },
+    };
+    
+    const checkAnimation: MotionProps = {
+        initial: { scale: 0 },
+        animate: { scale: 1 },
+        transition: { delay: 0.2, type: 'spring', stiffness: 260, damping: 20 },
+    };
+    
+    const barAnimation = (percentageBefore: number, percentageAfter: number): MotionProps => ({
+        initial: { width: `${Math.min(percentageBefore, 100)}%` },
+        animate: { width: `${Math.min(percentageAfter, 100)}%` },
+        transition: { duration: 0.8, ease: "easeOut", delay: 0.3 },
+    });
+
     return (
         <motion.div
             className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-end md:items-center z-50 p-4"
             onClick={onClose}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            {...backdropAnimation}
         >
             <motion.div
                 className="bg-slate-800 rounded-t-2xl md:rounded-2xl w-full max-w-md shadow-2xl border-t md:border border-slate-700 flex flex-col items-center text-center p-8"
                 onClick={e => e.stopPropagation()}
-                initial={{ y: "100%" }}
-                animate={{ y: 0 }}
-                exit={{ y: "100%" }}
-                transition={{ type: 'spring', bounce: 0.4, duration: 0.5 }}
+                {...modalAnimation}
             >
                 <motion.div
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ delay: 0.2, type: 'spring', stiffness: 260, damping: 20 }}
+                    {...checkAnimation}
                 >
                     <CheckCircle2 className="h-16 w-16 text-green-400 mb-4" />
                 </motion.div>
@@ -157,9 +177,7 @@ const ConfirmationModal = ({
                                 <motion.div
                                     className="h-2.5 rounded-full"
                                     style={{ backgroundColor: getBarColor(categoryBudgetStats.percentageAfter, categoryBudgetStats.color) }}
-                                    initial={{ width: `${Math.min(categoryBudgetStats.percentageBefore, 100)}%` }}
-                                    animate={{ width: `${Math.min(categoryBudgetStats.percentageAfter, 100)}%` }}
-                                    transition={{ duration: 0.8, ease: "easeOut", delay: 0.3 }}
+                                    {...barAnimation(categoryBudgetStats.percentageBefore, categoryBudgetStats.percentageAfter)}
                                 />
                             </div>
                         </div>
@@ -180,9 +198,7 @@ const ConfirmationModal = ({
                                 <motion.div
                                     className="h-2.5 rounded-full"
                                     style={{ backgroundColor: getBarColor(totalPercentageAfter) }}
-                                    initial={{ width: `${Math.min(totalPercentageBefore, 100)}%` }}
-                                    animate={{ width: `${Math.min(totalPercentageAfter, 100)}%` }}
-                                    transition={{ duration: 0.8, ease: "easeOut", delay: 0.3 }}
+                                    {...barAnimation(totalPercentageBefore, totalPercentageAfter)}
                                 />
                             </div>
                         </div>

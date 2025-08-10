@@ -1,6 +1,8 @@
 
+
+
 import React, { useState, useEffect } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion, MotionProps } from 'framer-motion';
 import { Toaster } from 'react-hot-toast';
 import { useApp } from '@/contexts/AppContext';
 import { DashboardPage } from '@/features/dashboard';
@@ -15,6 +17,8 @@ import { Header, MainTabs } from '@/features/shell';
 import { APP_VERSION } from '@/constants';
 import useLocalStorage from '@/shared/hooks/useLocalStorage';
 import { SyncPromptToast } from '@/features/sync-prompt/ui/SyncPromptToast';
+import { DeleteCategoryModal } from '@/features/settings/components/DeleteCategoryModal';
+import type { CategoryFormData } from '@/features/settings/components/CategoryEditModal';
 
 // Main App Component (now a clean layout/composition root)
 const App = () => {
@@ -35,6 +39,8 @@ const App = () => {
         closeChangelog,
         isChangelogAutoShowEnabled,
         setIsChangelogAutoShowEnabled,
+        reassignModalInfo,
+        closeReassignModal,
         // Sync State & Handlers
         syncOperation,
         lastSync,
@@ -72,6 +78,13 @@ const App = () => {
             case 'tags': return <TagsPage />;
             default: return null;
         }
+    };
+
+    const contentAnimation: MotionProps = {
+        initial: { opacity: 0, y: 20 },
+        animate: { opacity: 1, y: 0 },
+        exit: { opacity: 0, y: -20 },
+        transition: { duration: 0.3 }
     };
 
     return (
@@ -114,10 +127,7 @@ const App = () => {
                     <AnimatePresence mode="wait">
                         <motion.div
                             key={activeTab}
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -20 }}
-                            transition={{ duration: 0.3 }}
+                            {...contentAnimation}
                         >
                             {renderContent()}
                         </motion.div>
@@ -157,6 +167,18 @@ const App = () => {
                     />
                 )}
             </AnimatePresence>
+            
+            <AnimatePresence>
+                {reassignModalInfo && (
+                    <DeleteCategoryModal
+                        isOpen={!!reassignModalInfo}
+                        onClose={closeReassignModal}
+                        category={reassignModalInfo.category as CategoryFormData}
+                        transactionCount={reassignModalInfo.txCount}
+                    />
+                )}
+            </AnimatePresence>
+
             <SyncPromptToast />
         </div>
     );

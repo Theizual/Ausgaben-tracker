@@ -1,6 +1,7 @@
 
+
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, MotionProps } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { useApp } from '@/contexts/AppContext';
 import type { Transaction, CategoryId, User } from '@/shared/types';
@@ -180,6 +181,34 @@ const TransactionDetailModal = ({
 
     const localTags = getTagNames(formState);
 
+    const backdropAnimation: MotionProps = {
+        initial: { opacity: 0 },
+        animate: { opacity: 1 },
+        exit: { opacity: 0 },
+    };
+
+    const modalAnimation: MotionProps = {
+        initial: { scale: 0.95, opacity: 0 },
+        animate: { scale: 1, opacity: 1 },
+        exit: { scale: 0.95, opacity: 0 },
+        transition: { type: 'spring', stiffness: 350, damping: 30 },
+    };
+    
+    const iconButtonAnimation: MotionProps = {
+        whileHover: { scale: 1.1 },
+        whileTap: { scale: 0.95 },
+    };
+
+    const inputAnimation: MotionProps = {
+        initial: { opacity: 0, y: -5 },
+        animate: { opacity: 1, y: 0 },
+    };
+    
+    const deleteButtonAnimation: MotionProps = {
+        whileHover: { scale: 1.05 },
+        whileTap: { scale: 0.98 },
+    };
+
     return (
         <>
             <AnimatePresence>
@@ -187,17 +216,12 @@ const TransactionDetailModal = ({
                     <motion.div
                         className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50 p-4"
                         onClick={onClose}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
+                        {...backdropAnimation}
                     >
                         <motion.div
                             className="bg-slate-800 rounded-2xl w-full max-w-lg shadow-2xl border border-slate-700 flex flex-col overflow-hidden max-h-[90vh]"
                             onClick={e => e.stopPropagation()}
-                            initial={{ scale: 0.95, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            exit={{ scale: 0.95, opacity: 0 }}
-                            transition={{ type: 'spring', stiffness: 350, damping: 30 }}
+                            {...modalAnimation}
                         >
                             <div className="overflow-y-auto custom-scrollbar">
                                 <>
@@ -206,8 +230,7 @@ const TransactionDetailModal = ({
                                             <X className="h-5 w-5" />
                                         </button>
                                         <motion.button 
-                                            whileHover={{ scale: 1.1 }}
-                                            whileTap={{ scale: 0.95 }}
+                                            {...iconButtonAnimation}
                                             onClick={() => setIsPickingCategory(true)}
                                             className="w-16 h-16 rounded-full flex items-center justify-center mb-4 transition-transform" 
                                             style={{ backgroundColor: color }}
@@ -217,7 +240,7 @@ const TransactionDetailModal = ({
                                         </motion.button>
                                         
                                         {isEditingAmount ? (
-                                            <motion.div initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} className="my-1">
+                                            <motion.div {...inputAnimation} className="my-1">
                                                  <input
                                                     type="text"
                                                     inputMode="decimal"
@@ -236,7 +259,7 @@ const TransactionDetailModal = ({
                                         )}
                                         
                                         {isEditingDescription ? (
-                                             <motion.div initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-sm mt-2">
+                                             <motion.div {...inputAnimation} className="w-full max-w-sm mt-2">
                                                 <input
                                                     type="text"
                                                     value={descriptionValue}
@@ -350,7 +373,7 @@ const TransactionDetailModal = ({
                                     {!formState.isDemo && (
                                         <div className="p-4 bg-slate-900/50 flex justify-end">
                                             <motion.button
-                                                whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.98 }}
+                                                {...deleteButtonAnimation}
                                                 onClick={handleDelete}
                                                 className="flex items-center gap-2 text-sm font-semibold text-red-400 hover:text-red-300 hover:bg-red-500/10 px-4 py-2 rounded-lg"
                                             >

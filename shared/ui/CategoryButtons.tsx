@@ -1,12 +1,7 @@
 
-
-
-
-
-
 import React, { useMemo } from 'react';
 import type { FC } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion, MotionProps } from 'framer-motion';
 import type { Category, CategoryId, Group } from '@/shared/types';
 import { iconMap, Plus, Star, getIconComponent } from '@/shared/ui';
 
@@ -19,13 +14,24 @@ const CategoryTile: FC<{
 }> = ({ category, isSelected, onSelect, isFavorite, onToggleFavorite }) => {
     const Icon = iconMap[category.icon] || iconMap.MoreHorizontal;
 
+    const buttonAnimation: MotionProps = {
+        layout: true,
+        transition: { type: 'spring', damping: 20, stiffness: 300 },
+    };
+    
+    const labelAnimation: MotionProps = {
+        initial: { opacity: 0, width: 0 },
+        animate: { opacity: 1, width: 'auto' },
+        exit: { opacity: 0, width: 0 },
+        transition: { duration: 0.15, ease: 'linear' },
+    };
+
     return (
         <div className="relative" key={category.id}>
             <motion.button
                 type="button"
                 onClick={() => onSelect(category.id)}
-                layout
-                transition={{ type: 'spring', damping: 20, stiffness: 300 }}
+                {...buttonAnimation}
                 style={{
                     backgroundColor: isSelected ? category.color : undefined,
                     borderColor: category.color,
@@ -42,10 +48,7 @@ const CategoryTile: FC<{
                 <AnimatePresence>
                     {isSelected && (
                         <motion.span
-                            initial={{ opacity: 0, width: 0 }}
-                            animate={{ opacity: 1, width: 'auto' }}
-                            exit={{ opacity: 0, width: 0 }}
-                            transition={{ duration: 0.15, ease: 'linear' }}
+                            {...labelAnimation}
                             className="whitespace-nowrap overflow-hidden text-sm"
                         >
                             {category.name}
@@ -70,7 +73,7 @@ const CategoryTile: FC<{
     );
 };
 
-export const CategoryButtons: FC<{
+const CategoryButtons: FC<{
     categories: Category[];
     groups?: Group[];
     selectedCategoryId: CategoryId;
@@ -98,59 +101,61 @@ export const CategoryButtons: FC<{
         onToggleFavorite: onToggleFavorite,
     });
 
+    const groupedCategories = useMemo(() => {
+        if (!showGroups) return null;
+        const groupMap = new Map<string, Category[]>();
+        categories.forEach(category => {
+            const group = category.groupId;
+            if (!groupMap.has(group)) groupMap.set(group, []);
+            groupMap.get(group)!.push(category);
+        });
+
+        return groups
+            .map(group => ({
+                ...group,
+                categories: groupMap.get(group.id) || []
+            }))
+            .filter(group => group.categories.length > 0);
+    }, [categories, groups, showGroups]);
+
     if (!showGroups) {
         return (
-             <div className="flex flex-wrap gap-2">
-                {categories.map(category => <CategoryTile key={category.id} {...tileProps(category)} />)}
+            <div className="flex flex-wrap gap-2">
+                {categories.map(category => (
+                    <CategoryTile key={category.id} {...tileProps(category)} />
+                ))}
+                {onShowMoreClick && (
+                    <button
+                        type="button"
+                        onClick={onShowMoreClick}
+                        className="w-12 h-12 flex items-center justify-center rounded-lg transition-colors duration-200 border-2 border-dashed border-slate-500 hover:border-slate-400 bg-slate-800/50 hover:bg-slate-700/80"
+                        title="Weitere Kategorien"
+                    >
+                        <Plus className="h-6 w-6 text-slate-400" />
+                    </button>
+                )}
             </div>
-        )
+        );
     }
-
-    const groupedCategories = useMemo(() => {
-        return groups.map(group => ({
-            ...group,
-            categories: categories.filter(category => category.groupId === group.id)
-        })).filter(group => group.categories.length > 0);
-    }, [categories, groups]);
-
+    
     return (
         <div className="space-y-4">
-            {groupedCategories.map((group, groupIndex) => {
+            {groupedCategories?.map(group => {
                 const GroupIcon = getIconComponent(group.icon);
                 return (
-                    <div key={group.name}>
-                        <div className="flex items-center gap-2">
-                            <GroupIcon className="h-4 w-4" style={{color: group.color}}/>
+                    <div key={group.id}>
+                        <div className="flex items-center gap-2 mb-2">
+                            <GroupIcon className="h-4 w-4 text-slate-500" />
                             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">{group.name}</h4>
                         </div>
-                        <div className="flex flex-wrap gap-2 mt-2">
-                            {group.categories.map(category => <CategoryTile key={category.id} {...tileProps(category)} />)}
-                            {onShowMoreClick && groupIndex === groupedCategories.length - 1 && (
-                                <motion.button
-                                    type="button"
-                                    onClick={onShowMoreClick}
-                                    layout
-                                    className="w-12 h-12 flex items-center justify-center rounded-lg transition-colors duration-200 border-2 border-dashed border-slate-500 hover:border-slate-400 bg-slate-800/50 hover:bg-slate-700/80"
-                                    title="Weitere Kategorien"
-                                >
-                                    <Plus className="h-6 w-6 text-slate-400" />
-                                </motion.button>
-                            )}
+                        <div className="flex flex-wrap gap-2">
+                            {group.categories.map(category => (
+                                <CategoryTile key={category.id} {...tileProps(category)} />
+                            ))}
                         </div>
                     </div>
                 );
             })}
-            {groupedCategories.length === 0 && onShowMoreClick && (
-                <motion.button
-                    type="button"
-                    onClick={onShowMoreClick}
-                    layout
-                    className="w-12 h-12 flex items-center justify-center rounded-lg transition-colors duration-200 border-2 border-dashed border-slate-500 hover:border-slate-400 bg-slate-800/50 hover:bg-slate-700/80"
-                    title="Weitere Kategorien"
-                >
-                    <Plus className="h-6 w-6 text-slate-400" />
-                </motion.button>
-            )}
         </div>
     );
 };

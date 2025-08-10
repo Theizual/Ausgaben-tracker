@@ -1,7 +1,9 @@
 
 
+
+
 import React, { FC, useMemo, useEffect, useRef } from 'react';
-import { motion } from 'framer-motion';
+import { motion, MotionProps } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
 import type { Transaction } from '@/shared/types';
 import { formatCurrency, formatGermanDate } from '@/shared/utils/dateUtils';
@@ -46,14 +48,18 @@ export const DayDetailPanel: FC<DayDetailPanelProps> = ({ isOpen, date, transact
     if (!isOpen || !date) {
         return null;
     }
+    
+    const panelAnimation: MotionProps = {
+        initial: { opacity: 0, x: 20 },
+        animate: { opacity: 1, x: 0 },
+        exit: { opacity: 0, x: 20 },
+        transition: { type: 'spring', stiffness: 300, damping: 30 },
+    };
 
     return (
         <motion.div
             ref={panelRef}
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 20 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+            {...panelAnimation}
             className="bg-slate-800 rounded-2xl border border-slate-700 flex flex-col h-full"
             role="region"
             aria-labelledby="day-detail-title"

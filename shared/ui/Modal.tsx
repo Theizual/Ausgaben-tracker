@@ -1,6 +1,8 @@
 
+
+
 import React from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion, MotionProps } from 'framer-motion';
 import { X } from './Icons';
 import { useEscapeKey } from '@/shared/hooks/useEscapeKey';
 import { clsx } from 'clsx';
@@ -32,13 +34,24 @@ export const Modal = ({
 
     if (!isOpen) return null;
 
+    const backdropAnimation: MotionProps = {
+        initial: { opacity: 0 },
+        animate: { opacity: 1 },
+        exit: { opacity: 0 },
+    };
+    
+    const modalAnimation: MotionProps = {
+        initial: { scale: 0.95, y: 20 },
+        animate: { scale: 1, y: 0 },
+        exit: { scale: 0.95, y: 20 },
+        transition: { type: 'spring', stiffness: 350, damping: 30 },
+    };
+
     return (
         <AnimatePresence>
             <motion.div
                 className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50 p-4"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
+                {...backdropAnimation}
                 onClick={onClose}
             >
                 <motion.div
@@ -46,11 +59,8 @@ export const Modal = ({
                         "bg-slate-800 rounded-2xl w-full shadow-2xl border border-slate-700 flex flex-col max-h-[90vh]",
                         modalSizeClasses[size]
                     )}
-                    initial={{ scale: 0.95, y: 20 }}
-                    animate={{ scale: 1, y: 0 }}
-                    exit={{ scale: 0.95, y: 20 }}
                     onClick={(e) => e.stopPropagation()}
-                    transition={{ type: 'spring', stiffness: 350, damping: 30 }}
+                    {...modalAnimation}
                     role="dialog"
                     aria-modal="true"
                     aria-labelledby="modal-title"

@@ -1,11 +1,4 @@
 
-
-
-
-
-
-
-
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { toast } from 'react-hot-toast';
 import type { Transaction, RecurringTransaction, Tag, CategoryId } from '@/shared/types';
@@ -76,12 +69,18 @@ const createInitialRecurringTransactions = (): RecurringTransaction[] => {
     const startDate = now.toISOString().split('T')[0];
     const lastModified = now.toISOString();
 
+    const defaultAmounts: Record<string, number> = {
+        'cat_miete': 1000,
+        'cat_nebenkosten': 200,
+        'cat_internet': 100,
+    };
+
     // Use the new taxonomy as the source of truth, create entries with amount 0
     return getCategories()
         .filter(cat => cat.groupId === FIXED_COSTS_GROUP_ID)
         .map(cat => ({
             id: `rec_${cat.id}`, // A predictable ID
-            amount: 0,
+            amount: defaultAmounts[cat.id] || 0,
             description: cat.name,
             categoryId: cat.id,
             frequency: 'monthly' as const,
@@ -255,6 +254,17 @@ export const useTransactionData = ({ showConfirmation, closeTransactionDetail, c
         toast.success(`${ids.length} ${ids.length > 1 ? 'Einträge' : 'Eintrag'} gelöscht.`);
     }, [rawState.transactions]);
 
+    const reassignCategoryForTransactions = useCallback((sourceId: string, targetId: string) => {
+        if (!sourceId || !targetId) return;
+        const now = new Date().toISOString();
+        const updatedTransactions = rawState.transactions.map(t => 
+            t.categoryId === sourceId
+            ? { ...t, categoryId: targetId, lastModified: now, version: (t.version || 0) + 1 }
+            : t
+        );
+        dispatch({ type: 'SET_TRANSACTIONS', payload: updatedTransactions });
+    }, [rawState.transactions]);
+
     const addRecurringTransaction = useCallback((item: Omit<RecurringTransaction, 'id' | 'lastModified' | 'version'>, id: string) => {
         const newRec: RecurringTransaction = { ...item, id, lastModified: new Date().toISOString(), version: 1 };
         dispatch({ type: 'ADD_RECURRING', payload: newRec });
@@ -328,5 +338,6 @@ export const useTransactionData = ({ showConfirmation, closeTransactionDetail, c
         setRecurringTransactions: (data: RecurringTransaction[]) => dispatch({type: 'SET_RECURRING', payload: data}),
         addTransaction, addMultipleTransactions, updateTransaction, deleteTransaction, deleteMultipleTransactions,
         addRecurringTransaction, updateRecurringTransaction, deleteRecurringTransaction, handleUpdateTag, handleDeleteTag,
+        reassignCategoryForTransactions,
     };
 };

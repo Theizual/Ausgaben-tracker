@@ -1,9 +1,12 @@
 
+
+
+
 import React, { useState, FC } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, MotionProps } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { useApp } from '@/contexts/AppContext';
-import { Button, Plus, Trash2, getIconComponent } from '@/shared/ui';
+import { Button, Plus, Trash2, getIconComponent, ColorPickerIcon } from '@/shared/ui';
 import { DEFAULT_GROUP_ID, FIXED_COSTS_GROUP_ID, DEFAULT_GROUP_COLOR } from '@/constants';
 import { IconPicker } from './IconPicker';
 
@@ -61,9 +64,15 @@ export const GroupSettings: FC = () => {
         setIsIconPickerOpen(false);
     };
 
+    const settingsAnimation: MotionProps = {
+        initial: { opacity: 0, x: 10 },
+        animate: { opacity: 1, x: 0 },
+        exit: { opacity: 0, x: -10 }
+    };
+
     return (
         <>
-            <MotionDiv key="groups" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }}>
+            <MotionDiv {...settingsAnimation} key="groups">
                 <h3 className="text-lg font-semibold text-white mb-1">Gruppen verwalten</h3>
                 <p className="text-sm text-slate-400 mb-6">
                     Erstellen, bearbeiten und löschen Sie Kategoriegruppen. Passen Sie außerdem die Farbe und das Icon für jede Gruppe individuell an.
@@ -86,18 +95,25 @@ export const GroupSettings: FC = () => {
                         const GroupIcon = getIconComponent(group.icon);
                         const color = group.color || DEFAULT_GROUP_COLOR;
                         const isProtected = group.id === DEFAULT_GROUP_ID || group.id === FIXED_COSTS_GROUP_ID;
-
+                        
                         return (
                             <div key={group.id} className="bg-slate-700/50 p-2 rounded-lg hover:bg-slate-700/30 transition-colors">
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-3 flex-grow min-w-0">
-                                        <input
-                                            type="color"
-                                            value={color}
-                                            onChange={(e) => handleColorChange(group.name, e.target.value)}
-                                            className="w-10 h-10 p-0 border-none rounded-md bg-transparent cursor-pointer flex-shrink-0"
-                                            title={`Farbe für Gruppe "${group.name}" ändern`}
-                                        />
+                                        <div className="relative w-10 h-10 flex-shrink-0 flex items-center justify-center">
+                                            <ColorPickerIcon
+                                                size={20}
+                                                onClick={(e) => (e.currentTarget.nextElementSibling as HTMLElement)?.click()}
+                                                ariaLabel={`Farbe für Gruppe "${group.name}" ändern`}
+                                            />
+                                            <input
+                                                type="color"
+                                                value={color}
+                                                onChange={(e) => handleColorChange(group.name, e.target.value)}
+                                                className="absolute w-0 h-0 opacity-0 pointer-events-none"
+                                                tabIndex={-1}
+                                            />
+                                        </div>
                                         <button 
                                             onClick={() => { setEditingIconForGroupId(group.id); setIsIconPickerOpen(true); }}
                                             className="w-10 h-10 rounded-md flex items-center justify-center flex-shrink-0 hover:opacity-80 transition-opacity"

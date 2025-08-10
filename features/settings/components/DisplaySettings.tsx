@@ -1,7 +1,10 @@
 
 
+
+
+
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, MotionProps } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { useApp } from '@/contexts/AppContext';
 import { Button, Plus, Trash2, getIconComponent } from '@/shared/ui';
@@ -58,8 +61,14 @@ export const GroupSettings = () => {
         }
     };
 
+    const settingsAnimation: MotionProps = {
+        initial: { opacity: 0, x: 10 },
+        animate: { opacity: 1, x: 0 },
+        exit: { opacity: 0, x: -10 }
+    };
+
     return (
-        <MotionDiv key="groups" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }}>
+        <MotionDiv {...settingsAnimation}>
             <h3 className="text-lg font-semibold text-white mb-1">Gruppen verwalten</h3>
             <p className="text-sm text-slate-400 mb-6">
                 Erstellen, bearbeiten und löschen Sie Kategoriegruppen. Passen Sie außerdem die Farbe und Sichtbarkeit für jeden Benutzer individuell an.

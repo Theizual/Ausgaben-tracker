@@ -1,6 +1,10 @@
 
+
+
+
+
 import React, { useState, useMemo, FC } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion, MotionProps } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { useApp } from '@/contexts/AppContext';
 import type { Category, Group } from '@/shared/types';
@@ -13,7 +17,7 @@ const MotionDiv = motion.div;
 export const CategoryLibrarySettings: FC = () => {
     const { 
         categories, groups, upsertCategory, deleteCategory, renameGroup, addGroup, deleteGroup, 
-        loadStandardConfiguration, unassignedCategories, favoriteIds, toggleFavorite
+        loadStandardConfiguration, unassignedCategories, favoriteIds, toggleFavorite, transactions, openReassignModal
     } = useApp();
 
     const [editingCategory, setEditingCategory] = useState<CategoryFormData | null>(null);
@@ -50,6 +54,23 @@ export const CategoryLibrarySettings: FC = () => {
         upsertCategory(data);
         toast.success(`Kategorie "${data.name}" gespeichert.`);
         setEditingCategory(null);
+    };
+
+    const handleDeleteCategoryRequest = (category: CategoryFormData) => {
+        const associatedTransactions = transactions.filter(t => t.categoryId === category.id && !t.isDeleted);
+        const txCount = associatedTransactions.length;
+    
+        setEditingCategory(null); // Close the edit modal first
+    
+        if (txCount === 0) {
+            if (window.confirm(`Möchtest du die Kategorie "${category.name}" wirklich löschen? Es sind keine Transaktionen damit verknüpft.`)) {
+                deleteCategory(category.id);
+                toast.success(`Kategorie "${category.name}" gelöscht.`);
+            }
+        } else {
+            // Open the new reassign modal
+            openReassignModal(category, txCount);
+        }
     };
 
     const handleRenameGroup = (id: string) => {
@@ -121,10 +142,16 @@ export const CategoryLibrarySettings: FC = () => {
              </div>
         );
     }
+    
+    const settingsAnimation: MotionProps = {
+        initial: { opacity: 0, x: 10 },
+        animate: { opacity: 1, x: 0 },
+        exit: { opacity: 0, x: -10 }
+    };
 
     return (
         <>
-            <MotionDiv key="categories" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }}>
+            <MotionDiv {...settingsAnimation} key="categories">
                 <h3 className="text-lg font-semibold text-white mb-1">Kategorien-Bibliothek</h3>
                 <p className="text-sm text-slate-400 mb-6">Verwalten Sie hier alle Ihre Kategoriegruppen und Kategorien. Fügen Sie neue hinzu, benennen Sie sie um oder laden Sie die Standardkonfiguration.</p>
                 <div className="space-y-6">
@@ -216,6 +243,7 @@ export const CategoryLibrarySettings: FC = () => {
                         onClose={() => setEditingCategory(null)}
                         categoryData={editingCategory}
                         onSave={handleSaveCategory}
+                        onDelete={handleDeleteCategoryRequest}
                     />
                 )}
             </AnimatePresence>

@@ -1,8 +1,11 @@
 
+
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { format, subDays } from '@/shared/utils/dateUtils';
-import type { Transaction, ViewMode, PeriodType, QuickFilterId, SettingsTab } from '@/shared/types';
+import type { Transaction, ViewMode, PeriodType, QuickFilterId, SettingsTab, Category } from '@/shared/types';
 import useLocalStorage from '@/shared/hooks/useLocalStorage';
+import type { CategoryFormData } from '@/features/settings/components/CategoryEditModal';
+
 
 export const useUI = (props?: { isDemoModeEnabled: boolean }) => {
     const isDemoModeEnabled = props?.isDemoModeEnabled ?? false;
@@ -17,6 +20,7 @@ export const useUI = (props?: { isDemoModeEnabled: boolean }) => {
     const [confirmationData, setConfirmationData] = useState<{ transactions: Transaction[]; totalSpentBefore: number; } | null>(null);
     const [transactionForDetail, setTransactionForDetail] = useState<{ transaction: Transaction } | null>(null);
     const [isChangelogOpen, setIsChangelogOpen] = useState(false);
+    const [reassignModalInfo, setReassignModalInfo] = useState<{ category: Category | CategoryFormData, txCount: number } | null>(null);
     
     // Non-namespaced settings
     const [isChangelogAutoShowEnabled, setIsChangelogAutoShowEnabled] = useLocalStorage('changelogAutoShowEnabled', true);
@@ -72,6 +76,10 @@ export const useUI = (props?: { isDemoModeEnabled: boolean }) => {
     const closeTransactionDetail = useCallback(() => setTransactionForDetail(null), []);
     const openChangelog = useCallback(() => setIsChangelogOpen(true), []);
     const closeChangelog = useCallback(() => setIsChangelogOpen(false), []);
+    const openReassignModal = useCallback((category: Category | CategoryFormData, txCount: number) => {
+        setReassignModalInfo({ category, txCount });
+    }, []);
+    const closeReassignModal = useCallback(() => setReassignModalInfo(null), []);
 
     // Cross-tab navigation handlers
     const handleTagAnalyticsClick = useCallback((tagId: string) => {
@@ -133,5 +141,10 @@ export const useUI = (props?: { isDemoModeEnabled: boolean }) => {
         closeChangelog,
         isChangelogAutoShowEnabled,
         setIsChangelogAutoShowEnabled,
+
+        // Reassign Modal State
+        reassignModalInfo,
+        openReassignModal,
+        closeReassignModal,
     };
 };

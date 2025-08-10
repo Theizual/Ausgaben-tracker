@@ -1,6 +1,8 @@
 
+
+
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion, MotionProps } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { useApp } from '@/contexts/AppContext';
 import type { Category, RecurringTransaction, Group } from '@/shared/types';
@@ -51,11 +53,11 @@ export const BudgetSettings = () => {
     const totalOverallBudget = totalMonthlyBudget + totalMonthlyFixedCosts;
     const flexPercentage = totalOverallBudget > 0 ? (totalMonthlyBudget / totalOverallBudget) * 100 : 0;
     const fixedPercentage = totalOverallBudget > 0 ? (totalMonthlyFixedCosts / totalOverallBudget) * 100 : 0;
-    const flexBarColor = '#2563eb'; // blue-600
-    const fixedBarColor = '#ef4444'; // red-500
+    const flexBarColor = '#3b82f6'; // Per user request: Tailwind blue-500
+    const fixedBarColor = '#dc2626'; // Per user request: Tailwind red-600
     
     const fixedGroup = useMemo(() => groups.find(g => g.id === FIXED_COSTS_GROUP_ID), [groups]);
-    const fixedIconColor = fixedGroup?.color || '#e11d48'; // Keep original for the icon
+    const fixedIconColor = fixedGroup?.color || '#dc2626'; // Use theme red for consistency
     const FixedIcon = getIconComponent(fixedGroup?.icon || 'Home');
     
     const recurringMapByCatId = useMemo(() => {
@@ -220,8 +222,32 @@ export const BudgetSettings = () => {
         if (itemToUpdate) updateRecurringTransaction({ ...itemToUpdate, ...updates });
     }, [nonFixedRecurring, updateRecurringTransaction]);
 
+    const settingsAnimation: MotionProps = {
+        initial: { opacity: 0, x: 10 },
+        animate: { opacity: 1, x: 0 },
+        exit: { opacity: 0, x: -10 }
+    };
+
+    const flexBarAnimation: MotionProps = {
+        initial: { width: '0%' },
+        animate: { width: `${flexPercentage}%` },
+        transition: { duration: 0.8, ease: "easeOut" }
+    };
+
+    const fixedBarAnimation: MotionProps = {
+        initial: { width: '0%' },
+        animate: { width: `${fixedPercentage}%` },
+        transition: { duration: 0.8, ease: "easeOut" }
+    };
+    
+    const detailsAnimation: MotionProps = {
+        initial: { opacity: 0, height: 0 },
+        animate: { opacity: 1, height: 'auto' },
+        exit: { opacity: 0, height: 0 }
+    };
+
     return (
-        <MotionDiv key="budget" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }}>
+        <MotionDiv {...settingsAnimation} key="budget">
             <h3 className="text-lg font-semibold text-white mb-1">Budgetverwaltung</h3>
             <p className="text-sm text-slate-400 mb-6">Verwalten Sie hier Ihr gesamtes monatliches Budget, aufgeteilt in flexible Ausgaben und Fixkosten.</p>
             
@@ -241,31 +267,39 @@ export const BudgetSettings = () => {
                     </div>
                 </div>
                 {totalOverallBudget > 0 ? (
-                    <div className="w-full relative flex h-6 rounded-full overflow-hidden bg-slate-900/50" aria-label="Gesamtbudgetverteilung: Flexibles Budget vs. Fixkosten">
-                        <motion.div 
-                            style={{ backgroundColor: flexBarColor }} 
-                            className="h-full flex items-center justify-center" 
-                            title={`Flexible Budgets: ${flexPercentage.toFixed(0)}%`} 
-                            initial={{ width: '0%' }} 
-                            animate={{ width: `${flexPercentage}%` }} 
-                            transition={{ duration: 0.8, ease: "easeOut" }} 
-                        >
-                            {flexPercentage >= 8 && (
-                                <span className="text-white text-xs font-bold drop-shadow-sm">{flexPercentage.toFixed(0)}%</span>
-                            )}
-                        </motion.div>
-                        <motion.div 
-                            style={{ backgroundColor: fixedBarColor }} 
-                            className="h-full flex items-center justify-center" 
-                            title={`Fixkosten: ${fixedPercentage.toFixed(0)}%`} 
-                            initial={{ width: '0%' }} 
-                            animate={{ width: `${fixedPercentage}%` }} 
+                    <div className="w-full relative h-6 rounded-full overflow-hidden bg-slate-900/50" aria-label="Gesamtbudgetverteilung: Flexibles Budget vs. Fixkosten">
+                        <motion.div
+                            className="absolute inset-0"
+                            // @ts-ignore
+                            initial={{ '--flex-percentage': 0 }}
+                            // @ts-ignore
+                            animate={{ '--flex-percentage': flexPercentage }}
                             transition={{ duration: 0.8, ease: "easeOut" }}
-                        >
-                            {fixedPercentage >= 8 && (
-                                <span className="text-white text-xs font-bold drop-shadow-sm">{fixedPercentage.toFixed(0)}%</span>
-                            )}
-                        </motion.div>
+                            style={{
+                                // @ts-ignore
+                                background: `linear-gradient(to right, ${flexBarColor} calc(var(--flex-percentage) * 1% - 6px), ${fixedBarColor} calc(var(--flex-percentage) * 1% + 6px))`
+                            }}
+                        />
+                        <div className="relative w-full h-full flex items-center">
+                            <motion.div
+                                className="h-full flex items-center justify-center"
+                                {...flexBarAnimation}
+                                title={`Flexible Budgets: ${flexPercentage.toFixed(0)}%`}
+                            >
+                                {flexPercentage >= 10 && (
+                                    <span className="text-white text-xs font-bold drop-shadow-sm">{flexPercentage.toFixed(0)}%</span>
+                                )}
+                            </motion.div>
+                            <motion.div
+                                className="h-full flex items-center justify-center"
+                                {...fixedBarAnimation}
+                                title={`Fixkosten: ${fixedPercentage.toFixed(0)}%`}
+                            >
+                                {fixedPercentage >= 10 && (
+                                    <span className="text-white text-xs font-bold drop-shadow-sm">{fixedPercentage.toFixed(0)}%</span>
+                                )}
+                            </motion.div>
+                        </div>
                     </div>
                 ) : (
                     <div className="w-full relative flex h-6 rounded-full overflow-hidden bg-slate-900/50" aria-label="Gesamtbudgetverteilung: Flexibles Budget vs. Fixkosten">
@@ -286,7 +320,7 @@ export const BudgetSettings = () => {
                 </button>
                 <AnimatePresence>
                     {isDetailsExpanded && (
-                        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+                        <motion.div {...detailsAnimation} className="overflow-hidden">
                             <div className="p-3 border-t border-slate-600/50 space-y-3">
                                 <h5 className="text-xs font-semibold uppercase tracking-wider text-slate-400">Flexibles Budget</h5>
                                 {groupedBudgetData.map(({ group, categories, groupTotalBudget }) => (

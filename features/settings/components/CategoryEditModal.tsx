@@ -1,8 +1,9 @@
-import React, { useState, useMemo, useEffect, FC } from 'react';
+
+import React, { useState, useMemo, useEffect, FC, useRef } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { useApp } from '@/contexts/AppContext';
-import { Modal, Button, getIconComponent, ChevronDown } from '@/shared/ui';
+import { Modal, Button, getIconComponent, ChevronDown, Trash2, ColorPickerIcon } from '@/shared/ui';
 import { useEscapeKey } from '@/shared/hooks/useEscapeKey';
 import { IconPicker } from './IconPicker';
 
@@ -17,10 +18,17 @@ export type CategoryFormData = {
     budget?: number;
 };
 
-export const CategoryEditModal: FC<{ isOpen: boolean; onClose: () => void; categoryData: CategoryFormData | null; onSave: (data: CategoryFormData) => void; }> = ({ isOpen, onClose, categoryData, onSave }) => {
+export const CategoryEditModal: FC<{ 
+    isOpen: boolean; 
+    onClose: () => void; 
+    categoryData: CategoryFormData | null; 
+    onSave: (data: CategoryFormData) => void; 
+    onDelete?: (category: CategoryFormData) => void;
+}> = ({ isOpen, onClose, categoryData, onSave, onDelete }) => {
     const { groups } = useApp();
     const [formData, setFormData] = useState(categoryData);
     const [isIconPickerOpen, setIconPickerOpen] = useState(false);
+    const colorInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => { setFormData(categoryData); }, [categoryData]);
     useEscapeKey(() => { if (isIconPickerOpen) setIconPickerOpen(false); else onClose(); });
@@ -32,11 +40,29 @@ export const CategoryEditModal: FC<{ isOpen: boolean; onClose: () => void; categ
         }
         onSave(formData);
     };
+
+    const handleDeleteClick = () => {
+        if (formData && onDelete) {
+            onDelete(formData);
+        }
+    };
+
+    const handleColorPickerClick = () => {
+        colorInputRef.current?.click();
+    };
     
     const footer = (
-         <div className="flex justify-end gap-3">
-            <Button variant="secondary" onClick={onClose}>Abbrechen</Button>
-            <Button onClick={handleSave}>Speichern</Button>
+         <div className={`flex items-center w-full ${onDelete ? 'justify-between' : 'justify-end'}`}>
+            {onDelete && (
+                <Button variant="destructive-ghost" onClick={handleDeleteClick}>
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Löschen
+                </Button>
+            )}
+            <div className="flex gap-3">
+                <Button variant="secondary" onClick={onClose}>Abbrechen</Button>
+                <Button onClick={handleSave}>Speichern</Button>
+            </div>
         </div>
     );
 
@@ -64,16 +90,23 @@ export const CategoryEditModal: FC<{ isOpen: boolean; onClose: () => void; categ
                             <label htmlFor="cat-name" className="text-xs text-slate-400">Name</label>
                             <input id="cat-name" type="text" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className={BASE_INPUT_CLASSES} />
                         </div>
-                        <div>
-                            <label htmlFor="cat-color" className="block text-xs text-slate-400 text-center mb-1">Farbe</label>
-                            <input
-                                id="cat-color"
-                                type="color"
-                                value={formData.color}
-                                onChange={e => setFormData({ ...formData, color: e.target.value })}
-                                className="w-10 h-10 p-0 border-none rounded-lg bg-transparent cursor-pointer"
-                                title="Farbe ändern"
-                            />
+                        <div className="flex flex-col items-center">
+                            <label htmlFor="cat-color-btn" className="block text-xs text-slate-400 text-center mb-2">Farbe</label>
+                            <div className="relative flex items-center justify-center w-10 h-10">
+                                <ColorPickerIcon
+                                    id="cat-color-btn"
+                                    size={20}
+                                    onClick={handleColorPickerClick}
+                                />
+                                <input
+                                    ref={colorInputRef}
+                                    type="color"
+                                    value={formData.color}
+                                    onChange={e => setFormData({ ...formData, color: e.target.value })}
+                                    className="absolute w-0 h-0 opacity-0 pointer-events-none"
+                                    tabIndex={-1}
+                                />
+                            </div>
                         </div>
                     </div>
                     <div>

@@ -6,6 +6,7 @@ export * from './ProgressBar';
 export * from './BudgetProgressBar';
 export * from './TagPill';
 export * from './ToggleSwitch';
+export * from './ColorPickerIcon';
 export { default as AvailableTags } from './AvailableTags';
 export { default as CategoryButtons } from './CategoryButtons';
 export { default as Logo } from './Logo';

@@ -1,5 +1,7 @@
+
+
 import React, { FC, useState, useMemo, useEffect, useRef } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion, MotionProps } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
 import type { Transaction, Category, Group } from '@/shared/types';
 import { format, parseISO } from 'date-fns';
@@ -87,11 +89,32 @@ export const MonthlyCategoryBreakdown: FC<{ transactions: Transaction[], current
         setExpandedGroups(prev => prev.includes(groupId) ? prev.filter(g => g !== groupId) : [...prev, groupId]);
     };
 
+    const breakdownAnimation: MotionProps = {
+        initial: { opacity: 0, y: 10 },
+        animate: { opacity: 1, y: 0 },
+        transition: { delay: 0.2 },
+    };
+    
+    const expandAnimation: MotionProps = {
+        initial: { opacity: 0, height: 0 },
+        animate: { opacity: 1, height: 'auto' },
+        exit: { opacity: 0, height: 0 },
+    };
+
+    const groupExpandAnimation: MotionProps = {
+        ...expandAnimation,
+        transition: { duration: 0.3 }
+    };
+
+    const categoryExpandAnimation: MotionProps = {
+        initial: { opacity: 0, height: 0, marginTop: 0 },
+        animate: { opacity: 1, height: 'auto', marginTop: '1rem' },
+        exit: { opacity: 0, height: 0, marginTop: 0 },
+    };
+
     return (
         <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
+            {...breakdownAnimation}
             className="bg-slate-800 p-6 rounded-2xl border border-slate-700"
         >
             <h3 className="text-lg font-bold text-white mb-4">Kategorienübersicht ({format(currentMonth, 'MMMM', { locale: deLocale })})</h3>
@@ -114,9 +137,7 @@ export const MonthlyCategoryBreakdown: FC<{ transactions: Transaction[], current
                             <AnimatePresence>
                                 {isSupergroupExpanded && (
                                     <motion.div
-                                        initial={{ opacity: 0, height: 0 }}
-                                        animate={{ opacity: 1, height: 'auto' }}
-                                        exit={{ opacity: 0, height: 0 }}
+                                        {...expandAnimation}
                                         className="overflow-hidden"
                                     >
                                         <div className="p-4 border-t border-slate-700/50 space-y-3">
@@ -149,10 +170,7 @@ export const MonthlyCategoryBreakdown: FC<{ transactions: Transaction[], current
                                                         <AnimatePresence>
                                                             {isGroupExpanded && (
                                                                 <motion.div
-                                                                    initial={{ opacity: 0, height: 0 }}
-                                                                    animate={{ opacity: 1, height: 'auto' }}
-                                                                    exit={{ opacity: 0, height: 0 }}
-                                                                    transition={{ duration: 0.3 }}
+                                                                    {...groupExpandAnimation}
                                                                     className="overflow-hidden"
                                                                 >
                                                                     <div className="space-y-4 pt-3 ml-4 pl-4 border-l-2 border-slate-600/50">
@@ -186,9 +204,7 @@ export const MonthlyCategoryBreakdown: FC<{ transactions: Transaction[], current
                                                                                     <AnimatePresence>
                                                                                         {isCategoryExpanded && (
                                                                                             <motion.div
-                                                                                                initial={{ opacity: 0, height: 0, marginTop: 0 }}
-                                                                                                animate={{ opacity: 1, height: 'auto', marginTop: '1rem' }}
-                                                                                                exit={{ opacity: 0, height: 0, marginTop: 0 }}
+                                                                                                {...categoryExpandAnimation}
                                                                                                 className="overflow-hidden"
                                                                                             >
                                                                                                 <div className="ml-4 pl-4 border-l-2 border-slate-600/50 space-y-1">

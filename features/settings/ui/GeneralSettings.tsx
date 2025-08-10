@@ -1,9 +1,10 @@
 
 
+
 import React, { FC } from 'react';
 import { motion } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
-import { Sheet, Wallet, Info, ChevronRight, ToggleSwitch, Trash2, Button } from '@/shared/ui';
+import { FileText, Wallet, Info, ChevronRight, ToggleSwitch, Trash2, Button } from '@/shared/ui';
 import { APP_VERSION } from '@/constants';
 
 const MotionDiv = motion.div;
@@ -23,7 +24,7 @@ export const GeneralSettings: FC<{
             
             <div className="space-y-8">
                 <div>
-                    <h4 className="text-md font-semibold mb-3 text-white flex items-center gap-2"><Sheet className="h-5 w-5 text-green-400" /> Google Sheets Sync</h4>
+                    <h4 className="text-md font-semibold mb-3 text-white flex items-center gap-2"><FileText className="h-5 w-5 text-green-400" /> Google Sheets Sync</h4>
                     <div className="flex items-center justify-between pt-4 mt-4 border-t border-slate-700/50">
                         <div>
                             <label htmlFor="auto-sync-toggle" className="block text-sm font-medium text-slate-300">Automatische Hintergrund-Synchronisierung</label>

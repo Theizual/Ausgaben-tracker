@@ -1,7 +1,9 @@
 
 
+
+
 import React, { FC } from 'react';
-import { motion } from 'framer-motion';
+import { motion, MotionProps } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
 import { formatDistanceToNow } from 'date-fns';
 import { toast, Toast } from 'react-hot-toast';
@@ -23,12 +25,16 @@ export const SyncPromptToast: FC = () => {
 
     React.useEffect(() => {
         if (isSyncRecommended) {
+            const toastAnimation: MotionProps = {
+                initial: { opacity: 0, y: 50 },
+                animate: { opacity: 1, y: 0 },
+                exit: { opacity: 0, y: 50, transition: { duration: 0.2 } },
+            };
+
             toast.custom(
                 (t: Toast) => (
                     <motion.div
-                        initial={{ opacity: 0, y: 50 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: 50, transition: { duration: 0.2 } }}
+                        {...toastAnimation}
                         className="relative bg-slate-800 border border-slate-700 shadow-lg rounded-xl p-4 w-full max-w-sm flex items-start gap-4"
                     >
                         <div className="bg-blue-500/20 text-blue-400 rounded-full p-3 flex-shrink-0 mt-1">

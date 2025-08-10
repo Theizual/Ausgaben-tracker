@@ -1,6 +1,7 @@
 
+
 import React, { FC, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, MotionProps } from 'framer-motion';
 import { LayoutGrid, List } from '@/shared/ui';
 import type { TransactionViewMode } from '@/shared/types';
 
@@ -34,6 +35,14 @@ export const ViewSwitch: FC<ViewSwitchProps> = ({ viewMode, onChange }) => {
     { mode: 'list', label: 'Listenansicht', icon: List },
     { mode: 'grid', label: 'Kartenansicht', icon: LayoutGrid },
   ];
+  
+  const activeBgAnimation: MotionProps = {
+    layoutId: "view-switch-active-bg",
+    initial: { opacity: 0 },
+    animate: { opacity: 1 },
+    exit: { opacity: 0 },
+    transition: { type: 'spring', stiffness: 350, damping: 30 },
+  };
 
   return (
     <div
@@ -60,12 +69,8 @@ export const ViewSwitch: FC<ViewSwitchProps> = ({ viewMode, onChange }) => {
             <AnimatePresence>
               {isActive && (
                 <motion.div
-                  layoutId="view-switch-active-bg"
+                  {...activeBgAnimation}
                   className="absolute inset-0 bg-slate-600 rounded-full z-0"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ type: 'spring', stiffness: 350, damping: 30 }}
                 />
               )}
             </AnimatePresence>

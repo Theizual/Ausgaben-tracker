@@ -37,6 +37,7 @@ type AppContextType =
         deLocale: Locale;
         resetAppData: () => void;
         visibleCategoryGroups: string[];
+        handleReassignAndDeleteCategory: (sourceCategoryId: string, targetCategoryId: string) => void;
     };
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -187,6 +188,7 @@ const ReadyAppProvider: React.FC<{
      const { syncStatus, syncError } = syncState;
      useEffect(() => {
         if (syncStatus === 'syncing') toast.loading('Synchronisiere Daten...', { id: 'sync-toast' });
+        if (syncStatus === 'loading') toast.loading('Lade Daten vom Server...', { id: 'sync-toast' });
         if (syncStatus === 'success' && toast.custom) { toast.success('Synchronisierung erfolgreich!', { id: 'sync-toast' });}
         if (syncStatus === 'error' && syncError) toast.error(`Fehler: ${syncError}`, { id: 'sync-toast' });
         if (syncStatus === 'conflict') toast.error('Konflikt! Daten wurden zusammengeführt.', { id: 'sync-toast', duration: 5000 });
@@ -255,6 +257,34 @@ const ReadyAppProvider: React.FC<{
         }
     }, [isDemoModeEnabled, usersState.users]);
 
+    const handleReassignAndDeleteCategory = useCallback((sourceCategoryId: string, targetCategoryId: string) => {
+        const sourceCategoryName = categoryState.categoryMap.get(sourceCategoryId)?.name;
+    
+        // 1. Reassign transactions
+        transactionDataState.reassignCategoryForTransactions(sourceCategoryId, targetCategoryId);
+    
+        // 2. "Delete" the category (soft delete)
+        categoryState.deleteCategory(sourceCategoryId);
+    
+        // 3. Clean up preferences
+        categoryPreferencesState.removeCategoryFromPreferences(sourceCategoryId);
+        
+        if (sourceCategoryName) {
+            toast.success(`Kategorie "${sourceCategoryName}" gelöscht und Transaktionen neu zugeordnet.`);
+        }
+    
+        // 4. Close the reassign modal - this is done in the component, but we can ensure it.
+        uiState.closeReassignModal();
+    
+    }, [
+        transactionDataState.reassignCategoryForTransactions, 
+        categoryState.deleteCategory, 
+        categoryState.categoryMap,
+        categoryPreferencesState.removeCategoryFromPreferences, 
+        uiState.closeReassignModal
+    ]);
+
+
     const value: AppContextType = {
         ...uiState,
         ...categoryState,
@@ -280,6 +310,7 @@ const ReadyAppProvider: React.FC<{
         deLocale,
         resetAppData,
         visibleCategoryGroups,
+        handleReassignAndDeleteCategory,
     };
     
     return (

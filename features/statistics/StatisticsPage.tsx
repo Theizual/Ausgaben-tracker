@@ -1,7 +1,10 @@
 
 
+
+
+
 import React, { useState, useMemo } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion, MotionProps } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
 import { isSameMonth, isSameDay, parseISO, startOfMonth, endOfMonth } from 'date-fns';
 import { Calendar } from '@/shared/ui';
@@ -11,13 +14,16 @@ import { MonthlySummary } from './ui/MonthlySummary';
 import { MonthlyCategoryBreakdown } from './ui/MonthlyCategoryBreakdown';
 import { BudgetBurndownChart } from './ui/BudgetBurndownChart';
 
+const placeholderAnimation: MotionProps = {
+    initial: { opacity: 0, scale: 0.95 },
+    animate: { opacity: 1, scale: 1 },
+    exit: { opacity: 0, scale: 0.95 },
+    transition: { duration: 0.3 },
+};
+
 const CalendarPlaceholder = () => (
     <motion.div
-        key="placeholder-panel"
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.95 }}
-        transition={{ duration: 0.3 }}
+        {...placeholderAnimation}
         className="bg-slate-800 rounded-2xl border border-slate-700 h-full flex flex-col items-center justify-center text-center p-6"
     >
         <Calendar className="h-12 w-12 text-slate-600 mb-4" />

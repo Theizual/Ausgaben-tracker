@@ -1,7 +1,9 @@
 
 
+
+
 import React, { FC, useMemo } from 'react';
-import { motion } from 'framer-motion';
+import { motion, MotionProps } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
 import type { Transaction } from '@/shared/types';
 import { format, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isToday, isSameDay, subMonths, addMonths } from 'date-fns';
@@ -53,11 +55,15 @@ export const CalendarView: FC<{
     const firstDayOfMonth = getDay(startOfMonth(currentMonth));
     const startOffset = (firstDayOfMonth === 0 ? 6 : firstDayOfMonth - 1);
 
+    const calendarAnimation: MotionProps = {
+        layout: true,
+        initial: { opacity: 0, y: 10 },
+        animate: { opacity: 1, y: 0 },
+    };
+
     return (
         <motion.div 
-            layout
-            initial={{ opacity: 0, y: 10 }} 
-            animate={{ opacity: 1, y: 0 }} 
+            {...calendarAnimation}
             className="bg-slate-800 p-6 rounded-2xl border border-slate-700"
         >
             <div className="flex justify-between items-center mb-4">

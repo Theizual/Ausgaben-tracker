@@ -1,5 +1,7 @@
+
+
 import React, { FC, useMemo } from 'react';
-import { motion } from 'framer-motion';
+import { motion, MotionProps } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
 import type { Transaction } from '@/shared/types';
 import { format, isSameMonth, getDaysInMonth } from 'date-fns';
@@ -26,12 +28,16 @@ export const MonthlySummary: FC<{ transactions: Transaction[], currentMonth: Dat
     }, [transactions, currentMonth]);
 
     const periodLabel = format(currentMonth, 'MMMM yyyy', { locale: deLocale });
+    
+    const summaryAnimation: MotionProps = {
+        initial: { opacity: 0, y: 10 },
+        animate: { opacity: 1, y: 0 },
+        transition: { delay: 0.1 },
+    };
 
     return (
         <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
+            {...summaryAnimation}
             className="bg-slate-800 p-3 rounded-2xl border border-slate-700"
         >
              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-0 md:divide-x md:divide-slate-700/50">

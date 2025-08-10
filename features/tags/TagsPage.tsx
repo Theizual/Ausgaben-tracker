@@ -1,7 +1,9 @@
 
 
+
+
 import React, { useMemo } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion, MotionProps } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
 import type { Tag } from '@/shared/types';
 import { parseISO } from 'date-fns';
@@ -55,6 +57,13 @@ const TagsPage = () => {
         );
     }
 
+    const tagDetailAnimation: MotionProps = {
+        initial: { opacity: 0, y: 20 },
+        animate: { opacity: 1, y: 0 },
+        exit: { opacity: 0, y: -20 },
+        transition: { duration: 0.3 },
+    };
+
     return (
         <div className="space-y-6">
             <h1 className="text-3xl font-bold text-white">Tag-Analyse</h1>
@@ -79,10 +88,7 @@ const TagsPage = () => {
                 {selectedTagIdsForAnalysis.length > 0 ? (
                     <motion.div
                         key={selectedTagIdsForAnalysis.join('-')}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -20 }}
-                        transition={{ duration: 0.3 }}
+                        {...tagDetailAnimation}
                     >
                         <TagDetailView
                             tagIds={selectedTagIdsForAnalysis}

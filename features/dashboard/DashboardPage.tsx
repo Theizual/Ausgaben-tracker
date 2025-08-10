@@ -1,6 +1,8 @@
 
+
+
 import React, { useState, useMemo, useEffect } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion, MotionProps } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
 import type { Transaction, ViewMode, Category } from '@/shared/types';
 import { format, parseISO, isWithinInterval, startOfMonth, endOfMonth, startOfWeek, endOfWeek, isSameDay } from 'date-fns';
@@ -131,6 +133,20 @@ const DashboardPage = () => {
             return cat?.groupId !== FIXED_COSTS_GROUP_ID;
         }),
     [filteredTransactions, categories]);
+    
+    const cardAnimation: MotionProps = {
+        initial: { opacity: 0, y: 10 },
+        animate: { opacity: 1, y: 0 },
+    };
+    
+    const summaryCardAnimation: MotionProps = { ...cardAnimation, transition: { delay: 0.1 } };
+
+    const transactionDetailsAnimation: MotionProps = {
+        initial: { opacity: 0, height: 0, marginTop: 0 },
+        animate: { opacity: 1, height: 'auto', marginTop: '1rem' },
+        exit: { opacity: 0, height: 0, marginTop: 0 },
+    };
+
 
     return (
         <div className="space-y-6">
@@ -146,9 +162,7 @@ const DashboardPage = () => {
                 {/* Right Column */}
                 <div className="space-y-6">
                     <motion.div
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.1 }}
+                        {...summaryCardAnimation}
                         className="bg-slate-800/50 p-6 rounded-2xl border border-slate-700/50"
                     >
                         <div className="flex justify-between items-center mb-4">
@@ -184,8 +198,7 @@ const DashboardPage = () => {
                         </div>
                     </motion.div>
                     <motion.div
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
+                        {...cardAnimation}
                         className="bg-slate-800/50 p-6 rounded-2xl border border-slate-700/50 flex flex-col"
                     >
                         <div className="flex justify-between items-center mb-4">
@@ -211,8 +224,7 @@ const DashboardPage = () => {
 
                     {hasAnyBudgetedCategories && (
                         <motion.div
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
+                            {...cardAnimation}
                             className="bg-slate-800/50 p-6 rounded-2xl border border-slate-700/50"
                         >
                             <h4 className="text-sm font-semibold text-slate-300">Kategorienbudgets (Flexibel)</h4>
@@ -267,9 +279,7 @@ const DashboardPage = () => {
                                                             <AnimatePresence>
                                                                 {isExpanded && (
                                                                     <motion.div
-                                                                        initial={{ opacity: 0, height: 0, marginTop: 0 }}
-                                                                        animate={{ opacity: 1, height: 'auto', marginTop: '1rem' }}
-                                                                        exit={{ opacity: 0, height: 0, marginTop: 0 }}
+                                                                        {...transactionDetailsAnimation}
                                                                         className="overflow-hidden"
                                                                     >
                                                                         <div className="ml-4 pl-4 border-l-2 border-slate-600/50 space-y-1">

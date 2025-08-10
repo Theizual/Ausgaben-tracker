@@ -1,8 +1,10 @@
 
+
+
 import React, { useState, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import { motion, MotionProps } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
-import { Button, Plus, Trash2 } from '@/shared/ui';
+import { Button, Plus, Trash2, ColorPickerIcon } from '@/shared/ui';
 
 const MotionDiv = motion.div;
 
@@ -24,8 +26,14 @@ export const UserSettings = () => {
 
     const handleNameUpdate = useCallback((id: string, name: string) => updateUser(id, { name }), [updateUser]);
 
+    const settingsAnimation: MotionProps = {
+        initial: { opacity: 0, x: 10 },
+        animate: { opacity: 1, x: 0 },
+        exit: { opacity: 0, x: -10 }
+    };
+
     return (
-        <MotionDiv key="users" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }}>
+        <MotionDiv {...settingsAnimation} key="users">
             <h3 className="text-lg font-semibold text-white mb-1">Benutzer verwalten</h3>
             <p className="text-sm text-slate-400 mb-6">Legen Sie Benutzer an, um Ausgaben zuzuordnen. Der aktuell ausgewählte Benutzer wird neuen Transaktionen automatisch zugewiesen.</p>
             <form onSubmit={handleAddUser} className="flex gap-3 mb-6">
@@ -35,7 +43,20 @@ export const UserSettings = () => {
             <div className="space-y-3">
                 {users.map(user => (
                     <div key={user.id} className="flex items-center gap-4 bg-slate-700/50 p-2 rounded-lg">
-                        <input type="color" value={user.color} onChange={(e) => updateUser(user.id, { color: e.currentTarget.value })} className="w-10 h-10 p-0 border-none rounded-md bg-transparent cursor-pointer flex-shrink-0" title="Farbe ändern"/>
+                        <div className="relative w-10 h-10 flex-shrink-0 flex items-center justify-center">
+                            <ColorPickerIcon
+                                size={20}
+                                onClick={(e) => (e.currentTarget.nextElementSibling as HTMLElement)?.click()}
+                                ariaLabel={`Farbe für ${user.name} ändern`}
+                            />
+                            <input
+                                type="color"
+                                value={user.color}
+                                onChange={(e) => updateUser(user.id, { color: e.currentTarget.value })}
+                                className="absolute w-0 h-0 opacity-0 pointer-events-none"
+                                tabIndex={-1}
+                            />
+                        </div>
                         <input type="text" defaultValue={user.name} onBlur={(e) => handleNameUpdate(user.id, e.currentTarget.value)} onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()} className={TRANSPARENT_INPUT_CLASSES} />
                         <Button variant="destructive-ghost" size="icon-auto" onClick={() => { if (window.confirm(`Benutzer "${user.name}" löschen?`)) deleteUser(user.id); }} aria-label={`Benutzer ${user.name} löschen`}><Trash2 className="h-5 w-5" /></Button>
                     </div>
