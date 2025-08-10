@@ -1,7 +1,3 @@
-
-
-
-
 import React, { useEffect, useMemo } from 'react';
 import { motion, MotionProps } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';

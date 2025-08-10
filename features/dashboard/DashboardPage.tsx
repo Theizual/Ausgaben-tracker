@@ -1,4 +1,5 @@
 
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { AnimatePresence, motion, MotionProps } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
@@ -133,9 +134,7 @@ const DashboardPage = () => {
     [filteredTransactions, categories]);
     
     const TotalExpensesIcon = dashboardViewMode === 'woche' ? Calendar : CalendarDays;
-    const totalExpensesIconClassName = dashboardViewMode === 'woche' 
-        ? 'h-5 w-5 mr-2 flex-shrink-0 text-green-400' 
-        : 'h-5 w-5 mr-2 flex-shrink-0 text-green-600';
+    const totalExpensesIconClassName = 'h-5 w-5 mr-2 flex-shrink-0 text-green-400';
     
     const cardAnimation: MotionProps = {
         initial: { opacity: 0, y: 10 },

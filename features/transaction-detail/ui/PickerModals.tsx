@@ -1,7 +1,3 @@
-
-
-
-
 import React, { FC, useMemo } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import type { User, Transaction } from '@/shared/types';

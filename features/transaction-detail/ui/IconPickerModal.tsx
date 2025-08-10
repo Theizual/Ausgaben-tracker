@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Modal, Button } from '@/shared/ui';
 import { IconPicker } from '@/features/settings/components/IconPicker';
