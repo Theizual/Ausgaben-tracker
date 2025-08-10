@@ -21,6 +21,7 @@ export interface SyncProps {
     isInitialSetupDone: boolean;
     isDemoModeEnabled: boolean;
     setIsInitialSetupDone: React.Dispatch<React.SetStateAction<boolean>>;
+    currentUserId: string | null;
 }
 
 interface Mergeable {
@@ -75,7 +76,7 @@ export const useSync = (props: SyncProps) => {
     const {
         rawCategories, rawGroups, rawTransactions, rawRecurringTransactions, rawAllAvailableTags, rawUsers, rawUserSettings,
         setCategoriesAndGroups, setTransactions, setRecurringTransactions, setAllAvailableTags, setUsers, setUserSettings,
-        isInitialSetupDone, isDemoModeEnabled, setIsInitialSetupDone
+        isInitialSetupDone, isDemoModeEnabled, setIsInitialSetupDone, currentUserId
     } = props;
     
     const prefix = isDemoModeEnabled ? 'demo_' : '';
@@ -185,11 +186,28 @@ export const useSync = (props: SyncProps) => {
         setSyncError(null);
 
         try {
+            // Fetch current settings from server to avoid overwriting other users' changes.
+            const serverState: ReadApiResponse = await apiGet('/api/sheets/read');
+            const remoteUserSettings = serverState.userSettings || [];
+            
+            let userSettingsPayload: UserSetting[];
+            if (currentUserId) {
+                const currentUserLocalSettings = rawUserSettings.filter(s => s.userId === currentUserId);
+                const otherUsersRemoteSettings = remoteUserSettings.filter(s => s.userId !== currentUserId);
+                userSettingsPayload = [...otherUsersRemoteSettings, ...currentUserLocalSettings];
+            } else {
+                toast.error("Kein Benutzer ausgewählt. Synchronisierung abgebrochen.");
+                setSyncStatus('error');
+                setSyncError("Kein Benutzer ausgewählt.");
+                syncInProgressRef.current = false;
+                return;
+            }
+
             const remoteData: ReadApiResponse = await apiPost('/api/sheets/write', {
                 groups: rawGroups,
                 categories: rawCategories,
                 transactions: rawTransactions, recurring: rawRecurringTransactions,
-                tags: rawAllAvailableTags, users: rawUsers, userSettings: rawUserSettings,
+                tags: rawAllAvailableTags, users: rawUsers, userSettings: userSettingsPayload,
             });
             
             const mergedCategories = mergeItems<Category>(rawCategories, remoteData.categories);
@@ -220,7 +238,8 @@ export const useSync = (props: SyncProps) => {
         }
     }, [
         isDemoModeEnabled, setIsInitialSetupDone, rawCategories, rawGroups, rawTransactions, rawRecurringTransactions, rawAllAvailableTags, rawUsers, rawUserSettings,
-        handleMergeConflicts, setLastSync, setCategoriesAndGroups, setTransactions, setRecurringTransactions, setAllAvailableTags, setUsers, setUserSettings
+        handleMergeConflicts, setLastSync, setCategoriesAndGroups, setTransactions, setRecurringTransactions, setAllAvailableTags, setUsers, setUserSettings,
+        currentUserId
     ]);
 
     const loadFromSheet = useCallback(async () => {

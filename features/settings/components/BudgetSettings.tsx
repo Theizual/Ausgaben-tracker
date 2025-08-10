@@ -1,6 +1,7 @@
 
 
 
+
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { AnimatePresence, motion, MotionProps } from 'framer-motion';
 import { toast } from 'react-hot-toast';
@@ -107,21 +108,21 @@ export const BudgetSettings = () => {
     }, [flexibleCategories, groups, groupedBudgetData]); // Rerun when global state changes
 
     // --- Handlers for Flexible Budgets ---
-    const handleGroupBudgetChange = useCallback((groupId: string, value: string) => {
+    const handleLocalGroupBudgetChange = useCallback((groupId: string, value: string) => {
         setLocalGroupBudgets(prev => ({ ...prev, [groupId]: value }));
 
-        const newTotal = parseFloat(value.replace(',', '.'));
+        const newTotal = parseFloat(value.replace(/\./g, '').replace(',', '.'));
         if (isNaN(newTotal) || newTotal < 0) return;
 
         const groupCategories = flexibleCategories.filter(c => c.groupId === groupId);
         if (groupCategories.length === 0) return;
-
+        
         const currentTotalInCents = groupCategories.reduce((sum, cat) => sum + Math.round((cat.budget || 0) * 100), 0);
         const newTotalInCents = Math.round(newTotal * 100);
 
         if (newTotalInCents === currentTotalInCents) return;
 
-        let updatedCategoriesData: (Partial<Category> & { id: string })[] = [];
+        let updatedCategoriesData: { id: string, budget: number }[] = [];
 
         if (newTotalInCents === 0) {
             updatedCategoriesData = groupCategories.map(cat => ({ id: cat.id, budget: 0 }));
@@ -148,35 +149,55 @@ export const BudgetSettings = () => {
                 return { id: b.id, budget: (b.floor + centsToAdd) / 100 };
             });
         }
-        
-        if (updatedCategoriesData.length > 0) {
-            upsertMultipleCategories(updatedCategoriesData as Category[]);
-        }
-    }, [flexibleCategories, upsertMultipleCategories]);
 
-    const handleIndividualBudgetChange = useCallback((categoryId: string, value: string) => {
+        if (updatedCategoriesData.length > 0) {
+            const newLocalCatBudgets: Record<string, string> = {};
+            updatedCategoriesData.forEach(catUpdate => {
+                 const formatted = catUpdate.budget > 0 ? catUpdate.budget.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';
+                 newLocalCatBudgets[catUpdate.id] = formatted;
+            });
+            setLocalCategoryBudgets(prev => ({...prev, ...newLocalCatBudgets}));
+        }
+    }, [flexibleCategories, setLocalCategoryBudgets]);
+    
+    const handleCommitGroupBudget = useCallback((groupId: string) => {
+        focusedInputRef.current = null;
+        const value = localGroupBudgets[groupId];
+        if (value === undefined) return;
+        
+        const groupCategories = flexibleCategories.filter(c => c.groupId === groupId);
+        const updatedData = groupCategories.map(cat => {
+            const localValue = localCategoryBudgets[cat.id];
+            const newBudgetNum = parseFloat(localValue?.replace(/\./g, '').replace(',', '.') || '0');
+            const newBudget = isNaN(newBudgetNum) || newBudgetNum < 0 ? 0 : newBudgetNum;
+            return { id: cat.id, budget: newBudget };
+        });
+
+        upsertMultipleCategories(updatedData);
+    }, [localGroupBudgets, localCategoryBudgets, flexibleCategories, upsertMultipleCategories]);
+
+    const handleLocalIndividualBudgetChange = useCallback((categoryId: string, value: string) => {
         setLocalCategoryBudgets(prev => ({ ...prev, [categoryId]: value }));
+    }, []);
+
+    const handleCommitIndividualBudget = useCallback((categoryId: string) => {
+        focusedInputRef.current = null;
+        const value = localCategoryBudgets[categoryId];
+        if(value === undefined) return;
 
         const category = flexibleCategories.find(c => c.id === categoryId);
         if (!category) return;
 
-        const newBudget = parseFloat(value.replace(',', '.'));
-        if (isNaN(newBudget) || newBudget < 0) return;
+        const newBudgetNum = parseFloat(value.replace(/\./g, '').replace(',', '.'));
+        const newBudget = isNaN(newBudgetNum) || newBudgetNum < 0 ? 0 : newBudgetNum;
 
         const newBudgetCents = Math.round(newBudget * 100);
         const currentBudgetCents = Math.round((category.budget || 0) * 100);
 
         if (newBudgetCents !== currentBudgetCents) {
-            upsertCategory({ id: categoryId, budget: newBudgetCents / 100 });
+            upsertCategory({ id: categoryId, budget: newBudget });
         }
-    }, [flexibleCategories, upsertCategory]);
-
-    const handleBlur = useCallback((setter: React.Dispatch<React.SetStateAction<Record<string, string>>>, id: string, value: string) => {
-        focusedInputRef.current = null;
-        const parsed = parseFloat(value.replace(',', '.'));
-        const formatted = isNaN(parsed) || parsed === 0 ? '' : parsed.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        setter(prev => ({ ...prev, [id]: formatted }));
-    }, []);
+    }, [localCategoryBudgets, flexibleCategories, upsertCategory]);
 
     const toggleFlexGroup = useCallback((groupId: string) => {
         setFlexExpandedGroups(prev =>
@@ -331,10 +352,10 @@ export const BudgetSettings = () => {
                                         groupTotalBudget={groupTotalBudget}
                                         groupBudgetInputs={localGroupBudgets}
                                         categoryBudgetInputs={localCategoryBudgets}
-                                        onGroupBudgetChange={(value) => handleGroupBudgetChange(group.id, value)}
-                                        onIndividualBudgetChange={(cat, value) => handleIndividualBudgetChange(cat.id, value)}
-                                        onGroupBudgetBlur={(value) => handleBlur(setLocalGroupBudgets, group.id, value)}
-                                        onIndividualBudgetBlur={(catId, value) => handleBlur(setLocalCategoryBudgets, catId, value)}
+                                        onGroupBudgetChange={(value) => handleLocalGroupBudgetChange(group.id, value)}
+                                        onIndividualBudgetChange={(cat, value) => handleLocalIndividualBudgetChange(cat.id, value)}
+                                        onCommitGroup={() => handleCommitGroupBudget(group.id)}
+                                        onCommitCategory={(catId) => handleCommitIndividualBudget(catId)}
                                         isExpanded={flexExpandedGroups.includes(group.id)}
                                         onToggle={() => toggleFlexGroup(group.id)}
                                         focusedInputRef={focusedInputRef}

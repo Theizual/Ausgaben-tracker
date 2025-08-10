@@ -11,14 +11,14 @@ interface BudgetGroupProps {
     categoryBudgetInputs: Record<string, string>;
     onGroupBudgetChange: (value: string) => void;
     onIndividualBudgetChange: (category: Category, value: string) => void;
-    onGroupBudgetBlur: (value: string) => void;
-    onIndividualBudgetBlur: (categoryId: string, value: string) => void;
+    onCommitGroup: () => void;
+    onCommitCategory: (categoryId: string) => void;
     isExpanded: boolean;
     onToggle: () => void;
     focusedInputRef: React.MutableRefObject<string | null>;
 }
 
-export const BudgetGroup: FC<BudgetGroupProps> = ({
+export const BudgetGroup: FC<BudgetGroupProps> = React.memo(({
     group,
     categories,
     groupTotalBudget,
@@ -26,8 +26,8 @@ export const BudgetGroup: FC<BudgetGroupProps> = ({
     categoryBudgetInputs,
     onGroupBudgetChange,
     onIndividualBudgetChange,
-    onGroupBudgetBlur,
-    onIndividualBudgetBlur,
+    onCommitGroup,
+    onCommitCategory,
     isExpanded,
     onToggle,
     focusedInputRef
@@ -51,7 +51,7 @@ export const BudgetGroup: FC<BudgetGroupProps> = ({
                         value={groupBudgetInputs[group.id] || ''}
                         onChange={e => onGroupBudgetChange(e.currentTarget.value)}
                         onFocus={() => focusedInputRef.current = `group-${group.id}`}
-                        onBlur={(e) => onGroupBudgetBlur(e.currentTarget.value)}
+                        onBlur={onCommitGroup}
                         onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
                         placeholder="Gesamt"
                         className="w-full bg-transparent border-none pl-2 py-1.5 text-right text-white text-sm font-semibold placeholder-slate-500 focus:outline-none"
@@ -85,7 +85,7 @@ export const BudgetGroup: FC<BudgetGroupProps> = ({
                                                     value={categoryBudgetInputs[category.id] ?? ''}
                                                     onChange={e => onIndividualBudgetChange(category, e.target.value)}
                                                     onFocus={() => focusedInputRef.current = `cat-${category.id}`}
-                                                    onBlur={(e) => onIndividualBudgetBlur(category.id, e.currentTarget.value)}
+                                                    onBlur={() => onCommitCategory(category.id)}
                                                     onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
                                                     placeholder="Budget"
                                                      className="w-full bg-transparent border-none pl-2 py-1.5 text-right text-white text-sm placeholder-slate-500 focus:outline-none"
@@ -102,4 +102,4 @@ export const BudgetGroup: FC<BudgetGroupProps> = ({
             </AnimatePresence>
         </div>
     );
-};
+});
