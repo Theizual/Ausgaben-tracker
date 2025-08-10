@@ -1,11 +1,9 @@
-
-
 import React, { FC, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
 import type { PeriodType } from '@/shared/types';
 import { format, parseISO, isWithinInterval, addMonths, subMonths, addYears, subYears, addDays, differenceInDays, startOfDay, endOfDay, startOfMonth, endOfMonth, startOfYear, endOfYear } from 'date-fns';
-import { Hash, Coins, BarChart2, StandardTransactionItem } from '@/shared/ui';
+import { Hash, Wallet, BarChart2, StandardTransactionItem } from '@/shared/ui';
 import { StatCard } from './StatCard';
 import { TagAnalysisChart } from './TagAnalysisChart';
 
@@ -88,7 +86,7 @@ export const TagDetailView: FC<{
             </h2>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <StatCard icon={Coins} title="Gesamtausgaben" value={new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(stats.total)} />
+                <StatCard icon={Wallet} title="Gesamtausgaben" value={new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(stats.total)} iconClassName="text-amber-700" />
                 <StatCard icon={BarChart2} title="Transaktionen" value={stats.count.toString()} />
             </div>
 

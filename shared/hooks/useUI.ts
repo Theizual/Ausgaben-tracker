@@ -1,12 +1,8 @@
+
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { format, subDays } from '@/shared/utils/dateUtils';
-import type { Transaction, ViewMode, PeriodType, QuickFilterId, SettingsTab, TransactionViewMode } from '@/shared/types';
+import type { Transaction, ViewMode, PeriodType, QuickFilterId, SettingsTab } from '@/shared/types';
 import useLocalStorage from '@/shared/hooks/useLocalStorage';
-
-const isMobile = () => {
-    if (typeof window === 'undefined') return false;
-    return window.innerWidth < 768; // md breakpoint
-};
 
 export const useUI = (props?: { isDemoModeEnabled: boolean }) => {
     const isDemoModeEnabled = props?.isDemoModeEnabled ?? false;
@@ -46,7 +42,7 @@ export const useUI = (props?: { isDemoModeEnabled: boolean }) => {
     });
     const [selectedTagIdsForAnalysis, setSelectedTagIdsForAnalysis] = useState<string[]>([]);
     
-    // TransactionsPage (namespaced view mode)
+    // TransactionsPage
     const [transactionFilters, setTransactionFilters] = useState(() => {
         const now = new Date();
         return {
@@ -61,8 +57,6 @@ export const useUI = (props?: { isDemoModeEnabled: boolean }) => {
     });
     const [transactionActiveQuickFilter, setTransactionActiveQuickFilter] = useState<QuickFilterId | null>('current');
     
-    const [transactionViewMode, setTransactionViewMode] = useLocalStorage<TransactionViewMode>(`${prefix}transactionViewMode`, isMobile() ? 'grid' : 'list');
-
 
     // Callbacks for Modals
     const openSettings = useCallback((tab: SettingsTab = 'general') => {
@@ -132,8 +126,6 @@ export const useUI = (props?: { isDemoModeEnabled: boolean }) => {
         setTransactionFilters,
         transactionActiveQuickFilter,
         setTransactionActiveQuickFilter,
-        transactionViewMode,
-        setTransactionViewMode,
 
         // Changelog UI State
         isChangelogOpen,

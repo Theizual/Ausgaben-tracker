@@ -1,6 +1,5 @@
 
 
-
 import React, { createContext, useContext, useEffect, useMemo, useRef, useCallback, useState} from 'react';
 import { toast } from 'react-hot-toast';
 import { useTransactionData } from '@/shared/hooks/useTransactionData';
@@ -32,15 +31,12 @@ type AppContextType =
         isDemoModeEnabled: boolean;
         isInitialSetupDone: boolean;
         setIsInitialSetupDone: React.Dispatch<React.SetStateAction<boolean>>;
-        flexibleCategories: Category[];
-        fixedCategories: Category[];
         totalMonthlyBudget: number; // Flexible budget
         totalSpentThisMonth: number; // Flexible spending
         totalMonthlyFixedCosts: number;
-        visibleCategoryGroups: string[]; // Names of groups
-        groupColors: Record<string, string>;
         deLocale: Locale;
         resetAppData: () => void;
+        visibleCategoryGroups: string[];
     };
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -93,16 +89,42 @@ const ReadyAppProvider: React.FC<{
         isDemoModeEnabled: isDemoModeEnabled,
     });
 
+    // --- Create final groups with user color overrides applied ---
+    const finalGroups = useMemo(() => {
+        if (!uiState.currentUserId) return categoryState.groups;
+        const customColors = userSettingsState.getGroupColorsForUser(uiState.currentUserId);
+        return categoryState.groups.map(group => ({
+            ...group,
+            color: customColors[group.name] || group.color,
+        }));
+    }, [categoryState.groups, userSettingsState, uiState.currentUserId]);
+
+    const finalGroupMap = useMemo(() => new Map(finalGroups.map(g => [g.id, g])), [finalGroups]);
+    const finalGroupNames = useMemo(() => finalGroups.map(g => g.name), [finalGroups]);
+    
+    const finalCategoryMap = useMemo(() => {
+        const newMap = new Map(categoryState.categoryMap);
+        newMap.forEach((category, id) => {
+            const group = finalGroupMap.get(category.groupId);
+            // This is subtle: some category colors inherit from the group.
+            // If the group color changed, we should reflect that if the category color was the same.
+            const originalGroupColor = categoryState.groupMap.get(category.groupId)?.color;
+            if (group && category.color === originalGroupColor) {
+                newMap.set(id, { ...category, color: group.color as string });
+            }
+        });
+        return newMap;
+    }, [categoryState.categoryMap, categoryState.groupMap, finalGroupMap]);
+
+
     const categoryPreferencesState = useCategoryPreferences({
         userId: uiState.currentUserId,
         isDemoModeEnabled,
     });
-
-    const flexibleCategories = useMemo(() => categoryState.categories.filter(c => c.groupId !== FIXED_COSTS_GROUP_ID), [categoryState.categories]);
-    const fixedCategories = useMemo(() => categoryState.categories.filter(c => c.groupId === FIXED_COSTS_GROUP_ID), [categoryState.categories]);
-    const fixedCategoryIds = useMemo(() => new Set(fixedCategories.map(c => c.id)), [fixedCategories]);
     
-    const totalMonthlyBudget = useMemo(() => flexibleCategories.reduce((sum, cat) => sum + (cat.budget || 0), 0), [flexibleCategories]);
+    const fixedCategoryIds = useMemo(() => new Set(categoryState.fixedCategories.map(c => c.id)), [categoryState.fixedCategories]);
+    
+    const totalMonthlyBudget = useMemo(() => categoryState.flexibleCategories.reduce((sum, cat) => sum + (cat.budget || 0), 0), [categoryState.flexibleCategories]);
     
     const transactionDataState = useTransactionData({
         showConfirmation: uiState.showConfirmation,
@@ -128,6 +150,20 @@ const ReadyAppProvider: React.FC<{
                 return sum;
             }, 0);
     }, [transactionDataState.recurringTransactions, fixedCategoryIds]);
+
+    const visibleCategoryGroups = useMemo(() => {
+        if (!uiState.currentUserId) return [];
+        
+        const setting = userSettingsState.rawUserSettings.find(s => s.userId === uiState.currentUserId && s.key === 'visibleGroups' && !s.isDeleted);
+        
+        if (setting) {
+            // Setting exists, use it (even if it's an empty array of groups)
+            return userSettingsState.getVisibleGroupsForUser(uiState.currentUserId);
+        }
+        
+        // No setting exists for this user, so default to all groups visible.
+        return categoryState.groups.map(g => g.name);
+    }, [uiState.currentUserId, userSettingsState, categoryState.groups]);
 
     const syncState = useSync({
         rawCategories: categoryState.rawCategories,
@@ -161,16 +197,6 @@ const ReadyAppProvider: React.FC<{
         if (!uiState.currentUserId) return null;
         return usersState.users.find(u => u.id === uiState.currentUserId) || null;
     }, [usersState.users, uiState.currentUserId]);
-
-    const visibleCategoryGroups = useMemo(() => {
-        if (!uiState.currentUserId) return categoryState.groupNames;
-        return userSettingsState.getVisibleGroupsForUser(uiState.currentUserId, categoryState.groupNames);
-    }, [uiState.currentUserId, categoryState.groupNames, userSettingsState]);
-
-    const groupColors = useMemo(() => {
-        if (!uiState.currentUserId) return {};
-        return userSettingsState.getGroupColorsForUser(uiState.currentUserId);
-    }, [uiState.currentUserId, userSettingsState]);
 
     const syncStateRef = useRef(syncState);
     useEffect(() => { syncStateRef.current = syncState; });
@@ -232,17 +258,17 @@ const ReadyAppProvider: React.FC<{
     const value: AppContextType = {
         ...uiState,
         ...categoryState,
+        groups: finalGroups, // Use the color-overridden groups
+        groupMap: finalGroupMap,
+        groupNames: finalGroupNames,
+        categoryMap: finalCategoryMap,
         ...categoryPreferencesState,
-        flexibleCategories,
-        fixedCategories,
         totalMonthlyBudget,
         totalSpentThisMonth,
         totalMonthlyFixedCosts,
         ...transactionDataState,
         ...usersState,
         ...userSettingsState,
-        visibleCategoryGroups,
-        groupColors,
         currentUser,
         deleteMultipleTransactions: transactionDataState.deleteMultipleTransactions,
         addMultipleTransactions: transactionDataState.addMultipleTransactions,
@@ -253,6 +279,7 @@ const ReadyAppProvider: React.FC<{
         setIsInitialSetupDone,
         deLocale,
         resetAppData,
+        visibleCategoryGroups,
     };
     
     return (

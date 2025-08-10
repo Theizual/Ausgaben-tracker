@@ -1,12 +1,12 @@
 
-import React, { useState, useEffect, useMemo, FC, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { useApp } from '@/contexts/AppContext';
 import type { Transaction, CategoryId, User } from '@/shared/types';
 import { format, parseISO } from 'date-fns';
 import { formatCurrency } from '@/shared/utils/dateUtils';
-import { iconMap, X, Edit, Trash2, Plus, FlaskConical } from '@/shared/ui';
+import { iconMap, X, Edit, Trash2, Plus, FlaskConical, Link } from '@/shared/ui';
 import { TagEditorModal } from './ui/TagEditorModal';
 import { PickerModals } from './ui/PickerModals';
 import { TagPill } from '@/shared/ui';
@@ -17,11 +17,11 @@ interface TransactionDetailModalProps {
     transaction: Transaction;
 }
 
-const TransactionDetailModal: FC<TransactionDetailModalProps> = ({
+const TransactionDetailModal = ({
     isOpen,
     onClose,
     transaction,
-}) => {
+}: TransactionDetailModalProps) => {
     const { 
         categoryMap, 
         tagMap, 
@@ -29,6 +29,8 @@ const TransactionDetailModal: FC<TransactionDetailModalProps> = ({
         deleteTransaction,
         users,
         deLocale,
+        transactions: allTransactions,
+        handleTransactionClick: showTransactionDetail,
     } = useApp();
 
     const [formState, setFormState] = useState(transaction);
@@ -54,6 +56,13 @@ const TransactionDetailModal: FC<TransactionDetailModalProps> = ({
     }, [formState.createdBy, users]);
 
     const getTagNames = useCallback((t: Transaction) => (t.tagIds || []).map(id => tagMap.get(id)).filter((name): name is string => !!name), [tagMap]);
+
+    const { groupedTransactions, groupTotal } = useMemo(() => {
+        if (!formState.transactionGroupId) return { groupedTransactions: [], groupTotal: 0 };
+        const group = allTransactions.filter(t => t.transactionGroupId === formState.transactionGroupId);
+        const total = group.reduce((sum, t) => sum + t.amount, 0);
+        return { groupedTransactions: group, groupTotal: total };
+    }, [formState.transactionGroupId, allTransactions]);
 
     useEffect(() => {
         if (isOpen) {
@@ -290,6 +299,38 @@ const TransactionDetailModal: FC<TransactionDetailModalProps> = ({
                                                 </div>
                                             )}
                                         </div>
+
+                                        {/* Grouped Transactions Section */}
+                                        {groupedTransactions.length > 1 && (
+                                            <div className="w-full max-w-sm mt-4 pt-4 border-t border-slate-700/50">
+                                                <div className="flex justify-between items-baseline mb-3">
+                                                    <h3 className="text-sm font-semibold text-white">Gruppierte Ausgaben ({groupedTransactions.length})</h3>
+                                                    <p className="text-sm font-bold text-white">{formatCurrency(groupTotal)}</p>
+                                                </div>
+                                                <div className="space-y-2">
+                                                    {groupedTransactions.map(t => {
+                                                        const cat = categoryMap.get(t.categoryId);
+                                                        const isCurrent = t.id === formState.id;
+                                                        const TIcon = cat ? iconMap[cat.icon] : iconMap.MoreHorizontal;
+                                                        const tColor = cat ? cat.color : '#64748b';
+
+                                                        return (
+                                                            <button 
+                                                                key={t.id} 
+                                                                onClick={() => !isCurrent && showTransactionDetail(t)}
+                                                                className={`w-full flex items-center gap-3 p-2 rounded-lg transition-colors ${isCurrent ? 'bg-slate-700/50 cursor-default' : 'hover:bg-slate-700'}`}
+                                                            >
+                                                                <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: tColor }}>
+                                                                    <TIcon className="h-4 w-4 text-white" />
+                                                                </div>
+                                                                <p className="flex-1 text-left text-sm text-white truncate">{t.description}</p>
+                                                                <p className="font-semibold text-sm text-white">{formatCurrency(t.amount)}</p>
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                        )}
 
                                         {/* Tags Section */}
                                         <div className="w-full max-w-sm mt-4 pt-4 border-t border-slate-700/50">

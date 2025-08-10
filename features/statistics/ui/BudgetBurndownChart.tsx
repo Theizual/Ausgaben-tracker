@@ -5,15 +5,13 @@ import type { Transaction, Category, Group } from '@/shared/types';
 import { eachDayOfInterval, format, parseISO, startOfMonth, endOfMonth, isAfter, getDate, getDaysInMonth } from 'date-fns';
 import { formatCurrency } from '@/shared/utils/dateUtils';
 import { TrendingDown } from '@/shared/ui';
-import { FIXED_COSTS_GROUP_ID, DEFAULT_GROUP_COLOR } from '@/constants';
+import { FIXED_COSTS_GROUP_ID } from '@/constants';
 import { useApp } from '@/contexts/AppContext';
 
 interface BudgetBurndownChartProps {
     transactions: Transaction[];
     categoryMap: Map<string, Category>;
     currentMonth: Date;
-    visibleCategoryGroups: string[];
-    groupColors: Record<string, string>;
 }
 
 interface ItemInfo {
@@ -77,18 +75,17 @@ const CustomTooltip = ({ active, payload, label, deLocale }: any) => {
     return null;
 };
 
-export const BudgetBurndownChart: FC<BudgetBurndownChartProps> = ({ transactions, categoryMap, currentMonth, visibleCategoryGroups, groupColors }) => {
-    const { deLocale, flexibleCategories, groupMap } = useApp();
+export const BudgetBurndownChart: FC<BudgetBurndownChartProps> = ({ transactions, categoryMap, currentMonth }) => {
+    const { deLocale, flexibleCategories, groupMap, groups } = useApp();
 
     const { data, activeItems, endangeredGroups } = useMemo(() => {
-        const itemsToTrack: ItemInfo[] = Array.from(groupMap.values())
-            .filter(group => group.id !== FIXED_COSTS_GROUP_ID && visibleCategoryGroups.includes(group.name))
+        const itemsToTrack: ItemInfo[] = groups
+            .filter(group => group.id !== FIXED_COSTS_GROUP_ID)
             .map(group => {
                 const groupCategories = flexibleCategories.filter(c => c.groupId === group.id);
                 const groupBudget = groupCategories.reduce((sum, c) => sum + (c.budget || 0), 0);
-                const color = groupColors[group.name] || group.color || DEFAULT_GROUP_COLOR;
                 return {
-                    name: group.name, budget: groupBudget, color,
+                    name: group.name, budget: groupBudget, color: group.color as string,
                     itemIds: groupCategories.map(c => c.id)
                 };
             }).filter((g): g is ItemInfo => g !== null && g.budget > 0);
@@ -158,7 +155,7 @@ export const BudgetBurndownChart: FC<BudgetBurndownChartProps> = ({ transactions
         const endangeredGroups = itemsWithTrend.filter(item => item.isTrendNegative);
 
         return { data: chartData, activeItems: itemsWithTrend, endangeredGroups };
-    }, [flexibleCategories, transactions, currentMonth, visibleCategoryGroups, groupColors, categoryMap, groupMap]);
+    }, [flexibleCategories, transactions, currentMonth, categoryMap, groupMap, groups]);
     
     const chartHeight = Math.max(320, 150 + activeItems.length * 20);
 

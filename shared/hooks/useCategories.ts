@@ -1,7 +1,9 @@
-import { useMemo, useCallback, useEffect } from 'react';
+
+import { useMemo, useCallback, useEffect, useReducer } from 'react';
 import { toast } from 'react-hot-toast';
 import { generateUUID } from '@/shared/utils/uuid';
-import { INITIAL_CATEGORIES, INITIAL_GROUPS, DEFAULT_GROUP_ID, DEFAULT_GROUP_NAME } from '@/constants';
+import { DEFAULT_GROUP_ID, DEFAULT_GROUP_NAME, FIXED_COSTS_GROUP_ID, FIXED_COSTS_GROUP_NAME } from '@/constants';
+import { getCategories as getBaseCategories, getGroups as getBaseGroups } from '@/shared/config/taxonomy';
 import type { Category, UserSetting, Group } from '@/shared/types';
 
 interface UseCategoriesProps {
@@ -11,206 +13,288 @@ interface UseCategoriesProps {
     isDemoModeEnabled: boolean;
 }
 
-const migrateLegacyCategories = (categories: any[], groups: Group[]): { migrated: boolean, categories: Category[] } => {
-    let wasMigrated = false;
-    const groupNameMap = new Map(groups.map(g => [g.name.toLowerCase(), g.id]));
-    const defaultGroupId = groups.find(g => g.name === DEFAULT_GROUP_NAME)?.id || DEFAULT_GROUP_ID;
-
-    const migratedCategories = categories.map(c => {
-        // If groupId is a string like "Fixkosten", it's legacy data.
-        if (c.groupId && !c.groupId.startsWith('grpid_')) {
-            wasMigrated = true;
-            const newGroupId = groupNameMap.get(c.groupId.toLowerCase()) || defaultGroupId;
-            return { ...c, groupId: newGroupId, group: undefined }; // Remove old 'group' field
-        }
-        return c;
-    });
-
-    return { migrated: wasMigrated, categories: migratedCategories };
+type CategoriesState = {
+    categories: Category[];
+    groups: Group[];
 };
 
+type Action =
+    | { type: 'SET_CONFIG'; payload: { categories: Category[]; groups: Group[] } }
+    | { type: 'UPSERT_MULTIPLE_CATEGORIES'; payload: (Partial<Category> & { id: string })[] }
+    | { type: 'DELETE_CATEGORY'; payload: string }
+    | { type: 'ADD_GROUP'; payload: Group }
+    | { type: 'UPDATE_GROUP'; payload: { id: string, updates: Partial<Omit<Group, 'id'>> } }
+    | { type: 'DELETE_GROUP'; payload: string };
 
-// Helper to load configuration synchronously from settings
+const categoriesReducer = (state: CategoriesState, action: Action): CategoriesState => {
+    const now = new Date().toISOString();
+    switch (action.type) {
+        case 'SET_CONFIG':
+            return action.payload;
+
+        case 'UPSERT_MULTIPLE_CATEGORIES': {
+            const categoryUpdates = new Map(action.payload.map(c => [c.id, c]));
+            const categoriesMap = new Map(state.categories.map(c => [c.id, c]));
+
+            categoryUpdates.forEach((update, id) => {
+                const existing = categoriesMap.get(id);
+                if (existing) {
+                    categoriesMap.set(id, { ...existing, ...update, lastModified: now, version: (existing.version || 0) + 1 });
+                } else {
+                    const baseCategory = getBaseCategories().find(c => c.id === id);
+                    const newCategory: Category = {
+                        id: id.startsWith('new_') ? generateUUID() : id,
+                        name: update.name || 'Neue Kategorie',
+                        color: update.color || '#808080',
+                        icon: update.icon || baseCategory?.icon || 'MoreHorizontal',
+                        groupId: update.groupId || DEFAULT_GROUP_ID,
+                        budget: update.budget === undefined ? 0 : update.budget,
+                        lastModified: now,
+                        version: 1,
+                    };
+                    categoriesMap.set(id, newCategory);
+                }
+            });
+            return { ...state, categories: Array.from(categoriesMap.values()) };
+        }
+
+        case 'DELETE_CATEGORY': {
+            const newCategories = state.categories.map(c => c.id === action.payload ? { ...c, isDeleted: true, lastModified: now, version: (c.version || 0) + 1 } : c);
+            return { ...state, categories: newCategories };
+        }
+        
+        case 'ADD_GROUP': {
+            return { ...state, groups: [...state.groups, action.payload] };
+        }
+
+        case 'UPDATE_GROUP': {
+            const { id, updates } = action.payload;
+            const newGroups = state.groups.map(g =>
+                g.id === id
+                ? { ...g, ...updates, lastModified: now, version: (g.version || 0) + 1 }
+                : g
+            );
+             // Ensure sortIndex is a number
+            newGroups.forEach(g => { if (typeof g.sortIndex !== 'number') g.sortIndex = 0; });
+            return { ...state, groups: newGroups };
+        }
+
+        case 'DELETE_GROUP': {
+            const newCategories = state.categories.map(c => c.groupId === action.payload ? { ...c, groupId: DEFAULT_GROUP_ID, lastModified: now, version: (c.version || 0) + 1 } : c);
+            const newGroups = state.groups.map(g => g.id === action.payload ? { ...g, isDeleted: true, lastModified: now, version: (g.version || 0) + 1 } : g);
+            return { categories: newCategories, groups: newGroups };
+        }
+
+        default:
+            return state;
+    }
+};
+
 const loadConfiguration = (userId: string | null, userSettings: UserSetting[], isDemoModeEnabled: boolean): { categories: Category[], groups: Group[] } => {
-    // In demo mode, always use the fresh initial constants.
+    const baseConfig = { categories: getBaseCategories(), groups: getBaseGroups() };
+
     if (isDemoModeEnabled) {
-        return { categories: INITIAL_CATEGORIES, groups: INITIAL_GROUPS };
+        return baseConfig;
     }
 
     if (userId) {
         const setting = userSettings.find(s => s.userId === userId && s.key === 'categoryConfiguration' && !s.isDeleted);
         if (setting && setting.value) {
             try {
-                const config = JSON.parse(setting.value);
-                
-                // Ensure groups exist, fallback to initial if not.
-                const groups = (Array.isArray(config.groups) && config.groups.length > 0) ? config.groups : INITIAL_GROUPS;
+                const stored = JSON.parse(setting.value);
+                if (Array.isArray(stored.categories) && Array.isArray(stored.groups)) {
+                    const groupNameToIdMap = new Map((stored.groups as Group[]).map(g => [g.name.toLowerCase(), g.id]));
+                    const groupMap = new Map((stored.groups as Group[]).map(g => [g.id, g]));
 
-                if (Array.isArray(config.categories)) {
-                    // Migrate legacy data if necessary
-                    const { migrated, categories: migratedCategories } = migrateLegacyCategories(config.categories, groups);
+                    const normalizedCategories = (stored.categories as Category[]).map(cat => {
+                        if (cat.groupId && groupMap.has(cat.groupId)) return cat;
+                        const legacyGroupName = (cat as any).group;
+                        if (legacyGroupName && typeof legacyGroupName === 'string') {
+                            const resolvedGroupId = groupNameToIdMap.get(legacyGroupName.toLowerCase());
+                            if (resolvedGroupId) {
+                                const newCat: Category = { ...cat, groupId: resolvedGroupId };
+                                delete (newCat as any).group;
+                                return newCat;
+                            }
+                        }
+                        const newCat: Category = { ...cat, groupId: DEFAULT_GROUP_ID };
+                        delete (newCat as any).group;
+                        return newCat;
+                    });
                     
-                    const validatedCategories = migratedCategories.map((c: any) => ({
-                        ...c,
-                        lastModified: c.lastModified || new Date().toISOString(),
-                        version: c.version || 1,
-                    }));
-                    const validatedGroups = groups.map((g: any) => ({
-                        ...g,
-                        lastModified: g.lastModified || new Date().toISOString(),
-                        version: g.version || 1,
-                    }));
+                    stored.categories = normalizedCategories;
 
-                    // If a migration happened, the caller should persist this change.
-                    if (migrated) {
-                        return { categories: validatedCategories, groups: validatedGroups, needsPersistence: true } as any;
+                    const baseCategoryMap = new Map(baseConfig.categories.map(c => [c.id, c]));
+                    const finalGroups = [...baseConfig.groups];
+                    const finalCategories = [...baseConfig.categories];
+                    const finalGroupMap = new Map(finalGroups.map(g => [g.id, g]));
+                    const finalCategoryMap = new Map(finalCategories.map(c => [c.id, c]));
+
+                    for (const storedGroup of stored.groups as Group[]) {
+                        if (finalGroupMap.has(storedGroup.id)) {
+                             finalGroupMap.set(storedGroup.id, { ...finalGroupMap.get(storedGroup.id)!, ...storedGroup });
+                        } else {
+                            finalGroupMap.set(storedGroup.id, storedGroup);
+                        }
                     }
 
-                    return { categories: validatedCategories, groups: validatedGroups };
+                    for (const storedCat of stored.categories as Category[]) {
+                        if (finalCategoryMap.has(storedCat.id)) {
+                             finalCategoryMap.set(storedCat.id, { ...finalCategoryMap.get(storedCat.id)!, ...storedCat });
+                        } else {
+                            finalCategoryMap.set(storedCat.id, storedCat);
+                        }
+                    }
+                    
+                    return { categories: Array.from(finalCategoryMap.values()), groups: Array.from(finalGroupMap.values()) };
                 }
             } catch (e) {
                 console.error("Failed to parse category configuration, falling back to default.", e);
             }
         }
     }
-    // Fallback to initial default configuration for new users or errors.
-    return { categories: INITIAL_CATEGORIES, groups: INITIAL_GROUPS };
+    return baseConfig;
 };
 
 export const useCategories = ({ rawUserSettings, updateCategoryConfigurationForUser, currentUserId, isDemoModeEnabled }: UseCategoriesProps) => {
-    // Derive config directly from props. This ensures the hook is reactive to changes in user or settings.
-    const config = useMemo(() => loadConfiguration(currentUserId, rawUserSettings, isDemoModeEnabled), [currentUserId, rawUserSettings, isDemoModeEnabled]);
     
-    const { categories, groups } = config;
+    const initializer = useMemo(() => {
+        return loadConfiguration(currentUserId, rawUserSettings, isDemoModeEnabled);
+    }, [currentUserId, rawUserSettings, isDemoModeEnabled]);
 
-    // Persist changes if migration occurred on load.
+    const [state, dispatch] = useReducer(categoriesReducer, initializer);
+
+    // Re-initialize state when user changes
     useEffect(() => {
-        if ((config as any).needsPersistence && currentUserId) {
-            console.log("Persisting migrated category configuration...");
-            updateCategoryConfigurationForUser(currentUserId, { categories, groups });
-        }
-    }, [config, currentUserId, updateCategoryConfigurationForUser, categories, groups]);
+        dispatch({ type: 'SET_CONFIG', payload: initializer });
+    }, [initializer]);
 
-
-    const persistChanges = useCallback((newCategories: Category[], newGroups: Group[]) => {
+    // Persist changes to userSettings
+    useEffect(() => {
         if (currentUserId && !isDemoModeEnabled) {
-            updateCategoryConfigurationForUser(currentUserId, { categories: newCategories, groups: newGroups });
-        } else if (isDemoModeEnabled) {
-            // In demo mode, changes are ephemeral and not persisted via this hook.
-            // The state will be managed locally by the reducer in AppContext, if any.
-        } else {
-            toast.error("Änderungen konnten nicht gespeichert werden: Kein Benutzer ausgewählt.");
+            updateCategoryConfigurationForUser(currentUserId, state);
         }
-    }, [currentUserId, updateCategoryConfigurationForUser, isDemoModeEnabled]);
+    }, [state, currentUserId, isDemoModeEnabled, updateCategoryConfigurationForUser]);
 
-    const liveCategories = useMemo(() => categories.filter(c => !c.isDeleted), [categories]);
-    const categoryMap = useMemo(() => new Map(liveCategories.map(c => [c.id, c])), [liveCategories]);
 
-    const liveGroups = useMemo(() => groups.filter(g => !g.isDeleted).sort((a,b) => a.sortIndex - b.sortIndex), [groups]);
-    const groupMap = useMemo(() => new Map(liveGroups.map(g => [g.id, g])), [liveGroups]);
-    const groupNames = useMemo(() => liveGroups.map(g => g.name), [liveGroups]);
+    const setCategoriesAndGroups = useCallback((newCategories: Category[], newGroups: Group[]) => {
+        dispatch({ type: 'SET_CONFIG', payload: { categories: newCategories, groups: newGroups } });
+    }, []);
     
+    const upsertMultipleCategories = useCallback((categoriesData: (Partial<Category> & { id: string })[]) => {
+        dispatch({ type: 'UPSERT_MULTIPLE_CATEGORIES', payload: categoriesData });
+    }, []);
+
     const upsertCategory = useCallback((categoryData: Partial<Category> & { id: string }) => {
-        const now = new Date().toISOString();
-        let newCategories: Category[];
-        const existing = categories.find(c => c.id === categoryData.id);
-        
-        if (existing) {
-            newCategories = categories.map(c => c.id === categoryData.id ? { ...c, ...categoryData, lastModified: now, version: (c.version || 0) + 1 } : c);
-        } else {
-            const newCategory: Category = {
-                id: categoryData.id.startsWith('new_') ? generateUUID() : categoryData.id,
-                name: categoryData.name || 'Neue Kategorie',
-                color: categoryData.color || '#808080',
-                icon: categoryData.icon || 'MoreHorizontal',
-                groupId: categoryData.groupId || DEFAULT_GROUP_ID,
-                budget: categoryData.budget || 0,
-                lastModified: now,
-                version: 1,
-            };
-            newCategories = [...categories, newCategory];
-        }
-        persistChanges(newCategories, groups);
-    }, [categories, groups, persistChanges]);
+        upsertMultipleCategories([categoryData]);
+    }, [upsertMultipleCategories]);
 
     const deleteCategory = useCallback((id: string) => {
-        const now = new Date().toISOString();
-        const newCategories = categories.map(c => c.id === id ? { ...c, isDeleted: true, lastModified: now, version: (c.version || 0) + 1 } : c);
-        persistChanges(newCategories, groups);
+        dispatch({ type: 'DELETE_CATEGORY', payload: id });
         toast.success("Kategorie gelöscht.");
-    }, [categories, groups, persistChanges]);
+    }, []);
 
+    const updateGroup = useCallback((id: string, updates: Partial<Omit<Group, 'id'>>) => {
+        const groupToUpdate = state.groups.find(g => g.id === id);
+        if(groupToUpdate) {
+            dispatch({ type: 'UPDATE_GROUP', payload: { id, updates } });
+        }
+    }, [state.groups]);
+    
     const addGroup = useCallback((groupName: string) => {
         const trimmedName = groupName.trim();
-        if (groups.some(g => g.name.toLowerCase() === trimmedName.toLowerCase() && !g.isDeleted)) {
+        if (state.groups.some(g => g.name.toLowerCase() === trimmedName.toLowerCase() && !g.isDeleted)) {
             toast.error(`Gruppe "${trimmedName}" existiert bereits.`);
             return;
         }
         const newGroup: Group = {
             id: generateUUID(),
             name: trimmedName,
-            sortIndex: (Math.max(...groups.map(g => g.sortIndex)) || 0) + 1,
+            color: '#64748b',
+            icon: 'Package',
+            sortIndex: (Math.max(...state.groups.map(g => g.sortIndex)) || 0) + 1,
             lastModified: new Date().toISOString(),
             version: 1,
         }
-        const newGroups = [...groups, newGroup];
-        persistChanges(categories, newGroups);
+        dispatch({ type: 'ADD_GROUP', payload: newGroup });
         toast.success(`Gruppe "${trimmedName}" hinzugefügt.`);
-    }, [categories, groups, persistChanges]);
+    }, [state.groups]);
 
     const renameGroup = useCallback((id: string, newName: string) => {
         const trimmedNewName = newName.trim();
-        const existingGroup = groups.find(g => g.id === id);
-        if (!existingGroup || existingGroup.name.toLowerCase() === trimmedNewName.toLowerCase()) return;
+        const existingGroup = state.groups.find(g => g.id === id);
+        if (!existingGroup || (existingGroup.name.toLowerCase() === trimmedNewName.toLowerCase() && !existingGroup.isDeleted)) return;
         
-        if (groups.some(g => g.name.toLowerCase() === trimmedNewName.toLowerCase() && g.id !== id && !g.isDeleted)) {
+        if (state.groups.some(g => g.name.toLowerCase() === trimmedNewName.toLowerCase() && g.id !== id && !g.isDeleted)) {
             toast.error(`Gruppe "${trimmedNewName}" existiert bereits.`);
             return;
         }
 
-        const newGroups = groups.map(g => g.id === id ? { ...g, name: trimmedNewName, lastModified: new Date().toISOString(), version: (g.version || 0) + 1 } : g);
-        persistChanges(categories, newGroups);
+        updateGroup(id, { name: trimmedNewName });
         toast.success(`Gruppe umbenannt in "${trimmedNewName}".`);
-    }, [categories, groups, persistChanges]);
+    }, [state.groups, updateGroup]);
 
     const deleteGroup = useCallback((id: string) => {
-        const now = new Date().toISOString();
-        const newCategories = categories.map(c => c.groupId === id ? { ...c, groupId: DEFAULT_GROUP_ID, lastModified: now, version: (c.version || 0) + 1 } : c);
-        const newGroups = groups.map(g => g.id === id ? { ...g, isDeleted: true, lastModified: now, version: (g.version || 0) + 1 } : g);
-        const groupToDelete = groups.find(g => g.id === id);
-        persistChanges(newCategories, newGroups);
-        if(groupToDelete) toast.success(`Gruppe "${groupToDelete.name}" gelöscht.`);
-    }, [categories, groups, persistChanges]);
+        const groupToDelete = state.groups.find(g => g.id === id);
+        if (groupToDelete) {
+            dispatch({ type: 'DELETE_GROUP', payload: id });
+            toast.success(`Gruppe "${groupToDelete.name}" gelöscht.`);
+        }
+    }, [state.groups]);
     
     const unassignedCategories = useMemo(() => {
-        const existingIds = new Set(liveCategories.map(c => c.id));
-        return INITIAL_CATEGORIES.filter(c => !existingIds.has(c.id));
-    }, [liveCategories]);
+        const baseCats = getBaseCategories();
+        const existingIds = new Set(state.categories.filter(c => !c.isDeleted).map(c => c.id));
+        return baseCats.filter(c => !existingIds.has(c.id));
+    }, [state.categories]);
 
     const loadStandardConfiguration = useCallback(() => {
-        persistChanges(INITIAL_CATEGORIES, INITIAL_GROUPS);
+        dispatch({ type: 'SET_CONFIG', payload: { categories: getBaseCategories(), groups: getBaseGroups() } });
         toast.success("Standardkonfiguration geladen.");
-    }, [persistChanges]);
+    }, []);
     
-    const setCategoriesAndGroups = useCallback((newCategories: Category[], newGroups: Group[]) => {
-        persistChanges(newCategories, newGroups);
-    }, [persistChanges]);
+    const liveCategories = useMemo(() => state.categories.filter(c => !c.isDeleted), [state.categories]);
+    const categoryMap = useMemo(() => new Map(liveCategories.map(c => [c.id, c])), [liveCategories]);
+
+    const liveGroups = useMemo(() => state.groups.filter(g => !g.isDeleted).sort((a,b) => a.sortIndex - b.sortIndex), [state.groups]);
+    const groupMap = useMemo(() => new Map(liveGroups.map(g => [g.id, g])), [liveGroups]);
+    const groupNames = useMemo(() => liveGroups.map(g => g.name), [liveGroups]);
+
+    const fixedGroupIds = useMemo(() => {
+        const ids = new Set<string>();
+        liveGroups.forEach(g => {
+            if (g.id === FIXED_COSTS_GROUP_ID || g.name === FIXED_COSTS_GROUP_NAME) {
+                ids.add(g.id);
+            }
+        });
+        if (ids.size === 0) {
+            ids.add(FIXED_COSTS_GROUP_ID); // Fallback
+        }
+        return ids;
+    }, [liveGroups]);
+
+    const flexibleCategories = useMemo(() => liveCategories.filter(c => !fixedGroupIds.has(c.groupId)), [liveCategories, fixedGroupIds]);
+    const fixedCategories = useMemo(() => liveCategories.filter(c => fixedGroupIds.has(c.groupId)), [liveCategories, fixedGroupIds]);
 
     return {
-        rawCategories: categories,
+        rawCategories: state.categories,
         categories: liveCategories,
         categoryMap,
-        rawGroups: groups,
+        rawGroups: state.groups,
         groups: liveGroups,
         groupMap,
         groupNames,
         upsertCategory,
+        upsertMultipleCategories,
         deleteCategory,
         addGroup,
         renameGroup,
+        updateGroup,
         deleteGroup,
         unassignedCategories,
         loadStandardConfiguration,
         setCategoriesAndGroups,
+        flexibleCategories,
+        fixedCategories,
     };
 };

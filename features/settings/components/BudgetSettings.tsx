@@ -1,11 +1,12 @@
-import React, { useState, useMemo, useCallback, useEffect, FC, useRef } from 'react';
+
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { useApp } from '@/contexts/AppContext';
 import type { Category, RecurringTransaction, Group } from '@/shared/types';
 import { format, parseISO } from 'date-fns';
 import { formatCurrency } from '@/shared/utils/dateUtils';
-import { getIconComponent, Plus, Trash2, Edit, ChevronDown, ProgressBar, Button } from '@/shared/ui';
+import { getIconComponent, Plus, Trash2, Edit, ChevronDown, ProgressBar, Button, Wallet, Home } from '@/shared/ui';
 import { FIXED_COSTS_GROUP_ID } from '@/constants';
 import { generateUUID } from '@/shared/utils/uuid';
 import { BudgetGroup } from './BudgetGroup';
@@ -14,12 +15,12 @@ const MotionDiv = motion.div;
 
 const BASE_INPUT_CLASSES = "w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-rose-500";
 
-export const BudgetSettings: FC = () => {
+export const BudgetSettings = () => {
     const {
         flexibleCategories,
         upsertCategory,
+        upsertMultipleCategories,
         groups,
-        groupMap,
         totalMonthlyBudget, // flex budget
         totalMonthlyFixedCosts,
         fixedCategories,
@@ -35,8 +36,8 @@ export const BudgetSettings: FC = () => {
         const initialGroups = groups.filter(g => g.id !== FIXED_COSTS_GROUP_ID);
         return initialGroups.length > 0 ? [initialGroups[0].id] : [];
     });
-    const [groupBudgetInputs, setGroupBudgetInputs] = useState<Record<string, string>>({});
-    const [categoryBudgetInputs, setCategoryBudgetInputs] = useState<Record<string, string>>({});
+    const [localGroupBudgets, setLocalGroupBudgets] = useState<Record<string, string>>({});
+    const [localCategoryBudgets, setLocalCategoryBudgets] = useState<Record<string, string>>({});
     const focusedInputRef = useRef<string | null>(null);
 
     // --- State for Fixed & Other Recurring ---
@@ -50,8 +51,12 @@ export const BudgetSettings: FC = () => {
     const totalOverallBudget = totalMonthlyBudget + totalMonthlyFixedCosts;
     const flexPercentage = totalOverallBudget > 0 ? (totalMonthlyBudget / totalOverallBudget) * 100 : 0;
     const fixedPercentage = totalOverallBudget > 0 ? (totalMonthlyFixedCosts / totalOverallBudget) * 100 : 0;
-    const flexColor = '#0ea5e9'; // sky-500
-    const fixedColor = '#e11d48'; // theme-primary rose-600
+    const flexBarColor = '#2563eb'; // blue-600
+    const fixedBarColor = '#ef4444'; // red-500
+    
+    const fixedGroup = useMemo(() => groups.find(g => g.id === FIXED_COSTS_GROUP_ID), [groups]);
+    const fixedIconColor = fixedGroup?.color || '#e11d48'; // Keep original for the icon
+    const FixedIcon = getIconComponent(fixedGroup?.icon || 'Home');
     
     const recurringMapByCatId = useMemo(() => {
         const map = new Map<string, RecurringTransaction>();
@@ -64,8 +69,113 @@ export const BudgetSettings: FC = () => {
         return recurringTransactions.filter(rt => !fixedCatIds.has(rt.categoryId));
     }, [recurringTransactions, fixedCategories]);
 
+    const groupedBudgetData = useMemo(() => {
+        return groups
+            .filter(g => g.id !== FIXED_COSTS_GROUP_ID)
+            .map(group => {
+                const groupCategories = flexibleCategories.filter(c => c.groupId === group.id);
+                if (groupCategories.length === 0) return null;
+                const sortedCategories = [...groupCategories].sort((a, b) => (b.budget || 0) - (a.budget || 0));
+                const groupTotalBudget = groupCategories.reduce((sum, cat) => sum + (cat.budget || 0), 0);
+                return { group, categories: sortedCategories, groupTotalBudget };
+            })
+            .filter((g): g is NonNullable<typeof g> => g !== null);
+    }, [flexibleCategories, groups]);
+
+    // --- Sync props to local state ---
+    useEffect(() => {
+        const newGroupInputs = { ...localGroupBudgets };
+        const newCatInputs = { ...localCategoryBudgets };
+
+        groupedBudgetData.forEach(({ group, categories, groupTotalBudget }) => {
+            if (focusedInputRef.current !== `group-${group.id}`) {
+                const formatted = groupTotalBudget > 0 ? groupTotalBudget.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';
+                newGroupInputs[group.id] = formatted;
+            }
+            categories.forEach(category => {
+                if (focusedInputRef.current !== `cat-${category.id}`) {
+                    const budgetVal = category.budget || 0;
+                    const formatted = budgetVal > 0 ? budgetVal.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';
+                    newCatInputs[category.id] = formatted;
+                }
+            });
+        });
+        setLocalGroupBudgets(newGroupInputs);
+        setLocalCategoryBudgets(newCatInputs);
+    }, [flexibleCategories, groups, groupedBudgetData]); // Rerun when global state changes
 
     // --- Handlers for Flexible Budgets ---
+    const handleGroupBudgetChange = useCallback((groupId: string, value: string) => {
+        setLocalGroupBudgets(prev => ({ ...prev, [groupId]: value }));
+
+        const newTotal = parseFloat(value.replace(',', '.'));
+        if (isNaN(newTotal) || newTotal < 0) return;
+
+        const groupCategories = flexibleCategories.filter(c => c.groupId === groupId);
+        if (groupCategories.length === 0) return;
+
+        const currentTotalInCents = groupCategories.reduce((sum, cat) => sum + Math.round((cat.budget || 0) * 100), 0);
+        const newTotalInCents = Math.round(newTotal * 100);
+
+        if (newTotalInCents === currentTotalInCents) return;
+
+        let updatedCategoriesData: (Partial<Category> & { id: string })[] = [];
+
+        if (newTotalInCents === 0) {
+            updatedCategoriesData = groupCategories.map(cat => ({ id: cat.id, budget: 0 }));
+        } else if (currentTotalInCents === 0) {
+            const baseAmountCents = Math.floor(newTotalInCents / groupCategories.length);
+            let remainderCents = newTotalInCents % groupCategories.length;
+            updatedCategoriesData = groupCategories.map(cat => {
+                let itemCents = baseAmountCents;
+                if (remainderCents > 0) { itemCents++; remainderCents--; }
+                return { id: cat.id, budget: itemCents / 100 };
+            });
+        } else {
+            const rawBudgets = groupCategories.map(cat => {
+                const catBudgetCents = Math.round((cat.budget || 0) * 100);
+                const rawNewCents = (catBudgetCents / currentTotalInCents) * newTotalInCents;
+                return { id: cat.id, raw: rawNewCents, floor: Math.floor(rawNewCents), remainder: rawNewCents - Math.floor(rawNewCents) };
+            });
+            rawBudgets.sort((a, b) => b.remainder - a.remainder);
+            const totalFlooredCents = rawBudgets.reduce((sum, b) => sum + b.floor, 0);
+            let remainderToDistribute = newTotalInCents - totalFlooredCents;
+            updatedCategoriesData = rawBudgets.map(b => {
+                let centsToAdd = 0;
+                if (remainderToDistribute > 0) { centsToAdd = 1; remainderToDistribute--; }
+                return { id: b.id, budget: (b.floor + centsToAdd) / 100 };
+            });
+        }
+        
+        if (updatedCategoriesData.length > 0) {
+            upsertMultipleCategories(updatedCategoriesData as Category[]);
+        }
+    }, [flexibleCategories, upsertMultipleCategories]);
+
+    const handleIndividualBudgetChange = useCallback((categoryId: string, value: string) => {
+        setLocalCategoryBudgets(prev => ({ ...prev, [categoryId]: value }));
+
+        const category = flexibleCategories.find(c => c.id === categoryId);
+        if (!category) return;
+
+        const newBudget = parseFloat(value.replace(',', '.'));
+        if (isNaN(newBudget) || newBudget < 0) return;
+
+        const newBudgetCents = Math.round(newBudget * 100);
+        const currentBudgetCents = Math.round((category.budget || 0) * 100);
+
+        if (newBudgetCents !== currentBudgetCents) {
+            upsertCategory({ id: categoryId, budget: newBudgetCents / 100 });
+        }
+    }, [flexibleCategories, upsertCategory]);
+
+    const handleBlur = useCallback((setter: React.Dispatch<React.SetStateAction<Record<string, string>>>, id: string, value: string) => {
+        focusedInputRef.current = null;
+        const parsed = parseFloat(value.replace(',', '.'));
+        const formatted = isNaN(parsed) || parsed === 0 ? '' : parsed.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        setter(prev => ({ ...prev, [id]: formatted }));
+    }, []);
+
     const toggleFlexGroup = useCallback((groupId: string) => {
         setFlexExpandedGroups(prev =>
             prev.includes(groupId)
@@ -73,60 +183,6 @@ export const BudgetSettings: FC = () => {
                 : [...prev, groupId]
         );
     }, []);
-
-    const handleIndividualBudgetChange = useCallback((category: Category, value: string) => {
-        setCategoryBudgetInputs(prev => ({ ...prev, [category.id]: value }));
-        
-        const trimmedValue = value.trim();
-        const budgetValue = Number(trimmedValue.replace(',', '.'));
-        const newBudget = !isNaN(budgetValue) && budgetValue >= 0 ? budgetValue : undefined;
-        
-        if (newBudget !== category.budget) {
-            upsertCategory({ ...category, budget: newBudget });
-        }
-    }, [upsertCategory]);
-
-    const handleGroupBudgetChange = useCallback((groupId: string, newTotalStr: string) => {
-        setGroupBudgetInputs(prev => ({ ...prev, [groupId]: newTotalStr }));
-        const newTotal = parseFloat(newTotalStr.replace(',', '.'));
-        if (isNaN(newTotal) || newTotal < 0) return;
-
-        const groupCategories = flexibleCategories.filter(c => c.groupId === groupId);
-        if (groupCategories.length === 0) return;
-
-        const currentTotal = groupCategories.reduce((sum, cat) => sum + (cat.budget || 0), 0);
-        const newTotalInCents = Math.round(newTotal * 100);
-
-        let updatedCategoriesData: Partial<Category>[] = [];
-        if (currentTotal > 0) {
-            const ratio = newTotalInCents / (currentTotal * 100);
-            let runningTotalCents = 0;
-            updatedCategoriesData = groupCategories.map((cat, index) => {
-                const isLast = index === groupCategories.length - 1;
-                let newBudgetCents;
-                if(isLast) {
-                    newBudgetCents = newTotalInCents - runningTotalCents;
-                } else {
-                    newBudgetCents = Math.round((cat.budget || 0) * 100 * ratio);
-                    runningTotalCents += newBudgetCents;
-                }
-                return { ...cat, budget: newBudgetCents / 100 };
-            });
-        } else if (newTotal > 0) {
-            const numCategories = groupCategories.length;
-            const baseAmountCents = Math.floor(newTotalInCents / numCategories);
-            let remainderCents = newTotalInCents % numCategories;
-            updatedCategoriesData = groupCategories.map(cat => {
-                let itemCents = baseAmountCents;
-                if(remainderCents > 0){ itemCents++; remainderCents--; }
-                return { ...cat, budget: itemCents / 100 };
-            });
-        } else {
-             updatedCategoriesData = groupCategories.map(cat => ({ ...cat, budget: 0 }));
-        }
-        
-        updatedCategoriesData.forEach(catData => { if (catData.id) upsertCategory(catData as Category) });
-    }, [flexibleCategories, upsertCategory]);
     
     // --- Handlers for Fixed & Recurring Costs ---
     const handleFixedAmountUpdate = (categoryId: string, amountStr: string) => {
@@ -164,55 +220,6 @@ export const BudgetSettings: FC = () => {
         if (itemToUpdate) updateRecurringTransaction({ ...itemToUpdate, ...updates });
     }, [nonFixedRecurring, updateRecurringTransaction]);
 
-
-    // --- Data for Rendering ---
-    const groupedBudgetData = useMemo(() => {
-        return groups
-            .filter(g => g.id !== FIXED_COSTS_GROUP_ID)
-            .map(group => {
-                const groupCategories = flexibleCategories.filter(c => c.groupId === group.id);
-                const sortedCategories = [...groupCategories].sort((a, b) => (b.budget || 0) - (a.budget || 0));
-                const groupTotalBudget = groupCategories.reduce((sum, cat) => sum + (cat.budget || 0), 0);
-                return { group, categories: sortedCategories, groupTotalBudget };
-            })
-            .filter(g => g.categories.length > 0);
-    }, [flexibleCategories, groups]);
-    
-    // Effect to update non-focused inputs
-    useEffect(() => {
-        const newGroupInputs: Record<string, string> = {};
-        const newCatInputs: Record<string, string> = {};
-
-        groupedBudgetData.forEach(data => {
-            if (focusedInputRef.current !== `group-${data.group.id}`) {
-                newGroupInputs[data.group.id] = data.groupTotalBudget > 0 ? data.groupTotalBudget.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';
-            }
-            data.categories.forEach(category => {
-                if (focusedInputRef.current !== `cat-${category.id}`) {
-                    newCatInputs[category.id] = category.budget ? category.budget.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';
-                }
-            });
-        });
-        setGroupBudgetInputs(prev => ({ ...prev, ...newGroupInputs }));
-        setCategoryBudgetInputs(prev => ({ ...prev, ...newCatInputs }));
-    }, [groupedBudgetData, totalMonthlyBudget]);
-
-     const handleGroupBudgetBlur = (groupId: string) => {
-        focusedInputRef.current = null;
-        setGroupBudgetInputs(p => ({
-            ...p,
-            [groupId]: (parseFloat((p[groupId] || '0').replace(',', '.')) || 0).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-        }));
-    };
-
-    const handleIndividualBudgetBlur = (categoryId: string) => {
-        focusedInputRef.current = null;
-        setCategoryBudgetInputs(p => ({
-            ...p,
-            [categoryId]: (parseFloat((p[categoryId] || '0').replace(',', '.')) || 0).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-        }));
-    };
-
     return (
         <MotionDiv key="budget" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }}>
             <h3 className="text-lg font-semibold text-white mb-1">Budgetverwaltung</h3>
@@ -225,18 +232,46 @@ export const BudgetSettings: FC = () => {
                 </div>
                 <div className="flex justify-between items-baseline">
                     <div className="text-left">
-                        <p className="text-xs text-slate-300">Flexibles Budget</p>
-                        <p className="text-white text-md">{formatCurrency(totalMonthlyBudget)}</p>
+                        <p className="text-xs text-slate-300 flex items-center gap-1.5"><Wallet className="h-3 w-3 text-amber-700" />Flexibles Budget</p>
+                        <p className="text-white text-md font-semibold">{formatCurrency(totalMonthlyBudget)}</p>
                     </div>
                      <div className="text-right">
-                        <p className="text-xs text-slate-300">Monatliche Fixkosten</p>
-                        <p className="text-white text-md">{formatCurrency(totalMonthlyFixedCosts)}</p>
+                        <p className="text-xs text-slate-300 flex items-center gap-1.5 justify-end">Monatliche Fixkosten<FixedIcon className="h-3 w-3" style={{ color: fixedIconColor }} /></p>
+                        <p className="text-white text-md font-semibold">{formatCurrency(totalMonthlyFixedCosts)}</p>
                     </div>
                 </div>
-                {totalOverallBudget > 0 && (
-                    <div className="w-full flex h-1.5 rounded-full overflow-hidden bg-slate-900/50">
-                        <motion.div style={{ backgroundColor: flexColor }} className="h-full" title={`Flexible Budgets: ${flexPercentage.toFixed(0)}%`} initial={{ width: '0%' }} animate={{ width: `${flexPercentage}%` }} transition={{ duration: 0.8, ease: "easeOut" }} />
-                        <motion.div style={{ backgroundColor: fixedColor }} className="h-full" title={`Fixkosten: ${fixedPercentage.toFixed(0)}%`} initial={{ width: '0%' }} animate={{ width: `${fixedPercentage}%` }} transition={{ duration: 0.8, ease: "easeOut" }}/>
+                {totalOverallBudget > 0 ? (
+                    <div className="w-full relative flex h-6 rounded-full overflow-hidden bg-slate-900/50" aria-label="Gesamtbudgetverteilung: Flexibles Budget vs. Fixkosten">
+                        <motion.div 
+                            style={{ backgroundColor: flexBarColor }} 
+                            className="h-full flex items-center justify-center" 
+                            title={`Flexible Budgets: ${flexPercentage.toFixed(0)}%`} 
+                            initial={{ width: '0%' }} 
+                            animate={{ width: `${flexPercentage}%` }} 
+                            transition={{ duration: 0.8, ease: "easeOut" }} 
+                        >
+                            {flexPercentage >= 8 && (
+                                <span className="text-white text-xs font-bold drop-shadow-sm">{flexPercentage.toFixed(0)}%</span>
+                            )}
+                        </motion.div>
+                        <motion.div 
+                            style={{ backgroundColor: fixedBarColor }} 
+                            className="h-full flex items-center justify-center" 
+                            title={`Fixkosten: ${fixedPercentage.toFixed(0)}%`} 
+                            initial={{ width: '0%' }} 
+                            animate={{ width: `${fixedPercentage}%` }} 
+                            transition={{ duration: 0.8, ease: "easeOut" }}
+                        >
+                            {fixedPercentage >= 8 && (
+                                <span className="text-white text-xs font-bold drop-shadow-sm">{fixedPercentage.toFixed(0)}%</span>
+                            )}
+                        </motion.div>
+                    </div>
+                ) : (
+                    <div className="w-full relative flex h-6 rounded-full overflow-hidden bg-slate-900/50" aria-label="Gesamtbudgetverteilung: Flexibles Budget vs. Fixkosten">
+                        <div className="h-full flex-grow flex items-center justify-center">
+                            <span className="text-slate-400 text-xs font-bold">0% / 0%</span>
+                        </div>
                     </div>
                 )}
             </div>
@@ -260,12 +295,12 @@ export const BudgetSettings: FC = () => {
                                         group={group}
                                         categories={categories}
                                         groupTotalBudget={groupTotalBudget}
-                                        groupBudgetInputs={groupBudgetInputs}
-                                        categoryBudgetInputs={categoryBudgetInputs}
+                                        groupBudgetInputs={localGroupBudgets}
+                                        categoryBudgetInputs={localCategoryBudgets}
                                         onGroupBudgetChange={(value) => handleGroupBudgetChange(group.id, value)}
-                                        onIndividualBudgetChange={handleIndividualBudgetChange}
-                                        onGroupBudgetBlur={() => handleGroupBudgetBlur(group.id)}
-                                        onIndividualBudgetBlur={handleIndividualBudgetBlur}
+                                        onIndividualBudgetChange={(cat, value) => handleIndividualBudgetChange(cat.id, value)}
+                                        onGroupBudgetBlur={(value) => handleBlur(setLocalGroupBudgets, group.id, value)}
+                                        onIndividualBudgetBlur={(catId, value) => handleBlur(setLocalCategoryBudgets, catId, value)}
                                         isExpanded={flexExpandedGroups.includes(group.id)}
                                         onToggle={() => toggleFlexGroup(group.id)}
                                         focusedInputRef={focusedInputRef}

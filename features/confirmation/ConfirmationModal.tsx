@@ -1,6 +1,6 @@
 
 
-import React, { useEffect, useMemo, FC } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
 import type { Transaction } from '@/shared/types';
@@ -15,12 +15,12 @@ interface ConfirmationModalProps {
     totalSpentBefore: number;
 }
 
-const ConfirmationModal: FC<ConfirmationModalProps> = ({
+const ConfirmationModal = ({
     isOpen,
     onClose,
     transactions: newTransactions,
     totalSpentBefore,
-}) => {
+}: ConfirmationModalProps) => {
     const { 
         categoryMap, 
         totalMonthlyBudget, 

@@ -1,6 +1,7 @@
 
 
 
+
 import React, { useState, useMemo, useCallback, useEffect, FC, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
@@ -12,7 +13,7 @@ import { getIconComponent, Plus, Trash2, Edit, ChevronDown, ProgressBar, Button 
 import { FIXED_COSTS_GROUP_ID, FIXED_COSTS_GROUP_NAME } from '@/constants';
 import { generateUUID } from '@/shared/utils/uuid';
 
-const BASE_INPUT_CLASSES = "w-full bg-theme-input border border-theme-border rounded-md px-3 py-2 text-white placeholder-theme-text-muted focus:outline-none focus:ring-2 focus:ring-theme-ring";
+const BASE_INPUT_CLASSES = "w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-rose-500";
 
 export const BudgetSettings: FC = () => {
     const {
@@ -252,7 +253,7 @@ export const BudgetSettings: FC = () => {
                                     <div key={group.groupName} className="bg-slate-700/30 p-2.5 rounded-lg">
                                         <div className="flex justify-between items-center gap-2">
                                             <button onClick={() => toggleFlexGroup(group.groupName)} className="flex items-center gap-2 text-left flex-grow rounded-md -m-2 p-2"><ChevronDown className={`h-5 w-5 text-slate-400 transition-transform flex-shrink-0 ${flexExpandedGroups.includes(group.groupName) ? 'rotate-180' : ''}`} /><h4 className="text-sm font-semibold text-white truncate">{group.groupName}</h4></button>
-                                            <div className="relative w-full sm:w-36 flex-shrink-0" onClick={e => e.stopPropagation()}><span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">€</span><input type="text" inputMode="decimal" value={groupBudgetInputs[group.groupName] || ''} onChange={e => handleGroupBudgetChange(group.groupName, e.currentTarget.value)} onFocus={() => focusedInputRef.current = `group-${group.groupName}`} onBlur={() => { focusedInputRef.current = null; setGroupBudgetInputs(p => ({...p, [group.groupName]: (parseFloat((p[group.groupName]||'0').replace(',','.')) || 0).toLocaleString('de-DE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}))}} onKeyDown={e => {if (e.key === 'Enter') (e.target as HTMLInputElement).blur()}} placeholder="Gesamt" className="w-full bg-theme-input border border-theme-border rounded-md pl-7 pr-2 py-0.5 text-white text-sm font-semibold text-right focus:outline-none focus:ring-2 focus:ring-theme-ring"/></div>
+                                            <div className="relative w-full sm:w-36 flex-shrink-0" onClick={e => e.stopPropagation()}><span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">€</span><input type="text" inputMode="decimal" value={groupBudgetInputs[group.groupName] || ''} onChange={e => handleGroupBudgetChange(group.groupName, e.currentTarget.value)} onFocus={() => focusedInputRef.current = `group-${group.groupName}`} onBlur={() => { focusedInputRef.current = null; setGroupBudgetInputs(p => ({...p, [group.groupName]: (parseFloat((p[group.groupName]||'0').replace(',','.')) || 0).toLocaleString('de-DE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}))}} onKeyDown={e => {if (e.key === 'Enter') (e.target as HTMLInputElement).blur()}} placeholder="Gesamt" className="w-full bg-slate-700 border border-slate-600 rounded-lg pl-7 pr-2 py-2.5 text-white text-sm font-semibold text-right placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-rose-500"/></div>
                                         </div>
                                         <AnimatePresence>
                                         {flexExpandedGroups.includes(group.groupName) && (
@@ -261,7 +262,7 @@ export const BudgetSettings: FC = () => {
                                                     {group.categories.map(category => {
                                                         const Icon = getIconComponent(category.icon);
                                                         return (
-                                                            <div key={category.id} className="flex flex-col"><div className="flex justify-between items-center text-sm mb-1"><div className="flex items-center gap-3 truncate"><Icon className="h-4 w-4 flex-shrink-0" style={{ color: category.color }} /><span className="font-medium text-white truncate">{category.name}</span></div><div className="relative w-28 flex-shrink-0 ml-2"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">€</span><input type="text" inputMode="decimal" value={categoryBudgetInputs[category.id] ?? ''} onChange={e => handleIndividualBudgetChange(category, e.target.value)} onFocus={() => focusedInputRef.current = `cat-${category.id}`} onBlur={() => { focusedInputRef.current = null; setCategoryBudgetInputs(p => ({...p, [category.id]: (parseFloat((p[category.id]||'0').replace(',','.'))||0).toLocaleString('de-DE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}))}} onKeyDown={e => {if (e.key === 'Enter') (e.target as HTMLInputElement).blur()}} placeholder="Budget" className="w-full bg-theme-input border border-theme-border rounded-md pl-7 pr-2 py-0.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-theme-ring"/></div></div><ProgressBar percentage={(category.budget || 0) / (group.groupTotalBudget || 1) * 100} color={category.color} className="h-1.5" /></div>
+                                                            <div key={category.id} className="flex flex-col"><div className="flex justify-between items-center text-sm mb-1"><div className="flex items-center gap-3 truncate"><Icon className="h-4 w-4 flex-shrink-0" style={{ color: category.color }} /><span className="font-medium text-white truncate">{category.name}</span></div><div className="relative w-28 flex-shrink-0 ml-2"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">€</span><input type="text" inputMode="decimal" value={categoryBudgetInputs[category.id] ?? ''} onChange={e => handleIndividualBudgetChange(category, e.target.value)} onFocus={() => focusedInputRef.current = `cat-${category.id}`} onBlur={() => { focusedInputRef.current = null; setCategoryBudgetInputs(p => ({...p, [category.id]: (parseFloat((p[category.id]||'0').replace(',','.'))||0).toLocaleString('de-DE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}))}} onKeyDown={e => {if (e.key === 'Enter') (e.target as HTMLInputElement).blur()}} placeholder="Budget" className="w-full bg-slate-700 border border-slate-600 rounded-lg pl-7 pr-2 py-2.5 text-white text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-rose-500"/></div></div><ProgressBar percentage={(category.budget || 0) / (group.groupTotalBudget || 1) * 100} color={category.color} className="h-1.5" /></div>
                                                         );
                                                     })}
                                                 </div>
@@ -278,7 +279,7 @@ export const BudgetSettings: FC = () => {
                                             const rec = recurringMapByCatId.get(category.id);
                                             const Icon = getIconComponent(category.icon);
                                             return (
-                                                <div key={category.id}><div className="flex items-center gap-3"><Icon className="h-5 w-5 flex-shrink-0" style={{color: category.color}} /><span className="flex-1 font-medium text-white truncate">{category.name}</span><div className="relative w-28 flex-shrink-0 ml-2"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">€</span><input type="text" inputMode="decimal" defaultValue={rec?.amount ? rec.amount.toString().replace('.', ',') : ''} onBlur={e => handleFixedAmountUpdate(category.id, e.currentTarget.value)} onKeyDown={e => {if (e.key === 'Enter') (e.target as HTMLInputElement).blur()}} placeholder="Betrag" className="w-full bg-theme-input border border-theme-border rounded-md pl-7 pr-2 py-1 text-white text-sm focus:outline-none focus:ring-2 focus:ring-theme-ring"/></div></div><div className="pl-8 mt-1.5"><ProgressBar percentage={(rec?.amount || 0) / (totalMonthlyFixedCosts || 1) * 100} color={category.color} className="h-1.5" /></div></div>
+                                                <div key={category.id}><div className="flex items-center gap-3"><Icon className="h-5 w-5 flex-shrink-0" style={{color: category.color}} /><span className="flex-1 font-medium text-white truncate">{category.name}</span><div className="w-28 flex-shrink-0 ml-2 flex items-center bg-slate-700 border border-slate-600 rounded-lg focus-within:ring-2 focus-within:ring-rose-500 px-3"><span className="text-slate-400 text-sm">€</span><input type="text" inputMode="decimal" defaultValue={rec?.amount ? rec.amount.toString().replace('.', ',') : ''} onBlur={e => handleFixedAmountUpdate(category.id, e.currentTarget.value)} onKeyDown={e => {if (e.key === 'Enter') (e.target as HTMLInputElement).blur()}} placeholder="Betrag" className="w-full bg-transparent border-none pl-2 py-2.5 text-right text-white text-sm placeholder-slate-500 focus:outline-none"/></div></div><div className="pl-8 mt-1.5"><ProgressBar percentage={(rec?.amount || 0) / (totalMonthlyFixedCosts || 1) * 100} color={category.color} className="h-1.5" /></div></div>
                                             )
                                         })}
                                     </div>
@@ -306,13 +307,19 @@ export const BudgetSettings: FC = () => {
                                <input type="text" value={item.description} onChange={e => handleUpdateNonFixed(item.id, {description: e.currentTarget.value})} placeholder="Beschreibung" className={BASE_INPUT_CLASSES}/>
                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
                                 <input type="number" value={item.amount} onChange={e => handleUpdateNonFixed(item.id, {amount: Number(e.currentTarget.value.replace(',', '.')) || 0})} placeholder="Betrag" className={BASE_INPUT_CLASSES}/>
-                                <select value={item.categoryId} onChange={e => handleUpdateNonFixed(item.id, {categoryId: e.currentTarget.value})} className={BASE_INPUT_CLASSES}>
-                                    {categories.filter(c => c.groupId !== FIXED_COSTS_GROUP_ID).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                                </select>
+                                <div className="relative">
+                                    <select value={item.categoryId} onChange={e => handleUpdateNonFixed(item.id, {categoryId: e.currentTarget.value})} className={`${BASE_INPUT_CLASSES} appearance-none pr-10`}>
+                                        {categories.filter(c => c.groupId !== FIXED_COSTS_GROUP_ID).map(c => <option key={c.id} value={c.id} className="bg-slate-800 text-white">{c.name}</option>)}
+                                    </select>
+                                     <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 pointer-events-none" />
+                                </div>
                                 <input type="date" value={format(parseISO(item.startDate), 'yyyy-MM-dd')} onChange={e => handleUpdateNonFixed(item.id, {startDate: e.currentTarget.value})} className={BASE_INPUT_CLASSES}/>
-                                <select value={item.frequency} onChange={e => { const val = e.currentTarget.value; if(val === 'monthly' || val === 'yearly') handleUpdateNonFixed(item.id, {frequency: val}); }} className={BASE_INPUT_CLASSES}>
-                                    <option value="monthly">Monatlich</option><option value="yearly">Jährlich</option>
-                                </select>
+                                <div className="relative">
+                                    <select value={item.frequency} onChange={e => { const val = e.currentTarget.value; if(val === 'monthly' || val === 'yearly') handleUpdateNonFixed(item.id, {frequency: val}); }} className={`${BASE_INPUT_CLASSES} appearance-none pr-10`}>
+                                        <option value="monthly" className="bg-slate-800 text-white">Monatlich</option><option value="yearly" className="bg-slate-800 text-white">Jährlich</option>
+                                    </select>
+                                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 pointer-events-none" />
+                                </div>
                                </div>
                                <div className="flex justify-end gap-2"><Button variant="link" onClick={() => setEditingRecurringId(null)} className="px-3 py-1">Fertig</Button></div>
                             </div>

@@ -1,5 +1,5 @@
 
-import React, { FC, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { X, Gift, Loader2 } from '@/shared/ui';
 import { ToggleSwitch } from '@/shared/ui';
@@ -21,11 +21,11 @@ interface ChangelogModalProps {
     onToggleAutoShow: () => void;
 }
 
-const ChangelogModal: FC<ChangelogModalProps> = ({
+const ChangelogModal = ({
     onClose,
     isAutoShowEnabled,
     onToggleAutoShow,
-}) => {
+}: ChangelogModalProps) => {
     const [changelogData, setChangelogData] = useState<ChangelogEntry[] | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 

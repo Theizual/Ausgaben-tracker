@@ -17,7 +17,7 @@ import useLocalStorage from '@/shared/hooks/useLocalStorage';
 import { SyncPromptToast } from '@/features/sync-prompt/ui/SyncPromptToast';
 
 // Main App Component (now a clean layout/composition root)
-const App: React.FC = () => {
+const App = () => {
     const {
         // UI State & Handlers
         activeTab,

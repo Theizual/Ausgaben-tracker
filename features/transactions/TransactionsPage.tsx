@@ -1,16 +1,16 @@
 
-import React, { useState, useMemo, FC } from 'react';
+
+import React, { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
 import type { QuickFilterId } from '@/shared/types';
 import { format, subDays, startOfMonth, endOfMonth } from 'date-fns';
 import { SlidersHorizontal } from '@/shared/ui';
-import { ViewSwitch } from './ui/ViewSwitch';
 import { QuickFilters } from './ui/QuickFilters';
 import { TransactionList } from './ui/TransactionList';
 import { FilterModal } from './ui/FilterModal';
 
-const TransactionsPage: FC = () => {
+const TransactionsPage = () => {
     const { 
         transactions, 
         tagMap,
@@ -18,8 +18,6 @@ const TransactionsPage: FC = () => {
         setTransactionFilters, 
         transactionActiveQuickFilter, 
         setTransactionActiveQuickFilter,
-        transactionViewMode,
-        setTransactionViewMode,
         deLocale,
     } = useApp();
     const [isFilterModalOpen, setFilterModalOpen] = useState(false);
@@ -97,7 +95,6 @@ const TransactionsPage: FC = () => {
                 <div className="flex justify-between items-center flex-wrap gap-2">
                     <QuickFilters activeQuickFilter={transactionActiveQuickFilter} onQuickFilter={handleQuickFilter} />
                     <div className="flex items-center gap-2">
-                         <ViewSwitch viewMode={transactionViewMode} onChange={setTransactionViewMode} />
                         <motion.button
                             layout
                             onClick={() => setFilterModalOpen(true)}
@@ -121,7 +118,7 @@ const TransactionsPage: FC = () => {
                 layout
                 className="bg-slate-800/50 p-4 rounded-2xl border border-slate-700/50"
             >
-                <TransactionList viewMode={transactionViewMode} />
+                <TransactionList />
             </motion.div>
             
             <FilterModal

@@ -6,11 +6,11 @@ import { format, parseISO } from 'date-fns';
 import { ChevronDown, getIconComponent } from '@/shared/ui';
 import { formatCurrency } from '@/shared/utils/dateUtils';
 import { StandardTransactionItem } from '@/shared/ui';
-import { FIXED_COSTS_GROUP_ID, FIXED_COSTS_GROUP_NAME, DEFAULT_GROUP_COLOR } from '@/constants';
+import { FIXED_COSTS_GROUP_ID, FIXED_COSTS_GROUP_NAME } from '@/constants';
 import { BudgetProgressBar } from '@/shared/ui/BudgetProgressBar';
 
 export const MonthlyCategoryBreakdown: FC<{ transactions: Transaction[], currentMonth: Date }> = ({ transactions, currentMonth }) => {
-    const { categoryMap, handleTransactionClick, visibleCategoryGroups, deLocale, groupColors, groupMap } = useApp();
+    const { categoryMap, handleTransactionClick, deLocale, groupMap, groups } = useApp();
     const [expandedSupergroups, setExpandedSupergroups] = useState<string[]>(['Fixkosten', 'Variable Kosten']); // Default open
     const [expandedGroups, setExpandedGroups] = useState<string[]>([]);
     const [expandedCategoryId, setExpandedCategoryId] = useState<string | null>(null);
@@ -28,10 +28,8 @@ export const MonthlyCategoryBreakdown: FC<{ transactions: Transaction[], current
 
         const groupDataMap = new Map<string, { totalSpent: number; totalBudget: number; categories: Category[]; group: Group }>();
         
-        Array.from(groupMap.values()).forEach(group => {
-            if (visibleCategoryGroups.includes(group.name)) {
-                groupDataMap.set(group.id, { totalSpent: 0, totalBudget: 0, categories: [], group });
-            }
+        groups.forEach(group => {
+            groupDataMap.set(group.id, { totalSpent: 0, totalBudget: 0, categories: [], group });
         });
 
         categoriesWithSpending.forEach(category => {
@@ -71,7 +69,7 @@ export const MonthlyCategoryBreakdown: FC<{ transactions: Transaction[], current
             .filter(sg => sg.totalSpent > 0);
 
         return { supergroupedData: result, spendingByCategory: spendingMap };
-    }, [transactions, categoryMap, visibleCategoryGroups, groupMap]);
+    }, [transactions, categoryMap, groupMap, groups]);
 
     useEffect(() => {
         if (supergroupedData.length > 0 && !defaultExpandedSet.current) {
@@ -126,8 +124,7 @@ export const MonthlyCategoryBreakdown: FC<{ transactions: Transaction[], current
                                                 const isGroupExpanded = expandedGroups.includes(groupData.group.id);
                                                 const groupHasBudget = groupData.totalBudget > 0;
                                                 const groupPercentage = groupHasBudget ? (groupData.totalSpent / groupData.totalBudget) * 100 : 0;
-                                                const groupColor = groupColors[groupData.group.name] || groupData.group.color || DEFAULT_GROUP_COLOR;
-
+                                                const GroupIcon = getIconComponent(groupData.group.icon);
 
                                                 return (
                                                     <div key={groupData.group.id} className="bg-slate-700/30 p-3 rounded-lg space-y-3">
@@ -138,6 +135,7 @@ export const MonthlyCategoryBreakdown: FC<{ transactions: Transaction[], current
                                                             <div className="flex justify-between items-center text-sm mb-1.5">
                                                                 <div className="flex items-center gap-3 truncate">
                                                                     <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform ${isGroupExpanded ? 'rotate-180' : ''}`} />
+                                                                    <GroupIcon className="h-5 w-5 flex-shrink-0" style={{ color: groupData.group.color }} />
                                                                     <span className="font-bold text-white truncate">{groupData.group.name}</span>
                                                                 </div>
                                                                 <div className="font-semibold text-white flex-shrink-0 pl-2">
@@ -145,7 +143,7 @@ export const MonthlyCategoryBreakdown: FC<{ transactions: Transaction[], current
                                                                     {groupHasBudget && <span className="text-slate-500 text-xs"> / {formatCurrency(groupData.totalBudget)}</span>}
                                                                 </div>
                                                             </div>
-                                                            {groupHasBudget && <BudgetProgressBar percentage={groupPercentage} color={groupColor} />}
+                                                            {groupHasBudget && <BudgetProgressBar percentage={groupPercentage} color={groupData.group.color} />}
                                                         </div>
 
                                                         <AnimatePresence>

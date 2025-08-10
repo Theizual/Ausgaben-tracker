@@ -1,8 +1,9 @@
 
+
 import React, { FC, useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
-import type { Transaction, TransactionViewMode } from '@/shared/types';
+import type { Transaction } from '@/shared/types';
 import { format, parseISO, isToday, isYesterday, startOfWeek, endOfWeek, getWeek, isValid, startOfDay, endOfDay } from 'date-fns';
 import { formatCurrency } from '@/shared/utils/dateUtils';
 import { Search } from '@/shared/ui';
@@ -14,9 +15,7 @@ type GroupedTransactions = {
     transactions: Transaction[];
 }[];
 
-export const TransactionList: FC<{
-    viewMode?: TransactionViewMode;
-}> = ({ viewMode = 'list' }) => {
+export const TransactionList: FC = () => {
     const { 
         handleTransactionClick, 
         transactions, 
@@ -135,8 +134,6 @@ export const TransactionList: FC<{
         <div className="space-y-4">
             <AnimatePresence>
                 {groupedTransactions.map(group => {
-                    const isList = viewMode === 'list';
-
                     return (
                         <motion.div 
                             key={group.date}
@@ -144,21 +141,20 @@ export const TransactionList: FC<{
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: 20 }}
                             transition={{ duration: 0.3 }}
-                            className={isList ? "bg-slate-800/20 rounded-xl" : ""}
+                            className="bg-slate-800/20 rounded-xl"
                         >
-                            <header className={`p-3 border-b border-slate-700/50 ${isList ? 'sticky top-[70px] md:top-[105px] bg-slate-800/80 backdrop-blur-sm z-10' : ''}`}>
+                            <header className="p-3 border-b border-slate-700/50 sticky top-[70px] md:top-[105px] bg-slate-800/80 backdrop-blur-sm z-10">
                                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                                     <h3 className="font-bold text-white text-md truncate">{group.date}</h3>
                                     <p className="text-xs text-slate-400 sm:text-right">Gesamt: {formatCurrency(group.total)}</p>
                                 </div>
                             </header>
-                            <div className={isList ? "p-2 space-y-1" : "grid grid-cols-1 sm:grid-cols-2 gap-3 p-2"}>
+                            <div className="p-2 space-y-1">
                                 {group.transactions.map(t => (
                                     <StandardTransactionItem
                                         key={t.id}
                                         transaction={t}
                                         onClick={handleTransactionClick}
-                                        viewMode={viewMode}
                                         showSublineInList='category'
                                         density='normal'
                                     />

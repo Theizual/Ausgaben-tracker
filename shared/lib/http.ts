@@ -3,6 +3,9 @@
 
 
 
+
+
+
 import type { Category, Tag, User, RecurringTransaction, UserSetting } from '../types';
 import { withRetry } from './retry';
 
@@ -110,50 +113,50 @@ function normalizeApi(resp: ApiResponse): ApiResponse {
 
   const categories = norm(resp.categories).map((c: any) => ({
     ...c,
-    isDeleted: asBool(c?.isDeleted, false),
-    version: Number(c?.version) || 0,
+    isDeleted: asBool(c.isDeleted, false),
+    version: Number(c.version) || 0,
   }));
 
   const tags = norm(resp.tags).map((t: any) => ({
     ...t,
-    isDeleted: asBool(t?.isDeleted, false),
-    version: Number(t?.version) || 0,
+    isDeleted: asBool(t.isDeleted, false),
+    version: Number(t.version) || 0,
   }));
 
   const users = norm(resp.users).map((u: any) => ({
     ...u,
-    isDeleted: asBool(u?.isDeleted, false),
-    version: Number(u?.version) || 0,
+    isDeleted: asBool(u.isDeleted, false),
+    version: Number(u.version) || 0,
   }));
 
   const recurring = norm(resp.recurring).map((r: any) => ({
     ...r,
-    isDeleted: asBool(r?.isDeleted, false),
-    active: asBool(r?.active, true),
-    version: Number(r?.version) || 0,
+    isDeleted: asBool(r.isDeleted, false),
+    active: asBool(r.active, true),
+    version: Number(r.version) || 0,
   }));
 
   const transactions = norm(resp.transactions).map((tx: any) => {
-    const tagIds = Array.isArray(tx?.tagIds)
+    const tagIds = Array.isArray(tx.tagIds)
       ? tx.tagIds
-      : (typeof tx?.tagIds === 'string'
+      : (typeof tx.tagIds === 'string'
           ? tx.tagIds.split(',').map((t: string) => t.trim()).filter(Boolean)
           : []);
 
     return {
       ...tx,
       tagIds,
-      isDeleted: asBool(tx?.isDeleted, false),
-      version: Number(tx?.version) || 0,
-      createdBy: tx?.createdBy ?? tx?.userId ?? '',
+      isDeleted: asBool(tx.isDeleted, false),
+      version: Number(tx.version) || 0,
+      createdBy: tx.createdBy ?? tx.userId ?? '',
     };
   });
 
   const userSettings = norm(resp.userSettings).map((s: any) => ({
     ...s,
-    key: s?.key ?? s?.settingKey ?? '',
-    value: s?.value ?? s?.settingValue ?? '',
-    version: Number(s?.version) || 0,
+    key: s.key ?? s.settingKey ?? '',
+    value: s.value ?? s.settingValue ?? '',
+    version: Number(s.version) || 0,
   }));
 
   return { categories, tags, users, recurring, transactions, userSettings };
@@ -172,8 +175,8 @@ function enrich(resp: ApiResponse) {
       category,                // kann null sein → UI prüft mit Null-Check
       user,
       tags: fullTags,          // ohne nulls
-      hasActiveCategory: !!(category && !category.isDeleted),
-      activeTags: fullTags.filter(t => !t.isDeleted),
+      hasActiveCategory: !!(category && !(category as any).isDeleted),
+      activeTags: fullTags.filter(t => !(t as any).isDeleted),
     };
   });
 

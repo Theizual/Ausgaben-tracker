@@ -3,7 +3,6 @@ import { toast } from 'react-hot-toast';
 import useLocalStorage from '@/shared/hooks/useLocalStorage';
 import type { Category, Transaction, RecurringTransaction, Tag, User, UserSetting, Group } from '@/shared/types';
 import { apiGet, apiPost, HttpError } from '@/shared/lib/http';
-import { INITIAL_GROUPS } from '@/constants';
 
 export interface SyncProps {
     rawCategories: Category[];

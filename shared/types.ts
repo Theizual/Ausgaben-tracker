@@ -9,6 +9,19 @@ export interface User {
   conflicted?: boolean;
 }
 
+export interface Group {
+  id: string;
+  name: string;
+  sortIndex: number;
+  icon?: string;
+  color?: string;
+  isDefault?: boolean;
+  lastModified: string; // ISO string
+  isDeleted?: boolean;
+  version: number;
+  conflicted?: boolean;
+}
+
 export interface Tag {
   id: string;
   name: string;
@@ -47,6 +60,7 @@ export interface Transaction {
   conflicted?: boolean;
   createdBy?: string;
   isDemo?: boolean;
+  transactionGroupId?: string;
 }
 
 export interface RecurringTransaction {
@@ -68,7 +82,7 @@ export interface RecurringTransaction {
 
 export interface UserSetting {
   userId: string;
-  key: 'visibleGroups' | 'groupColors' | 'categoryConfiguration';
+  key: 'groupColors' | 'categoryConfiguration' | 'visibleGroups';
   value: string; // Comma-separated list for visibleGroups, JSON string for groupColors/categoryConfiguration
   lastModified: string;
   version: number;
@@ -81,4 +95,4 @@ export type TransactionViewMode = 'list' | 'grid';
 export type PeriodType = 'last3Months' | 'month' | 'year' | 'custom';
 export type QuickFilterId = 'current' | 'month' | 'all';
 export type CategoryId = string;
-export type SettingsTab = 'general' | 'display' | 'users' | 'budget';
+export type SettingsTab = 'general' | 'categories' | 'groups' | 'users' | 'budget';

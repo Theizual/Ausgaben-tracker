@@ -1,5 +1,5 @@
 
-import React, { FC } from 'react';
+import React from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X } from './Icons';
 import { useEscapeKey } from '@/shared/hooks/useEscapeKey';
@@ -13,14 +13,21 @@ const modalSizeClasses = {
   '3xl': 'max-w-3xl',
 };
 
-export const Modal: FC<{ 
+export const Modal = ({ 
+    isOpen, 
+    onClose, 
+    title, 
+    size = 'lg', 
+    footer, 
+    children 
+}: { 
     isOpen: boolean, 
     onClose: () => void, 
     title: string, 
     size?: keyof typeof modalSizeClasses, 
     footer?: React.ReactNode, 
     children: React.ReactNode 
-}> = ({ isOpen, onClose, title, size = 'lg', footer, children }) => {
+}) => {
     useEscapeKey(onClose);
 
     if (!isOpen) return null;

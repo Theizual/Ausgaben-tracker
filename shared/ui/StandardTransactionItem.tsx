@@ -1,16 +1,17 @@
 
+
+
 import React, { FC, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
-import type { Transaction, User, TransactionViewMode } from '@/shared/types';
+import type { Transaction, User } from '@/shared/types';
 import { format, parseISO, formatCurrency } from '@/shared/utils/dateUtils';
-import { iconMap, FlaskConical } from '@/shared/ui';
+import { iconMap, FlaskConical, Link } from '@/shared/ui';
 import { TagPill } from '@/shared/ui';
 
 export interface StandardTransactionItemProps {
     transaction: Transaction;
     onClick: (transaction: Transaction) => void;
-    viewMode?: TransactionViewMode;
     density?: 'normal' | 'compact';
     showSublineInList?: 'category' | 'date';
 }
@@ -18,7 +19,6 @@ export interface StandardTransactionItemProps {
 const StandardTransactionItem: FC<StandardTransactionItemProps> = ({
     transaction,
     onClick,
-    viewMode = 'list',
     density = 'compact',
     showSublineInList = 'category',
 }) => {
@@ -33,6 +33,7 @@ const StandardTransactionItem: FC<StandardTransactionItemProps> = ({
     const color = category.color;
     const isCompact = density === 'compact';
     const isDemo = transaction.isDemo;
+    const isGrouped = !!transaction.transactionGroupId;
 
     const userAvatar = createdBy ? (
         <div
@@ -43,62 +44,6 @@ const StandardTransactionItem: FC<StandardTransactionItemProps> = ({
             {createdBy.name.charAt(0).toUpperCase()}
         </div>
     ) : null;
-
-    const cardLayout = (
-        <motion.button
-            layout
-            onClick={() => onClick(transaction)}
-            className={`relative flex gap-3 transition-all duration-200 h-full w-full rounded-xl bg-slate-800 hover:bg-slate-700/50 text-left ${isCompact ? 'p-3' : 'p-4'}`}
-        >
-            {/* Column 1: Icon, Demo, User */}
-            <div className={`flex flex-col items-center justify-between flex-shrink-0 ${isCompact ? 'w-9 py-0.5' : 'w-10 py-1'}`}>
-                <div
-                    className={`rounded-full flex items-center justify-center flex-shrink-0 ${isCompact ? 'w-9 h-9' : 'w-10 h-10'}`}
-                    style={{ backgroundColor: color }}
-                    title={category?.name}
-                >
-                    <Icon className={`text-white ${isCompact ? 'h-4 w-4' : 'h-5 w-5'}`} />
-                </div>
-                
-                <div className="flex flex-col items-center gap-1.5">
-                    {isDemo && (
-                        <span className="flex items-center gap-1 bg-purple-600 text-white text-xs font-bold px-1.5 py-0.5 rounded-full flex-shrink-0" title="Demo Eintrag">
-                            <FlaskConical className="h-3 w-3" />
-                            DEMO
-                        </span>
-                    )}
-                    {userAvatar}
-                </div>
-            </div>
-    
-            {/* Column 2: Details */}
-            <div className="flex flex-col flex-grow min-w-0">
-                <p className={`font-semibold text-white truncate ${isCompact ? 'text-base' : 'text-lg'}`}>{transaction.description}</p>
-                <p className={`text-slate-400 truncate ${isCompact ? 'text-xs' : 'text-sm'}`}>{category?.name}</p>
-                
-                {transaction.tagIds && transaction.tagIds.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-auto pt-2">
-                        {transaction.tagIds.slice(0, 3).map(id => {
-                            const tagName = tagMap.get(id);
-                            if (!tagName) return null;
-                            return (
-                                <TagPill
-                                    key={id}
-                                    tagName={tagName}
-                                    size="sm"
-                                />
-                            );
-                        })}
-                    </div>
-                )}
-            </div>
-    
-            {/* Column 3: Amount */}
-            <div className="flex flex-col items-end justify-start flex-shrink-0">
-                <p className={`font-bold text-white text-right ${isCompact ? 'text-lg' : 'text-xl'}`}>{formatCurrency(transaction.amount)}</p>
-            </div>
-        </motion.button>
-    );
     
     const sublineText = showSublineInList === 'category'
         ? category.name
@@ -122,6 +67,11 @@ const StandardTransactionItem: FC<StandardTransactionItemProps> = ({
                         <span className="flex items-center gap-1 bg-purple-600 text-white text-xs font-bold px-1.5 py-0.5 rounded-full flex-shrink-0" title="Demo Eintrag">
                              <FlaskConical className="h-3 w-3" />
                              DEMO
+                        </span>
+                    )}
+                    {isGrouped && (
+                         <span title="Teil einer Transaktionsgruppe">
+                             <Link className="h-3 w-3 text-slate-500" />
                         </span>
                     )}
                     <p className={`font-semibold text-white truncate ${isCompact ? 'text-sm' : ''}`}>{transaction.description}</p>
@@ -154,7 +104,7 @@ const StandardTransactionItem: FC<StandardTransactionItemProps> = ({
         </motion.button>
     );
     
-    return viewMode === 'grid' ? cardLayout : listLayout;
+    return listLayout;
 };
 
 export default StandardTransactionItem;

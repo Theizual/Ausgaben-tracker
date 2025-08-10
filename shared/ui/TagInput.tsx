@@ -55,8 +55,8 @@ const TagInput: FC<{
 
     return (
         <div className="relative">
-            <div className="flex flex-wrap items-center gap-2 w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-1.5 focus-within:ring-2 focus-within:ring-rose-500">
-                <Tag className="h-5 w-5 text-slate-400 shrink-0" />
+            <div className="flex flex-wrap items-center gap-1.5 w-full bg-slate-700 border border-slate-600 rounded-lg px-2 py-1 focus-within:ring-2 focus-within:ring-rose-500">
+                <Tag className="h-4 w-4 text-slate-400 shrink-0" />
                 <AnimatePresence>
                     {tags.map(tag => (
                         <motion.div
@@ -66,7 +66,7 @@ const TagInput: FC<{
                             animate={{ opacity: 1, scale: 1 }}
                             exit={{ opacity: 0, scale: 0.8 }}
                             transition={{ duration: 0.15 }}
-                            className="flex items-center gap-1.5 bg-rose-500 text-white text-sm font-medium pl-2.5 pr-1 py-1 rounded-full"
+                            className="flex items-center gap-1 bg-rose-500 text-white text-xs font-medium pl-2 pr-1 py-0.5 rounded-full"
                         >
                             <Tag className="h-3 w-3" />
                             <span>{tag}</span>

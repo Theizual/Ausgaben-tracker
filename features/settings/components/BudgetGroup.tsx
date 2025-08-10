@@ -11,8 +11,8 @@ interface BudgetGroupProps {
     categoryBudgetInputs: Record<string, string>;
     onGroupBudgetChange: (value: string) => void;
     onIndividualBudgetChange: (category: Category, value: string) => void;
-    onGroupBudgetBlur: () => void;
-    onIndividualBudgetBlur: (categoryId: string) => void;
+    onGroupBudgetBlur: (value: string) => void;
+    onIndividualBudgetBlur: (categoryId: string, value: string) => void;
     isExpanded: boolean;
     onToggle: () => void;
     focusedInputRef: React.MutableRefObject<string | null>;
@@ -32,28 +32,32 @@ export const BudgetGroup: FC<BudgetGroupProps> = ({
     onToggle,
     focusedInputRef
 }) => {
+    const GroupIcon = getIconComponent(group.icon);
+    
     return (
-        <div className="bg-slate-700/30 p-2.5 rounded-lg">
-            <button onClick={onToggle} className="w-full flex justify-between items-center gap-2 text-left">
-                <h4 className="text-sm font-semibold text-white truncate">{group.name}</h4>
-                <div className="flex items-center gap-2">
-                    <div className="w-full sm:w-36 flex-shrink-0 flex items-center bg-slate-700 border border-slate-600 rounded-lg focus-within:ring-2 focus-within:ring-rose-500 px-3" onClick={e => e.stopPropagation()}>
-                        <span className="text-slate-400 text-sm">€</span>
-                        <input
-                            type="text"
-                            inputMode="decimal"
-                            value={groupBudgetInputs[group.id] || ''}
-                            onChange={e => onGroupBudgetChange(e.currentTarget.value)}
-                            onFocus={() => focusedInputRef.current = `group-${group.id}`}
-                            onBlur={onGroupBudgetBlur}
-                            onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
-                            placeholder="Gesamt"
-                            className="w-full bg-transparent border-none pl-2 py-2 text-right text-white text-sm font-semibold placeholder-slate-500 focus:outline-none"
-                        />
-                    </div>
+        <div className="bg-slate-700/30 p-2 rounded-lg">
+            <div className="flex justify-between items-center gap-2">
+                <button onClick={onToggle} className="flex items-center gap-3 text-left flex-grow rounded-md -m-2 p-2 min-w-0">
                     <ChevronDown className={`h-5 w-5 text-slate-400 transition-transform flex-shrink-0 ${isExpanded ? 'rotate-180' : ''}`} />
+                    <GroupIcon className="h-5 w-5 flex-shrink-0" style={{ color: group.color }} />
+                    <h4 className="text-sm font-semibold text-white truncate">{group.name}</h4>
+                </button>
+                <div className="w-full sm:w-36 flex-shrink-0 flex items-center bg-slate-700 border border-slate-600 rounded-lg focus-within:ring-2 focus-within:ring-rose-500 px-3" onClick={e => e.stopPropagation()}>
+                    <span className="text-slate-400 text-sm">€</span>
+                    <input
+                        id={`group-${group.id}`}
+                        type="text"
+                        inputMode="decimal"
+                        value={groupBudgetInputs[group.id] || ''}
+                        onChange={e => onGroupBudgetChange(e.currentTarget.value)}
+                        onFocus={() => focusedInputRef.current = `group-${group.id}`}
+                        onBlur={(e) => onGroupBudgetBlur(e.currentTarget.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
+                        placeholder="Gesamt"
+                        className="w-full bg-transparent border-none pl-2 py-1.5 text-right text-white text-sm font-semibold placeholder-slate-500 focus:outline-none"
+                    />
                 </div>
-            </button>
+            </div>
             <AnimatePresence>
                 {isExpanded && (
                     <motion.div
@@ -62,12 +66,12 @@ export const BudgetGroup: FC<BudgetGroupProps> = ({
                         exit={{ opacity: 0, height: 0, marginTop: 0 }}
                         className="overflow-hidden"
                     >
-                        <div className="pt-2 border-t border-slate-600/50 space-y-2">
+                        <div className="pt-2 border-t border-slate-600/50 space-y-1.5">
                             {categories.map(category => {
                                 const Icon = getIconComponent(category.icon);
                                 return (
                                     <div key={category.id} className="flex flex-col">
-                                        <div className="flex justify-between items-center text-sm mb-1">
+                                        <div className="flex justify-between items-center text-sm mb-0.5">
                                             <div className="flex items-center gap-3 truncate">
                                                 <Icon className="h-4 w-4 flex-shrink-0" style={{ color: category.color }} />
                                                 <span className="font-medium text-white truncate">{category.name}</span>
@@ -75,15 +79,16 @@ export const BudgetGroup: FC<BudgetGroupProps> = ({
                                             <div className="w-28 flex-shrink-0 ml-2 flex items-center bg-slate-700 border border-slate-600 rounded-lg focus-within:ring-2 focus-within:ring-rose-500 px-3">
                                                  <span className="text-slate-400 text-sm">€</span>
                                                 <input
+                                                    id={`cat-${category.id}`}
                                                     type="text"
                                                     inputMode="decimal"
                                                     value={categoryBudgetInputs[category.id] ?? ''}
                                                     onChange={e => onIndividualBudgetChange(category, e.target.value)}
                                                     onFocus={() => focusedInputRef.current = `cat-${category.id}`}
-                                                    onBlur={() => onIndividualBudgetBlur(category.id)}
+                                                    onBlur={(e) => onIndividualBudgetBlur(category.id, e.currentTarget.value)}
                                                     onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
                                                     placeholder="Budget"
-                                                     className="w-full bg-transparent border-none pl-2 py-2 text-right text-white text-sm placeholder-slate-500 focus:outline-none"
+                                                     className="w-full bg-transparent border-none pl-2 py-1.5 text-right text-white text-sm placeholder-slate-500 focus:outline-none"
                                                 />
                                             </div>
                                         </div>

@@ -1,6 +1,6 @@
 
 
-import React, { useState, useMemo, FC } from 'react';
+import React, { useState, useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
 import { isSameMonth, isSameDay, parseISO, startOfMonth, endOfMonth } from 'date-fns';
@@ -11,7 +11,7 @@ import { MonthlySummary } from './ui/MonthlySummary';
 import { MonthlyCategoryBreakdown } from './ui/MonthlyCategoryBreakdown';
 import { BudgetBurndownChart } from './ui/BudgetBurndownChart';
 
-const CalendarPlaceholder: FC = () => (
+const CalendarPlaceholder = () => (
     <motion.div
         key="placeholder-panel"
         initial={{ opacity: 0, scale: 0.95 }}
@@ -26,7 +26,7 @@ const CalendarPlaceholder: FC = () => (
     </motion.div>
 );
 
-const StatisticsPage: FC = () => {
+const StatisticsPage = () => {
     const { 
         transactions,
         statisticsCurrentMonth,
@@ -34,8 +34,6 @@ const StatisticsPage: FC = () => {
         statisticsSelectedDay,
         setStatisticsSelectedDay,
         categoryMap,
-        visibleCategoryGroups,
-        groupColors,
     } = useApp();
 
     const monthlyTransactions = useMemo(() => {
@@ -112,8 +110,6 @@ const StatisticsPage: FC = () => {
                     transactions={monthlyTransactions} 
                     categoryMap={categoryMap}
                     currentMonth={statisticsCurrentMonth}
-                    visibleCategoryGroups={visibleCategoryGroups}
-                    groupColors={groupColors}
                  />
             </div>
             <MonthlyCategoryBreakdown

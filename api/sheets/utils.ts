@@ -1,7 +1,7 @@
 export const HEADERS = {
   Groups:       ['id','name','sortIndex','lastModified','version','isDeleted', 'color', 'isDefault'],
   Categories:   ['id','name','color','group','budget','icon','lastModified','version','isDeleted', 'groupId'],
-  Transactions: ['id','amount','description','categoryId','date','tagIds','lastModified','isDeleted','recurringId','version','userId'],
+  Transactions: ['id','amount','description','categoryId','date','tagIds','lastModified','isDeleted','recurringId','version','userId','transactionGroupId'],
   Recurring:    ['id','amount','description','categoryId','frequency','dayOfMonth','startDate','endDate','lastProcessedDate','active','lastModified','version','isDeleted'],
   Tags:         ['id','name','color','lastModified','version','isDeleted'],
   Users:        ['id','name','color','lastModified','version','isDeleted'],
@@ -49,12 +49,8 @@ export function rowsToObjects(sheet: SheetName, rows: any[][] = []): any[] {
       const obj: Record<string, any> = {};
       headers.forEach((h, i) => { obj[h] = r[i] ?? ''; });
       
-      // Abwärtskompatibilität: Priorisiere groupId, falle zurück auf group
-      if (sheet === 'Categories') {
-          if (!obj.groupId && obj.group) {
-              obj.groupId = obj.group;
-          }
-      }
+      // Abwärtskompatibilität: Das Frontend (useCategories Hook) löst jetzt `group` (Name) nach `groupId` auf.
+      // Wir behalten das `group`-Feld bei, falls es existiert, aber kopieren es nicht mehr in `groupId`.
 
       // Backwards-Compat: settingKey/settingValue auf key/value mappen
       if (sheet === 'UserSettings') {

@@ -1,33 +1,33 @@
 
 
-import React, { useState, useCallback, useEffect, FC } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
 import type { SettingsTab } from '@/shared/types';
-import { Settings, X, LayoutGrid, Target, SlidersHorizontal, Users, ChevronLeft, ChevronRight } from '@/shared/ui';
+import { Settings, X, LayoutGrid, Target, SlidersHorizontal, Users, BookOpen } from '@/shared/ui';
 import { GeneralSettings } from './components/GeneralSettings';
 import { UserSettings } from './components/UserSettings';
 import { BudgetSettings } from './components/BudgetSettings';
-import { DisplaySettings } from './components/DisplaySettings';
+import { GroupSettings } from './components/GroupSettings';
 import { TagManagerModal } from './components/TagManagerModal';
-import { CategoryLibraryModal } from './components/CategoryLibraryModal';
+import { CategoryLibrarySettings } from './components/CategoryLibraryModal';
 
 const ANIMATION_CONFIG = {
     MODAL_SPRING: { type: 'spring' as const, bounce: 0.2, duration: 0.4 },
     CONTENT_FADE: { duration: 0.2 },
 };
 
-const TABS: { id: SettingsTab; label: string; icon: FC<any>; }[] = [
+const TABS: { id: SettingsTab; label: string; icon: React.FC<any>; }[] = [
     { id: 'general', label: 'Allgemein', icon: SlidersHorizontal }, 
+    { id: 'categories', label: 'Kategorien', icon: BookOpen },
     { id: 'budget', label: 'Budget', icon: Target }, 
-    { id: 'display', label: 'Anzeige', icon: LayoutGrid },
+    { id: 'groups', label: 'Gruppen', icon: LayoutGrid },
     { id: 'users', label: 'Benutzer', icon: Users },
 ];
 
-const SettingsModal: FC<{ isOpen: boolean; onClose: () => void; initialTab?: SettingsTab; }> = ({ isOpen, onClose, initialTab }) => {
+const SettingsModal = ({ isOpen, onClose, initialTab }: { isOpen: boolean; onClose: () => void; initialTab?: SettingsTab; }) => {
     const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab || 'general');
     const [isTagManagerOpen, setTagManagerOpen] = useState(false);
-    const [isCategoryLibraryOpen, setCategoryLibraryOpen] = useState(false);
 
     useEffect(() => {
         if (isOpen) {
@@ -36,10 +36,9 @@ const SettingsModal: FC<{ isOpen: boolean; onClose: () => void; initialTab?: Set
     }, [isOpen, initialTab]);
 
     const handleEscape = useCallback(() => {
-        if (isCategoryLibraryOpen) setCategoryLibraryOpen(false);
-        else if (isTagManagerOpen) setTagManagerOpen(false);
+        if (isTagManagerOpen) setTagManagerOpen(false);
         else onClose();
-    }, [isCategoryLibraryOpen, isTagManagerOpen, onClose]);
+    }, [isTagManagerOpen, onClose]);
     
     useEffect(() => {
         if (!isOpen) return;
@@ -50,11 +49,24 @@ const SettingsModal: FC<{ isOpen: boolean; onClose: () => void; initialTab?: Set
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [isOpen, handleEscape]);
 
+    // Verhindert das Scrollen des Hintergrunds, wenn das Modal geöffnet ist
+    useEffect(() => {
+        if (isOpen) {
+            document.body.style.overflow = 'hidden';
+        }
+        // Beim Schließen des Modals wird das Scrollen wiederhergestellt
+        return () => {
+            document.body.style.overflow = '';
+        };
+    }, [isOpen]);
+
+
     const renderContent = () => {
         switch (activeTab) {
-            case 'general': return <GeneralSettings onOpenTagManager={() => setTagManagerOpen(true)} onOpenCategoryLibrary={() => setCategoryLibraryOpen(true)} />;
+            case 'general': return <GeneralSettings onOpenTagManager={() => setTagManagerOpen(true)} />;
+            case 'categories': return <CategoryLibrarySettings />;
             case 'budget': return <BudgetSettings />;
-            case 'display': return <DisplaySettings />;
+            case 'groups': return <GroupSettings />;
             case 'users': return <UserSettings />;
             default: return null;
         }
@@ -65,7 +77,7 @@ const SettingsModal: FC<{ isOpen: boolean; onClose: () => void; initialTab?: Set
     return (
         <>
             <motion.div 
-                className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50" 
+                className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50 p-4" 
                 onClick={onClose} 
                 initial={{ opacity: 0 }} 
                 animate={{ opacity: 1 }} 
@@ -85,21 +97,24 @@ const SettingsModal: FC<{ isOpen: boolean; onClose: () => void; initialTab?: Set
                            <div className="p-4 hidden md:block">
                              <h2 className="text-lg font-bold text-white">Einstellungen</h2>
                            </div>
-                            <nav className="flex flex-row md:flex-col p-2 md:p-4 space-x-1 md:space-x-0 md:space-y-1 overflow-x-auto custom-scrollbar">
+                            <nav className="flex flex-row md:flex-col p-2 md:p-4 md:space-y-1 justify-around md:justify-start">
                                 {TABS.map(tab => {
                                     const isActive = activeTab === tab.id;
                                     return (
                                         <button 
                                             key={tab.id} 
                                             onClick={() => setActiveTab(tab.id)} 
-                                            className={`flex items-center gap-3 md:w-full text-left p-3 rounded-lg text-sm font-semibold transition-colors flex-shrink-0 ${
+                                            className={`flex items-center justify-center md:justify-start gap-3 md:w-full text-left p-3 rounded-lg text-sm font-semibold transition-colors ${
                                                 isActive 
                                                 ? 'bg-rose-500/20 text-rose-300' 
                                                 : 'text-slate-400 hover:bg-slate-700/50 hover:text-white'
                                             }`}
+                                            title={tab.label}
+                                            aria-label={tab.label}
+                                            aria-selected={isActive}
                                         >
-                                            <tab.icon className="h-5 w-5"/>
-                                            <span>{tab.label}</span>
+                                            <tab.icon className="h-5 w-5 flex-shrink-0"/>
+                                            <span className={isActive ? 'inline' : 'hidden md:inline'}>{tab.label}</span>
                                         </button>
                                     );
                                 })}
@@ -123,14 +138,6 @@ const SettingsModal: FC<{ isOpen: boolean; onClose: () => void; initialTab?: Set
                         onClose={() => setTagManagerOpen(false)} 
                     />
                 )}
-            </AnimatePresence>
-            <AnimatePresence>
-                 {isCategoryLibraryOpen && (
-                    <CategoryLibraryModal 
-                        isOpen={isCategoryLibraryOpen} 
-                        onClose={() => setCategoryLibraryOpen(false)} 
-                    />
-                 )}
             </AnimatePresence>
         </>
     );

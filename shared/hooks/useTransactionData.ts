@@ -1,11 +1,18 @@
 
 
+
+
+
+
+
+
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { toast } from 'react-hot-toast';
 import type { Transaction, RecurringTransaction, Tag, CategoryId } from '@/shared/types';
 import { addMonths, addYears, isSameDay, parseISO, isWithinInterval, isValid, format, subDays, startOfMonth, endOfMonth } from 'date-fns';
 import { generateUUID } from '@/shared/utils/uuid';
-import { INITIAL_CATEGORIES, FIXED_COSTS_GROUP_ID } from '@/constants';
+import { FIXED_COSTS_GROUP_ID } from '@/constants';
+import { getCategories } from '@/shared/config/taxonomy';
 import type { DemoData } from '@/processes/onboarding/model/demo.seed';
 
 // --- CONSTANTS & HELPERS ---
@@ -69,11 +76,12 @@ const createInitialRecurringTransactions = (): RecurringTransaction[] => {
     const startDate = now.toISOString().split('T')[0];
     const lastModified = now.toISOString();
 
-    return INITIAL_CATEGORIES
-        .filter(cat => cat.groupId === FIXED_COSTS_GROUP_ID && cat.budget && cat.budget > 0)
+    // Use the new taxonomy as the source of truth, create entries with amount 0
+    return getCategories()
+        .filter(cat => cat.groupId === FIXED_COSTS_GROUP_ID)
         .map(cat => ({
             id: `rec_${cat.id}`, // A predictable ID
-            amount: cat.budget!,
+            amount: 0,
             description: cat.name,
             categoryId: cat.id,
             frequency: 'monthly' as const,
@@ -216,7 +224,8 @@ export const useTransactionData = ({ showConfirmation, closeTransactionDetail, c
         const totalSpentBefore = selectTotalSpentForMonth(new Date());
         const now = new Date().toISOString();
         const tagIds = getOrCreateTagIds(commonData.tags);
-        const newTransactions: Transaction[] = transactionsToCreate.map(t => ({ ...t, id: generateUUID(), date: now, lastModified: now, version: 1, categoryId: commonData.categoryId, tagIds, createdBy: currentUserId || undefined }));
+        const transactionGroupId = generateUUID();
+        const newTransactions: Transaction[] = transactionsToCreate.map(t => ({ ...t, id: generateUUID(), date: now, lastModified: now, version: 1, categoryId: commonData.categoryId, tagIds, createdBy: currentUserId || undefined, transactionGroupId }));
         dispatch({ type: 'ADD_MULTIPLE_TRANSACTIONS', payload: newTransactions });
         showConfirmation({ transactions: newTransactions, totalSpentBefore });
         addRecentCategory(commonData.categoryId);

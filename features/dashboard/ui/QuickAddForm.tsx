@@ -1,11 +1,10 @@
 
-
 import React, { useState, useMemo, FC } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { useApp } from '@/contexts/AppContext';
 import type { Transaction, Category, ViewMode, CategoryId, Tag, Group } from '@/shared/types';
-import { Plus, Coins, Button } from '@/shared/ui';
+import { Plus, Coins, Button, Info } from '@/shared/ui';
 import { CategoryButtons, TagInput, AvailableTags } from '@/shared/ui';
 import { MoreCategoriesModal } from './MoreCategoriesModal';
 import { parseISO } from 'date-fns';
@@ -34,11 +33,12 @@ export const QuickAddForm: FC = () => {
         const sortedTransactions = [...transactions].sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime());
         const recentTagIds = new Set<string>();
 
+        // Limit to 6 to reduce vertical space, usually fits in 2 lines
         for (const transaction of sortedTransactions) {
-            if (recentTagIds.size >= 10) break;
+            if (recentTagIds.size >= 6) break;
             if (transaction.tagIds) {
                 for (const tagId of transaction.tagIds) {
-                    if (recentTagIds.size >= 10) break;
+                    if (recentTagIds.size >= 6) break;
                     recentTagIds.add(tagId);
                 }
             }
@@ -125,13 +125,13 @@ export const QuickAddForm: FC = () => {
 
     return (
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-            <div className="bg-slate-800/50 p-6 rounded-2xl border border-slate-700/50">
-                <h3 className="text-lg font-bold text-white mb-4">Ausgabe hinzufügen</h3>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    <div className="flex flex-col sm:flex-row gap-3">
-                        <div className="sm:w-48 flex-shrink-0">
+            <div className="bg-slate-800/50 p-3 rounded-2xl border border-slate-700/50">
+                <h3 className="text-lg font-bold text-white mb-2">Schnell hinzufügen</h3>
+                <form onSubmit={handleSubmit} className="space-y-2.5">
+                    <div className="flex flex-col sm:flex-row gap-2">
+                        <div className="sm:w-36 flex-shrink-0">
                             <div className="flex items-center bg-slate-700 border border-slate-600 rounded-lg focus-within:ring-2 focus-within:ring-rose-500 px-3">
-                                <Coins className="h-5 w-5 text-slate-400 shrink-0" />
+                                <Coins className="h-4 w-4 text-slate-400 shrink-0" />
                                 <input
                                     id="amount"
                                     type="text"
@@ -139,7 +139,7 @@ export const QuickAddForm: FC = () => {
                                     value={amount}
                                     onChange={e => setAmount(e.target.value)}
                                     placeholder="Betrag"
-                                    className="w-full bg-transparent border-none pl-2 pr-0 py-2.5 text-white placeholder-slate-500 focus:outline-none"
+                                    className="w-full bg-transparent border-none pl-2 pr-0 py-1.5 text-white placeholder-slate-500 focus:outline-none text-sm"
                                     required
                                 />
                             </div>
@@ -150,60 +150,66 @@ export const QuickAddForm: FC = () => {
                                 type="text"
                                 value={description}
                                 onChange={e => setDescription(e.target.value)}
-                                placeholder="Beschreibung..."
-                                className="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-rose-500"
+                                placeholder="Beschreibung (mehrere mit Komma trennen)..."
+                                className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-1.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-rose-500 text-sm"
                                 required
                             />
-                             <p className="text-xs text-slate-400 mt-1.5 px-1">Tipp: Mehrere Artikel mit Komma trennen für eine Aufteilung.</p>
                         </div>
                     </div>
                     
-                    <div className="pt-2 space-y-4">
-                         <h4 className="text-sm font-semibold text-white mb-3">Kategorie wählen:</h4>
-                        {favoriteCategories.length > 0 && (
-                            <div>
-                                <h5 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2 ml-1">Favoriten</h5>
-                                <CategoryButtons 
-                                    categories={favoriteCategories}
-                                    selectedCategoryId={categoryId}
-                                    onSelectCategory={handleSelectCategory}
-                                    showGroups={false}
-                                    favoriteIds={favoriteIds}
-                                    onToggleFavorite={toggleFavorite}
-                                />
-                            </div>
-                        )}
-                        {recentCategories.length > 0 && (
-                             <div>
-                                <h5 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2 ml-1">Zuletzt verwendet</h5>
-                                <CategoryButtons 
-                                    categories={recentCategories}
-                                    selectedCategoryId={categoryId}
-                                    onSelectCategory={handleSelectCategory}
-                                    showGroups={false}
-                                    favoriteIds={favoriteIds}
-                                    onToggleFavorite={toggleFavorite}
-                                />
-                            </div>
-                        )}
-                        {favoriteCategories.length === 0 && (
-                            <p className="text-sm text-slate-500 p-2 bg-slate-700/50 rounded-lg">
-                               Klicke auf den Stern ⭐ bei einer Kategorie, um sie als Favorit zu speichern.
-                            </p>
-                        )}
-                        <div className="flex justify-end pt-2">
+                    <div className="space-y-2.5">
+                        <div className="flex items-center gap-2 mb-1.5 ml-1">
+                            <h5 className="text-xs font-bold uppercase tracking-wider text-slate-500">Kategorie wählen</h5>
+                            {favoriteCategories.length === 0 && recentCategories.length === 0 && (
+                                <div className="relative group flex items-center">
+                                    <Info className="h-4 w-4 text-slate-500 cursor-help" />
+                                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 bg-slate-900 text-slate-300 text-xs rounded py-1.5 px-2.5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 shadow-lg border border-slate-700">
+                                        Klicke auf den Stern ⭐ bei einer Kategorie, um sie als Favorit zu speichern und hier schneller darauf zuzugreifen.
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                         <div className="space-y-2">
+                            {favoriteCategories.length > 0 && (
+                                <div>
+                                    <h5 className="text-xs font-bold uppercase tracking-wider text-slate-500/80 mb-1.5 ml-1">Favoriten</h5>
+                                    <CategoryButtons 
+                                        categories={favoriteCategories}
+                                        selectedCategoryId={categoryId}
+                                        onSelectCategory={handleSelectCategory}
+                                        showGroups={false}
+                                        favoriteIds={favoriteIds}
+                                        onToggleFavorite={toggleFavorite}
+                                    />
+                                </div>
+                            )}
+                            {recentCategories.length > 0 && (
+                                 <div>
+                                    <h5 className="text-xs font-bold uppercase tracking-wider text-slate-500/80 mb-1.5 ml-1">Zuletzt verwendet</h5>
+                                    <CategoryButtons 
+                                        categories={recentCategories}
+                                        selectedCategoryId={categoryId}
+                                        onSelectCategory={handleSelectCategory}
+                                        showGroups={false}
+                                        favoriteIds={favoriteIds}
+                                        onToggleFavorite={toggleFavorite}
+                                    />
+                                </div>
+                            )}
+                        </div>
+                        <div className="flex justify-end">
                              <Button
                                 type="button"
                                 variant="secondary"
                                 size="sm"
                                 onClick={() => setIsMoreCategoriesModalOpen(true)}
                             >
-                                Alle Kategorien...
+                                Weitere Kategorien...
                             </Button>
                         </div>
                     </div>
 
-                    <div className="space-y-3 pt-4 border-t border-slate-700/50">
+                    <div className="space-y-1.5 pt-2.5 border-t border-slate-700/50">
                         <TagInput 
                             tags={tags} 
                             setTags={setTags}
@@ -213,13 +219,14 @@ export const QuickAddForm: FC = () => {
                             availableTags={recentlyUsedTags}
                             selectedTags={tags}
                             onTagClick={handleTagClick}
+                            size="sm"
                         />
                     </div>
                     
-                    <div className="flex justify-end pt-2">
+                    <div className="flex justify-end pt-1">
                         <button
                             type="submit"
-                            className="w-full sm:w-auto flex-shrink-0 flex items-center justify-center gap-2 bg-gradient-to-r from-rose-500 to-red-600 text-white font-semibold px-6 py-3 rounded-lg shadow-md hover:opacity-90 transition-opacity"
+                            className="w-full sm:w-auto flex-shrink-0 flex items-center justify-center gap-2 bg-gradient-to-r from-rose-500 to-red-600 text-white font-semibold px-5 py-2 rounded-lg shadow-md hover:opacity-90 transition-opacity"
                             aria-label="Ausgabe hinzufügen"
                         >
                             <Plus className="h-5 w-5" />

@@ -1,3 +1,4 @@
+
 import { useReducer, useMemo, useCallback, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import type { UserSetting, Category, Group } from '@/shared/types';
@@ -57,30 +58,27 @@ export const useUserSettings = ({ isDemoModeEnabled }: { isDemoModeEnabled: bool
     const rawUserSettings = useMemo(() => state.settings, [state.settings]);
     const liveUserSettings = useMemo(() => state.settings.filter(s => !s.isDeleted), [state.settings]);
 
-    const getVisibleGroupsForUser = useCallback((userId: string, allGroups: string[]): string[] => {
+    const getVisibleGroupsForUser = useCallback((userId: string): string[] => {
         const setting = liveUserSettings.find(s => s.userId === userId && s.key === 'visibleGroups');
-        if (!setting || !setting.value) {
-            return allGroups; // Default: show all
+        if (setting && setting.value) {
+            return setting.value.split(',').filter(Boolean);
         }
-        const visibleFromSettings = setting.value.split(',');
-        
-        // Ensure the returned groups actually exist in allGroups and maintain the order of allGroups
-        return allGroups.filter(g => visibleFromSettings.includes(g));
+        return [];
     }, [liveUserSettings]);
-
-    const updateVisibleGroups = useCallback((userId: string, visibleGroups: string[]) => {
+    
+    const updateVisibleGroups = useCallback((userId: string, groups: string[]) => {
         const now = new Date().toISOString();
         const existingSetting = rawUserSettings.find(s => s.userId === userId && s.key === 'visibleGroups');
+
         const newSetting: UserSetting = {
             userId,
             key: 'visibleGroups',
-            value: visibleGroups.join(','),
+            value: groups.join(','),
             lastModified: now,
             version: (existingSetting?.version || 0) + 1,
             isDeleted: false,
         };
         dispatch({ type: 'UPDATE_SETTING', payload: newSetting });
-        toast.success("Anzeigeeinstellungen gespeichert.");
     }, [rawUserSettings]);
 
     const getGroupColorsForUser = useCallback((userId: string): Record<string, string> => {
@@ -151,12 +149,12 @@ export const useUserSettings = ({ isDemoModeEnabled }: { isDemoModeEnabled: bool
     return {
         rawUserSettings,
         setUserSettings,
-        getVisibleGroupsForUser,
-        updateVisibleGroups,
         getGroupColorsForUser,
         updateGroupColor,
         setGroupColorsForUser,
         getCategoryConfigurationForUser,
         updateCategoryConfigurationForUser,
+        getVisibleGroupsForUser,
+        updateVisibleGroups,
     };
 };

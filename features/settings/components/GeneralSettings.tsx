@@ -1,6 +1,6 @@
 
 
-import React, { FC } from 'react';
+import React from 'react';
 import { motion } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
 import { Sheet, Wallet, Info, ChevronRight, ToggleSwitch, Trash2, Button } from '@/shared/ui';
@@ -10,10 +10,9 @@ const MotionDiv = motion.div;
 
 const MANAGER_LIST_ITEM_CLASSES = "w-full text-left bg-slate-700/50 hover:bg-slate-700 p-4 rounded-lg transition-colors flex justify-between items-center";
 
-export const GeneralSettings: FC<{
+export const GeneralSettings = ({ onOpenTagManager }: {
     onOpenTagManager: () => void;
-    onOpenCategoryLibrary: () => void;
-}> = ({ onOpenTagManager, onOpenCategoryLibrary }) => {
+}) => {
     const { isAutoSyncEnabled, setIsAutoSyncEnabled, openChangelog, resetAppData } = useApp();
 
     return (
@@ -38,10 +37,6 @@ export const GeneralSettings: FC<{
                     <div className="pt-4 mt-4 border-t border-slate-700/50 space-y-3">
                         <button onClick={onOpenTagManager} className={MANAGER_LIST_ITEM_CLASSES}>
                             <div><span className="font-semibold text-white">Tag-Verwaltung</span><p className="text-xs text-slate-400 mt-1">Bestehende Tags umbenennen oder löschen.</p></div>
-                            <ChevronRight className="h-5 w-5 text-slate-400" />
-                        </button>
-                        <button onClick={onOpenCategoryLibrary} className={MANAGER_LIST_ITEM_CLASSES}>
-                            <div><span className="font-semibold text-white">Kategorien-Bibliothek</span><p className="text-xs text-slate-400 mt-1">Vordefinierte Kategorien zum Setup hinzufügen oder anpassen.</p></div>
                             <ChevronRight className="h-5 w-5 text-slate-400" />
                         </button>
                     </div>

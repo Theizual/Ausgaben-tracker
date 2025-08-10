@@ -1,8 +1,9 @@
-import React, { FC } from 'react';
+
+import React from 'react';
 import { motion } from 'framer-motion';
 import { clsx } from 'clsx';
 
-export const ProgressBar: FC<{ percentage: number; color?: string; className?: string }> = ({ percentage, color = '#22c55e', className = '' }) => (
+export const ProgressBar = ({ percentage, color = '#22c55e', className = '' }: { percentage: number; color?: string; className?: string }) => (
     <div className={clsx('w-full bg-slate-700/50 rounded-full h-2.5 overflow-hidden', className)}>
         <motion.div
             className="h-full rounded-full"

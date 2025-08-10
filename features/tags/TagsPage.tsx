@@ -10,7 +10,7 @@ import { PeriodNavigator } from './ui/PeriodNavigator';
 import { MultiTagPicker } from './ui/MultiTagPicker';
 import { TagDetailView } from './ui/TagDetailView';
 
-const TagsPage: React.FC = () => {
+const TagsPage = () => {
     const { 
         allAvailableTags,
         transactions,

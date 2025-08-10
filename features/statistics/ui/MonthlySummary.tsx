@@ -1,14 +1,13 @@
-
-
 import React, { FC, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
 import type { Transaction } from '@/shared/types';
 import { format, isSameMonth, getDaysInMonth } from 'date-fns';
 import { formatCurrency } from '@/shared/utils/dateUtils';
+import { Home, Wallet, Scale } from '@/shared/ui';
 
 export const MonthlySummary: FC<{ transactions: Transaction[], currentMonth: Date }> = ({ transactions, currentMonth }) => {
-    const { deLocale } = useApp();
+    const { deLocale, totalMonthlyFixedCosts } = useApp();
     const summary = useMemo(() => {
         if (transactions.length === 0) return { total: 0, average: 0 };
 
@@ -33,12 +32,15 @@ export const MonthlySummary: FC<{ transactions: Transaction[], currentMonth: Dat
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="bg-slate-800 p-4 rounded-2xl border border-slate-700"
+            className="bg-slate-800 p-3 rounded-2xl border border-slate-700"
         >
-             <div className="flex flex-row justify-around items-stretch">
+             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-0 md:divide-x md:divide-slate-700/50">
                 {/* Total Expenses */}
-                <div className="text-center flex-1">
-                    <h3 className="text-slate-400 text-sm font-medium">Gesamtausgaben</h3>
+                <div className="text-center md:px-2">
+                    <h3 className="text-slate-400 text-sm font-medium flex justify-center items-center gap-2">
+                        <Wallet className="h-4 w-4 text-amber-700" />
+                        Gesamtausgaben
+                    </h3>
                     <p className="text-2xl font-bold text-white mt-2 truncate" title={formatCurrency(summary.total)}>
                         {formatCurrency(summary.total)}
                     </p>
@@ -47,16 +49,30 @@ export const MonthlySummary: FC<{ transactions: Transaction[], currentMonth: Dat
                     </p>
                 </div>
 
-                {/* Divider */}
-                <div className="w-px bg-slate-700/50 mx-4"></div>
-
                 {/* Daily Average */}
-                <div className="text-center flex-1">
-                    <h3 className="text-slate-400 text-sm font-medium">Tagesdurchschnitt</h3>
+                <div className="text-center md:px-2">
+                     <h3 className="text-slate-400 text-sm font-medium flex justify-center items-center gap-2">
+                        <Scale className="h-4 w-4 text-indigo-400" />
+                        Tagesdurchschnitt
+                    </h3>
                     <p className="text-2xl font-bold text-white mt-2 truncate" title={formatCurrency(summary.average)}>
                         {formatCurrency(summary.average)}
                     </p>
                     <p className="text-slate-500 text-xs mt-1 truncate" title={periodLabel}>
+                        {periodLabel}
+                    </p>
+                </div>
+                
+                 {/* Monthly Fixed Costs */}
+                <div className="text-center md:px-2">
+                    <h3 className="text-slate-400 text-sm font-medium flex justify-center items-center gap-2">
+                        <Home className="h-4 w-4 text-sky-400" />
+                        Monatliche Fixkosten
+                    </h3>
+                    <p className="text-2xl font-bold text-white mt-2 truncate" title={formatCurrency(totalMonthlyFixedCosts)}>
+                        {formatCurrency(totalMonthlyFixedCosts)}
+                    </p>
+                     <p className="text-slate-500 text-xs mt-1 truncate" title={periodLabel}>
                         {periodLabel}
                     </p>
                 </div>
