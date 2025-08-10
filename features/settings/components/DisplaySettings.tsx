@@ -6,7 +6,7 @@ import { useApp } from '../../../contexts/AppContext';
 const MotionDiv = motion.div;
 
 export const DisplaySettings: FC = () => {
-    const { categoryGroups, visibleCategoryGroups, updateVisibleGroups, currentUserId, groupColors, updateGroupColor } = useApp();
+    const { groupNames, visibleCategoryGroups, updateVisibleGroups, currentUserId, groupColors, updateGroupColor } = useApp();
 
     const handleToggleGroup = (groupName: string) => {
         if (!currentUserId) return;
@@ -30,7 +30,7 @@ export const DisplaySettings: FC = () => {
                 Passen Sie das Erscheinungsbild der App an. Wählen Sie aus, welche Kategoriegruppen sichtbar sein sollen und weisen Sie jeder Gruppe eine eindeutige Farbe zu.
             </p>
             <div className="space-y-3">
-                {categoryGroups.map(group => (
+                {groupNames.map(group => (
                     <div key={group} className="flex items-center justify-between bg-slate-700/50 p-3 rounded-lg hover:bg-slate-700/30 transition-colors">
                         <div className="flex items-center gap-4">
                             <input

@@ -1,3 +1,5 @@
+import type { Category, Tag, User } from '../types';
+
 // --- bleibt wie bei dir ---
 export class HttpError extends Error {
   status: number;
@@ -156,9 +158,9 @@ function enrich(resp: ApiResponse) {
   const { categories, tags, users, transactions } = resp;
 
   const txEnriched = transactions.map(tx => {
-    const category = byId(categories, tx.categoryId);
-    const user = byId(users, tx.createdBy);
-    const fullTags = pickExisting((tx.tagIds ?? []).map((id: string) => byId(tags, id)));
+    const category = byId(categories, tx.categoryId) as Category | null;
+    const user = byId(users, tx.createdBy) as User | null;
+    const fullTags = pickExisting((tx.tagIds ?? []).map((id: string) => byId(tags, id) as Tag | null));
 
     return {
       ...tx,

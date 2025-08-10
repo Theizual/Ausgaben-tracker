@@ -1,5 +1,6 @@
 
 
+
 import React, { useMemo, FC } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceDot } from 'recharts';
 import { motion } from 'framer-motion';
@@ -7,7 +8,7 @@ import type { Transaction, Category } from '@/shared/types';
 import { eachDayOfInterval, format, parseISO, startOfMonth, endOfMonth, isAfter, getDate, getDaysInMonth } from 'date-fns';
 import { formatCurrency } from '@/shared/utils/dateUtils';
 import { TrendingDown } from '@/shared/ui';
-import { FIXED_COSTS_GROUP_NAME } from '@/constants';
+import { FIXED_COSTS_GROUP_ID } from '@/constants';
 import { useApp } from '@/contexts/AppContext';
 
 interface BudgetBurndownChartProps {
@@ -80,19 +81,24 @@ const CustomTooltip = ({ active, payload, label, deLocale }: any) => {
 };
 
 export const BudgetBurndownChart: FC<BudgetBurndownChartProps> = ({ transactions, categoryMap, currentMonth, visibleCategoryGroups, groupColors }) => {
-    const { deLocale, flexibleCategories } = useApp();
+    const { deLocale, flexibleCategories, groupMap } = useApp();
 
     const { data, activeItems, endangeredGroups } = useMemo(() => {
         const itemsToTrack: ItemInfo[] = visibleCategoryGroups
-            .filter(g => g !== FIXED_COSTS_GROUP_NAME)
             .map(groupName => {
-                const groupCategories = flexibleCategories.filter(c => c.group === groupName);
+                const groupId = Array.from(groupMap.keys()).find(key => groupMap.get(key) === groupName);
+                return { groupName, groupId };
+            })
+            .filter(({ groupId }) => groupId !== FIXED_COSTS_GROUP_ID)
+            .map(({ groupName, groupId }) => {
+                if (!groupId) return null;
+                const groupCategories = flexibleCategories.filter(c => c.groupId === groupId);
                 const groupBudget = groupCategories.reduce((sum, c) => sum + (c.budget || 0), 0);
                 return {
                     name: groupName, budget: groupBudget, color: groupColors[groupName] || '#a855f7',
                     itemIds: groupCategories.map(c => c.id)
                 };
-            }).filter(g => g.budget > 0);
+            }).filter((g): g is ItemInfo => g !== null && g.budget > 0);
 
         const today = new Date();
         const startOfCurrentMonth = startOfMonth(currentMonth);
@@ -159,7 +165,7 @@ export const BudgetBurndownChart: FC<BudgetBurndownChartProps> = ({ transactions
         const endangeredGroups = itemsWithTrend.filter(item => item.isTrendNegative);
 
         return { data: chartData, activeItems: itemsWithTrend, endangeredGroups };
-    }, [flexibleCategories, transactions, currentMonth, visibleCategoryGroups, groupColors, categoryMap]);
+    }, [flexibleCategories, transactions, currentMonth, visibleCategoryGroups, groupColors, categoryMap, groupMap]);
     
     const chartHeight = Math.max(320, 150 + activeItems.length * 20);
 

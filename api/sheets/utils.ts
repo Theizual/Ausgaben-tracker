@@ -1,5 +1,6 @@
 export const HEADERS = {
-  Categories:   ['id','name','color','group','budget','icon','lastModified','version','isDeleted'],
+  Groups:       ['id','name','sortIndex','lastModified','version','isDeleted'],
+  Categories:   ['id','name','color','groupId','budget','icon','lastModified','version','isDeleted'],
   Transactions: ['id','amount','description','categoryId','date','tagIds','lastModified','isDeleted','recurringId','version','userId'],
   Recurring:    ['id','amount','description','categoryId','frequency','dayOfMonth','startDate','endDate','lastProcessedDate','active','lastModified','version','isDeleted'],
   Tags:         ['id','name','color','lastModified','version','isDeleted'],
@@ -40,7 +41,7 @@ export function rowsToObjects(sheet: SheetName, rows: any[][] = []): any[] {
       if (sheet === 'UserSettings') {
         // key oder settingKey akzeptieren
         return r[0] && String(r[0]).trim() !== '' &&
-               (r[1] && String(r[1]).trim() !== '' || r[headers.indexOf('key')] || r[headers.indexOf('value')]);
+               (r[1] && String(r[1]).trim() !== '' || (headers as readonly string[]).indexOf('key') > -1 && r[(headers as readonly string[]).indexOf('key')] || (headers as readonly string[]).indexOf('value') > -1 && r[(headers as readonly string[]).indexOf('value')]);
       }
       return r[0] && String(r[0]).trim() !== '';
     })
@@ -60,6 +61,9 @@ export function rowsToObjects(sheet: SheetName, rows: any[][] = []): any[] {
       }
       if (sheet === 'Categories') {
         obj.budget = parseGermanNumber(obj.budget);
+      }
+      if (sheet === 'Groups') {
+          obj.sortIndex = Number(obj.sortIndex) || 0;
       }
 
       // Robust date parsing

@@ -4,6 +4,8 @@
 
 
 
+
+
 import React, { useState, useMemo, useCallback, useEffect, FC, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
@@ -12,7 +14,7 @@ import type { Category, RecurringTransaction } from '@/shared/types';
 import { format, parseISO } from 'date-fns';
 import { formatCurrency } from '@/shared/utils/dateUtils';
 import { getIconComponent, Plus, Trash2, Edit, ChevronDown, ProgressBar, Button } from '@/shared/ui';
-import { FIXED_COSTS_GROUP_NAME } from '@/constants';
+import { FIXED_COSTS_GROUP_ID } from '@/constants';
 import { generateUUID } from '@/shared/utils/uuid';
 import { BudgetGroup } from './BudgetGroup';
 
@@ -24,7 +26,7 @@ export const BudgetSettings: FC = () => {
     const {
         flexibleCategories,
         upsertCategory,
-        categoryGroups,
+        groupNames,
         totalMonthlyBudget, // flex budget
         totalMonthlyFixedCosts,
         fixedCategories,
@@ -32,12 +34,13 @@ export const BudgetSettings: FC = () => {
         addRecurringTransaction,
         updateRecurringTransaction,
         deleteRecurringTransaction,
-        categories
+        categories,
+        groupMap,
     } = useApp();
 
     // --- State for Flexible Budgets ---
     const [flexExpandedGroups, setFlexExpandedGroups] = useState<string[]>(() => {
-        const initialGroups = categoryGroups.filter(g => g !== FIXED_COSTS_GROUP_NAME);
+        const initialGroups = groupNames.filter(g => groupMap.get(g) !== FIXED_COSTS_GROUP_ID);
         return initialGroups.length > 0 ? [initialGroups[0]] : [];
     });
     const [groupBudgetInputs, setGroupBudgetInputs] = useState<Record<string, string>>({});
@@ -96,7 +99,10 @@ export const BudgetSettings: FC = () => {
         const newTotal = parseFloat(newTotalStr.replace(',', '.'));
         if (isNaN(newTotal) || newTotal < 0) return;
 
-        const groupCategories = flexibleCategories.filter(c => c.group === groupName);
+        const groupId = Array.from(groupMap.entries()).find(([, name]) => name === groupName)?.[0];
+        if (!groupId) return;
+
+        const groupCategories = flexibleCategories.filter(c => c.groupId === groupId);
         if (groupCategories.length === 0) return;
 
         const currentTotal = groupCategories.reduce((sum, cat) => sum + (cat.budget || 0), 0);
@@ -131,7 +137,7 @@ export const BudgetSettings: FC = () => {
         }
         
         updatedCategoriesData.forEach(catData => { if (catData.id) upsertCategory(catData as Category) });
-    }, [flexibleCategories, upsertCategory]);
+    }, [flexibleCategories, upsertCategory, groupMap]);
     
     // --- Handlers for Fixed & Recurring Costs ---
     const handleFixedAmountUpdate = (categoryId: string, amountStr: string) => {
@@ -159,7 +165,7 @@ export const BudgetSettings: FC = () => {
     
     const handleAddNonFixed = useCallback(() => {
         const newId = generateUUID();
-        const firstFlexCategory = categories.find(c => c.group !== FIXED_COSTS_GROUP_NAME);
+        const firstFlexCategory = categories.find(c => c.groupId !== FIXED_COSTS_GROUP_ID);
         addRecurringTransaction({ amount: 0, description: 'Neue Ausgabe', categoryId: firstFlexCategory?.id || '', frequency: 'monthly', startDate: new Date().toISOString().split('T')[0] }, newId);
         setEditingRecurringId(newId);
     }, [categories, addRecurringTransaction]);
@@ -172,22 +178,20 @@ export const BudgetSettings: FC = () => {
 
     // --- Data for Rendering ---
     const groupedBudgetData = useMemo(() => {
-        const groupsToBudget = categoryGroups.filter(g => g !== FIXED_COSTS_GROUP_NAME);
-        const categoryMapByGroup = new Map<string, Category[]>();
-        flexibleCategories.forEach(cat => {
-            if (!categoryMapByGroup.has(cat.group)) categoryMapByGroup.set(cat.group, []);
-            categoryMapByGroup.get(cat.group)!.push(cat);
-        });
+        const groupsToBudget = groupNames.filter(gName => groupMap.get(Array.from(groupMap.keys()).find(key => groupMap.get(key) === gName) || '') !== FIXED_COSTS_GROUP_ID);
 
         return groupsToBudget
             .map(groupName => {
-                const groupCategories = categoryMapByGroup.get(groupName) || [];
+                const groupId = Array.from(groupMap.keys()).find(key => groupMap.get(key) === groupName);
+                if (!groupId) return null;
+                const groupCategories = flexibleCategories.filter(c => c.groupId === groupId);
+
                 const sortedCategories = [...groupCategories].sort((a, b) => (b.budget || 0) - (a.budget || 0));
                 const groupTotalBudget = groupCategories.reduce((sum, cat) => sum + (cat.budget || 0), 0);
                 return { groupName, categories: sortedCategories, groupTotalBudget };
             })
-            .filter(group => group.categories.length > 0);
-    }, [flexibleCategories, categoryGroups]);
+            .filter((g): g is NonNullable<typeof g> => g !== null && g.categories.length > 0);
+    }, [flexibleCategories, groupNames, groupMap]);
     
     // Effect to update non-focused inputs
     useEffect(() => {
@@ -319,7 +323,7 @@ export const BudgetSettings: FC = () => {
                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
                                 <input type="number" value={item.amount} onChange={e => handleUpdateNonFixed(item.id, {amount: Number(e.currentTarget.value.replace(',', '.')) || 0})} placeholder="Betrag" className={BASE_INPUT_CLASSES}/>
                                 <select value={item.categoryId} onChange={e => handleUpdateNonFixed(item.id, {categoryId: e.currentTarget.value})} className={BASE_INPUT_CLASSES}>
-                                    {categories.filter(c => c.group !== FIXED_COSTS_GROUP_NAME).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                    {categories.filter(c => c.groupId !== FIXED_COSTS_GROUP_ID).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                                 </select>
                                 <input type="date" value={format(parseISO(item.startDate), 'yyyy-MM-dd')} onChange={e => handleUpdateNonFixed(item.id, {startDate: e.currentTarget.value})} className={BASE_INPUT_CLASSES}/>
                                 <select value={item.frequency} onChange={e => { const val = e.currentTarget.value; if(val === 'monthly' || val === 'yearly') handleUpdateNonFixed(item.id, {frequency: val}); }} className={BASE_INPUT_CLASSES}>

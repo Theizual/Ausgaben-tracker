@@ -1,5 +1,6 @@
 
 
+
 import React, { FC, useState, useMemo, useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
@@ -12,7 +13,7 @@ import { FIXED_COSTS_GROUP_NAME } from '@/constants';
 import { BudgetProgressBar } from '@/shared/ui/BudgetProgressBar';
 
 export const MonthlyCategoryBreakdown: FC<{ transactions: Transaction[], currentMonth: Date }> = ({ transactions, currentMonth }) => {
-    const { categoryMap, handleTransactionClick, visibleCategoryGroups, deLocale, groupColors } = useApp();
+    const { categoryMap, handleTransactionClick, visibleCategoryGroups, deLocale, groupColors, groupMap } = useApp();
     const [expandedSupergroups, setExpandedSupergroups] = useState<string[]>(['Fixkosten', 'Variable Kosten']); // Default open
     const [expandedGroups, setExpandedGroups] = useState<string[]>([]);
     const [expandedCategoryId, setExpandedCategoryId] = useState<string | null>(null);
@@ -28,27 +29,31 @@ export const MonthlyCategoryBreakdown: FC<{ transactions: Transaction[], current
 
         const categoriesWithSpending = Array.from(spendingMap.keys()).map(id => categoryMap.get(id)).filter((c): c is Category => !!c);
 
-        const groupMap = new Map<string, { totalSpent: number; totalBudget: number; categories: Category[] }>();
+        const groupDataMap = new Map<string, { totalSpent: number; totalBudget: number; categories: Category[] }>();
+        
         visibleCategoryGroups.forEach(groupName => {
-            groupMap.set(groupName, { totalSpent: 0, totalBudget: 0, categories: [] });
+             const groupId = Array.from(groupMap.keys()).find(key => groupMap.get(key) === groupName);
+             if (groupId) {
+                 groupDataMap.set(groupId, { totalSpent: 0, totalBudget: 0, categories: [] });
+             }
         });
 
         categoriesWithSpending.forEach(category => {
-            if (groupMap.has(category.group)) {
-                const groupData = groupMap.get(category.group)!;
+            if (groupDataMap.has(category.groupId)) {
+                const groupData = groupDataMap.get(category.groupId)!;
                 groupData.totalSpent += spendingMap.get(category.id) || 0;
                 groupData.categories.push(category);
             }
         });
 
-        groupMap.forEach((data, groupName) => {
-            const allCategoriesInGroup = Array.from(categoryMap.values()).filter(c => c.group === groupName && c.budget);
+        groupDataMap.forEach((data, groupId) => {
+            const allCategoriesInGroup = Array.from(categoryMap.values()).filter(c => c.groupId === groupId && c.budget);
             data.totalBudget = allCategoriesInGroup.reduce((sum, cat) => sum + (cat.budget || 0), 0);
             data.categories.sort((a, b) => (spendingMap.get(b.id) || 0) - (spendingMap.get(a.id) || 0));
         });
 
-        const allGroupData = Array.from(groupMap.entries())
-            .map(([groupName, data]) => ({ groupName, ...data }))
+        const allGroupData = Array.from(groupDataMap.entries())
+            .map(([groupId, data]) => ({ groupName: groupMap.get(groupId)?.name || 'Unbekannt', ...data }))
             .filter(group => group.totalSpent > 0);
 
         const supergroupMap = new Map<string, { totalSpent: number; totalBudget: number; groups: any[] }>([
@@ -71,7 +76,7 @@ export const MonthlyCategoryBreakdown: FC<{ transactions: Transaction[], current
             .filter(sg => sg.totalSpent > 0);
 
         return { supergroupedData: result, spendingByCategory: spendingMap };
-    }, [transactions, categoryMap, visibleCategoryGroups]);
+    }, [transactions, categoryMap, visibleCategoryGroups, groupMap]);
 
     useEffect(() => {
         if (supergroupedData.length > 0 && !defaultExpandedSet.current) {

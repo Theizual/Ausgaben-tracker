@@ -9,6 +9,16 @@ export interface User {
   conflicted?: boolean;
 }
 
+export interface Group {
+  id: string;
+  name: string;
+  sortIndex: number;
+  lastModified: string; // ISO string
+  isDeleted?: boolean;
+  version: number;
+  conflicted?: boolean;
+}
+
 export interface Tag {
   id: string;
   name: string;
@@ -26,7 +36,7 @@ export interface Category {
   color: string;
   icon: string;
   budget?: number;
-  group: string;
+  groupId: string;
   lastModified: string; // ISO string
   isDeleted?: boolean;
   version: number;

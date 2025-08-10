@@ -1,5 +1,6 @@
 
 
+
 import React, { useState, useMemo, useEffect, FC } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
@@ -7,7 +8,7 @@ import type { Transaction, ViewMode } from '@/shared/types';
 import { format, parseISO, isWithinInterval, startOfMonth, endOfMonth, startOfWeek, endOfWeek, isSameDay } from 'date-fns';
 import { formatCurrency } from '@/shared/utils/dateUtils';
 import { BarChart2, Coins, Home, getIconComponent } from '@/shared/ui';
-import { FIXED_COSTS_GROUP_NAME } from '@/constants';
+import { FIXED_COSTS_GROUP_ID } from '@/constants';
 import { StandardTransactionItem } from '@/shared/ui';
 import { CategoryPieChart } from './ui/CategoryPieChart';
 import { QuickAddForm } from './ui/QuickAddForm';
@@ -29,6 +30,7 @@ const DashboardPage: FC = () => {
         setDashboardViewMode,
         groupColors,
         deLocale,
+        groupMap,
     } = useApp();
 
     const [expandedBudgetId, setExpandedBudgetId] = useState<string | null>(null);
@@ -95,14 +97,16 @@ const DashboardPage: FC = () => {
         
         const spendingByGroup = new Map<string, { totalSpent: number, totalBudget: number, categories: any[] }>();
         visibleCategoryGroups
-            .filter(groupName => groupName !== FIXED_COSTS_GROUP_NAME)
+            .filter(groupName => groupMap.get(groupName) !== FIXED_COSTS_GROUP_ID)
             .forEach(groupName => {
                 spendingByGroup.set(groupName, { totalSpent: 0, totalBudget: 0, categories: [] });
             });
 
         flexibleCategories.forEach(category => {
             if (category.budget && category.budget > 0) {
-                const groupData = spendingByGroup.get(category.group);
+                 const groupName = groupMap.get(category.groupId)?.name;
+                 if(!groupName) return;
+                const groupData = spendingByGroup.get(groupName);
                 if (groupData) {
                     const spent = spendingMap.get(category.id) || 0;
                     groupData.totalSpent += spent;
@@ -121,7 +125,7 @@ const DashboardPage: FC = () => {
             .filter(group => group.categories.length > 0);
 
         return { groupedBudgetedCategories: result, spendingByCategory: spendingMap };
-    }, [monthlyTransactions, flexibleCategories, visibleCategoryGroups]);
+    }, [monthlyTransactions, flexibleCategories, visibleCategoryGroups, groupMap]);
 
     const totalBudgetPercentage = totalMonthlyBudget > 0 ? (totalSpentThisMonth / totalMonthlyBudget) * 100 : 0;
     
@@ -130,7 +134,7 @@ const DashboardPage: FC = () => {
     const flexibleTransactionsInPeriod = useMemo(() => 
         filteredTransactions.filter(t => {
             const cat = categories.find(c => c.id === t.categoryId);
-            return cat?.group !== FIXED_COSTS_GROUP_NAME;
+            return cat?.groupId !== FIXED_COSTS_GROUP_ID;
         }),
     [filteredTransactions, categories]);
 

@@ -16,6 +16,7 @@ function getAuth() {
 }
 
 const RANGES = [
+  'Groups!A2:Z',
   'Categories!A2:Z',
   'Transactions!A2:Z',
   'Recurring!A2:Z',
@@ -40,15 +41,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       })
     );
 
-    const data = resp.data.valueRanges || [];
+    const data = (resp as any).data.valueRanges || [];
 
     const out = {
-      categories:    rowsToObjects('Categories',   data[0]?.values || []),
-      transactions:  rowsToObjects('Transactions', data[1]?.values || []),
-      recurring:     rowsToObjects('Recurring',    data[2]?.values || []),
-      tags:          rowsToObjects('Tags',         data[3]?.values || []),
-      users:         rowsToObjects('Users',        data[4]?.values || []),
-      userSettings:  rowsToObjects('UserSettings', data[5]?.values || []),
+      groups:        rowsToObjects('Groups',       data[0]?.values || []),
+      categories:    rowsToObjects('Categories',   data[1]?.values || []),
+      transactions:  rowsToObjects('Transactions', data[2]?.values || []),
+      recurring:     rowsToObjects('Recurring',    data[3]?.values || []),
+      tags:          rowsToObjects('Tags',         data[4]?.values || []),
+      users:         rowsToObjects('Users',        data[5]?.values || []),
+      userSettings:  rowsToObjects('UserSettings', data[6]?.values || []),
     };
 
     return res.status(200).json(out);

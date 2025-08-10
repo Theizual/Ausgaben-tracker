@@ -3,7 +3,7 @@ import { toast } from 'react-hot-toast';
 import type { Transaction, RecurringTransaction, Tag } from '@/shared/types';
 import { addMonths, addYears, isSameDay, parseISO, isWithinInterval, isValid, format, subDays, startOfMonth, endOfMonth } from 'date-fns';
 import { generateUUID } from '@/shared/utils/uuid';
-import { INITIAL_CATEGORIES, FIXED_COSTS_GROUP_NAME } from '@/constants';
+import { INITIAL_CATEGORIES, FIXED_COSTS_GROUP_ID } from '@/constants';
 import type { DemoData } from '@/processes/onboarding/model/demo.seed';
 
 // --- CONSTANTS & HELPERS ---
@@ -68,7 +68,7 @@ const createInitialRecurringTransactions = (): RecurringTransaction[] => {
     const lastModified = now.toISOString();
 
     return INITIAL_CATEGORIES
-        .filter(cat => cat.group === FIXED_COSTS_GROUP_NAME && cat.budget && cat.budget > 0)
+        .filter(cat => cat.groupId === FIXED_COSTS_GROUP_ID && cat.budget && cat.budget > 0)
         .map(cat => ({
             id: `rec_${cat.id}`, // A predictable ID
             amount: cat.budget!,

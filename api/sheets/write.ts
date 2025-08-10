@@ -27,7 +27,7 @@ function getAuth() {
 }
 
 type Payload = {
-  categories?: any[]; transactions?: any[]; recurring?: any[];
+  groups?: any[]; categories?: any[]; transactions?: any[]; recurring?: any[];
   tags?: any[]; users?: any[]; userSettings?: any[];
 };
 
@@ -40,6 +40,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Eingehende Daten normalisieren
     const items = {
+      groups:       body.groups       ?? [],
       categories:   body.categories   ?? [],
       transactions: body.transactions ?? [],
       recurring:    body.recurring    ?? [],
@@ -50,6 +51,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Zu schreibende Werte vorbereiten (Header + Rows)
     const sheetsSpec = [
+      ['Groups',       items.groups]       as const,
       ['Categories',   items.categories]   as const,
       ['Transactions', items.transactions] as const,
       ['Recurring',    items.recurring]    as const,
@@ -85,6 +87,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Direkt danach erneut lesen (A2:Z), um den konsolidierten Stand zurückzugeben
     const rangesToRead = [
+      'Groups!A2:Z',
       'Categories!A2:Z',
       'Transactions!A2:Z',
       'Recurring!A2:Z',
@@ -101,14 +104,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       })
     );
 
-    const valueRanges = readResp.data.valueRanges || [];
+    const valueRanges = (readResp as any).data.valueRanges || [];
     const out = {
-      categories:    rowsToObjects('Categories',   valueRanges[0]?.values || []),
-      transactions:  rowsToObjects('Transactions', valueRanges[1]?.values || []),
-      recurring:     rowsToObjects('Recurring',    valueRanges[2]?.values || []),
-      tags:          rowsToObjects('Tags',         valueRanges[3]?.values || []),
-      users:         rowsToObjects('Users',        valueRanges[4]?.values || []),
-      userSettings:  rowsToObjects('UserSettings', valueRanges[5]?.values || []),
+      groups:        rowsToObjects('Groups',       valueRanges[0]?.values || []),
+      categories:    rowsToObjects('Categories',   valueRanges[1]?.values || []),
+      transactions:  rowsToObjects('Transactions', valueRanges[2]?.values || []),
+      recurring:     rowsToObjects('Recurring',    valueRanges[3]?.values || []),
+      tags:          rowsToObjects('Tags',         valueRanges[4]?.values || []),
+      users:         rowsToObjects('Users',        valueRanges[5]?.values || []),
+      userSettings:  rowsToObjects('UserSettings', valueRanges[6]?.values || []),
     };
 
     return res.status(200).json(out);

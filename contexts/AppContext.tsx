@@ -7,8 +7,8 @@ import { useUsers } from '@/shared/hooks/useUsers';
 import { useUserSettings } from '@/shared/hooks/useUserSettings';
 import { useCategories } from '@/shared/hooks/useCategories';
 import useLocalStorage from '@/shared/hooks/useLocalStorage';
-import type { User, Category, RecurringTransaction } from '@/shared/types';
-import { FIXED_COSTS_GROUP_NAME } from '@/constants';
+import type { User, Category, Group, RecurringTransaction } from '@/shared/types';
+import { FIXED_COSTS_GROUP_ID } from '@/constants';
 import { isWithinInterval, parseISO, startOfMonth, endOfMonth } from 'date-fns';
 import type { Locale } from 'date-fns';
 import { de } from 'date-fns/locale';
@@ -32,7 +32,7 @@ type AppContextType =
         totalMonthlyBudget: number; // Flexible budget
         totalSpentThisMonth: number; // Flexible spending
         totalMonthlyFixedCosts: number;
-        visibleCategoryGroups: string[];
+        visibleCategoryGroups: string[]; // Names of groups
         groupColors: Record<string, string>;
         deLocale: Locale;
         resetAppData: () => void;
@@ -87,8 +87,8 @@ const ReadyAppProvider: React.FC<{
         currentUserId: uiState.currentUserId,
     });
 
-    const flexibleCategories = useMemo(() => categoryState.categories.filter(c => c.group !== FIXED_COSTS_GROUP_NAME), [categoryState.categories]);
-    const fixedCategories = useMemo(() => categoryState.categories.filter(c => c.group === FIXED_COSTS_GROUP_NAME), [categoryState.categories]);
+    const flexibleCategories = useMemo(() => categoryState.categories.filter(c => c.groupId !== FIXED_COSTS_GROUP_ID), [categoryState.categories]);
+    const fixedCategories = useMemo(() => categoryState.categories.filter(c => c.groupId === FIXED_COSTS_GROUP_ID), [categoryState.categories]);
     const fixedCategoryIds = useMemo(() => new Set(fixedCategories.map(c => c.id)), [fixedCategories]);
     
     const totalMonthlyBudget = useMemo(() => flexibleCategories.reduce((sum, cat) => sum + (cat.budget || 0), 0), [flexibleCategories]);
@@ -118,18 +118,19 @@ const ReadyAppProvider: React.FC<{
     }, [transactionDataState.recurringTransactions, fixedCategoryIds]);
 
     const syncState = useSync({
+        rawCategories: categoryState.rawCategories,
+        rawGroups: categoryState.rawGroups,
         rawTransactions: transactionDataState.rawTransactions,
         rawRecurringTransactions: transactionDataState.rawRecurringTransactions,
         rawAllAvailableTags: transactionDataState.rawAllAvailableTags,
         rawUsers: usersState.rawUsers,
         rawUserSettings: userSettingsState.rawUserSettings,
-        rawCategories: categoryState.rawCategories,
+        setCategoriesAndGroups: categoryState.setCategoriesAndGroups,
         setTransactions: transactionDataState.setTransactions,
         setRecurringTransactions: transactionDataState.setRecurringTransactions,
         setAllAvailableTags: transactionDataState.setAllAvailableTags,
         setUsers: usersState.setUsers,
         setUserSettings: userSettingsState.setUserSettings,
-        setCategories: categoryState.setCategories,
         isInitialSetupDone: isInitialSetupDone,
         isDemoModeEnabled,
         setIsInitialSetupDone: setIsInitialSetupDone,
@@ -150,9 +151,9 @@ const ReadyAppProvider: React.FC<{
     }, [usersState.users, uiState.currentUserId]);
 
     const visibleCategoryGroups = useMemo(() => {
-        if (!uiState.currentUserId) return categoryState.categoryGroups;
-        return userSettingsState.getVisibleGroupsForUser(uiState.currentUserId, categoryState.categoryGroups);
-    }, [uiState.currentUserId, categoryState.categoryGroups, userSettingsState]);
+        if (!uiState.currentUserId) return categoryState.groupNames;
+        return userSettingsState.getVisibleGroupsForUser(uiState.currentUserId, categoryState.groupNames);
+    }, [uiState.currentUserId, categoryState.groupNames, userSettingsState]);
 
     const groupColors = useMemo(() => {
         if (!uiState.currentUserId) return {};
@@ -180,6 +181,7 @@ const ReadyAppProvider: React.FC<{
         debouncedSync();
     }, [
         categoryState.rawCategories,
+        categoryState.rawGroups,
         transactionDataState.rawTransactions, 
         transactionDataState.rawRecurringTransactions, 
         transactionDataState.rawAllAvailableTags,
