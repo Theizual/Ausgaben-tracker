@@ -49,7 +49,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }));
     
     // After writing, re-read all data and send it back to the client
-    const rangesToRead = ['Categories!A2:I','Transactions!A2:K','Recurring!A2:M','Tags!A2:F','Users!A2:F','UserSettings!A2:E'];
+    const rangesToRead = ['Categories!A2:I','Transactions!A2:K','Recurring!A2:M','Tags!A2:F','Users!A2:F','UserSettings!A2:F'];
     const readResp: any = await withRetry(() => sheets.spreadsheets.values.batchGet({ spreadsheetId, ranges: rangesToRead }));
 
     if (!readResp || !readResp.data || !Array.isArray(readResp.data.valueRanges)) {

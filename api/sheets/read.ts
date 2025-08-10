@@ -19,7 +19,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const auth = getAuth();
     const sheets = google.sheets({ version: 'v4', auth });
 
-    const ranges = ['Categories!A2:I','Transactions!A2:K','Recurring!A2:M','Tags!A2:F','Users!A2:F','UserSettings!A2:E'];
+    const ranges = ['Categories!A2:I','Transactions!A2:K','Recurring!A2:M','Tags!A2:F','Users!A2:F','UserSettings!A2:F'];
     const resp: any = await withRetry(() => sheets.spreadsheets.values.batchGet({ spreadsheetId, ranges }));
 
     // Defensive check to prevent crashes on unexpected API responses

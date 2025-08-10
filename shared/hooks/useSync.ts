@@ -35,7 +35,8 @@ interface Mergeable {
 
 const getItemKey = (item: any): string => {
     if (item.id) return item.id;
-    if (item.userId && item.key) return `${item.userId}-${item.key}`;
+    const k = item?.key ?? item?.settingKey; 
+    if (item?.userId && k) return `${item.userId}-${k}`;
     throw new Error('Cannot determine key for mergeable item');
 };
 
