@@ -1,6 +1,8 @@
+
+
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { toast } from 'react-hot-toast';
-import type { Transaction, RecurringTransaction, Tag } from '@/shared/types';
+import type { Transaction, RecurringTransaction, Tag, CategoryId } from '@/shared/types';
 import { addMonths, addYears, isSameDay, parseISO, isWithinInterval, isValid, format, subDays, startOfMonth, endOfMonth } from 'date-fns';
 import { generateUUID } from '@/shared/utils/uuid';
 import { INITIAL_CATEGORIES, FIXED_COSTS_GROUP_ID } from '@/constants';
@@ -110,9 +112,9 @@ const makeInitializer = (isDemoMode: boolean): (() => DataState) => () => {
     }
 };
 
-interface useTransactionDataProps { showConfirmation: (data: { transactions: Transaction[]; totalSpentBefore: number }) => void; closeTransactionDetail: () => void; currentUserId: string | null; isDemoModeEnabled: boolean; }
+interface useTransactionDataProps { showConfirmation: (data: { transactions: Transaction[]; totalSpentBefore: number }) => void; closeTransactionDetail: () => void; currentUserId: string | null; isDemoModeEnabled: boolean; addRecentCategory: (categoryId: CategoryId) => void; }
 
-export const useTransactionData = ({ showConfirmation, closeTransactionDetail, currentUserId, isDemoModeEnabled }: useTransactionDataProps) => {
+export const useTransactionData = ({ showConfirmation, closeTransactionDetail, currentUserId, isDemoModeEnabled, addRecentCategory }: useTransactionDataProps) => {
     const prefix = isDemoModeEnabled ? 'demo_' : '';
     const T_KEY = `${prefix}transactions`;
     const TAGS_KEY = `${prefix}allAvailableTags`;
@@ -207,7 +209,8 @@ export const useTransactionData = ({ showConfirmation, closeTransactionDetail, c
         const newTransaction: Transaction = { ...transaction, id: generateUUID(), date: now, lastModified: now, version: 1, tagIds: getOrCreateTagIds(transaction.tags), createdBy: currentUserId || undefined };
         dispatch({ type: 'ADD_TRANSACTION', payload: newTransaction });
         showConfirmation({ transactions: [newTransaction], totalSpentBefore });
-    }, [getOrCreateTagIds, showConfirmation, currentUserId, selectTotalSpentForMonth]);
+        addRecentCategory(newTransaction.categoryId);
+    }, [getOrCreateTagIds, showConfirmation, currentUserId, selectTotalSpentForMonth, addRecentCategory]);
 
     const addMultipleTransactions = useCallback((transactionsToCreate: Array<{amount: number, description: string}>, commonData: { categoryId: string, tags?: string[] }) => {
         const totalSpentBefore = selectTotalSpentForMonth(new Date());
@@ -216,7 +219,8 @@ export const useTransactionData = ({ showConfirmation, closeTransactionDetail, c
         const newTransactions: Transaction[] = transactionsToCreate.map(t => ({ ...t, id: generateUUID(), date: now, lastModified: now, version: 1, categoryId: commonData.categoryId, tagIds, createdBy: currentUserId || undefined }));
         dispatch({ type: 'ADD_MULTIPLE_TRANSACTIONS', payload: newTransactions });
         showConfirmation({ transactions: newTransactions, totalSpentBefore });
-    }, [getOrCreateTagIds, showConfirmation, currentUserId, selectTotalSpentForMonth]);
+        addRecentCategory(commonData.categoryId);
+    }, [getOrCreateTagIds, showConfirmation, currentUserId, selectTotalSpentForMonth, addRecentCategory]);
 
     const updateTransaction = useCallback((transaction: Transaction, tags?: string[] | null) => {
         let finalTransaction: Transaction = { ...transaction, lastModified: new Date().toISOString(), version: (transaction.version || 0) + 1 };

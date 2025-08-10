@@ -1,25 +1,26 @@
+
+
 import React, { useState, useMemo, FC } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { useApp } from '@/contexts/AppContext';
 import type { Transaction, Category, ViewMode, CategoryId, Tag, Group } from '@/shared/types';
-import { Plus, Coins } from '@/shared/ui';
+import { Plus, Coins, Button } from '@/shared/ui';
 import { CategoryButtons, TagInput, AvailableTags } from '@/shared/ui';
 import { MoreCategoriesModal } from './MoreCategoriesModal';
 import { parseISO } from 'date-fns';
-import { FIXED_COSTS_GROUP_ID } from '@/constants';
 
 export const QuickAddForm: FC = () => {
     const { 
         addTransaction,
         addMultipleTransactions,
         flexibleCategories, 
-        groups,
-        visibleCategoryGroups, 
         allAvailableTags, 
         transactions,
-        fixedCategories,
-        unassignedCategories
+        favoriteIds,
+        recentCategoryIds,
+        addRecent,
+        toggleFavorite,
     } = useApp();
     
     const [amount, setAmount] = useState('');
@@ -47,8 +48,23 @@ export const QuickAddForm: FC = () => {
         return Array.from(recentTagIds).map(id => tagMap.get(id)).filter((t): t is Tag => !!t);
     }, [transactions, allAvailableTags]);
 
-    const handleSelectCategoryFromModal = (newCategoryId: string) => {
+    const favoriteCategories = useMemo(() => 
+        favoriteIds.map(id => flexibleCategories.find(c => c.id === id)).filter(Boolean) as Category[],
+        [favoriteIds, flexibleCategories]
+    );
+
+    const recentCategories = useMemo(() => 
+        recentCategoryIds.map(id => flexibleCategories.find(c => c.id === id)).filter(Boolean) as Category[],
+        [recentCategoryIds, flexibleCategories]
+    );
+
+    const handleSelectCategory = (newCategoryId: string) => {
         setCategoryId(newCategoryId);
+        addRecent(newCategoryId);
+    };
+
+    const handleSelectCategoryFromModal = (newCategoryId: string) => {
+        handleSelectCategory(newCategoryId);
         setIsMoreCategoriesModalOpen(false);
     };
 
@@ -58,6 +74,10 @@ export const QuickAddForm: FC = () => {
         if (!numAmount || numAmount <= 0 || !description || !categoryId) {
             if (!categoryId) {
                 toast.error("Bitte wählen Sie eine Kategorie aus.");
+            } else if (!description) {
+                toast.error("Bitte geben Sie eine Beschreibung ein.");
+            } else {
+                 toast.error("Bitte geben Sie einen gültigen Betrag ein.");
             }
             return;
         }
@@ -103,11 +123,6 @@ export const QuickAddForm: FC = () => {
         );
     };
 
-    const visibleGroups = useMemo(() => {
-        const visibleNames = new Set(visibleCategoryGroups);
-        return groups.filter(g => g.id !== FIXED_COSTS_GROUP_ID && visibleNames.has(g.name));
-    }, [groups, visibleCategoryGroups]);
-
     return (
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
             <div className="bg-slate-800/50 p-6 rounded-2xl border border-slate-700/50">
@@ -143,18 +158,52 @@ export const QuickAddForm: FC = () => {
                         </div>
                     </div>
                     
-                    <div className="pt-2">
-                        <h4 className="text-sm font-semibold text-white mb-3">Kategorie wählen:</h4>
-                        <CategoryButtons
-                            categories={flexibleCategories}
-                            groups={visibleGroups}
-                            selectedCategoryId={categoryId}
-                            onSelectCategory={setCategoryId}
-                            onShowMoreClick={() => setIsMoreCategoriesModalOpen(true)}
-                        />
+                    <div className="pt-2 space-y-4">
+                         <h4 className="text-sm font-semibold text-white mb-3">Kategorie wählen:</h4>
+                        {favoriteCategories.length > 0 && (
+                            <div>
+                                <h5 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2 ml-1">Favoriten</h5>
+                                <CategoryButtons 
+                                    categories={favoriteCategories}
+                                    selectedCategoryId={categoryId}
+                                    onSelectCategory={handleSelectCategory}
+                                    showGroups={false}
+                                    favoriteIds={favoriteIds}
+                                    onToggleFavorite={toggleFavorite}
+                                />
+                            </div>
+                        )}
+                        {recentCategories.length > 0 && (
+                             <div>
+                                <h5 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2 ml-1">Zuletzt verwendet</h5>
+                                <CategoryButtons 
+                                    categories={recentCategories}
+                                    selectedCategoryId={categoryId}
+                                    onSelectCategory={handleSelectCategory}
+                                    showGroups={false}
+                                    favoriteIds={favoriteIds}
+                                    onToggleFavorite={toggleFavorite}
+                                />
+                            </div>
+                        )}
+                        {favoriteCategories.length === 0 && (
+                            <p className="text-sm text-slate-500 p-2 bg-slate-700/50 rounded-lg">
+                               Klicke auf den Stern ⭐ bei einer Kategorie, um sie als Favorit zu speichern.
+                            </p>
+                        )}
+                        <div className="flex justify-end pt-2">
+                             <Button
+                                type="button"
+                                variant="secondary"
+                                size="sm"
+                                onClick={() => setIsMoreCategoriesModalOpen(true)}
+                            >
+                                Alle Kategorien...
+                            </Button>
+                        </div>
                     </div>
 
-                    <div className="space-y-3">
+                    <div className="space-y-3 pt-4 border-t border-slate-700/50">
                         <TagInput 
                             tags={tags} 
                             setTags={setTags}
@@ -185,8 +234,6 @@ export const QuickAddForm: FC = () => {
                         isOpen={isMoreCategoriesModalOpen}
                         onClose={() => setIsMoreCategoriesModalOpen(false)}
                         onSelectCategory={handleSelectCategoryFromModal}
-                        fixedCategories={fixedCategories}
-                        unassignedCategories={unassignedCategories}
                     />
                 )}
             </AnimatePresence>

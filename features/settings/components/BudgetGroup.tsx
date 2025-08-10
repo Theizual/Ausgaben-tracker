@@ -37,8 +37,8 @@ export const BudgetGroup: FC<BudgetGroupProps> = ({
             <button onClick={onToggle} className="w-full flex justify-between items-center gap-2 text-left">
                 <h4 className="text-sm font-semibold text-white truncate">{group.name}</h4>
                 <div className="flex items-center gap-2">
-                    <div className="relative w-full sm:w-36 flex-shrink-0" onClick={e => e.stopPropagation()}>
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">€</span>
+                    <div className="w-full sm:w-36 flex-shrink-0 flex items-center bg-slate-700 border border-slate-600 rounded-lg focus-within:ring-2 focus-within:ring-rose-500 px-3" onClick={e => e.stopPropagation()}>
+                        <span className="text-slate-400 text-sm">€</span>
                         <input
                             type="text"
                             inputMode="decimal"
@@ -48,7 +48,7 @@ export const BudgetGroup: FC<BudgetGroupProps> = ({
                             onBlur={onGroupBudgetBlur}
                             onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
                             placeholder="Gesamt"
-                            className="w-full bg-theme-input border border-theme-border rounded-md pl-7 pr-2 py-0.5 text-white text-sm font-semibold text-right focus:outline-none focus:ring-2 focus:ring-theme-ring"
+                            className="w-full bg-transparent border-none pl-2 py-2 text-right text-white text-sm font-semibold placeholder-slate-500 focus:outline-none"
                         />
                     </div>
                     <ChevronDown className={`h-5 w-5 text-slate-400 transition-transform flex-shrink-0 ${isExpanded ? 'rotate-180' : ''}`} />
@@ -72,8 +72,8 @@ export const BudgetGroup: FC<BudgetGroupProps> = ({
                                                 <Icon className="h-4 w-4 flex-shrink-0" style={{ color: category.color }} />
                                                 <span className="font-medium text-white truncate">{category.name}</span>
                                             </div>
-                                            <div className="relative w-28 flex-shrink-0 ml-2">
-                                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">€</span>
+                                            <div className="w-28 flex-shrink-0 ml-2 flex items-center bg-slate-700 border border-slate-600 rounded-lg focus-within:ring-2 focus-within:ring-rose-500 px-3">
+                                                 <span className="text-slate-400 text-sm">€</span>
                                                 <input
                                                     type="text"
                                                     inputMode="decimal"
@@ -83,7 +83,7 @@ export const BudgetGroup: FC<BudgetGroupProps> = ({
                                                     onBlur={() => onIndividualBudgetBlur(category.id)}
                                                     onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
                                                     placeholder="Budget"
-                                                    className="w-full bg-theme-input border border-theme-border rounded-md pl-7 pr-2 py-0.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-theme-ring"
+                                                     className="w-full bg-transparent border-none pl-2 py-2 text-right text-white text-sm placeholder-slate-500 focus:outline-none"
                                                 />
                                             </div>
                                         </div>

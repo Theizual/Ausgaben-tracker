@@ -1,4 +1,5 @@
 
+
 import React, { FC, useMemo } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import type { User, Transaction } from '@/shared/types';
@@ -23,7 +24,7 @@ export const PickerModals: FC<{
     isEditingTags, setIsEditingTags, handleTagsUpdate,
     currentTransaction,
 }) => {
-    const { categories, groups, users, tagMap } = useApp();
+    const { categories, groups, users, tagMap, favoriteIds, toggleFavorite } = useApp();
     const currentTagNames = useMemo(() => (currentTransaction.tagIds || []).map((id:string) => tagMap.get(id)).filter(Boolean) as string[], [currentTransaction.tagIds, tagMap]);
 
     return (
@@ -36,6 +37,8 @@ export const PickerModals: FC<{
                             groups={groups}
                             selectedCategoryId={currentTransaction.categoryId}
                             onSelectCategory={handleCategoryUpdate}
+                            favoriteIds={favoriteIds}
+                            onToggleFavorite={toggleFavorite}
                         />
                      </Modal>
                 )}

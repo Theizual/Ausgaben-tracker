@@ -13,14 +13,14 @@ export const IconPicker: FC<{ onSelect: (iconName: string) => void; onClose: () 
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex justify-center items-center z-[70] p-4" onClick={onClose}>
             <div className="bg-slate-800 rounded-2xl w-full max-w-lg shadow-2xl border border-slate-700 flex flex-col max-h-[70vh]" onClick={e => e.stopPropagation()}>
                 <header className="p-4 border-b border-slate-700 flex-shrink-0">
-                    <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                     <div className="flex items-center bg-slate-700 border border-slate-600 rounded-lg focus-within:ring-2 focus-within:ring-rose-500 px-3">
+                        <Search className="h-4 w-4 text-slate-400 shrink-0" />
                         <input
                             type="text"
                             placeholder="Icon suchen..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full bg-theme-input border border-theme-border rounded-md pl-9 pr-3 py-1.5 text-white placeholder-theme-text-muted"
+                            className="w-full bg-transparent border-none pl-2 py-2 text-white placeholder-slate-500 focus:outline-none"
                             autoFocus
                         />
                     </div>

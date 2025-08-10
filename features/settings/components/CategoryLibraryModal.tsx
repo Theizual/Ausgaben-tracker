@@ -1,17 +1,20 @@
+
+
+
 import React, { useState, useMemo, FC } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { useApp } from '@/contexts/AppContext';
 import type { Category, Group } from '@/shared/types';
 import { useEscapeKey } from '@/shared/hooks/useEscapeKey';
-import { Modal, Button, iconMap, X, Trash2, Plus, DownloadCloud } from '@/shared/ui';
-import { FIXED_COSTS_GROUP_ID, DEFAULT_GROUP_ID, FIXED_COSTS_GROUP_NAME } from '@/constants';
+import { Modal, Button, iconMap, X, Trash2, Plus, DownloadCloud, Star } from '@/shared/ui';
+import { FIXED_COSTS_GROUP_ID, DEFAULT_GROUP_ID, FIXED_COSTS_GROUP_NAME, DEFAULT_GROUP_NAME } from '@/constants';
 import { CategoryEditModal, CategoryFormData } from './CategoryEditModal';
 
 export const CategoryLibraryModal: FC<{ isOpen: boolean; onClose: () => void; }> = ({ isOpen, onClose }) => {
     const { 
         categories, groups, upsertCategory, deleteCategory, renameGroup, addGroup, deleteGroup, 
-        loadStandardConfiguration, unassignedCategories
+        loadStandardConfiguration, unassignedCategories, favoriteIds, toggleFavorite
     } = useApp();
 
     const [editingCategory, setEditingCategory] = useState<CategoryFormData | null>(null);
@@ -71,7 +74,7 @@ export const CategoryLibraryModal: FC<{ isOpen: boolean; onClose: () => void; }>
             toast.error(`Die Gruppe "${group.name}" kann nicht gelöscht werden.`);
             return;
         }
-        if (window.confirm(`Gruppe "${group.name}" wirklich löschen? Zugehörige Kategorien werden automatisch in die Standardgruppe verschoben.`)) {
+        if (window.confirm(`Gruppe "${group.name}" wirklich löschen? Zugehörige Kategorien werden automatisch in die Gruppe "${DEFAULT_GROUP_NAME}" verschoben.`)) {
             deleteGroup(group.id);
         }
     };
@@ -85,6 +88,27 @@ export const CategoryLibraryModal: FC<{ isOpen: boolean; onClose: () => void; }>
             <Button onClick={onClose}>Fertig</Button>
         </div>
     );
+
+    const renderCategoryButton = (category: Category, onClick: () => void) => {
+        const Icon = iconMap[category.icon] || iconMap.MoreHorizontal;
+        const isFavorite = favoriteIds.includes(category.id);
+        return (
+            <div key={category.id} className="relative">
+                <button type="button" onClick={onClick} className="flex items-center gap-2 px-3 py-2 text-white font-medium rounded-lg transition-colors duration-200 border-2 bg-theme-card hover:bg-theme-input" style={{ borderColor: category.color }} title={category.name}>
+                    <Icon className="h-5 w-5 shrink-0" style={{ color: category.color }} />
+                    <span className="text-sm">{category.name}</span>
+                </button>
+                 <button
+                    onClick={(e) => { e.stopPropagation(); toggleFavorite(category.id); }}
+                    className="absolute -top-1 -right-1 z-10 p-1 bg-slate-700 rounded-full text-slate-400 hover:text-yellow-400"
+                    aria-pressed={isFavorite}
+                    title={isFavorite ? 'Favorit entfernen' : 'Als Favorit markieren'}
+                >
+                    <Star className={`h-3 w-3 transition-all ${isFavorite ? 'fill-yellow-400 text-yellow-400' : 'hover:fill-yellow-400/50'}`} />
+                </button>
+            </div>
+        );
+    }
 
     return (
         <>
@@ -110,15 +134,7 @@ export const CategoryLibraryModal: FC<{ isOpen: boolean; onClose: () => void; }>
                             )}
                             <div className="flex flex-wrap gap-2">
                                 {group.categories.length > 0 ? (
-                                    group.categories.map(category => {
-                                        const Icon = iconMap[category.icon] || iconMap.MoreHorizontal;
-                                        return (
-                                            <button key={category.id} type="button" onClick={() => handleOpenEditor(category)} className="flex items-center gap-2 px-3 py-2 text-white font-medium rounded-lg transition-colors duration-200 border-2 bg-theme-card hover:bg-theme-input" style={{ borderColor: category.color }} title={category.name}>
-                                                <Icon className="h-5 w-5 shrink-0" style={{ color: category.color }} />
-                                                <span className="text-sm">{category.name}</span>
-                                            </button>
-                                        );
-                                    })
+                                    group.categories.map(category => renderCategoryButton(category, () => handleOpenEditor(category)))
                                 ) : <p className="text-sm text-slate-500 italic ml-1">Keine Kategorien in dieser Gruppe.</p>}
                                 <button onClick={() => handleOpenEditor({ groupId: group.id })} className="w-12 h-12 flex items-center justify-center rounded-lg transition-colors duration-200 border-2 border-dashed border-slate-500 hover:border-slate-400 bg-theme-card hover:bg-theme-input" title="Neue Kategorie hinzufügen">
                                     <Plus className="h-6 w-6 text-slate-400" />
@@ -134,7 +150,7 @@ export const CategoryLibraryModal: FC<{ isOpen: boolean; onClose: () => void; }>
 
                     {/* 2. ADD NEW GROUP */}
                     <div className="flex gap-3">
-                        <input type="text" value={newGroupName} onChange={e => setNewGroupName(e.target.value)} placeholder="Neue Gruppe hinzufügen..." className="w-full max-w-xs bg-theme-input border border-theme-border rounded-md px-3 py-2 text-white placeholder-theme-text-muted focus:outline-none focus:ring-2 focus:ring-theme-ring" />
+                        <input type="text" value={newGroupName} onChange={e => setNewGroupName(e.target.value)} placeholder="Neue Gruppe hinzufügen..." className="w-full max-w-xs bg-slate-700 border border-slate-600 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-rose-500" />
                         <Button onClick={handleAddGroup}><Plus className="h-4 w-4"/> Gruppe erstellen</Button>
                     </div>
                     
@@ -145,15 +161,7 @@ export const CategoryLibraryModal: FC<{ isOpen: boolean; onClose: () => void; }>
                         <div>
                              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3 ml-1">{fixedGroupData.name}</h4>
                              <div className="flex flex-wrap gap-2">
-                                {fixedGroupData.categories.map(category => {
-                                    const Icon = iconMap[category.icon] || iconMap.MoreHorizontal;
-                                    return (
-                                        <button key={category.id} type="button" onClick={() => handleOpenEditor(category)} className="flex items-center gap-2 px-3 py-2 text-white font-medium rounded-lg transition-colors duration-200 border-2 bg-theme-card hover:bg-theme-input" style={{ borderColor: category.color }} title={category.name}>
-                                            <Icon className="h-5 w-5 shrink-0" style={{ color: category.color }} />
-                                            <span className="text-sm">{category.name}</span>
-                                        </button>
-                                    );
-                                })}
+                                {fixedGroupData.categories.map(category => renderCategoryButton(category, () => handleOpenEditor(category)))}
                                  <button onClick={() => handleOpenEditor({ groupId: fixedGroupData.id })} className="w-12 h-12 flex items-center justify-center rounded-lg transition-colors duration-200 border-2 border-dashed border-slate-500 hover:border-slate-400 bg-theme-card hover:bg-theme-input" title="Neue Kategorie hinzufügen">
                                     <Plus className="h-6 w-6 text-slate-400" />
                                 </button>
@@ -168,15 +176,7 @@ export const CategoryLibraryModal: FC<{ isOpen: boolean; onClose: () => void; }>
                          <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3 ml-1">Verfügbare Standard-Kategorien</h4>
                          <p className="text-sm text-slate-400 mb-4">Fügen Sie Kategorien aus der Standardbibliothek zu Ihren Gruppen hinzu oder laden Sie die komplette Standardkonfiguration.</p>
                          <div className="flex flex-wrap gap-2 mb-6">
-                            {unassignedCategories.map(category => {
-                                 const Icon = iconMap[category.icon] || iconMap.MoreHorizontal;
-                                return (
-                                    <button key={category.id} type="button" onClick={() => handleOpenEditor(category)} className="flex items-center gap-2 px-3 py-2 text-white font-medium rounded-lg transition-colors duration-200 border-2 border-dashed border-slate-500 hover:border-slate-400 bg-theme-card hover:bg-theme-input" title={`"${category.name}" hinzufügen`}>
-                                        <Icon className="h-5 w-5 shrink-0" style={{ color: category.color }} />
-                                        <span className="text-sm">{category.name}</span>
-                                    </button>
-                                );
-                            })}
+                            {unassignedCategories.map(category => renderCategoryButton(category, () => handleOpenEditor(category)))}
                          </div>
                          <Button onClick={loadStandardConfiguration} variant="secondary">
                             <DownloadCloud className="h-4 w-4" />

@@ -1,23 +1,112 @@
+
+
 import React, { useMemo } from 'react';
 import type { FC } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import type { Category, CategoryId, Group } from '@/shared/types';
-import { iconMap, Plus } from '@/shared/ui';
+import { iconMap, Plus, Star } from '@/shared/ui';
 
-const CategoryButtons: FC<{
+const CategoryTile: FC<{
+    category: Category;
+    isSelected: boolean;
+    onSelect: (id: string) => void;
+    isFavorite: boolean;
+    onToggleFavorite?: (id: string) => void;
+}> = ({ category, isSelected, onSelect, isFavorite, onToggleFavorite }) => {
+    const Icon = iconMap[category.icon] || iconMap.MoreHorizontal;
+
+    return (
+        <div className="relative" key={category.id}>
+            <motion.button
+                type="button"
+                onClick={() => onSelect(category.id)}
+                layout
+                transition={{ type: 'spring', damping: 20, stiffness: 300 }}
+                style={{
+                    backgroundColor: isSelected ? category.color : undefined,
+                    borderColor: category.color,
+                }}
+                className={`flex items-center justify-center rounded-lg transition-colors duration-200 border-2
+                    ${isSelected 
+                        ? 'gap-2 px-4 py-3 text-white font-semibold shadow-lg' 
+                        : 'w-12 h-12 bg-theme-card hover:bg-theme-input'
+                    }`
+                }
+                title={category.name}
+            >
+                <Icon className="h-6 w-6 shrink-0" style={{ color: isSelected ? 'white' : category.color }} />
+                <AnimatePresence>
+                    {isSelected && (
+                        <motion.span
+                            initial={{ opacity: 0, width: 0 }}
+                            animate={{ opacity: 1, width: 'auto' }}
+                            exit={{ opacity: 0, width: 0 }}
+                            transition={{ duration: 0.15, ease: 'linear' }}
+                            className="whitespace-nowrap overflow-hidden text-sm"
+                        >
+                            {category.name}
+                        </motion.span>
+                    )}
+                </AnimatePresence>
+            </motion.button>
+            {onToggleFavorite && (
+                <button
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        onToggleFavorite(category.id);
+                    }}
+                    className="absolute -top-1 -right-1 z-10 p-1 bg-slate-700 rounded-full text-slate-400 hover:text-yellow-400"
+                    aria-pressed={isFavorite}
+                    title={isFavorite ? 'Favorit entfernen' : 'Als Favorit markieren'}
+                >
+                    <Star className={`h-3 w-3 transition-all ${isFavorite ? 'fill-yellow-400 text-yellow-400' : 'hover:fill-yellow-400/50'}`} />
+                </button>
+            )}
+        </div>
+    );
+};
+
+export const CategoryButtons: FC<{
     categories: Category[];
-    groups: Group[];
+    groups?: Group[];
     selectedCategoryId: CategoryId;
     onSelectCategory: (id: CategoryId) => void;
     onShowMoreClick?: () => void;
-}> = ({ categories, groups, selectedCategoryId, onSelectCategory, onShowMoreClick }) => {
+    showGroups?: boolean;
+    favoriteIds?: string[];
+    onToggleFavorite?: (id: CategoryId) => void;
+}> = ({ 
+    categories, 
+    groups = [], 
+    selectedCategoryId, 
+    onSelectCategory, 
+    onShowMoreClick, 
+    showGroups = true,
+    favoriteIds = [],
+    onToggleFavorite,
+}) => {
     
+    const tileProps = (category: Category) => ({
+        category: category,
+        isSelected: selectedCategoryId === category.id,
+        onSelect: onSelectCategory,
+        isFavorite: favoriteIds.includes(category.id),
+        onToggleFavorite: onToggleFavorite,
+    });
+
+    if (!showGroups) {
+        return (
+             <div className="flex flex-wrap gap-2">
+                {categories.map(category => <CategoryTile key={category.id} {...tileProps(category)} />)}
+            </div>
+        )
+    }
+
     const groupedCategories = useMemo(() => {
         return groups.map(group => ({
             name: group.name,
             categories: categories.filter(category => category.groupId === group.id)
         })).filter(group => group.categories.length > 0);
-
     }, [categories, groups]);
 
     return (
@@ -26,46 +115,7 @@ const CategoryButtons: FC<{
                 <div key={group.name}>
                     <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2 ml-1">{group.name}</h4>
                     <div className="flex flex-wrap gap-2">
-                        {group.categories.map(category => {
-                            const Icon = iconMap[category.icon] || iconMap.MoreHorizontal;
-                            const isSelected = selectedCategoryId === category.id;
-                            return (
-                                <motion.button
-                                    key={category.id}
-                                    type="button"
-                                    onClick={() => onSelectCategory(category.id)}
-                                    layout
-                                    transition={{ type: 'spring', damping: 20, stiffness: 300 }}
-                                    style={{
-                                        backgroundColor: isSelected ? category.color : undefined,
-                                        borderColor: category.color,
-                                    }}
-                                    className={`flex items-center justify-center rounded-lg transition-colors duration-200 border-2
-                                        ${isSelected 
-                                            ? 'gap-2 px-4 py-3 text-white font-semibold shadow-lg' 
-                                            : 'w-12 h-12 bg-theme-card hover:bg-theme-input'
-                                        }`
-                                    }
-                                    title={category.name}
-                                >
-                                    <Icon className="h-6 w-6 shrink-0" style={{ color: isSelected ? 'white' : category.color }} />
-                                    <AnimatePresence>
-                                        {isSelected && (
-                                            <motion.span
-                                                initial={{ opacity: 0, width: 0 }}
-                                                animate={{ opacity: 1, width: 'auto' }}
-                                                exit={{ opacity: 0, width: 0 }}
-                                                transition={{ duration: 0.15, ease: 'linear' }}
-                                                className="whitespace-nowrap overflow-hidden text-sm"
-                                            >
-                                                {category.name}
-                                            </motion.span>
-                                        )}
-                                    </AnimatePresence>
-                                </motion.button>
-                            );
-                        })}
-                        {/* Append button to the last group's flow */}
+                        {group.categories.map(category => <CategoryTile key={category.id} {...tileProps(category)} />)}
                         {onShowMoreClick && groupIndex === groupedCategories.length - 1 && (
                             <motion.button
                                 type="button"
@@ -80,8 +130,6 @@ const CategoryButtons: FC<{
                     </div>
                 </div>
             ))}
-
-            {/* Fallback for when no groups with categories are rendered */}
             {groupedCategories.length === 0 && onShowMoreClick && (
                 <motion.button
                     type="button"

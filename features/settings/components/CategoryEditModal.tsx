@@ -2,11 +2,11 @@ import React, { useState, useMemo, useEffect, FC } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { useApp } from '@/contexts/AppContext';
-import { Modal, Button, getIconComponent } from '@/shared/ui';
+import { Modal, Button, getIconComponent, ChevronDown } from '@/shared/ui';
 import { useEscapeKey } from '@/shared/hooks/useEscapeKey';
 import { IconPicker } from './IconPicker';
 
-const BASE_INPUT_CLASSES = "w-full bg-theme-input border border-theme-border rounded-md px-3 py-2 text-white placeholder-theme-text-muted focus:outline-none focus:ring-2 focus:ring-theme-ring";
+const BASE_INPUT_CLASSES = "w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-rose-500";
 
 export type CategoryFormData = {
     id: string;
@@ -78,9 +78,12 @@ export const CategoryEditModal: FC<{ isOpen: boolean; onClose: () => void; categ
                     </div>
                     <div>
                         <label htmlFor="cat-group" className="text-xs text-slate-400">Gruppe</label>
-                        <select id="cat-group" value={formData.groupId} onChange={e => setFormData({ ...formData, groupId: e.target.value })} className={BASE_INPUT_CLASSES}>
-                            {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
-                        </select>
+                        <div className="relative">
+                            <select id="cat-group" value={formData.groupId} onChange={e => setFormData({ ...formData, groupId: e.target.value })} className={`${BASE_INPUT_CLASSES} appearance-none pr-10`}>
+                                {groups.map(g => <option key={g.id} value={g.id} className="bg-slate-800 text-white">{g.name}</option>)}
+                            </select>
+                            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 pointer-events-none" />
+                        </div>
                     </div>
                 </div>
             </Modal>

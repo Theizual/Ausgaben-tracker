@@ -1,4 +1,6 @@
 
+
+
 import React, { createContext, useContext, useEffect, useMemo, useRef, useCallback, useState} from 'react';
 import { toast } from 'react-hot-toast';
 import { useTransactionData } from '@/shared/hooks/useTransactionData';
@@ -7,6 +9,7 @@ import { useSync } from '@/shared/hooks/useSync';
 import { useUsers } from '@/shared/hooks/useUsers';
 import { useUserSettings } from '@/shared/hooks/useUserSettings';
 import { useCategories } from '@/shared/hooks/useCategories';
+import { useCategoryPreferences } from '@/shared/hooks/useCategoryPreferences';
 import useLocalStorage from '@/shared/hooks/useLocalStorage';
 import type { User, Category, Group, RecurringTransaction } from '@/shared/types';
 import { FIXED_COSTS_GROUP_ID } from '@/constants';
@@ -22,6 +25,7 @@ type AppContextType =
     ReturnType<typeof useUsers> &
     ReturnType<typeof useUserSettings> &
     ReturnType<typeof useCategories> &
+    ReturnType<typeof useCategoryPreferences> &
     { currentUser: User | null } &
     ReturnType<typeof useSync> &
     { 
@@ -89,6 +93,11 @@ const ReadyAppProvider: React.FC<{
         isDemoModeEnabled: isDemoModeEnabled,
     });
 
+    const categoryPreferencesState = useCategoryPreferences({
+        userId: uiState.currentUserId,
+        isDemoModeEnabled,
+    });
+
     const flexibleCategories = useMemo(() => categoryState.categories.filter(c => c.groupId !== FIXED_COSTS_GROUP_ID), [categoryState.categories]);
     const fixedCategories = useMemo(() => categoryState.categories.filter(c => c.groupId === FIXED_COSTS_GROUP_ID), [categoryState.categories]);
     const fixedCategoryIds = useMemo(() => new Set(fixedCategories.map(c => c.id)), [fixedCategories]);
@@ -100,6 +109,7 @@ const ReadyAppProvider: React.FC<{
         closeTransactionDetail: uiState.closeTransactionDetail,
         currentUserId: uiState.currentUserId,
         isDemoModeEnabled: isDemoModeEnabled,
+        addRecentCategory: categoryPreferencesState.addRecent,
     });
     
     const totalSpentThisMonth = useMemo(() => {
@@ -202,6 +212,12 @@ const ReadyAppProvider: React.FC<{
                 'lastSyncTimestamp', 'autoSyncEnabled'
             ];
             
+            // Also clear favorites and recents for all users under the current mode
+            usersState.users.forEach(user => {
+                keysToClear.push(`${user.id}_favorite_categories`);
+                keysToClear.push(`${user.id}_recent_categories`);
+            });
+
             keysToClear.forEach(key => window.localStorage.removeItem(`${prefix}${key}`));
 
             if (!isDemoModeEnabled) {
@@ -211,11 +227,12 @@ const ReadyAppProvider: React.FC<{
             toast.success("Anwendungsdaten zurückgesetzt. App wird neu geladen.");
             setTimeout(() => window.location.reload(), 1500);
         }
-    }, [isDemoModeEnabled]);
+    }, [isDemoModeEnabled, usersState.users]);
 
     const value: AppContextType = {
         ...uiState,
         ...categoryState,
+        ...categoryPreferencesState,
         flexibleCategories,
         fixedCategories,
         totalMonthlyBudget,

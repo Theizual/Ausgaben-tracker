@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, FC } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
@@ -58,24 +57,24 @@ export const FilterModal: FC<{
         >
             <div className="space-y-4">
                 <div className="flex flex-col md:flex-row gap-3">
-                    <div className="relative flex-grow">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+                    <div className="flex-grow flex items-center bg-slate-700 border border-slate-600 rounded-lg focus-within:ring-2 focus-within:ring-rose-500 px-3">
+                        <Search className="h-5 w-5 text-slate-400 shrink-0" />
                         <input
                             type="text"
                             placeholder="Suche nach Beschreibung..."
                             value={localFilters.text}
                             onChange={e => handleFilterChange('text', e.target.value)}
-                            className="w-full bg-slate-700 border border-slate-600 rounded-lg pl-10 pr-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-rose-500"
+                            className="w-full bg-transparent border-none pl-2 py-2.5 text-white placeholder-slate-500 focus:outline-none"
                         />
                     </div>
-                    <div className="relative flex-grow">
-                        <Tag className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+                    <div className="flex-grow flex items-center bg-slate-700 border border-slate-600 rounded-lg focus-within:ring-2 focus-within:ring-rose-500 px-3">
+                        <Tag className="h-5 w-5 text-slate-400 shrink-0" />
                         <input
                             type="text"
                             placeholder="Filter nach Tag (mit Komma trennen)..."
                             value={localFilters.tags}
                             onChange={e => handleFilterChange('tags', e.target.value)}
-                            className="w-full bg-slate-700 border border-slate-600 rounded-lg pl-10 pr-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-rose-500"
+                            className="w-full bg-transparent border-none pl-2 py-2.5 text-white placeholder-slate-500 focus:outline-none"
                         />
                     </div>
                 </div>
@@ -98,8 +97,8 @@ export const FilterModal: FC<{
                             <div>
                                 <p className="text-sm font-medium text-slate-300 mb-2">Betrag</p>
                                 <div className="flex items-center gap-2">
-                                    <input type="number" placeholder="Min." value={localFilters.minAmount} onChange={e => handleFilterChange('minAmount', e.target.value)} className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white placeholder-slate-500"/>
-                                    <input type="number" placeholder="Max." value={localFilters.maxAmount} onChange={e => handleFilterChange('maxAmount', e.target.value)} className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white placeholder-slate-500"/>
+                                    <input type="number" placeholder="Min." value={localFilters.minAmount} onChange={e => handleFilterChange('minAmount', e.target.value)} className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-rose-500"/>
+                                    <input type="number" placeholder="Max." value={localFilters.maxAmount} onChange={e => handleFilterChange('maxAmount', e.target.value)} className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-rose-500"/>
                                 </div>
                             </div>
                             <div>

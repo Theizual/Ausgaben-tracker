@@ -1,3 +1,4 @@
+
 import {
     Armchair,
     Baby,
@@ -108,6 +109,7 @@ import {
     Sprout,
     SprayCan,
     Square,
+    Star,
     Stethoscope,
     Store,
     Tag,
@@ -140,7 +142,7 @@ export const iconMap: { [key: string]: FC<LucideProps> } = {
     List, Loader2, LogIn, LogOut, Luggage, MoreHorizontal, MousePointerClick, Music, Navigation, Package, Paintbrush, PartyPopper, PawPrint,
     PiggyBank, Pill, Pizza, Plane, Plus, RefreshCw, Repeat, Router, Save, Scale, Scissors, School, Search, Settings, Sheet, ShieldCheck,
     Shirt, ShoppingBasket, ShoppingBag, ShowerHead, ShoppingCart, Shrink, Signal, SlidersHorizontal, Smartphone, Sofa, Sparkles, Sprout,
-    SprayCan, Square, Stethoscope, Store, Tag, Tags, Target, Ticket, ToyBrick, TrainFront, Trash2, TrendingDown, Tv, User, Users,
+    SprayCan, Square, Star, Stethoscope, Store, Tag, Tags, Target, Ticket, ToyBrick, TrainFront, Trash2, TrendingDown, Tv, User, Users,
     UtensilsCrossed, Wallet, Wifi, Wrench, X, Zap,
 };
 
@@ -153,7 +155,7 @@ export {
     List, Loader2, LogIn, LogOut, Luggage, MoreHorizontal, MousePointerClick, Music, Navigation, Package, Paintbrush, PartyPopper, PawPrint,
     PiggyBank, Pill, Pizza, Plane, Plus, RefreshCw, Repeat, Router, Save, Scale, Scissors, School, Search, Settings, Sheet, ShieldCheck,
     Shirt, ShoppingBasket, ShoppingBag, ShowerHead, ShoppingCart, Shrink, Signal, SlidersHorizontal, Smartphone, Sofa, Sparkles, Sprout,
-    SprayCan, Square, Stethoscope, Store, Tag, Tags, Target, Ticket, ToyBrick, TrainFront, Trash2, TrendingDown, Tv, User, Users,
+    SprayCan, Square, Star, Stethoscope, Store, Tag, Tags, Target, Ticket, ToyBrick, TrainFront, Trash2, TrendingDown, Tv, User, Users,
     UtensilsCrossed, Wallet, Wifi, Wrench, X, Zap,
 };
 

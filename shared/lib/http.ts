@@ -1,6 +1,9 @@
 
 
-import type { Category, Tag, User } from '../types';
+
+
+
+import type { Category, Tag, User, RecurringTransaction, UserSetting } from '../types';
 import { withRetry } from './retry';
 
 // --- bleibt wie bei dir ---
