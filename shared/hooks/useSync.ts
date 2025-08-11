@@ -21,6 +21,7 @@ export interface SyncProps {
     isInitialSetupDone: boolean;
     isDemoModeEnabled: boolean;
     setIsInitialSetupDone: React.Dispatch<React.SetStateAction<boolean>>;
+    currentUserId: string | null;
 }
 
 interface Mergeable {
@@ -75,7 +76,7 @@ export const useSync = (props: SyncProps) => {
     const {
         rawCategories, rawGroups, rawTransactions, rawRecurringTransactions, rawAllAvailableTags, rawUsers, rawUserSettings,
         setCategoriesAndGroups, setTransactions, setRecurringTransactions, setAllAvailableTags, setUsers, setUserSettings,
-        isInitialSetupDone, isDemoModeEnabled, setIsInitialSetupDone
+        isInitialSetupDone, isDemoModeEnabled, setIsInitialSetupDone, currentUserId
     } = props;
     
     const prefix = isDemoModeEnabled ? 'demo_' : '';
@@ -85,8 +86,14 @@ export const useSync = (props: SyncProps) => {
     const [lastSync, setLastSync] = useLocalStorage<string | null>(`${prefix}lastSyncTimestamp`, null);
     const [isAutoSyncEnabled, setIsAutoSyncEnabled] = useLocalStorage<boolean>(`${prefix}autoSyncEnabled`, false);
     const [isSyncRecommended, setIsSyncRecommended] = useState(false);
+    const [syncPromptDismissedUntil, setSyncPromptDismissedUntil] = useLocalStorage<number | null>(`${prefix}syncPromptDismissedUntil`, null);
     
     const syncInProgressRef = useRef(false);
+
+    const dismissSyncPrompt = useCallback(() => {
+        setSyncPromptDismissedUntil(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+        setIsSyncRecommended(false);
+    }, [setSyncPromptDismissedUntil, setIsSyncRecommended]);
     
     const handleMergeConflicts = useCallback(async (conflicts: ConflictData) => {
         const mergedCategories = mergeItems<Category>(rawCategories, [], conflicts.categories);
@@ -107,7 +114,7 @@ export const useSync = (props: SyncProps) => {
         if (syncInProgressRef.current) return;
 
         if (isDemoModeEnabled) {
-            if (!window.confirm("Möchten Sie Ihre Daten aus Google Sheets laden? Dadurch wird der Demo-Modus beendet und die aktuellen Demo-Daten werden überschrieben.")) {
+            if (window.confirm("Möchten Sie Ihre Daten aus Google Sheets laden? Dadurch wird der Demo-Modus beendet und die aktuellen Demo-Daten werden überschrieben.")) {
                 return;
             }
             
@@ -185,11 +192,28 @@ export const useSync = (props: SyncProps) => {
         setSyncError(null);
 
         try {
+            // Fetch current settings from server to avoid overwriting other users' changes.
+            const serverState: ReadApiResponse = await apiGet('/api/sheets/read');
+            const remoteUserSettings = serverState.userSettings || [];
+            
+            let userSettingsPayload: UserSetting[];
+            if (currentUserId) {
+                const currentUserLocalSettings = rawUserSettings.filter(s => s.userId === currentUserId);
+                const otherUsersRemoteSettings = remoteUserSettings.filter(s => s.userId !== currentUserId);
+                userSettingsPayload = [...otherUsersRemoteSettings, ...currentUserLocalSettings];
+            } else {
+                toast.error("Kein Benutzer ausgewählt. Synchronisierung abgebrochen.");
+                setSyncStatus('error');
+                setSyncError("Kein Benutzer ausgewählt.");
+                syncInProgressRef.current = false;
+                return;
+            }
+
             const remoteData: ReadApiResponse = await apiPost('/api/sheets/write', {
                 groups: rawGroups,
                 categories: rawCategories,
                 transactions: rawTransactions, recurring: rawRecurringTransactions,
-                tags: rawAllAvailableTags, users: rawUsers, userSettings: rawUserSettings,
+                tags: rawAllAvailableTags, users: rawUsers, userSettings: userSettingsPayload,
             });
             
             const mergedCategories = mergeItems<Category>(rawCategories, remoteData.categories);
@@ -220,7 +244,8 @@ export const useSync = (props: SyncProps) => {
         }
     }, [
         isDemoModeEnabled, setIsInitialSetupDone, rawCategories, rawGroups, rawTransactions, rawRecurringTransactions, rawAllAvailableTags, rawUsers, rawUserSettings,
-        handleMergeConflicts, setLastSync, setCategoriesAndGroups, setTransactions, setRecurringTransactions, setAllAvailableTags, setUsers, setUserSettings
+        handleMergeConflicts, setLastSync, setCategoriesAndGroups, setTransactions, setRecurringTransactions, setAllAvailableTags, setUsers, setUserSettings,
+        currentUserId
     ]);
 
     const loadFromSheet = useCallback(async () => {
@@ -256,13 +281,16 @@ export const useSync = (props: SyncProps) => {
     }, [syncStatus]);
 
     useEffect(() => {
+        if (syncPromptDismissedUntil && Date.now() < syncPromptDismissedUntil) {
+            return;
+        }
         if (isInitialSetupDone && !lastSync && !isDemoModeEnabled) {
             loadFromSheet();
         }
         else if (lastSync && !isAutoSyncEnabled && !isDemoModeEnabled && (Date.now() - new Date(lastSync).getTime() > 5 * 60 * 60 * 1000)) {
             setIsSyncRecommended(true);
         }
-    }, [isInitialSetupDone, isAutoSyncEnabled, lastSync, loadFromSheet, isDemoModeEnabled]);
+    }, [isInitialSetupDone, isAutoSyncEnabled, lastSync, loadFromSheet, isDemoModeEnabled, syncPromptDismissedUntil]);
 
 
     const syncOperation: 'sync' | null = syncStatus === 'syncing' ? 'sync' : null;
@@ -277,6 +305,7 @@ export const useSync = (props: SyncProps) => {
         setIsAutoSyncEnabled,
         isSyncRecommended,
         setIsSyncRecommended,
+        dismissSyncPrompt,
         syncData,
         loadFromSheet,
     };

@@ -1,6 +1,4 @@
 
-
-
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { AnimatePresence, motion, MotionProps } from 'framer-motion';
 import { toast } from 'react-hot-toast';
@@ -107,10 +105,16 @@ export const BudgetSettings = () => {
     }, [flexibleCategories, groups, groupedBudgetData]); // Rerun when global state changes
 
     // --- Handlers for Flexible Budgets ---
-    const handleGroupBudgetChange = useCallback((groupId: string, value: string) => {
+    const handleLocalGroupBudgetChange = useCallback((groupId: string, value: string) => {
         setLocalGroupBudgets(prev => ({ ...prev, [groupId]: value }));
+    }, []);
+    
+    const handleCommitGroupBudget = useCallback((groupId: string) => {
+        focusedInputRef.current = null;
+        const value = localGroupBudgets[groupId];
+        if (value === undefined) return;
 
-        const newTotal = parseFloat(value.replace(',', '.'));
+        const newTotal = parseFloat(value.replace(/\./g, '').replace(',', '.'));
         if (isNaN(newTotal) || newTotal < 0) return;
 
         const groupCategories = flexibleCategories.filter(c => c.groupId === groupId);
@@ -121,7 +125,7 @@ export const BudgetSettings = () => {
 
         if (newTotalInCents === currentTotalInCents) return;
 
-        let updatedCategoriesData: (Partial<Category> & { id: string })[] = [];
+        let updatedCategoriesData: { id: string, budget: number }[] = [];
 
         if (newTotalInCents === 0) {
             updatedCategoriesData = groupCategories.map(cat => ({ id: cat.id, budget: 0 }));
@@ -148,35 +152,34 @@ export const BudgetSettings = () => {
                 return { id: b.id, budget: (b.floor + centsToAdd) / 100 };
             });
         }
-        
-        if (updatedCategoriesData.length > 0) {
-            upsertMultipleCategories(updatedCategoriesData as Category[]);
-        }
-    }, [flexibleCategories, upsertMultipleCategories]);
 
-    const handleIndividualBudgetChange = useCallback((categoryId: string, value: string) => {
+        if (updatedCategoriesData.length > 0) {
+            upsertMultipleCategories(updatedCategoriesData);
+        }
+    }, [localGroupBudgets, flexibleCategories, upsertMultipleCategories]);
+
+    const handleLocalIndividualBudgetChange = useCallback((categoryId: string, value: string) => {
         setLocalCategoryBudgets(prev => ({ ...prev, [categoryId]: value }));
+    }, []);
+
+    const handleCommitIndividualBudget = useCallback((categoryId: string) => {
+        focusedInputRef.current = null;
+        const value = localCategoryBudgets[categoryId];
+        if(value === undefined) return;
 
         const category = flexibleCategories.find(c => c.id === categoryId);
         if (!category) return;
 
-        const newBudget = parseFloat(value.replace(',', '.'));
-        if (isNaN(newBudget) || newBudget < 0) return;
+        const newBudgetNum = parseFloat(value.replace(/\./g, '').replace(',', '.'));
+        const newBudget = isNaN(newBudgetNum) || newBudgetNum < 0 ? 0 : newBudgetNum;
 
         const newBudgetCents = Math.round(newBudget * 100);
         const currentBudgetCents = Math.round((category.budget || 0) * 100);
 
         if (newBudgetCents !== currentBudgetCents) {
-            upsertCategory({ id: categoryId, budget: newBudgetCents / 100 });
+            upsertCategory({ id: categoryId, budget: newBudget });
         }
-    }, [flexibleCategories, upsertCategory]);
-
-    const handleBlur = useCallback((setter: React.Dispatch<React.SetStateAction<Record<string, string>>>, id: string, value: string) => {
-        focusedInputRef.current = null;
-        const parsed = parseFloat(value.replace(',', '.'));
-        const formatted = isNaN(parsed) || parsed === 0 ? '' : parsed.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        setter(prev => ({ ...prev, [id]: formatted }));
-    }, []);
+    }, [localCategoryBudgets, flexibleCategories, upsertCategory]);
 
     const toggleFlexGroup = useCallback((groupId: string) => {
         setFlexExpandedGroups(prev =>
@@ -331,10 +334,10 @@ export const BudgetSettings = () => {
                                         groupTotalBudget={groupTotalBudget}
                                         groupBudgetInputs={localGroupBudgets}
                                         categoryBudgetInputs={localCategoryBudgets}
-                                        onGroupBudgetChange={(value) => handleGroupBudgetChange(group.id, value)}
-                                        onIndividualBudgetChange={(cat, value) => handleIndividualBudgetChange(cat.id, value)}
-                                        onGroupBudgetBlur={(value) => handleBlur(setLocalGroupBudgets, group.id, value)}
-                                        onIndividualBudgetBlur={(catId, value) => handleBlur(setLocalCategoryBudgets, catId, value)}
+                                        onGroupBudgetChange={(value) => handleLocalGroupBudgetChange(group.id, value)}
+                                        onIndividualBudgetChange={(catId, value) => handleLocalIndividualBudgetChange(catId, value)}
+                                        onCommitGroup={() => handleCommitGroupBudget(group.id)}
+                                        onCommitCategory={(catId) => handleCommitIndividualBudget(catId)}
                                         isExpanded={flexExpandedGroups.includes(group.id)}
                                         onToggle={() => toggleFlexGroup(group.id)}
                                         focusedInputRef={focusedInputRef}
@@ -352,9 +355,9 @@ export const BudgetSettings = () => {
                                                     <div className="flex items-center gap-3">
                                                         <Icon className="h-5 w-5 flex-shrink-0" style={{color: category.color}} />
                                                         <span className="flex-1 font-medium text-white truncate">{category.name}</span>
-                                                        <div className="flex items-center bg-slate-700 border border-slate-600 rounded-lg focus-within:ring-2 focus-within:ring-rose-500 w-28 flex-shrink-0 ml-2 px-3">
+                                                        <div className="flex items-center bg-slate-700 border border-slate-600 rounded-lg focus-within:ring-2 focus-within:ring-rose-500 w-24 flex-shrink-0 ml-2 px-3">
                                                           <span className="text-slate-400 text-sm">€</span>
-                                                          <input type="text" inputMode="decimal" defaultValue={rec?.amount ? rec.amount.toString().replace('.', ',') : ''} onBlur={e => handleFixedAmountUpdate(category.id, e.currentTarget.value)} onKeyDown={e => {if (e.key === 'Enter') (e.target as HTMLInputElement).blur()}} placeholder="Betrag" className="w-full bg-transparent border-none pl-2 py-2 text-right text-white text-sm placeholder-slate-500 focus:outline-none"/>
+                                                          <input type="text" inputMode="decimal" defaultValue={rec?.amount ? rec.amount.toString().replace('.', ',') : ''} onBlur={e => handleFixedAmountUpdate(category.id, e.currentTarget.value)} onKeyDown={e => {if (e.key === 'Enter') (e.target as HTMLInputElement).blur()}} placeholder="Betrag" className="w-full bg-transparent border-none pl-2 py-1.5 text-right text-white text-sm placeholder-slate-500 focus:outline-none"/>
                                                         </div>
                                                     </div>
                                                     <div className="pl-8 mt-1.5"><ProgressBar percentage={(rec?.amount || 0) / (totalMonthlyFixedCosts || 1) * 100} color={category.color} className="h-1.5" /></div>

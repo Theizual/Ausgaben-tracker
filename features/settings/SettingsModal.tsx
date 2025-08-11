@@ -2,6 +2,8 @@
 
 
 
+
+
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { AnimatePresence, motion, MotionProps } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
@@ -74,11 +76,12 @@ const SettingsModal = ({ isOpen, onClose, initialTab }: { isOpen: boolean; onClo
     // Verhindert das Scrollen des Hintergrunds, wenn das Modal geöffnet ist
     useEffect(() => {
         if (isOpen) {
-            document.body.style.overflow = 'hidden';
+            document.body.classList.add('modal-open');
+        } else {
+            document.body.classList.remove('modal-open');
         }
-        // Beim Schließen des Modals wird das Scrollen wiederhergestellt
         return () => {
-            document.body.style.overflow = '';
+            document.body.classList.remove('modal-open');
         };
     }, [isOpen]);
 

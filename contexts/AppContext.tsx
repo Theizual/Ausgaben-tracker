@@ -1,5 +1,6 @@
 
 
+
 import React, { createContext, useContext, useEffect, useMemo, useRef, useCallback, useState} from 'react';
 import { toast } from 'react-hot-toast';
 import { useTransactionData } from '@/shared/hooks/useTransactionData';
@@ -183,6 +184,7 @@ const ReadyAppProvider: React.FC<{
         isInitialSetupDone: isInitialSetupDone,
         isDemoModeEnabled,
         setIsInitialSetupDone: setIsInitialSetupDone,
+        currentUserId: uiState.currentUserId,
     });
     
      const { syncStatus, syncError } = syncState;

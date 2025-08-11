@@ -1,4 +1,4 @@
-import React, { useState, useMemo, FC } from 'react';
+import React, { useState, useMemo, FC, useEffect } from 'react';
 import { useEscapeKey } from '@/shared/hooks/useEscapeKey';
 import { iconMap, Search } from '@/shared/ui';
 
@@ -8,6 +8,13 @@ export const IconPicker: FC<{ onSelect: (iconName: string) => void; onClose: () 
     const filteredIcons = useMemo(() => availableIcons.filter(name => name.toLowerCase().includes(searchTerm.toLowerCase())), [availableIcons, searchTerm]);
 
     useEscapeKey(onClose);
+
+    useEffect(() => {
+        document.body.classList.add('modal-open');
+        return () => {
+            document.body.classList.remove('modal-open');
+        };
+    }, []);
 
     return (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex justify-center items-center z-[70] p-4" onClick={onClose}>

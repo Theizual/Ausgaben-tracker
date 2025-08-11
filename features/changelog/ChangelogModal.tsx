@@ -1,9 +1,11 @@
 
 
-import React, { useEffect, useState } from 'react';
+
+
+import React, { useEffect, useState, useCallback } from 'react';
 import { motion, MotionProps } from 'framer-motion';
 import { X, Gift, Loader2 } from '@/shared/ui';
-import { ToggleSwitch } from '@/shared/ui';
+import { ToggleSwitch, Button } from '@/shared/ui';
 import { APP_VERSION } from '@/constants';
 import { apiGet } from '@/shared/lib/http';
 
@@ -29,6 +31,38 @@ const ChangelogModal = ({
 }: ChangelogModalProps) => {
     const [changelogData, setChangelogData] = useState<ChangelogEntry[] | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    const fetchChangelog = useCallback(() => {
+        setIsLoading(true);
+        setError(null);
+        apiGet('/changelog.json')
+            .then(data => {
+                setChangelogData(data);
+                try {
+                    localStorage.setItem('changelogCache', JSON.stringify({ data, timestamp: Date.now() }));
+                } catch (e) {
+                    console.warn('Could not cache changelog', e);
+                }
+                setIsLoading(false);
+            })
+            .catch(err => {
+                console.error("Failed to load changelog", err);
+                let errorMessage = "Changelog konnte nicht geladen werden.";
+                try {
+                    const cached = localStorage.getItem('changelogCache');
+                    if (cached) {
+                        const { data } = JSON.parse(cached);
+                        setChangelogData(data);
+                        errorMessage += " Zeige zwischengespeicherte Version.";
+                    }
+                } catch (cacheError) {
+                    console.error("Failed to parse cached changelog", cacheError);
+                }
+                setError(errorMessage);
+                setIsLoading(false);
+            });
+    }, []);
 
     useEffect(() => {
         const handleKeyDown = (event: KeyboardEvent) => {
@@ -37,19 +71,16 @@ const ChangelogModal = ({
             }
         };
         window.addEventListener('keydown', handleKeyDown);
-
-        apiGet('/changelog.json')
-            .then(data => {
-                setChangelogData(data);
-                setIsLoading(false);
-            })
-            .catch(err => {
-                console.error("Failed to load changelog", err);
-                setIsLoading(false);
-            });
-
+        fetchChangelog();
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [onClose]);
+    }, [onClose, fetchChangelog]);
+
+    useEffect(() => {
+        document.body.classList.add('modal-open');
+        return () => {
+            document.body.classList.remove('modal-open');
+        };
+    }, []);
 
     const latestChange = changelogData?.[0];
 
@@ -91,27 +122,42 @@ const ChangelogModal = ({
                         <div className="flex justify-center items-center h-full">
                             <Loader2 className="h-8 w-8 animate-spin text-slate-500" />
                         </div>
-                    ) : latestChange && Array.isArray(latestChange.changes) ? (
-                        <div className="prose prose-sm prose-invert max-w-none prose-ul:list-disc prose-ul:pl-5 prose-strong:text-white">
-                            <p className="text-xs text-slate-500 font-semibold mb-4">{latestChange.date}</p>
-                            <ul className="space-y-2">
-                            {toArray(latestChange?.changes).length === 0 ? (
-                                <li className="text-slate-400">Keine Änderungen vorhanden.</li>
-                            ) : (
-                                toArray(latestChange?.changes).map((change, index) => (
-                                    <li
-                                    key={index}
-                                    dangerouslySetInnerHTML={{
-                                        __html: change.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                                        }}
-                                        />
-                                ))
-
+                    ) : changelogData && latestChange ? (
+                        <>
+                            {error && (
+                                <div className="text-center text-amber-400 text-sm mb-4 bg-amber-500/10 p-2 rounded-md">
+                                    <p>{error}</p>
+                                    <button onClick={fetchChangelog} className="underline font-semibold mt-1">
+                                        Erneut versuchen
+                                    </button>
+                                </div>
                             )}
-                            </ul>
-                        </div>
+                            <div className="prose prose-sm prose-invert max-w-none prose-ul:list-disc prose-ul:pl-5 prose-strong:text-white">
+                                <p className="text-xs text-slate-500 font-semibold mb-4">{latestChange.date}</p>
+                                <ul className="space-y-2">
+                                {toArray(latestChange?.changes).length === 0 ? (
+                                    <li className="text-slate-400">Keine Änderungen vorhanden.</li>
+                                ) : (
+                                    toArray(latestChange?.changes).map((change, index) => (
+                                        <li
+                                        key={index}
+                                        dangerouslySetInnerHTML={{
+                                            __html: change.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                                            }}
+                                            />
+                                    ))
+
+                                )}
+                                </ul>
+                            </div>
+                        </>
                     ) : (
-                        <p className="text-slate-400 text-center">Changelog konnte nicht geladen werden.</p>
+                        <div className="flex flex-col items-center justify-center h-full text-center text-slate-500">
+                            <p className="text-red-400">{error || 'Changelog konnte nicht geladen werden.'}</p>
+                            <Button onClick={fetchChangelog} variant="secondary" className="mt-4">
+                                Erneut versuchen
+                            </Button>
+                        </div>
                     )}
                 </main>
 

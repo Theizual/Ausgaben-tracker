@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence, MotionProps } from 'framer-motion';
 import { toast } from 'react-hot-toast';
@@ -7,7 +5,7 @@ import { useApp } from '@/contexts/AppContext';
 import type { Transaction, CategoryId, User } from '@/shared/types';
 import { format, parseISO } from 'date-fns';
 import { formatCurrency } from '@/shared/utils/dateUtils';
-import { iconMap, X, Edit, Trash2, Plus, FlaskConical, Link } from '@/shared/ui';
+import { iconMap, X, Edit, Trash2, Plus, FlaskConical, Link, getIconComponent, RefreshCcw } from '@/shared/ui';
 import { TagEditorModal } from './ui/TagEditorModal';
 import { PickerModals } from './ui/PickerModals';
 import { TagPill } from '@/shared/ui';
@@ -46,9 +44,11 @@ const TransactionDetailModal = ({
     const [dateValue, setDateValue] = useState('');
     const [isPickingUser, setIsPickingUser] = useState(false);
     const [isEditingTags, setIsEditingTags] = useState(false);
+    const [isPickingIcon, setIsPickingIcon] = useState(false);
     
     const category = categoryMap.get(formState.categoryId);
-    const Icon = category ? iconMap[category.icon] || iconMap.MoreHorizontal : iconMap.MoreHorizontal;
+    const Icon = getIconComponent(formState.iconOverride || category?.icon);
+    const CategoryIcon = getIconComponent(category?.icon);
     const color = category ? category.color : '#64748b';
 
     const createdBy = useMemo(() => {
@@ -76,13 +76,15 @@ const TransactionDetailModal = ({
             setIsEditingDate(false);
             setIsPickingUser(false);
             setIsEditingTags(false);
+            setIsPickingIcon(false);
         }
     }, [isOpen, transaction]);
 
     useEffect(() => {
         const handleKeyDown = (event: KeyboardEvent) => {
             if (event.key === 'Escape') {
-                if (isEditingTags) setIsEditingTags(false);
+                if (isPickingIcon) setIsPickingIcon(false);
+                else if (isEditingTags) setIsEditingTags(false);
                 else if (isPickingUser) setIsPickingUser(false);
                 else if (isPickingCategory) setIsPickingCategory(false);
                 else if (isEditingDate) setIsEditingDate(false);
@@ -99,7 +101,7 @@ const TransactionDetailModal = ({
         return () => {
             window.removeEventListener('keydown', handleKeyDown);
         };
-    }, [isOpen, onClose, isEditingAmount, isPickingCategory, isEditingDate, isEditingDescription, isPickingUser, isEditingTags]);
+    }, [isOpen, onClose, isEditingAmount, isPickingCategory, isEditingDate, isEditingDescription, isPickingUser, isEditingTags, isPickingIcon]);
     
     const handleDelete = useCallback(() => {
         if (window.confirm(`Möchten Sie die Ausgabe "${transaction.description}" wirklich löschen?`)) {
@@ -179,6 +181,24 @@ const TransactionDetailModal = ({
         setIsEditingTags(false);
     };
 
+    const handleIconUpdate = (iconName: string) => {
+        if (iconName !== formState.iconOverride) {
+            handleUpdate({ iconOverride: iconName });
+            toast.success('Icon aktualisiert.');
+        }
+        setIsPickingIcon(false);
+    };
+
+    const handleIconReset = () => {
+        if (formState.iconOverride) {
+            // Create a new object to ensure we remove the key
+            const updates: Partial<Transaction> = { iconOverride: undefined };
+            handleUpdate(updates);
+            toast.success('Icon zurückgesetzt.');
+        }
+        setIsPickingIcon(false);
+    };
+
     const localTags = getTagNames(formState);
 
     const backdropAnimation: MotionProps = {
@@ -229,15 +249,28 @@ const TransactionDetailModal = ({
                                          <button onClick={onClose} className="absolute top-4 right-4 p-2 rounded-full hover:bg-slate-700 transition-colors z-10">
                                             <X className="h-5 w-5" />
                                         </button>
-                                        <motion.button 
-                                            {...iconButtonAnimation}
-                                            onClick={() => setIsPickingCategory(true)}
-                                            className="w-16 h-16 rounded-full flex items-center justify-center mb-4 transition-transform" 
-                                            style={{ backgroundColor: color }}
-                                            title="Kategorie ändern"
-                                        >
-                                            <Icon className="h-8 w-8 text-white" />
-                                        </motion.button>
+                                        <div className="relative mb-4">
+                                            <motion.button 
+                                                {...iconButtonAnimation}
+                                                onClick={() => setIsPickingIcon(true)}
+                                                className="w-16 h-16 rounded-full flex items-center justify-center transition-transform" 
+                                                style={{ backgroundColor: color }}
+                                                title="Icon ändern"
+                                            >
+                                                <Icon className="h-8 w-8 text-white" />
+                                            </motion.button>
+                                            {formState.iconOverride && (
+                                                <motion.button
+                                                    {...iconButtonAnimation}
+                                                    onClick={handleIconReset}
+                                                    title="Icon zurücksetzen"
+                                                    className="absolute -top-1 -right-1 z-10 p-1 bg-slate-700 rounded-full text-slate-400 hover:text-white"
+                                                    aria-label="Transaktions-Icon auf Kategorie-Standard zurücksetzen"
+                                                >
+                                                    <RefreshCcw className="h-3 w-3" />
+                                                </motion.button>
+                                            )}
+                                        </div>
                                         
                                         {isEditingAmount ? (
                                             <motion.div {...inputAnimation} className="my-1">
@@ -275,7 +308,10 @@ const TransactionDetailModal = ({
                                                 <p className="text-lg font-semibold text-white truncate">{formState.description}</p>
                                             </button>
                                         )}
-                                        <p className="text-sm text-slate-400">{category?.name}</p>
+                                        <button onClick={() => setIsPickingCategory(true)} className="mt-1 flex items-center justify-center gap-1.5 text-sm text-slate-400 rounded-lg p-1 -m-1 hover:text-white transition-colors" title="Kategorie ändern">
+                                            <CategoryIcon className="h-4 w-4 flex-shrink-0" style={{ color: category?.color }}/>
+                                            <span>{category?.name}</span>
+                                        </button>
 
                                         {/* Metadata Section */}
                                         <div className="w-full max-w-sm mt-6 pt-4 border-t border-slate-700/50 space-y-3 text-sm">
@@ -334,7 +370,7 @@ const TransactionDetailModal = ({
                                                     {groupedTransactions.map(t => {
                                                         const cat = categoryMap.get(t.categoryId);
                                                         const isCurrent = t.id === formState.id;
-                                                        const TIcon = cat ? iconMap[cat.icon] : iconMap.MoreHorizontal;
+                                                        const TIcon = cat ? iconMap[t.iconOverride || cat.icon] : iconMap.MoreHorizontal;
                                                         const tColor = cat ? cat.color : '#64748b';
 
                                                         return (
@@ -399,6 +435,10 @@ const TransactionDetailModal = ({
                 setIsEditingTags={setIsEditingTags}
                 handleTagsUpdate={handleTagsUpdate}
                 currentTransaction={formState}
+                isPickingIcon={isPickingIcon}
+                setIsPickingIcon={setIsPickingIcon}
+                handleIconUpdate={handleIconUpdate}
+                handleIconReset={handleIconReset}
             />
         </>
     );

@@ -1,12 +1,9 @@
-
-
-
 import React, { FC, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
 import type { Transaction, User } from '@/shared/types';
 import { format, parseISO, formatCurrency } from '@/shared/utils/dateUtils';
-import { iconMap, FlaskConical, Link } from '@/shared/ui';
+import { iconMap, FlaskConical, Link, getIconComponent } from '@/shared/ui';
 import { TagPill } from '@/shared/ui';
 
 export interface StandardTransactionItemProps {
@@ -29,7 +26,7 @@ const StandardTransactionItem: FC<StandardTransactionItemProps> = ({
 
     if (!category) return null; // Or return a fallback UI
 
-    const Icon = iconMap[category.icon] || iconMap.MoreHorizontal;
+    const Icon = getIconComponent(transaction.iconOverride || category.icon);
     const color = category.color;
     const isCompact = density === 'compact';
     const isDemo = transaction.isDemo;

@@ -1,13 +1,12 @@
 
 
-
 import React, { useState, useMemo, useEffect } from 'react';
 import { AnimatePresence, motion, MotionProps } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
 import type { Transaction, ViewMode, Category } from '@/shared/types';
 import { format, parseISO, isWithinInterval, startOfMonth, endOfMonth, startOfWeek, endOfWeek, isSameDay } from 'date-fns';
 import { formatCurrency } from '@/shared/utils/dateUtils';
-import { Wallet, getIconComponent } from '@/shared/ui';
+import { Wallet, getIconComponent, Calendar, CalendarDays } from '@/shared/ui';
 import { FIXED_COSTS_GROUP_ID } from '@/constants';
 import { StandardTransactionItem } from '@/shared/ui';
 import { CategoryPieChart } from './ui/CategoryPieChart';
@@ -134,6 +133,9 @@ const DashboardPage = () => {
         }),
     [filteredTransactions, categories]);
     
+    const TotalExpensesIcon = dashboardViewMode === 'woche' ? Calendar : CalendarDays;
+    const totalExpensesIconClassName = 'h-5 w-5 mr-2 flex-shrink-0 text-green-400';
+    
     const cardAnimation: MotionProps = {
         initial: { opacity: 0, y: 10 },
         animate: { opacity: 1, y: 0 },
@@ -186,7 +188,7 @@ const DashboardPage = () => {
                                 
                                 <div className="w-[calc(50%-1rem)]">
                                     <div className="flex items-center text-slate-400 mb-1">
-                                        <Wallet className="h-5 w-5 mr-2 flex-shrink-0 text-amber-700" />
+                                        <TotalExpensesIcon className={totalExpensesIconClassName} />
                                         <p className="font-medium text-sm">Gesamtausgaben</p>
                                     </div>
                                     <div>
