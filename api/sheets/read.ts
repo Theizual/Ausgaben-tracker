@@ -15,7 +15,7 @@ function getAuth() {
   });
 }
 
-const RANGES = [
+const ALL_RANGES = [
   'Groups!A2:Z',
   'Categories!A2:Z',
   'Transactions!A2:Z',
@@ -26,6 +26,17 @@ const RANGES = [
   'Counters!A2:Z',
 ];
 
+const rangeNameToKeyMap: { [key: string]: string } = {
+  'Groups': 'groups',
+  'Categories': 'categories',
+  'Transactions': 'transactions',
+  'Recurring': 'recurring',
+  'Tags': 'tags',
+  'Users': 'users',
+  'UserSettings': 'userSettings',
+  'Counters': 'counters',
+};
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
 
@@ -33,29 +44,38 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const sheetId = getEnv('GOOGLE_SHEET_ID');
     const auth = getAuth();
     const sheets = google.sheets({ version: 'v4', auth });
+    
+    const { ranges } = req.query;
+    const isPartial = typeof ranges === 'string' && ranges.length > 0;
+    const rangesToFetch = isPartial ? ranges.split(',') : ALL_RANGES;
+
 
     const resp = await withRetry(() =>
       sheets.spreadsheets.values.batchGet({
         spreadsheetId: sheetId,
-        ranges: RANGES,
+        ranges: rangesToFetch,
         majorDimension: 'ROWS',
       })
     );
 
-    const data = (resp as any).data.valueRanges || [];
+    const valueRanges = (resp as any).data.valueRanges || [];
+    
+    const out: { [key: string]: any } = {};
 
-    const out = {
-      groups:        rowsToObjects('Groups',       data[0]?.values || []),
-      categories:    rowsToObjects('Categories',   data[1]?.values || []),
-      transactions:  rowsToObjects('Transactions', data[2]?.values || []),
-      recurring:     rowsToObjects('Recurring',    data[3]?.values || []),
-      tags:          rowsToObjects('Tags',         data[4]?.values || []),
-      users:         rowsToObjects('Users',        data[5]?.values || []),
-      userSettings:  rowsToObjects('UserSettings', data[6]?.values || []),
-      counters:      rowsToObjects('Counters',     data[7]?.values || []),
-    };
+    valueRanges.forEach((rangeData: any, index: number) => {
+        const rangeName = rangesToFetch[index].split('!')[0];
+        const key = rangeNameToKeyMap[rangeName];
+        if (key) {
+            out[key] = rowsToObjects(rangeName as any, rangeData?.values || []);
+        }
+    });
 
-    return res.status(200).json(out);
+    if (isPartial) {
+        // Partial requests return the flat object of results
+        return res.status(200).json(out);
+    }
+
+    return res.status(200).json({ data: out });
   } catch (e: any) {
     const msg = e?.message || String(e);
     const code = e?.code || e?.response?.status;

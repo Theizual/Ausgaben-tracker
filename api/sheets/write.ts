@@ -154,7 +154,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       userSettings:  rowsToObjects('UserSettings', valueRanges[6]?.values || []),
     };
 
-    return res.status(200).json(out);
+    return res.status(200).json({ data: out, migrationMap: Object.fromEntries(idMigrationMap) });
   } catch (e: any) {
     const msg = e?.message || String(e);
     const code = e?.code || e?.response?.status;

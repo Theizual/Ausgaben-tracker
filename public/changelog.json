@@ -1,5 +1,15 @@
 [
     {
+        "version": "0.801",
+        "date": "15.08.2024, 09:00 Uhr",
+        "title": "Intelligente Synchronisierung & Multi-Geräte-Setup",
+        "changes": [
+            "**Nahtlose Geräte-Synchronisierung:** Der App-Modus (z.B. Demo vs. Standard) wird jetzt beim ersten Start auf einem neuen Gerät automatisch übernommen. Ihr Setup ist sofort auf allen Geräten konsistent.",
+            "**Zuverlässigere Daten-Synchronisierung:** Die Logik für den Datenabgleich wurde grundlegend überarbeitet. Nach einer Synchronisierung werden lokale Daten sauber durch den Server-Stand ersetzt, was Duplikate bei der ID-Migration verhindert.",
+            "**Architektur-Update & Performance:** Die App startet nun asynchron, um zuerst die Konfiguration zu laden. Dies verhindert UI-Flackern und sorgt für einen stabileren Start. Die API-Abfragen wurden für einen schnelleren Initial-Load optimiert."
+        ]
+    },
+    {
         "version": "0.789",
         "date": "14.08.2024, 12:00 Uhr",
         "title": "Verbesserter Workflow & Detail-Bearbeitung",

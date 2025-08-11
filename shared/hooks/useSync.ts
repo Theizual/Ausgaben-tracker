@@ -22,6 +22,7 @@ export interface SyncProps {
     isDemoModeEnabled: boolean;
     setIsInitialSetupDone: React.Dispatch<React.SetStateAction<boolean>>;
     currentUserId: string | null;
+    appMode: 'demo' | 'standard';
 }
 
 interface Mergeable {
@@ -76,7 +77,7 @@ export const useSync = (props: SyncProps) => {
     const {
         rawCategories, rawGroups, rawTransactions, rawRecurringTransactions, rawAllAvailableTags, rawUsers, rawUserSettings,
         setCategoriesAndGroups, setTransactions, setRecurringTransactions, setAllAvailableTags, setUsers, setUserSettings,
-        isInitialSetupDone, isDemoModeEnabled, setIsInitialSetupDone, currentUserId
+        isInitialSetupDone, isDemoModeEnabled, setIsInitialSetupDone, currentUserId, appMode,
     } = props;
     
     const prefix = isDemoModeEnabled ? 'demo_' : '';
@@ -112,88 +113,18 @@ export const useSync = (props: SyncProps) => {
 
     const syncData = useCallback(async (options: { isAuto?: boolean } = {}) => {
         if (syncInProgressRef.current) return;
-
-        if (isDemoModeEnabled) {
-            if (window.confirm("Möchten Sie Ihre Daten aus Google Sheets laden? Dadurch wird der Demo-Modus beendet und die aktuellen Demo-Daten werden überschrieben.")) {
+        if (isDemoModeEnabled && !isInitialSetupDone) {
+             if (!window.confirm("Möchten Sie Ihre Demo-Daten in Google Sheets speichern? Dadurch wird eine Verbindung hergestellt und die Synchronisierung aktiviert.")) {
                 return;
-            }
-            
-            syncInProgressRef.current = true;
-            setSyncStatus('syncing');
-            setSyncError(null);
-            const toastId = 'initial-load-toast';
-            toast.loading('Lade Daten aus Google Sheets...', { id: toastId });
-
-            try {
-                const data: ReadApiResponse = await apiGet('/api/sheets/read');
-                
-                const { categories, groups, transactions, recurring, tags, users } = data;
-                let { userSettings } = data;
-
-                // Ensure there's a main user to associate categories with
-                const mainUser = users.find(u => !u.isDeleted);
-                if (!mainUser) {
-                    throw new Error("Kein aktiver Benutzer in den Google Sheet-Daten gefunden.");
-                }
-
-                // Create or update the category configuration for the main user
-                const categoryConfigValue = JSON.stringify({ categories, groups });
-                const now = new Date().toISOString();
-
-                const existingConfigIndex = userSettings.findIndex(s => s.userId === mainUser.id && s.key === 'categoryConfiguration');
-                if (existingConfigIndex > -1) {
-                    const existing = userSettings[existingConfigIndex];
-                    userSettings[existingConfigIndex] = {
-                        ...existing,
-                        value: categoryConfigValue,
-                        lastModified: now,
-                        version: (existing.version || 0) + 1,
-                    };
-                } else {
-                    userSettings.push({
-                        userId: mainUser.id,
-                        key: 'categoryConfiguration',
-                        value: categoryConfigValue,
-                        lastModified: now,
-                        version: 1,
-                    });
-                }
-                
-                // Manually write all data to production localStorage keys
-                window.localStorage.setItem('transactions', JSON.stringify(transactions || []));
-                window.localStorage.setItem('recurringTransactions', JSON.stringify(recurring || []));
-                window.localStorage.setItem('allAvailableTags', JSON.stringify(tags || []));
-                window.localStorage.setItem('users', JSON.stringify(users || []));
-                window.localStorage.setItem('userSettings', JSON.stringify(userSettings || []));
-                window.localStorage.setItem('lastSyncTimestamp', JSON.stringify(now));
-                window.localStorage.setItem('app-current-user-id', JSON.stringify(mainUser.id));
-                
-                // Set app to "production mode" for the next load
-                setIsInitialSetupDone(true);
-                
-                toast.success('Daten erfolgreich geladen! Die App wird neu gestartet, um den Produktiv-Modus zu aktivieren.', { id: toastId, duration: 4000 });
-                
-                // Reload the page to apply the new state from production storage
-                setTimeout(() => window.location.reload(), 1500);
-
-            } catch (e: any) {
-                setSyncError(e.message);
-                setSyncStatus('error');
-                toast.error(`Fehler beim Laden der Daten: ${e.message}`, { id: toastId });
-            } finally {
-                syncInProgressRef.current = false;
-            }
-            return;
+             }
         }
         
-        // --- Regular Production Sync ---
         syncInProgressRef.current = true;
         setSyncStatus(options.isAuto ? 'loading' : 'syncing');
         setSyncError(null);
 
         try {
-            // Fetch current settings from server to avoid overwriting other users' changes.
-            const serverState: ReadApiResponse = await apiGet('/api/sheets/read');
+            const { data: serverState }: { data: ReadApiResponse } = await apiGet('/api/sheets/read');
             const remoteUserSettings = serverState.userSettings || [];
             
             let userSettingsPayload: UserSetting[];
@@ -209,24 +140,37 @@ export const useSync = (props: SyncProps) => {
                 return;
             }
 
-            const remoteData: ReadApiResponse = await apiPost('/api/sheets/write', {
+            const existingModeSetting = rawUserSettings.find(s => s.userId === 'app_meta' && s.key === 'mode');
+            const modeSetting: UserSetting = {
+                userId: 'app_meta',
+                key: 'mode',
+                value: appMode,
+                lastModified: new Date().toISOString(),
+                version: (existingModeSetting?.version || 0) + 1,
+            };
+            const payloadWithoutMode = userSettingsPayload.filter(s => !(s.userId === 'app_meta' && s.key === 'mode'));
+            const finalPayload = [...payloadWithoutMode, modeSetting];
+
+            const { data: remoteData }: { data: ReadApiResponse; migrationMap: Record<string, string> } = await apiPost('/api/sheets/write', {
                 groups: rawGroups,
                 categories: rawCategories,
                 transactions: rawTransactions, recurring: rawRecurringTransactions,
-                tags: rawAllAvailableTags, users: rawUsers, userSettings: userSettingsPayload,
+                tags: rawAllAvailableTags, users: rawUsers, userSettings: finalPayload,
             });
             
-            const mergedCategories = mergeItems<Category>(rawCategories, remoteData.categories);
-            const mergedGroups = mergeItems<Group>(rawGroups, remoteData.groups);
-            setCategoriesAndGroups(mergedCategories, mergedGroups);
-            setTransactions(mergeItems<Transaction>(rawTransactions, remoteData.transactions));
-            setRecurringTransactions(mergeItems<RecurringTransaction>(rawRecurringTransactions, remoteData.recurring));
-            setAllAvailableTags(mergeItems<Tag>(rawAllAvailableTags, remoteData.tags));
-            setUsers(mergeItems<User>(rawUsers, remoteData.users));
-            setUserSettings(mergeItems<UserSetting>(rawUserSettings, remoteData.userSettings));
+            setCategoriesAndGroups(remoteData.categories, remoteData.groups);
+            setTransactions(remoteData.transactions);
+            setRecurringTransactions(remoteData.recurring);
+            setAllAvailableTags(remoteData.tags);
+            setUsers(remoteData.users);
+            setUserSettings(remoteData.userSettings);
 
             setLastSync(new Date().toISOString());
             setSyncStatus('success');
+
+            if (!isInitialSetupDone) {
+                setIsInitialSetupDone(true);
+            }
         } catch (e: any) {
             if (e instanceof HttpError && e.status === 409) {
                 if (e.body?.conflicts) {
@@ -243,7 +187,8 @@ export const useSync = (props: SyncProps) => {
             syncInProgressRef.current = false;
         }
     }, [
-        isDemoModeEnabled, setIsInitialSetupDone, rawCategories, rawGroups, rawTransactions, rawRecurringTransactions, rawAllAvailableTags, rawUsers, rawUserSettings,
+        isDemoModeEnabled, isInitialSetupDone, setIsInitialSetupDone, appMode,
+        rawCategories, rawGroups, rawTransactions, rawRecurringTransactions, rawAllAvailableTags, rawUsers, rawUserSettings,
         handleMergeConflicts, setLastSync, setCategoriesAndGroups, setTransactions, setRecurringTransactions, setAllAvailableTags, setUsers, setUserSettings,
         currentUserId
     ]);
@@ -255,7 +200,7 @@ export const useSync = (props: SyncProps) => {
         setSyncError(null);
 
         try {
-            const data: ReadApiResponse = await apiGet('/api/sheets/read');
+            const { data }: { data: ReadApiResponse } = await apiGet('/api/sheets/read');
             setCategoriesAndGroups(data.categories, data.groups);
             setTransactions(data.transactions);
             setRecurringTransactions(data.recurring);

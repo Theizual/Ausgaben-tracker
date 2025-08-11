@@ -81,8 +81,8 @@ export interface RecurringTransaction {
 }
 
 export interface UserSetting {
-  userId: string;
-  key: 'groupColors' | 'categoryConfiguration' | 'visibleGroups';
+  userId: string | 'app_meta';
+  key: 'groupColors' | 'categoryConfiguration' | 'visibleGroups' | 'mode';
   value: string; // Comma-separated list for visibleGroups, JSON string for groupColors/categoryConfiguration
   lastModified: string;
   version: number;

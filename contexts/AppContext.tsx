@@ -14,6 +14,7 @@ import { isWithinInterval, parseISO, startOfMonth, endOfMonth } from 'date-fns';
 import type { Locale } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { Loader2 } from '@/shared/ui';
+import { apiGet } from '@/shared/lib/http';
 
 // Combine the return types of all hooks to define the shape of the context
 type AppContextType = 
@@ -58,13 +59,15 @@ const ReadyAppProvider: React.FC<{
     setIsInitialSetupDone: React.Dispatch<React.SetStateAction<boolean>>;
     uiState: ReturnType<typeof useUI>;
     usersState: ReturnType<typeof useUsers>;
+    appMode: 'demo' | 'standard';
 }> = ({
     children,
     isDemoModeEnabled,
     isInitialSetupDone,
     setIsInitialSetupDone,
     uiState,
-    usersState
+    usersState,
+    appMode
 }) => {
     // uiState and usersState are now stable and passed as props.
     // The currentUserId is guaranteed to be valid here.
@@ -183,6 +186,7 @@ const ReadyAppProvider: React.FC<{
         isDemoModeEnabled,
         setIsInitialSetupDone: setIsInitialSetupDone,
         currentUserId: uiState.currentUserId,
+        appMode,
     });
     
      const { syncStatus, syncError } = syncState;
@@ -326,8 +330,9 @@ const AppStateContainer: React.FC<{
     isDemoModeEnabled: boolean;
     isInitialSetupDone: boolean;
     setIsInitialSetupDone: React.Dispatch<React.SetStateAction<boolean>>;
+    appMode: 'demo' | 'standard';
 }> = (props) => {
-    const { children, ...rest } = props;
+    const { children, appMode, ...rest } = props;
 
     // These two hooks determine the core readiness of the app.
     const uiState = useUI({ isDemoModeEnabled: props.isDemoModeEnabled });
@@ -366,6 +371,7 @@ const AppStateContainer: React.FC<{
     return (
         <ReadyAppProvider
             {...rest}
+            appMode={appMode}
             uiState={uiState}
             usersState={usersState}
         >
@@ -376,15 +382,59 @@ const AppStateContainer: React.FC<{
 
 // The main provider now only manages the top-level mode switch.
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+    const [appMode, setAppMode] = useState<'loading' | 'demo' | 'standard'>('loading');
     const [isInitialSetupDone, setIsInitialSetupDone] = useLocalStorage<boolean>('initialSetupDone', false);
-    const isDemoModeEnabled = !isInitialSetupDone;
+    const [localAppMode, setLocalAppMode] = useLocalStorage<'demo' | 'standard'>('appMode', 'standard');
+
+    useEffect(() => {
+        const determineInitialMode = async () => {
+            if (!isInitialSetupDone) {
+                setAppMode('demo');
+                setLocalAppMode('demo');
+                return;
+            }
+
+            setAppMode(localAppMode); // Optimistic start
+
+            try {
+                const { userSettings }: { userSettings: UserSetting[] } = await apiGet('/api/sheets/read?ranges=UserSettings!A2:Z');
+                
+                const modeSetting = userSettings.find(s => s.userId === 'app_meta' && s.key === 'mode');
+                const remoteMode = modeSetting?.value === 'demo' ? 'demo' : 'standard';
+
+                if (remoteMode !== localAppMode) {
+                    toast(`App-Modus wurde synchronisiert: ${remoteMode === 'demo' ? 'Demo' : 'Standard'}.`);
+                    setAppMode(remoteMode);
+                    setLocalAppMode(remoteMode);
+                }
+            } catch (error) {
+                console.error("Konnte den App-Modus nicht vom Server abrufen. Fahre mit lokalem Modus fort.", error);
+            }
+        };
+
+        determineInitialMode();
+    }, [isInitialSetupDone, localAppMode, setLocalAppMode]);
+
+    if (appMode === 'loading') {
+        return (
+            <div className="fixed inset-0 bg-slate-900 flex items-center justify-center">
+                <div className="flex flex-col items-center gap-4">
+                    <Loader2 className="h-8 w-8 animate-spin text-slate-500" />
+                    <p className="text-slate-400">Lade Konfiguration...</p>
+                </div>
+            </div>
+        );
+    }
+
+    const isDemoModeEnabled = appMode === 'demo';
 
     return (
         <AppStateContainer
-            key={isDemoModeEnabled ? 'demo' : 'prod'}
+            key={appMode}
             isDemoModeEnabled={isDemoModeEnabled}
             isInitialSetupDone={isInitialSetupDone}
             setIsInitialSetupDone={setIsInitialSetupDone}
+            appMode={appMode}
         >
             {children}
         </AppStateContainer>
