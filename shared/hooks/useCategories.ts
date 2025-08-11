@@ -1,4 +1,3 @@
-
 import { useMemo, useCallback, useEffect, useReducer } from 'react';
 import { toast } from 'react-hot-toast';
 import { generateUUID } from '@/shared/utils/uuid';
@@ -43,7 +42,7 @@ const categoriesReducer = (state: CategoriesState, action: Action): CategoriesSt
                 } else {
                     const baseCategory = getBaseCategories().find(c => c.id === id);
                     const newCategory: Category = {
-                        id: id.startsWith('new_') ? generateUUID() : id,
+                        id: id.startsWith('new_') ? generateUUID('cat') : id,
                         name: update.name || 'Neue Kategorie',
                         color: update.color || '#808080',
                         icon: update.icon || baseCategory?.icon || 'MoreHorizontal',
@@ -207,7 +206,7 @@ export const useCategories = ({ rawUserSettings, updateCategoryConfigurationForU
             return;
         }
         const newGroup: Group = {
-            id: generateUUID(),
+            id: generateUUID('grp'),
             name: trimmedName,
             color: '#64748b',
             icon: 'Package',

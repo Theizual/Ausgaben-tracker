@@ -1,10 +1,8 @@
 
-
-
 import React, { useState, useCallback } from 'react';
 import { motion, MotionProps } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
-import { Button, Plus, Trash2, ColorPickerIcon } from '@/shared/ui';
+import { Button, Plus, Trash2, UserAvatar } from '@/shared/ui';
 
 const MotionDiv = motion.div;
 
@@ -42,13 +40,17 @@ export const UserSettings = () => {
             </form>
             <div className="space-y-3">
                 {users.map(user => (
-                    <div key={user.id} className="flex items-center gap-4 bg-slate-700/50 p-2 rounded-lg">
-                        <div className="relative w-10 h-10 flex-shrink-0 flex items-center justify-center">
-                            <ColorPickerIcon
-                                size={20}
+                    <div key={user.id} className="flex items-center gap-3 bg-slate-700/50 p-2 rounded-lg">
+                        <div className="relative flex-shrink-0">
+                             <button
+                                type="button"
                                 onClick={(e) => (e.currentTarget.nextElementSibling as HTMLElement)?.click()}
-                                ariaLabel={`Farbe für ${user.name} ändern`}
-                            />
+                                className="rounded-full transition-transform hover:scale-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-rose-500 focus-visible:ring-offset-slate-800"
+                                aria-label={`Farbe für ${user.name} ändern`}
+                                title={`Farbe für ${user.name} ändern`}
+                            >
+                                <UserAvatar name={user.name} color={user.color} size={28} />
+                            </button>
                             <input
                                 type="color"
                                 value={user.color}

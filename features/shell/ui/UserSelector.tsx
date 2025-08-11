@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
-import { CheckCircle2, Settings, User, Users } from '@/shared/ui';
+import { CheckCircle2, Settings, User, Users, UserAvatar } from '@/shared/ui';
 
 // User Selector Component
 export const UserSelector: React.FC = () => {
@@ -43,9 +43,7 @@ export const UserSelector: React.FC = () => {
     return (
         <div className="relative" ref={wrapperRef}>
             <button onClick={() => setIsOpen(!isOpen)} className="flex items-center gap-2 p-1.5 rounded-full hover:bg-slate-700 transition-colors">
-                 <div className="w-6 h-6 rounded-full flex items-center justify-center text-white font-bold text-xs" style={{ backgroundColor: currentUser.color }}>
-                    {currentUser.name.charAt(0).toUpperCase()}
-                </div>
+                <UserAvatar name={currentUser.name} color={currentUser.color} size={24} />
                 <span className="hidden sm:inline font-semibold text-sm text-slate-200">{currentUser.name}</span>
             </button>
             <AnimatePresence>
@@ -67,9 +65,7 @@ export const UserSelector: React.FC = () => {
                                 }}
                                 className="w-full text-left flex items-center gap-3 px-4 py-2 hover:bg-slate-700/50"
                             >
-                                <div className="w-6 h-6 rounded-full flex items-center justify-center text-white font-bold text-xs" style={{ backgroundColor: user.color }}>
-                                    {user.name.charAt(0).toUpperCase()}
-                                </div>
+                                <UserAvatar name={user.name} color={user.color} size={24} />
                                 <span className="font-medium text-white flex-1">{user.name}</span>
                                 {currentUser.id === user.id && <CheckCircle2 className="h-5 w-5 text-rose-400" />}
                             </button>

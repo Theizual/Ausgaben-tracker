@@ -1,6 +1,7 @@
 import { useReducer, useMemo, useCallback, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import type { User } from '@/shared/types';
+import { generateUUID } from '../utils/uuid';
 
 type UsersState = {
     users: User[];
@@ -39,7 +40,7 @@ const makeInitializer = (isDemoMode: boolean): (() => UsersState) => () => {
     
     // If localStorage is empty or corrupt, create the default user.
     const defaultUser: User = {
-        id: '1001',
+        id: 'usrId_0001',
         name: 'Benutzer',
         color: '#64748b',
         lastModified: new Date().toISOString(),
@@ -66,17 +67,6 @@ export const useUsers = ({ isDemoModeEnabled }: { isDemoModeEnabled: boolean }) 
 
     const users = useMemo(() => state.users.filter(u => !u.isDeleted), [state.users]);
     
-    const getNextId = useCallback(() => {
-        if (state.users.length === 0) {
-            return '1001';
-        }
-        const maxId = Math.max(1000, ...state.users.map(u => {
-            const parsedId = parseInt(u.id, 10);
-            return isNaN(parsedId) ? 0 : parsedId;
-        }));
-        return (maxId + 1).toString();
-    }, [state.users]);
-    
     const addUser = useCallback((name: string) => {
         const trimmedName = name.trim();
         if (!trimmedName) {
@@ -85,7 +75,7 @@ export const useUsers = ({ isDemoModeEnabled }: { isDemoModeEnabled: boolean }) 
         }
         const now = new Date().toISOString();
         const newUser: User = {
-            id: getNextId(),
+            id: generateUUID('usr'),
             name: trimmedName,
             color: `#${Math.floor(Math.random()*16777215).toString(16).padStart(6, '0')}`,
             lastModified: now,
@@ -93,7 +83,7 @@ export const useUsers = ({ isDemoModeEnabled }: { isDemoModeEnabled: boolean }) 
         };
         dispatch({ type: 'ADD_USER', payload: newUser });
         toast.success(`Benutzer "${trimmedName}" hinzugefügt.`);
-    }, [getNextId]);
+    }, []);
 
     const updateUser = useCallback((id: string, updates: Partial<Omit<User, 'id' | 'version' | 'lastModified'>>) => {
         const userToUpdate = state.users.find(u => u.id === id);

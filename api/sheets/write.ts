@@ -31,77 +31,116 @@ type Payload = {
   tags?: any[]; users?: any[]; userSettings?: any[];
 };
 
+const isLegacyId = (id: string, prefix: string) => id && !id.startsWith(prefix);
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
     const sheetId = getEnv('GOOGLE_SHEET_ID');
+    const auth = getAuth();
+    const sheets = google.sheets({ version: 'v4', auth });
     const body = (req.body || {}) as Payload;
 
-    // Eingehende Daten normalisieren
-    const items = {
-      groups:       body.groups       ?? [],
-      categories:   body.categories   ?? [],
-      transactions: body.transactions ?? [],
-      recurring:    body.recurring    ?? [],
-      tags:         body.tags         ?? [],
-      users:        body.users        ?? [],
+    // --- ID Migration Logic ---
+    const countersResp = await withRetry(() => sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range: 'Counters!A2:Z' }));
+    const counterRows = (countersResp as any).data.values || [];
+    const counters = new Map<string, number>(counterRows.map(row => [row[0], parseInt(row[1], 10) || 1]));
+
+    const getNextId = (entity: string, prefix: string, pad: number) => {
+        const nextIdNum = counters.get(entity) || 1;
+        counters.set(entity, nextIdNum + 1);
+        return `${prefix}_${String(nextIdNum).padStart(pad, '0')}`;
+    };
+
+    const idMigrationMap = new Map<string, string>();
+    let countersChanged = false;
+
+    const migrate = (items: any[], entity: string, idPrefix: string, pad: number) => {
+        return items.map(item => {
+            if (item.id && isLegacyId(item.id, idPrefix)) {
+                const newId = getNextId(entity, idPrefix, pad);
+                idMigrationMap.set(item.id, newId);
+                countersChanged = true;
+                return { ...item, legacyId: item.id, id: newId };
+            }
+            return item;
+        });
+    };
+    
+    const migratedItems = {
+      groups:       migrate(body.groups ?? [], 'Group', 'grpId', 5),
+      categories:   migrate(body.categories ?? [], 'Category', 'catId', 5),
+      transactions: migrate(body.transactions ?? [], 'Transaction', 'txId', 7),
+      recurring:    migrate(body.recurring ?? [], 'Recurring', 'recId', 5),
+      tags:         migrate(body.tags ?? [], 'Tag', 'tagId', 5),
+      users:        migrate(body.users ?? [], 'User', 'usrId', 4),
       userSettings: body.userSettings ?? [],
     };
 
-    // Zu schreibende Werte vorbereiten (Header + Rows)
+    // Update references
+    migratedItems.categories.forEach(cat => {
+        if (cat.groupId && idMigrationMap.has(cat.groupId)) {
+            cat.groupLegacyId = cat.groupId;
+            cat.groupId = idMigrationMap.get(cat.groupId)!;
+        }
+    });
+    migratedItems.transactions.forEach(tx => {
+        if (tx.categoryId && idMigrationMap.has(tx.categoryId)) {
+            tx.categoryLegacyId = tx.categoryId;
+            tx.categoryId = idMigrationMap.get(tx.categoryId)!;
+        }
+        if (tx.recurringId && idMigrationMap.has(tx.recurringId)) {
+            tx.recurringLegacyId = tx.recurringId;
+            tx.recurringId = idMigrationMap.get(tx.recurringId)!;
+        }
+        if (tx.tagIds && Array.isArray(tx.tagIds)) {
+            tx.tagLegacyIds = tx.tagIds.filter(id => idMigrationMap.has(id)).join(',');
+            tx.tagIds = tx.tagIds.map(id => idMigrationMap.get(id) || id);
+        }
+    });
+    migratedItems.recurring.forEach(rec => {
+        if (rec.categoryId && idMigrationMap.has(rec.categoryId)) {
+            rec.categoryLegacyId = rec.categoryId;
+            rec.categoryId = idMigrationMap.get(rec.categoryId)!;
+        }
+    });
+
     const sheetsSpec = [
-      ['Groups',       items.groups]       as const,
-      ['Categories',   items.categories]   as const,
-      ['Transactions', items.transactions] as const,
-      ['Recurring',    items.recurring]    as const,
-      ['Tags',         items.tags]         as const,
-      ['Users',        items.users]        as const,
-      ['UserSettings', items.userSettings] as const,
+      ['Groups',       migratedItems.groups]       as const,
+      ['Categories',   migratedItems.categories]   as const,
+      ['Transactions', migratedItems.transactions] as const,
+      ['Recurring',    migratedItems.recurring]    as const,
+      ['Tags',         migratedItems.tags]         as const,
+      ['Users',        migratedItems.users]        as const,
+      ['UserSettings', migratedItems.userSettings] as const,
     ];
 
     const dataToWrite = sheetsSpec.map(([name, arr]) => {
       const headers = HEADERS[name as keyof typeof HEADERS];
       const rows = objectsToRows(name as any, arr);
       const lastCol = colLetter(headers.length);
-      return {
-        range: `${name}!A1:${lastCol}`,
-        values: [headers, ...rows],
-        majorDimension: 'ROWS' as const,
-      };
+      return { range: `${name}!A1:${lastCol}`, values: [headers, ...rows], majorDimension: 'ROWS' as const };
     });
 
-    const auth = getAuth();
-    const sheets = google.sheets({ version: 'v4', auth });
+    if (countersChanged) {
+        dataToWrite.push({
+            range: 'Counters!A2:Z',
+            values: Array.from(counters.entries()),
+            majorDimension: 'ROWS' as const,
+        });
+    }
 
-    // Schreiben (Header + Daten)
     await withRetry(() =>
       sheets.spreadsheets.values.batchUpdate({
         spreadsheetId: sheetId,
-        requestBody: {
-          valueInputOption: 'RAW',
-          data: dataToWrite,
-        },
+        requestBody: { valueInputOption: 'RAW', data: dataToWrite },
       })
     );
 
-    // Direkt danach erneut lesen (A2:Z), um den konsolidierten Stand zurückzugeben
-    const rangesToRead = [
-      'Groups!A2:Z',
-      'Categories!A2:Z',
-      'Transactions!A2:Z',
-      'Recurring!A2:Z',
-      'Tags!A2:Z',
-      'Users!A2:Z',
-      'UserSettings!A2:Z',
-    ];
-
+    const rangesToRead = sheetsSpec.map(([name]) => `${name}!A2:Z`);
     const readResp = await withRetry(() =>
-      sheets.spreadsheets.values.batchGet({
-        spreadsheetId: sheetId,
-        ranges: rangesToRead,
-        majorDimension: 'ROWS',
-      })
+      sheets.spreadsheets.values.batchGet({ spreadsheetId: sheetId, ranges: rangesToRead, majorDimension: 'ROWS' })
     );
 
     const valueRanges = (readResp as any).data.valueRanges || [];

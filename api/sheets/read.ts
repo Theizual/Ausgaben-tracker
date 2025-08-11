@@ -23,6 +23,7 @@ const RANGES = [
   'Tags!A2:Z',
   'Users!A2:Z',
   'UserSettings!A2:Z',
+  'Counters!A2:Z',
 ];
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -51,6 +52,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       tags:          rowsToObjects('Tags',         data[4]?.values || []),
       users:         rowsToObjects('Users',        data[5]?.values || []),
       userSettings:  rowsToObjects('UserSettings', data[6]?.values || []),
+      counters:      rowsToObjects('Counters',     data[7]?.values || []),
     };
 
     return res.status(200).json(out);

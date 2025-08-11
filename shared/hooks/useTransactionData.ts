@@ -1,4 +1,3 @@
-
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { toast } from 'react-hot-toast';
 import type { Transaction, RecurringTransaction, Tag, CategoryId } from '@/shared/types';
@@ -70,9 +69,9 @@ const createInitialRecurringTransactions = (): RecurringTransaction[] => {
     const lastModified = now.toISOString();
 
     const defaultAmounts: Record<string, number> = {
-        'cat_miete': 1000,
-        'cat_nebenkosten': 200,
-        'cat_internet': 100,
+        'catId_00037': 1000,
+        'catId_00038': 200,
+        'catId_00039': 100,
     };
 
     // Use the new taxonomy as the source of truth, create entries with amount 0
@@ -201,7 +200,7 @@ export const useTransactionData = ({ showConfirmation, closeTransactionDetail, c
                     resultingTagIds.add(existingTag.id);
                 }
             } else {
-                const newTag: Tag = { id: generateUUID(), name: trimmedName, lastModified: now, version: 1 };
+                const newTag: Tag = { id: generateUUID('tag'), name: trimmedName, lastModified: now, version: 1 };
                 newTagsToCreate.push(newTag);
                 resultingTagIds.add(newTag.id);
             }
@@ -213,7 +212,7 @@ export const useTransactionData = ({ showConfirmation, closeTransactionDetail, c
     const addTransaction = useCallback((transaction: Omit<Transaction, 'id' | 'date' | 'tagIds' | 'lastModified' | 'version' | 'createdBy'> & { tags?: string[] }) => {
         const totalSpentBefore = selectTotalSpentForMonth(new Date());
         const now = new Date().toISOString();
-        const newTransaction: Transaction = { ...transaction, id: generateUUID(), date: now, lastModified: now, version: 1, tagIds: getOrCreateTagIds(transaction.tags), createdBy: currentUserId || undefined };
+        const newTransaction: Transaction = { ...transaction, id: generateUUID('tx'), date: now, lastModified: now, version: 1, tagIds: getOrCreateTagIds(transaction.tags), createdBy: currentUserId || undefined };
         dispatch({ type: 'ADD_TRANSACTION', payload: newTransaction });
         showConfirmation({ transactions: [newTransaction], totalSpentBefore });
         addRecentCategory(newTransaction.categoryId);
@@ -223,8 +222,8 @@ export const useTransactionData = ({ showConfirmation, closeTransactionDetail, c
         const totalSpentBefore = selectTotalSpentForMonth(new Date());
         const now = new Date().toISOString();
         const tagIds = getOrCreateTagIds(commonData.tags);
-        const transactionGroupId = generateUUID();
-        const newTransactions: Transaction[] = transactionsToCreate.map(t => ({ ...t, id: generateUUID(), date: now, lastModified: now, version: 1, categoryId: commonData.categoryId, tagIds, createdBy: currentUserId || undefined, transactionGroupId }));
+        const transactionGroupId = generateUUID('tgrp');
+        const newTransactions: Transaction[] = transactionsToCreate.map(t => ({ ...t, id: generateUUID('tx'), date: now, lastModified: now, version: 1, categoryId: commonData.categoryId, tagIds, createdBy: currentUserId || undefined, transactionGroupId }));
         dispatch({ type: 'ADD_MULTIPLE_TRANSACTIONS', payload: newTransactions });
         showConfirmation({ transactions: newTransactions, totalSpentBefore });
         addRecentCategory(commonData.categoryId);
@@ -266,7 +265,7 @@ export const useTransactionData = ({ showConfirmation, closeTransactionDetail, c
     }, [rawState.transactions]);
 
     const addRecurringTransaction = useCallback((item: Omit<RecurringTransaction, 'id' | 'lastModified' | 'version'>, id: string) => {
-        const newRec: RecurringTransaction = { ...item, id, lastModified: new Date().toISOString(), version: 1 };
+        const newRec: RecurringTransaction = { ...item, id: id.startsWith('rec_') ? id : generateUUID('rec'), lastModified: new Date().toISOString(), version: 1 };
         dispatch({ type: 'ADD_RECURRING', payload: newRec });
     }, []);
     
@@ -318,7 +317,7 @@ export const useTransactionData = ({ showConfirmation, closeTransactionDetail, c
                 if (!isValid(nextDueDate) || nextDueDate > now) break;
                 if (nextDueDate >= parseISO(rec.startDate)) {
                     if (!rawState.transactions.some(t => !t.isDeleted && t.recurringId === rec.id && isSameDay(parseISO(t.date), nextDueDate))) {
-                        newTransactions.push({ id: generateUUID(), amount: rec.amount, description: rec.description, categoryId: rec.categoryId, date: nextDueDate.toISOString(), recurringId: rec.id, lastModified: new Date().toISOString(), version: 1 });
+                        newTransactions.push({ id: generateUUID('tx'), amount: rec.amount, description: rec.description, categoryId: rec.categoryId, date: nextDueDate.toISOString(), recurringId: rec.id, lastModified: new Date().toISOString(), version: 1 });
                     }
                 }
                 lastDate = nextDueDate; hasChanged = true; iterations++;

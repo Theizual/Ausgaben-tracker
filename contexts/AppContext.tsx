@@ -1,6 +1,3 @@
-
-
-
 import React, { createContext, useContext, useEffect, useMemo, useRef, useCallback, useState} from 'react';
 import { toast } from 'react-hot-toast';
 import { useTransactionData } from '@/shared/hooks/useTransactionData';
@@ -11,7 +8,7 @@ import { useUserSettings } from '@/shared/hooks/useUserSettings';
 import { useCategories } from '@/shared/hooks/useCategories';
 import { useCategoryPreferences } from '@/shared/hooks/useCategoryPreferences';
 import useLocalStorage from '@/shared/hooks/useLocalStorage';
-import type { User, Category, Group, RecurringTransaction } from '@/shared/types';
+import type { User, Category, Group, RecurringTransaction, Transaction, Tag, UserSetting } from '@/shared/types';
 import { FIXED_COSTS_GROUP_ID } from '@/constants';
 import { isWithinInterval, parseISO, startOfMonth, endOfMonth } from 'date-fns';
 import type { Locale } from 'date-fns';
@@ -51,6 +48,7 @@ function debounce(func: (...args: any[]) => void, delay: number) {
         timeout = setTimeout(() => func(...args), delay);
     };
 }
+
 
 // This component holds the actual app state, and is only rendered when the core state is stable.
 const ReadyAppProvider: React.FC<{

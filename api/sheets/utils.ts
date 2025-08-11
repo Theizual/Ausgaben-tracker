@@ -1,11 +1,12 @@
 export const HEADERS = {
-  Groups:       ['id','name','sortIndex','lastModified','version','isDeleted', 'color', 'isDefault'],
-  Categories:   ['id','name','color','group','budget','icon','lastModified','version','isDeleted', 'groupId'],
-  Transactions: ['id','amount','description','categoryId','date','tagIds','lastModified','isDeleted','recurringId','version','userId','transactionGroupId','iconOverride'],
-  Recurring:    ['id','amount','description','categoryId','frequency','dayOfMonth','startDate','endDate','lastProcessedDate','active','lastModified','version','isDeleted'],
-  Tags:         ['id','name','color','lastModified','version','isDeleted'],
-  Users:        ['id','name','color','lastModified','version','isDeleted'],
-  UserSettings: ['userId','key','value','lastModified','version'] // bleibt wie in 0.503
+  Groups:       ['id','legacyId','name','sortIndex','lastModified','version','isDeleted', 'color', 'isDefault', 'icon'],
+  Categories:   ['id','legacyId','name','color','group','budget','icon','lastModified','version','isDeleted', 'groupId', 'groupLegacyId'],
+  Transactions: ['id','legacyId','amount','description','categoryId','categoryLegacyId','date','tagIds','tagLegacyIds','lastModified','isDeleted','recurringId','recurringLegacyId','version','userId','transactionGroupId','iconOverride'],
+  Recurring:    ['id','legacyId','amount','description','categoryId','categoryLegacyId','frequency','dayOfMonth','startDate','endDate','lastProcessedDate','active','lastModified','version','isDeleted'],
+  Tags:         ['id','legacyId','name','color','lastModified','version','isDeleted'],
+  Users:        ['id','legacyId','name','color','lastModified','version','isDeleted'],
+  UserSettings: ['userId','key','value','lastModified','version'],
+  Counters:     ['entity', 'nextId']
 } as const;
 
 export type SheetName = keyof typeof HEADERS;

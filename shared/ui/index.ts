@@ -12,3 +12,4 @@ export { default as CategoryButtons } from './CategoryButtons';
 export { default as Logo } from './Logo';
 export { default as StandardTransactionItem } from './StandardTransactionItem';
 export { default as TagInput } from './TagInput';
+export { default as UserAvatar } from './UserAvatar';
