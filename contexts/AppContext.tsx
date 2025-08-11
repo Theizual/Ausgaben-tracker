@@ -183,7 +183,6 @@ const ReadyAppProvider: React.FC<{
         isInitialSetupDone: isInitialSetupDone,
         isDemoModeEnabled,
         setIsInitialSetupDone: setIsInitialSetupDone,
-        currentUserId: uiState.currentUserId,
     });
     
      const { syncStatus, syncError } = syncState;

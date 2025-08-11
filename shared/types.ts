@@ -1,5 +1,4 @@
 
-
 export interface User {
   id: string;
   name: string;
@@ -62,7 +61,6 @@ export interface Transaction {
   createdBy?: string;
   isDemo?: boolean;
   transactionGroupId?: string;
-  iconOverride?: string;
 }
 
 export interface RecurringTransaction {

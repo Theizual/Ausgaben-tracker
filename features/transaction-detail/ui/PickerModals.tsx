@@ -1,10 +1,12 @@
+
+
+
 import React, { FC, useMemo } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import type { User, Transaction } from '@/shared/types';
 import { useApp } from '@/contexts/AppContext';
 import { Modal, CheckSquare, CategoryButtons } from '@/shared/ui';
 import { TagEditorModal } from './TagEditorModal';
-import { IconPickerModal } from './IconPickerModal';
 
 export const PickerModals: FC<{
     isPickingCategory: boolean;
@@ -17,16 +19,11 @@ export const PickerModals: FC<{
     setIsEditingTags: (value: boolean) => void;
     handleTagsUpdate: (tags: string[]) => void;
     currentTransaction: Transaction;
-    isPickingIcon: boolean;
-    setIsPickingIcon: (value: boolean) => void;
-    handleIconUpdate: (iconName: string) => void;
-    handleIconReset: () => void;
 }> = ({
     isPickingCategory, setIsPickingCategory, handleCategoryUpdate,
     isPickingUser, setIsPickingUser, handleUserUpdate,
     isEditingTags, setIsEditingTags, handleTagsUpdate,
     currentTransaction,
-    isPickingIcon, setIsPickingIcon, handleIconUpdate, handleIconReset,
 }) => {
     const { categories, groups, users, tagMap, favoriteIds, toggleFavorite } = useApp();
     const currentTagNames = useMemo(() => (currentTransaction.tagIds || []).map((id:string) => tagMap.get(id)).filter(Boolean) as string[], [currentTransaction.tagIds, tagMap]);
@@ -74,16 +71,6 @@ export const PickerModals: FC<{
                         initialTagNames={currentTagNames}
                         onSave={handleTagsUpdate}
                         onClose={() => setIsEditingTags(false)}
-                     />
-                )}
-            </AnimatePresence>
-             <AnimatePresence>
-                {isPickingIcon && (
-                     <IconPickerModal
-                        isOpen={isPickingIcon}
-                        onClose={() => setIsPickingIcon(false)}
-                        onSelect={handleIconUpdate}
-                        onReset={handleIconReset}
                      />
                 )}
             </AnimatePresence>

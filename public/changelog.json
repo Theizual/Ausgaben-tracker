@@ -1,17 +1,5 @@
 [
     {
-        "version": "0.789",
-        "date": "14.08.2024, 12:00 Uhr",
-        "title": "Verbesserter Workflow & Detail-Bearbeitung",
-        "changes": [
-            "**Direktes Bearbeiten von Transaktionen:** Alle Details einer Transaktion (Betrag, Beschreibung, Datum, Benutzer, Tags) können jetzt direkt in der Detailansicht bearbeitet werden. Klicken Sie einfach auf das Detail, das Sie ändern möchten!",
-            "**Sichereres Löschen von Kategorien:** Beim Löschen einer Kategorie mit zugeordneten Transaktionen werden Sie nun aufgefordert, diese einer anderen Kategorie zuzuweisen. So gehen keine Daten verloren.",
-            "**Intelligente Benutzerauswahl:** Die App merkt sich jetzt den zuletzt ausgewählten Benutzer für den Demo- und den Produktiv-Modus separat, was den Wechsel erleichtert.",
-            "**Performance-Optimierung:** Das Laden und Scrollen von langen Transaktionslisten wurde beschleunigt. Die App fühlt sich jetzt noch flüssiger an.",
-            "**Neuer Farbwähler:** Der Standard-Farbwähler wurde durch eine modernere und intuitivere Komponente zum Anpassen von Benutzer- und Gruppenfarben ersetzt."
-        ]
-    },
-    {
         "version": "0.600",
         "date": "13.08.2024, 10:00 Uhr",
         "title": "Architektur- & Performance-Update",

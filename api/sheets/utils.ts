@@ -1,7 +1,7 @@
 export const HEADERS = {
   Groups:       ['id','name','sortIndex','lastModified','version','isDeleted', 'color', 'isDefault'],
   Categories:   ['id','name','color','group','budget','icon','lastModified','version','isDeleted', 'groupId'],
-  Transactions: ['id','amount','description','categoryId','date','tagIds','lastModified','isDeleted','recurringId','version','userId','transactionGroupId','iconOverride'],
+  Transactions: ['id','amount','description','categoryId','date','tagIds','lastModified','isDeleted','recurringId','version','userId','transactionGroupId'],
   Recurring:    ['id','amount','description','categoryId','frequency','dayOfMonth','startDate','endDate','lastProcessedDate','active','lastModified','version','isDeleted'],
   Tags:         ['id','name','color','lastModified','version','isDeleted'],
   Users:        ['id','name','color','lastModified','version','isDeleted'],

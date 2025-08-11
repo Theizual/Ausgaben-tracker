@@ -1,10 +1,14 @@
+
+
+
+
 import React, { useEffect, useMemo } from 'react';
 import { motion, MotionProps } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
 import type { Transaction } from '@/shared/types';
 import { formatCurrency } from '@/shared/utils/dateUtils';
 import { isWithinInterval, parseISO, startOfMonth, endOfMonth } from 'date-fns';
-import { iconMap, CheckCircle2, getIconComponent } from '@/shared/ui';
+import { iconMap, CheckCircle2 } from '@/shared/ui';
 
 interface ConfirmationModalProps {
     isOpen: boolean;
@@ -135,7 +139,7 @@ const ConfirmationModal = ({
                 <div className="bg-slate-700/50 p-4 rounded-lg my-6 w-full max-h-48 overflow-y-auto space-y-3">
                     {newTransactions.map(transaction => {
                         const currentCategory = categoryMap.get(transaction.categoryId);
-                        const Icon = getIconComponent(transaction.iconOverride || currentCategory?.icon);
+                        const Icon = currentCategory ? iconMap[currentCategory.icon] || iconMap.MoreHorizontal : iconMap.MoreHorizontal;
                         const color = currentCategory ? currentCategory.color : '#64748b';
                         
                         return (
