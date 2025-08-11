@@ -7,8 +7,8 @@ import { useApp } from '@/contexts/AppContext';
 import type { Transaction, Category, ViewMode, CategoryId, Tag, Group } from '@/shared/types';
 import { Plus, Coins, Button, Info } from '@/shared/ui';
 import { CategoryButtons, TagInput, AvailableTags } from '@/shared/ui';
-import { MoreCategoriesModal } from './MoreCategoriesModal';
 import { parseISO } from 'date-fns';
+import { FIXED_COSTS_GROUP_ID } from '@/constants';
 
 export const QuickAddForm: FC = () => {
     const { 
@@ -21,14 +21,17 @@ export const QuickAddForm: FC = () => {
         recentCategoryIds,
         addRecent,
         toggleFavorite,
+        quickAddHideGroups,
+        groups,
     } = useApp();
     
     const [amount, setAmount] = useState('');
     const [description, setDescription] = useState('');
     const [categoryId, setCategoryId] = useState('');
     const [tags, setTags] = useState<string[]>([]);
-    const [isMoreCategoriesModalOpen, setIsMoreCategoriesModalOpen] = useState(false);
+    const [showAllTemporarily, setShowAllTemporarily] = useState(false);
 
+    const flexibleGroups = useMemo(() => groups.filter(g => g.id !== FIXED_COSTS_GROUP_ID), [groups]);
 
     const recentlyUsedTags = useMemo(() => {
         const sortedTransactions = [...transactions].sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime());
@@ -62,11 +65,9 @@ export const QuickAddForm: FC = () => {
     const handleSelectCategory = (newCategoryId: string) => {
         setCategoryId(newCategoryId);
         addRecent(newCategoryId);
-    };
-
-    const handleSelectCategoryFromModal = (newCategoryId: string) => {
-        handleSelectCategory(newCategoryId);
-        setIsMoreCategoriesModalOpen(false);
+        if (quickAddHideGroups) {
+            setShowAllTemporarily(false);
+        }
     };
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -116,6 +117,9 @@ export const QuickAddForm: FC = () => {
         setDescription('');
         setTags([]);
         setCategoryId('');
+        if (quickAddHideGroups) {
+            setShowAllTemporarily(false);
+        }
     };
 
     const handleTagClick = (tag: string) => {
@@ -129,6 +133,8 @@ export const QuickAddForm: FC = () => {
         animate: { opacity: 1, y: 0 },
         transition: { delay: 0.1 }
     };
+
+    const showFullList = !quickAddHideGroups || showAllTemporarily;
 
     return (
         <motion.div {...formAnimation}>
@@ -176,44 +182,59 @@ export const QuickAddForm: FC = () => {
                                 </div>
                             )}
                         </div>
-                         <div className="space-y-2">
-                            {favoriteCategories.length > 0 && (
-                                <div>
-                                    <h5 className="text-xs font-bold uppercase tracking-wider text-slate-500/80 mb-1.5 ml-1">Favoriten</h5>
-                                    <CategoryButtons 
-                                        categories={favoriteCategories}
-                                        selectedCategoryId={categoryId}
-                                        onSelectCategory={handleSelectCategory}
-                                        showGroups={false}
-                                        favoriteIds={favoriteIds}
-                                        onToggleFavorite={toggleFavorite}
-                                    />
-                                </div>
-                            )}
-                            {recentCategories.length > 0 && (
-                                 <div>
-                                    <h5 className="text-xs font-bold uppercase tracking-wider text-slate-500/80 mb-1.5 ml-1">Zuletzt verwendet</h5>
-                                    <CategoryButtons 
-                                        categories={recentCategories}
-                                        selectedCategoryId={categoryId}
-                                        onSelectCategory={handleSelectCategory}
-                                        showGroups={false}
-                                        favoriteIds={favoriteIds}
-                                        onToggleFavorite={toggleFavorite}
-                                    />
-                                </div>
-                            )}
-                        </div>
-                        <div className="flex justify-end">
-                             <Button
-                                type="button"
-                                variant="secondary"
-                                size="sm"
-                                onClick={() => setIsMoreCategoriesModalOpen(true)}
-                            >
-                                Weitere Kategorien...
-                            </Button>
-                        </div>
+                         
+                        {showFullList ? (
+                             <CategoryButtons 
+                                categories={flexibleCategories}
+                                groups={flexibleGroups}
+                                selectedCategoryId={categoryId}
+                                onSelectCategory={handleSelectCategory}
+                                showGroups={true}
+                                favoriteIds={favoriteIds}
+                                onToggleFavorite={toggleFavorite}
+                            />
+                        ) : (
+                            <div className="space-y-2">
+                                {favoriteCategories.length > 0 && (
+                                    <div>
+                                        <h5 className="text-xs font-bold uppercase tracking-wider text-slate-500/80 mb-1.5 ml-1">Favoriten</h5>
+                                        <CategoryButtons 
+                                            categories={favoriteCategories}
+                                            selectedCategoryId={categoryId}
+                                            onSelectCategory={handleSelectCategory}
+                                            showGroups={false}
+                                            favoriteIds={favoriteIds}
+                                            onToggleFavorite={toggleFavorite}
+                                        />
+                                    </div>
+                                )}
+                                {recentCategories.length > 0 && (
+                                    <div>
+                                        <h5 className="text-xs font-bold uppercase tracking-wider text-slate-500/80 mb-1.5 ml-1">Zuletzt verwendet</h5>
+                                        <CategoryButtons 
+                                            categories={recentCategories}
+                                            selectedCategoryId={categoryId}
+                                            onSelectCategory={handleSelectCategory}
+                                            showGroups={false}
+                                            favoriteIds={favoriteIds}
+                                            onToggleFavorite={toggleFavorite}
+                                        />
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                         {quickAddHideGroups && !showAllTemporarily && (
+                            <div className="flex justify-end">
+                                <Button
+                                    type="button"
+                                    variant="secondary"
+                                    size="sm"
+                                    onClick={() => setShowAllTemporarily(true)}
+                                >
+                                    Alle Gruppen anzeigen
+                                </Button>
+                            </div>
+                        )}
                     </div>
 
                     <div className="space-y-1.5 pt-2.5 border-t border-slate-700/50">
@@ -242,15 +263,6 @@ export const QuickAddForm: FC = () => {
                     </div>
                 </form>
             </div>
-            <AnimatePresence>
-                {isMoreCategoriesModalOpen && (
-                    <MoreCategoriesModal
-                        isOpen={isMoreCategoriesModalOpen}
-                        onClose={() => setIsMoreCategoriesModalOpen(false)}
-                        onSelectCategory={handleSelectCategoryFromModal}
-                    />
-                )}
-            </AnimatePresence>
         </motion.div>
     );
 };

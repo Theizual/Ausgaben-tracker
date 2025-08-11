@@ -21,7 +21,7 @@ type AppContextType =
     ReturnType<typeof useTransactionData> &
     ReturnType<typeof useUI> &
     ReturnType<typeof useUsers> &
-    ReturnType<typeof useUserSettings> &
+    Omit<ReturnType<typeof useUserSettings>, 'setQuickAddHideGroups'> &
     ReturnType<typeof useCategories> &
     ReturnType<typeof useCategoryPreferences> &
     { currentUser: User | null } &
@@ -37,6 +37,8 @@ type AppContextType =
         resetAppData: () => void;
         visibleCategoryGroups: string[];
         handleReassignAndDeleteCategory: (sourceCategoryId: string, targetCategoryId: string) => void;
+        quickAddHideGroups: boolean;
+        setQuickAddHideGroups: (hide: boolean) => void;
     };
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -168,6 +170,16 @@ const ReadyAppProvider: React.FC<{
         return categoryState.groups.map(g => g.name);
     }, [uiState.currentUserId, userSettingsState, categoryState.groups]);
 
+    const quickAddHideGroups = useMemo(() => {
+        if (!uiState.currentUserId) return false; // Default to showing groups
+        return userSettingsState.getQuickAddHideGroups(uiState.currentUserId);
+    }, [uiState.currentUserId, userSettingsState]);
+
+    const setQuickAddHideGroups = useCallback((hide: boolean) => {
+        if (!uiState.currentUserId) return;
+        userSettingsState.setQuickAddHideGroups(uiState.currentUserId, hide);
+    }, [uiState.currentUserId, userSettingsState]);
+
     const syncState = useSync({
         rawCategories: categoryState.rawCategories,
         rawGroups: categoryState.rawGroups,
@@ -208,12 +220,12 @@ const ReadyAppProvider: React.FC<{
     useEffect(() => { syncStateRef.current = syncState; });
     const suppressAutoSyncRef = useRef(false);
     useEffect(() => {
-      if (syncState.syncStatus !== 'syncing' && syncState.syncStatus !== 'loading') {
+      if (syncStatus !== 'syncing' && syncStatus !== 'loading') {
         suppressAutoSyncRef.current = true;
         const t = setTimeout(() => { suppressAutoSyncRef.current = false; }, 2500);
         return () => clearTimeout(t);
       }
-    }, [syncState.syncStatus]);
+    }, [syncStatus]);
     const debouncedSync = useMemo(() => debounce(() => {
         if (suppressAutoSyncRef.current) return;
         const { isAutoSyncEnabled, syncStatus, syncData } = syncStateRef.current;
@@ -248,6 +260,7 @@ const ReadyAppProvider: React.FC<{
             usersState.users.forEach(user => {
                 keysToClear.push(`${user.id}_favorite_categories`);
                 keysToClear.push(`${user.id}_recent_categories`);
+                keysToClear.push(`${user.id}_quickAddHideGroups`); // Clear the new setting too
             });
 
             keysToClear.forEach(key => window.localStorage.removeItem(`${prefix}${key}`));
@@ -288,6 +301,7 @@ const ReadyAppProvider: React.FC<{
         uiState.closeReassignModal
     ]);
 
+    const { setQuickAddHideGroups: _, ...restUserSettingsState } = userSettingsState;
 
     const value: AppContextType = {
         ...uiState,
@@ -302,7 +316,7 @@ const ReadyAppProvider: React.FC<{
         totalMonthlyFixedCosts,
         ...transactionDataState,
         ...usersState,
-        ...userSettingsState,
+        ...restUserSettingsState,
         currentUser,
         deleteMultipleTransactions: transactionDataState.deleteMultipleTransactions,
         addMultipleTransactions: transactionDataState.addMultipleTransactions,
@@ -315,6 +329,8 @@ const ReadyAppProvider: React.FC<{
         resetAppData,
         visibleCategoryGroups,
         handleReassignAndDeleteCategory,
+        quickAddHideGroups,
+        setQuickAddHideGroups,
     };
     
     return (

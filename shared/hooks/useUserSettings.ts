@@ -145,6 +145,25 @@ export const useUserSettings = ({ isDemoModeEnabled }: { isDemoModeEnabled: bool
         dispatch({ type: 'UPDATE_SETTING', payload: newSetting });
     }, [rawUserSettings]);
 
+    const getQuickAddHideGroups = useCallback((userId: string): boolean => {
+        const setting = liveUserSettings.find(s => s.userId === userId && s.key === 'quickAddHideGroups');
+        return setting?.value === 'true'; // Default to false
+    }, [liveUserSettings]);
+
+    const setQuickAddHideGroups = useCallback((userId: string, hide: boolean) => {
+        const now = new Date().toISOString();
+        const existingSetting = rawUserSettings.find(s => s.userId === userId && s.key === 'quickAddHideGroups');
+        const newSetting: UserSetting = {
+            userId,
+            key: 'quickAddHideGroups',
+            value: String(hide),
+            lastModified: now,
+            version: (existingSetting?.version || 0) + 1,
+            isDeleted: false,
+        };
+        dispatch({ type: 'UPDATE_SETTING', payload: newSetting });
+    }, [rawUserSettings]);
+
 
     return {
         rawUserSettings,
@@ -156,5 +175,7 @@ export const useUserSettings = ({ isDemoModeEnabled }: { isDemoModeEnabled: bool
         updateCategoryConfigurationForUser,
         getVisibleGroupsForUser,
         updateVisibleGroups,
+        getQuickAddHideGroups,
+        setQuickAddHideGroups,
     };
 };

@@ -5,10 +5,11 @@
 
 
 
+
 import React from 'react';
 import { motion, MotionProps } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
-import { FileText, Wallet, Info, ChevronRight, ToggleSwitch, Trash2, Button, DownloadCloud } from '@/shared/ui';
+import { FileText, Wallet, Info, ChevronRight, ToggleSwitch, Trash2, Button, DownloadCloud, Eye } from '@/shared/ui';
 import { APP_VERSION } from '@/constants';
 
 const MotionDiv = motion.div;
@@ -18,7 +19,10 @@ const MANAGER_LIST_ITEM_CLASSES = "w-full text-left bg-slate-700/50 hover:bg-sla
 export const GeneralSettings = ({ onOpenTagManager }: {
     onOpenTagManager: () => void;
 }) => {
-    const { isAutoSyncEnabled, setIsAutoSyncEnabled, openChangelog, resetAppData, loadFromSheet } = useApp();
+    const { 
+        isAutoSyncEnabled, setIsAutoSyncEnabled, openChangelog, resetAppData, loadFromSheet,
+        quickAddHideGroups, setQuickAddHideGroups,
+    } = useApp();
 
     const settingsAnimation: MotionProps = {
         initial: { opacity: 0, x: 10 },
@@ -58,6 +62,17 @@ export const GeneralSettings = ({ onOpenTagManager }: {
                             <DownloadCloud className="h-4 w-4" />
                             Neu laden
                         </Button>
+                    </div>
+                </div>
+
+                <div>
+                    <h4 className="text-md font-semibold mb-3 text-white flex items-center gap-2"><Eye className="h-5 w-5 text-sky-400" /> Anzeige</h4>
+                    <div className="flex items-center justify-between pt-4 mt-4 border-t border-slate-700/50">
+                        <div>
+                            <label htmlFor="hide-groups-toggle" className="block text-sm font-medium text-slate-300">Gruppen in "Schnell hinzufügen" ausblenden</label>
+                            <p className="text-xs text-slate-400 mt-1">Zeigt standardmäßig nur Favoriten und zuletzt verwendete Kategorien an.</p>
+                        </div>
+                        <ToggleSwitch id="hide-groups-toggle" enabled={quickAddHideGroups} setEnabled={setQuickAddHideGroups} />
                     </div>
                 </div>
 
