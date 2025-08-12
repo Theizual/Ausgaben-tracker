@@ -55,7 +55,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const headers = HEADERS[name as keyof typeof HEADERS];
       const rows = objectsToRows(name as any, arr);
       const lastCol = colLetter(headers.length);
-      return { range: `${name}!A1:${lastCol}`, values: [headers, ...rows], majorDimension: 'ROWS' as const };
+      return { range: `${name}!A1:${lastCol}`, values: [[...headers], ...rows], majorDimension: 'ROWS' as const };
     });
 
     await withRetry(() =>
