@@ -105,11 +105,11 @@ export const GroupSettings: FC = () => {
                                             </div>
                                             <button 
                                                 onClick={() => setEditingGroupDesign(group)}
-                                                className="w-10 h-10 rounded-md flex items-center justify-center flex-shrink-0 hover:opacity-80 transition-opacity"
-                                                style={{ backgroundColor: color }}
+                                                className="w-10 h-10 rounded-md flex items-center justify-center flex-shrink-0 bg-transparent border-2 hover:bg-slate-700/50 transition-colors"
+                                                style={{ borderColor: color }}
                                                 title="Design ändern"
                                             >
-                                                <GroupIcon className="h-5 w-5 text-white" />
+                                                <GroupIcon className="h-5 w-5" style={{ color: color }} />
                                             </button>
                                             <div className="flex-grow min-w-0">
                                                 {editingGroup === group.id ? (

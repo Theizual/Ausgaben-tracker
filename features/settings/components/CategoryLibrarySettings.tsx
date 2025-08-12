@@ -104,10 +104,8 @@ export const CategoryLibrarySettings: FC = () => {
         const isFavorite = favoriteIds.includes(category.id);
         return (
             <div key={category.id} className="relative">
-                <button type="button" onClick={onClick} className="flex items-center gap-2 pl-1.5 pr-3 py-1.5 text-white font-medium rounded-lg transition-colors duration-200 bg-slate-700/50 hover:bg-slate-700" title={category.name}>
-                    <div className="w-8 h-8 rounded-md flex items-center justify-center flex-shrink-0" style={{ backgroundColor: category.color }}>
-                        <Icon className="h-5 w-5 text-white" />
-                    </div>
+                <button type="button" onClick={onClick} className="flex items-center gap-2 px-3 py-2 text-white font-medium rounded-lg transition-colors duration-200 border-2 bg-slate-800/50 hover:bg-slate-700/80" style={{ borderColor: category.color }} title={category.name}>
+                    <Icon className="h-5 w-5 shrink-0" style={{ color: category.color }} />
                     <span className="text-sm">{category.name}</span>
                 </button>
                  <button
@@ -127,10 +125,8 @@ export const CategoryLibrarySettings: FC = () => {
         const isFavorite = favoriteIds.includes(category.id);
          return (
              <div key={category.id} className="relative">
-                <button type="button" onClick={onClick} className="flex items-center gap-2 pl-1.5 pr-3 py-1.5 text-white font-medium rounded-lg transition-colors duration-200 border-2 border-dashed border-slate-500 hover:border-slate-400 bg-slate-800/50 hover:bg-slate-700/80" title={`"${category.name}" hinzufügen`}>
-                    <div className="w-8 h-8 rounded-md flex items-center justify-center flex-shrink-0" style={{ backgroundColor: category.color }}>
-                        <Icon className="h-5 w-5 text-white" />
-                    </div>
+                <button type="button" onClick={onClick} className="flex items-center gap-2 px-3 py-2 text-white font-medium rounded-lg transition-colors duration-200 border-2 border-dashed border-slate-500 hover:border-slate-400 bg-slate-800/50 hover:bg-slate-700/80" title={`"${category.name}" hinzufügen`}>
+                    <Icon className="h-5 w-5 shrink-0" style={{ color: category.color }} />
                     <span className="text-sm">{category.name}</span>
                 </button>
                 <button

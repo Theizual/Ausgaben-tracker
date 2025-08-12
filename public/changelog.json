@@ -1,14 +1,5 @@
 [
     {
-        "version": "0.819",
-        "date": "16.08.2024, 11:00 Uhr",
-        "title": "Visuelle Harmonie & frische Icons",
-        "changes": [
-            "**Einheitliches Design:** Der \"Kategorie bearbeiten\"-Dialog wurde komplett überarbeitet und sieht jetzt genauso elegant aus wie die Gruppen-Anpassung. Das sorgt für ein ruhigeres und intuitiveres Bedienerlebnis.",
-            "**Neuer Icon-Stil:** Alle Icons in der App – von Transaktionen über Kategorien bis hin zu Gruppen – haben einen frischen Look erhalten. Das neue Design ist klarer, moderner und verbessert die Übersichtlichkeit in der gesamten Anwendung."
-        ]
-    },
-    {
         "version": "0.801",
         "date": "15.08.2024, 09:00 Uhr",
         "title": "Intelligente Synchronisierung & Multi-Geräte-Setup",

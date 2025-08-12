@@ -52,8 +52,8 @@ const StandardTransactionItem: FC<StandardTransactionItemProps> = ({
             className={`w-full flex items-center rounded-lg transition-colors duration-150 hover:bg-slate-700/50 text-left ${isCompact ? 'gap-2 px-2 py-1' : 'gap-3 p-2'}`}
         >
             {/* Icon */}
-            <div className={`rounded-full flex items-center justify-center flex-shrink-0 ${isCompact ? 'w-8 h-8' : 'w-10 h-10'}`} style={{ backgroundColor: color }}>
-                <Icon className={`${isCompact ? 'h-4 w-4' : 'h-5 w-5'} text-white`} />
+            <div className={`rounded-full flex items-center justify-center flex-shrink-0 bg-transparent border-2 ${isCompact ? 'w-8 h-8' : 'w-10 h-10'}`} style={{ borderColor: color }}>
+                <Icon className={`${isCompact ? 'h-4 w-4' : 'h-5 w-5'}`} style={{ color }} />
             </div>
 
             {/* Description, Category, Tags */}

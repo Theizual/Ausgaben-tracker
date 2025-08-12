@@ -99,10 +99,10 @@ export const CategoryEditModal: FC<{
             >
                 <div className="flex items-center gap-4">
                     <div 
-                        className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0"
-                        style={{ backgroundColor: formData.color }}
+                        className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 bg-transparent border-2"
+                        style={{ borderColor: formData.color }}
                     >
-                        <IconComponent className="h-6 w-6 text-white"/>
+                        <IconComponent className="h-6 w-6" style={{ color: formData.color }}/>
                     </div>
                     <div>
                         <p className="text-xs text-slate-400">Kategorie bearbeiten</p>
