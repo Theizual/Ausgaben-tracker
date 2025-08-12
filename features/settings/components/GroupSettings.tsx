@@ -6,12 +6,7 @@ import type { Group } from '@/shared/types';
 import { Button, Plus, Trash2, getIconComponent, GripVertical } from '@/shared/ui';
 import { DEFAULT_GROUP_ID, FIXED_COSTS_GROUP_ID, DEFAULT_GROUP_COLOR } from '@/constants';
 import { GroupDesignModal } from './GroupDesignModal';
-
-const settingsAnimationVariants = {
-    initial: { opacity: 0, x: 10 },
-    animate: { opacity: 1, x: 0 },
-    exit: { opacity: 0, x: -10 }
-};
+import { settingsContentAnimation } from '@/shared/lib/animations';
 
 export const GroupSettings: FC<{ onEditGroupDesign: (group: Group) => void }> = ({ onEditGroupDesign }) => {
     const { 
@@ -59,7 +54,7 @@ export const GroupSettings: FC<{ onEditGroupDesign: (group: Group) => void }> = 
     };
 
     return (
-        <motion.div variants={settingsAnimationVariants} initial="initial" animate="animate" exit="exit" key="groups">
+        <motion.div variants={settingsContentAnimation} initial="initial" animate="animate" exit="exit" key="groups">
             <h3 className="text-lg font-semibold text-white mb-1">Gruppen verwalten</h3>
             <p className="text-sm text-slate-400 mb-6">
                 Erstellen, bearbeiten und löschen Sie Kategoriegruppen. Passen Sie das Design an und ändern Sie die Reihenfolge per Drag & Drop.

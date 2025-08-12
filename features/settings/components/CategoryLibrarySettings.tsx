@@ -13,7 +13,8 @@ const MotionDiv = motion.div;
 export const CategoryLibrarySettings: FC<{ onEditGroupDesign: (group: Group) => void }> = ({ onEditGroupDesign }) => {
     const { 
         categories, groups, upsertCategory, deleteCategory, addGroup, deleteGroup, 
-        loadStandardConfiguration, unassignedCategories, favoriteIds, toggleFavorite, transactions, openReassignModal
+        loadStandardConfiguration, unassignedCategories, favoriteIds, toggleFavorite, transactions, openReassignModal,
+        currentUserId, updateCategoryColorOverride,
     } = useApp();
 
     const [editingCategory, setEditingCategory] = useState<CategoryFormData | null>(null);
@@ -44,9 +45,39 @@ export const CategoryLibrarySettings: FC<{ onEditGroupDesign: (group: Group) => 
         setEditingCategory(categoryToEdit);
     };
     
-    const handleSaveCategory = (data: CategoryFormData) => {
-        upsertCategory(data);
-        toast.success(`Kategorie "${data.name}" gespeichert.`);
+    const handleSaveCategory = (data: CategoryFormData, isColorOverride: boolean) => {
+        const isNewCategory = data.id.startsWith('new_');
+    
+        if (isColorOverride && currentUserId && !isNewCategory) {
+            // Case 1: Existing category, with "override color" toggled ON.
+            // Save the color change only for the current user.
+            updateCategoryColorOverride(currentUserId, data.id, data.color);
+    
+            // Save all other changes (name, icon, group, etc.) globally,
+            // but explicitly keep the original global color.
+            const originalCategory = categories.find(c => c.id === data.id);
+            if (originalCategory) {
+                const globalUpdates = { ...data, color: originalCategory.color };
+                upsertCategory(globalUpdates);
+                toast.success(`Änderungen für "${data.name}" gespeichert, Farbe personalisiert.`);
+            } else {
+                // Fallback: This should not happen if it's not a new category.
+                upsertCategory(data);
+                toast.error(`Original-Kategorie nicht gefunden. Alle Änderungen wurden global gespeichert.`);
+            }
+        } else {
+            // Case 2: New category OR "override color" is OFF.
+            // All changes are saved globally.
+            
+            // First, remove any existing personal color override for this user/category.
+            if (currentUserId) {
+                updateCategoryColorOverride(currentUserId, data.id, null);
+            }
+            // Then, save all data globally.
+            upsertCategory(data);
+            toast.success(`Kategorie "${data.name}" gespeichert.`);
+        }
+    
         setEditingCategory(null);
     };
 

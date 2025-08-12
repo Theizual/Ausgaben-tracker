@@ -42,7 +42,7 @@ type AppContextType =
         quickAddHideGroups: boolean;
         setQuickAddHideGroups: (hide: boolean) => void;
         showDemoData: boolean;
-        setShowDemoData: React.Dispatch<React.SetStateAction<boolean>>;
+        setShowDemoData: (value: boolean | ((prev: boolean) => boolean)) => void;
     };
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -78,7 +78,34 @@ const ReadyAppProvider: React.FC<{
     // uiState and usersState are now stable and passed as props.
     // The currentUserId is guaranteed to be valid here.
     const deLocale = de;
-    const [showDemoData, setShowDemoData] = useLocalStorage<boolean>(`${appMode}_showDemoData`, true);
+
+    // --- USER-SPECIFIC `showDemoData` STATE ---
+    // This logic replaces the appMode-based useLocalStorage hook.
+    // It's managed with useState + useEffect to react to user changes.
+    const [showDemoData, setShowDemoDataInternal] = useState(() => {
+        if (!uiState.currentUserId) return false;
+        const item = window.localStorage.getItem(`${uiState.currentUserId}_showDemoData`);
+        // Default to true for the specific demo user, otherwise false for new/real users.
+        return item ? JSON.parse(item) : uiState.currentUserId === 'usr_demo';
+    });
+
+    // Update state from localStorage when the user changes.
+    useEffect(() => {
+        if (!uiState.currentUserId) return;
+        const item = window.localStorage.getItem(`${uiState.currentUserId}_showDemoData`);
+        setShowDemoDataInternal(item ? JSON.parse(item) : uiState.currentUserId === 'usr_demo');
+    }, [uiState.currentUserId]);
+
+    // Create a stable setter function that also writes to localStorage.
+    const setShowDemoData = useCallback((valueOrFn: boolean | ((prev: boolean) => boolean)) => {
+        if (!uiState.currentUserId) return;
+        
+        setShowDemoDataInternal(prev => {
+            const newValue = typeof valueOrFn === 'function' ? valueOrFn(prev) : valueOrFn;
+            window.localStorage.setItem(`${uiState.currentUserId}_showDemoData`, JSON.stringify(newValue));
+            return newValue;
+        });
+    }, [uiState.currentUserId]);
 
 
     // This effect transitions the app from demo mode to production mode.
@@ -113,19 +140,32 @@ const ReadyAppProvider: React.FC<{
     const finalGroupMap = useMemo(() => new Map(finalGroups.map(g => [g.id, g])), [finalGroups]);
     const finalGroupNames = useMemo(() => finalGroups.map(g => g.name), [finalGroups]);
     
+    // --- Create final categoryMap with user group AND category color overrides ---
     const finalCategoryMap = useMemo(() => {
-        const newMap = new Map(categoryState.categoryMap);
-        newMap.forEach((category, id) => {
-            const group = finalGroupMap.get(category.groupId);
-            // This is subtle: some category colors inherit from the group.
-            // If the group color changed, we should reflect that if the category color was the same.
-            const originalGroupColor = categoryState.groupMap.get(category.groupId)?.color;
-            if (group && category.color === originalGroupColor) {
-                newMap.set(id, { ...category, color: group.color as string });
+        const newMap = new Map<string, Category>();
+        if (!uiState.currentUserId) return categoryState.categoryMap;
+        
+        const customCategoryColors = userSettingsState.getCategoryColorOverrides(uiState.currentUserId);
+        
+        categoryState.categoryMap.forEach((category, id) => {
+            let finalColor = category.color;
+
+            // HIERARCHY 1: User-specific category color override (highest priority)
+            if (customCategoryColors[id]) {
+                finalColor = customCategoryColors[id];
+            } else {
+                // HIERARCHY 2 & 3: Inherited color from a user-specific group color override
+                const group = finalGroupMap.get(category.groupId);
+                const originalGroupColor = categoryState.groupMap.get(category.groupId)?.color;
+                if (group && category.color === originalGroupColor) {
+                    finalColor = group.color as string;
+                }
             }
+
+            newMap.set(id, { ...category, color: finalColor });
         });
         return newMap;
-    }, [categoryState.categoryMap, categoryState.groupMap, finalGroupMap]);
+    }, [categoryState.categoryMap, userSettingsState, uiState.currentUserId, finalGroupMap, categoryState.groupMap]);
 
 
     const categoryPreferencesState = useCategoryPreferences({
@@ -297,6 +337,7 @@ const ReadyAppProvider: React.FC<{
                 keysToClear.push(`${user.id}_favorite_categories`);
                 keysToClear.push(`${user.id}_recent_categories`);
                 keysToClear.push(`${user.id}_quickAddHideGroups`); // Clear the new setting too
+                keysToClear.push(`${user.id}_showDemoData`); // Clear demo data visibility setting
             });
 
             keysToClear.forEach(key => window.localStorage.removeItem(`${prefix}${key}`));

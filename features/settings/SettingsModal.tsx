@@ -11,11 +11,7 @@ import { GroupSettings } from './components/GroupSettings';
 import { TagManagerModal } from './components/TagManagerModal';
 import { CategoryLibrarySettings } from './components/CategoryLibraryModal';
 import { GroupDesignModal } from './components/GroupDesignModal';
-
-const ANIMATION_CONFIG = {
-    MODAL_SPRING: { type: 'spring' as const, bounce: 0.2, duration: 0.4 },
-    CONTENT_FADE: { duration: 0.2 },
-};
+import { modalBackdropAnimation, modalContentAnimation } from '@/shared/lib/animations';
 
 const TABS: { id: SettingsTab; label: string; icon: React.FC<any>; }[] = [
     { id: 'general', label: 'Allgemein', icon: SlidersHorizontal }, 
@@ -103,28 +99,18 @@ const SettingsModal = ({ isOpen, onClose, initialTab }: { isOpen: boolean; onClo
 
     if (!isOpen) return null;
 
-    const backdropAnimation = {
-        initial: { opacity: 0 },
-        animate: { opacity: 1 },
-        exit: { opacity: 0 },
-    };
-    
-    const modalAnimation = {
-        initial: { scale: 0.95, opacity: 0 },
-        animate: { scale: 1, opacity: 1 },
-        exit: { scale: 0.95, opacity: 0 },
-        transition: ANIMATION_CONFIG.MODAL_SPRING,
-    };
-
     return (
         <>
             <motion.div 
                 className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50 p-4" 
                 onClick={onClose} 
-                {...backdropAnimation}
+                variants={modalBackdropAnimation}
+                initial="initial"
+                animate="animate"
+                exit="exit"
             >
                 <motion.div 
-                    {...modalAnimation}
+                    variants={modalContentAnimation}
                     className="bg-slate-800/80 backdrop-blur-md rounded-xl w-full max-w-4xl shadow-2xl border border-slate-700 flex flex-col h-[90vh] md:h-[85vh]" 
                     onClick={e => e.stopPropagation()}
                 >

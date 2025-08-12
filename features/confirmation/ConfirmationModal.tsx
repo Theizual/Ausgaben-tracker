@@ -7,6 +7,7 @@ import type { Transaction } from '@/shared/types';
 import { formatCurrency } from '@/shared/utils/dateUtils';
 import { isWithinInterval, parseISO, startOfMonth, endOfMonth } from 'date-fns';
 import { iconMap, CheckCircle2, getIconComponent } from '@/shared/ui';
+import { modalBackdropAnimation, modalSlideDownAnimation, barAnimation } from '@/shared/lib/animations';
 
 interface ConfirmationModalProps {
     isOpen: boolean;
@@ -87,42 +88,26 @@ const ConfirmationModal = ({
         if (percentage > 85) return '#f97316'; // orange-500
         return defaultColor;
     };
-
-    const backdropAnimation = {
-        initial: { opacity: 0 },
-        animate: { opacity: 1 },
-        exit: { opacity: 0 },
-    };
-    
-    const modalAnimation = {
-        initial: { y: "100%" },
-        animate: { y: 0 },
-        exit: { y: "100%" },
-        transition: { type: 'spring' as const, bounce: 0.4, duration: 0.5 },
-    };
     
     const checkAnimation = {
         initial: { scale: 0 },
         animate: { scale: 1 },
         transition: { delay: 0.2, type: 'spring' as const, stiffness: 260, damping: 20 },
     };
-    
-    const barAnimation = (percentageBefore: number, percentageAfter: number) => ({
-        initial: { width: `${Math.min(percentageBefore, 100)}%` },
-        animate: { width: `${Math.min(percentageAfter, 100)}%` },
-        transition: { duration: 0.8, ease: "easeOut" as const, delay: 0.3 },
-    });
 
     return (
         <motion.div
             className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-end md:items-center z-50 p-4"
             onClick={onClose}
-            {...backdropAnimation}
+            variants={modalBackdropAnimation}
+            initial="initial"
+            animate="animate"
+            exit="exit"
         >
             <motion.div
                 className="bg-slate-800 rounded-t-2xl md:rounded-2xl w-full max-w-md shadow-2xl border-t md:border border-slate-700 flex flex-col items-center text-center p-8"
                 onClick={e => e.stopPropagation()}
-                {...modalAnimation}
+                variants={modalSlideDownAnimation}
             >
                 <motion.div
                     {...checkAnimation}
@@ -175,7 +160,9 @@ const ConfirmationModal = ({
                                 <motion.div
                                     className="h-2.5 rounded-full"
                                     style={{ backgroundColor: getBarColor(categoryBudgetStats.percentageAfter, categoryBudgetStats.color) }}
-                                    {...barAnimation(categoryBudgetStats.percentageBefore, categoryBudgetStats.percentageAfter)}
+                                    variants={barAnimation(categoryBudgetStats.percentageBefore, categoryBudgetStats.percentageAfter)}
+                                    initial="initial"
+                                    animate="animate"
                                 />
                             </div>
                         </div>
@@ -196,7 +183,9 @@ const ConfirmationModal = ({
                                 <motion.div
                                     className="h-2.5 rounded-full"
                                     style={{ backgroundColor: getBarColor(totalPercentageAfter) }}
-                                    {...barAnimation(totalPercentageBefore, totalPercentageAfter)}
+                                    variants={barAnimation(totalPercentageBefore, totalPercentageAfter)}
+                                    initial="initial"
+                                    animate="animate"
                                 />
                             </div>
                         </div>

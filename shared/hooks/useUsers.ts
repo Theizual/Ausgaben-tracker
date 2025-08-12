@@ -102,13 +102,18 @@ export const useUsers = ({ isDemoModeEnabled }: { isDemoModeEnabled: boolean }) 
         }
     }, [state.users]);
 
-    const deleteUser = useCallback((id: string) => {
+    const deleteUser = useCallback((id: string, options?: { silent?: boolean }) => {
         const userToDelete = state.users.find(u => u.id === id);
         if (userToDelete) {
-             if (users.length <= 1) {
-                toast.error("Der letzte Benutzer kann nicht gelöscht werden.");
+            // Prevent deleting the last non-demo user. Demo user can always be deleted.
+            const nonDemoUsers = users.filter(u => !u.isDemo);
+            if (nonDemoUsers.length <= 1 && !userToDelete.isDemo) {
+                if (!options?.silent) {
+                    toast.error("Der letzte Benutzer kann nicht gelöscht werden.");
+                }
                 return;
             }
+
             const updatedUser: User = {
                 ...userToDelete,
                 isDeleted: true,
@@ -116,7 +121,9 @@ export const useUsers = ({ isDemoModeEnabled }: { isDemoModeEnabled: boolean }) 
                 version: (userToDelete.version || 0) + 1,
             };
             dispatch({ type: 'UPDATE_USER', payload: updatedUser });
-            toast.success(`Benutzer "${userToDelete.name}" gelöscht.`);
+            if (!options?.silent) {
+                toast.success(`Benutzer "${userToDelete.name}" gelöscht.`);
+            }
         }
     }, [state.users, users]);
     

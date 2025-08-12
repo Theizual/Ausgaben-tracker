@@ -19,6 +19,7 @@ import { DeleteCategoryModal } from '@/features/settings/components/DeleteCatego
 import type { CategoryFormData } from '@/features/settings/components/CategoryEditModal';
 import { UserMergePromptModal } from '@/features/onboarding';
 import type { Transaction } from '@/shared/types';
+import { pageContentAnimation } from '@/shared/lib/animations';
 
 // Main App Component (now a clean layout/composition root)
 const App = () => {
@@ -82,13 +83,6 @@ const App = () => {
         }
     };
 
-    const contentAnimation = {
-        initial: { opacity: 0, y: 20 },
-        animate: { opacity: 1, y: 0 },
-        exit: { opacity: 0, y: -20 },
-        transition: { duration: 0.3 }
-    };
-
     return (
         <div className="min-h-screen bg-slate-900 text-slate-200">
             <Toaster
@@ -129,7 +123,10 @@ const App = () => {
                     <AnimatePresence mode="wait">
                         <motion.div
                             key={activeTab}
-                            {...contentAnimation}
+                            variants={pageContentAnimation}
+                            initial="initial"
+                            animate="animate"
+                            exit="exit"
                         >
                             {renderContent()}
                         </motion.div>

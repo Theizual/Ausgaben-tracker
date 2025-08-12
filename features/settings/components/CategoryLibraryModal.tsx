@@ -3,17 +3,19 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { useApp } from '@/contexts/AppContext';
 import type { Category, Group } from '@/shared/types';
-import { Button, iconMap, Trash2, Plus, DownloadCloud, Star, getIconComponent } from '@/shared/ui';
+import { Button, iconMap, Trash2, Plus, DownloadCloud, Star, getIconComponent, Info } from '@/shared/ui';
 import { FIXED_COSTS_GROUP_ID, DEFAULT_GROUP_ID, FIXED_COSTS_GROUP_NAME, DEFAULT_GROUP_NAME } from '@/constants';
 import { CategoryEditModal, CategoryFormData } from './CategoryEditModal';
 import { parseISO } from 'date-fns';
+import { settingsContentAnimation } from '@/shared/lib/animations';
 
 const MotionDiv = motion.div;
 
 export const CategoryLibrarySettings: FC<{ onEditGroupDesign: (group: Group) => void }> = ({ onEditGroupDesign }) => {
     const { 
         categories, groups, upsertCategory, deleteCategory, addGroup, deleteGroup, 
-        loadStandardConfiguration, unassignedCategories, favoriteIds, toggleFavorite, transactions, openReassignModal
+        loadStandardConfiguration, unassignedCategories, favoriteIds, toggleFavorite, transactions, openReassignModal,
+        currentUserId, updateCategoryColorOverride,
     } = useApp();
 
     const [editingCategory, setEditingCategory] = useState<CategoryFormData | null>(null);
@@ -44,9 +46,39 @@ export const CategoryLibrarySettings: FC<{ onEditGroupDesign: (group: Group) => 
         setEditingCategory(categoryToEdit);
     };
     
-    const handleSaveCategory = (data: CategoryFormData) => {
-        upsertCategory(data);
-        toast.success(`Kategorie "${data.name}" gespeichert.`);
+    const handleSaveCategory = (data: CategoryFormData, isColorOverride: boolean) => {
+        const isNewCategory = data.id.startsWith('new_');
+    
+        if (isColorOverride && currentUserId && !isNewCategory) {
+            // Case 1: Existing category, with "override color" toggled ON.
+            // Save the color change only for the current user.
+            updateCategoryColorOverride(currentUserId, data.id, data.color);
+    
+            // Save all other changes (name, icon, group, etc.) globally,
+            // but explicitly keep the original global color.
+            const originalCategory = categories.find(c => c.id === data.id);
+            if (originalCategory) {
+                const globalUpdates = { ...data, color: originalCategory.color };
+                upsertCategory(globalUpdates);
+                toast.success(`Änderungen für "${data.name}" gespeichert, Farbe personalisiert.`);
+            } else {
+                // Fallback: This should not happen if it's not a new category.
+                upsertCategory(data);
+                toast.error(`Original-Kategorie nicht gefunden. Alle Änderungen wurden global gespeichert.`);
+            }
+        } else {
+            // Case 2: New category OR "override color" is OFF.
+            // All changes are saved globally.
+            
+            // First, remove any existing personal color override for this user/category.
+            if (currentUserId) {
+                updateCategoryColorOverride(currentUserId, data.id, null);
+            }
+            // Then, save all data globally.
+            upsertCategory(data);
+            toast.success(`Kategorie "${data.name}" gespeichert.`);
+        }
+    
         setEditingCategory(null);
     };
 
@@ -129,18 +161,20 @@ export const CategoryLibrarySettings: FC<{ onEditGroupDesign: (group: Group) => 
              </div>
         );
     }
-    
-    const settingsAnimation = {
-        initial: { opacity: 0, x: 10 },
-        animate: { opacity: 1, x: 0 },
-        exit: { opacity: 0, x: -10 }
-    };
 
     return (
         <>
-            <MotionDiv {...settingsAnimation} key="categories">
+            <MotionDiv variants={settingsContentAnimation} initial="initial" animate="animate" exit="exit" key="categories">
                 <h3 className="text-lg font-semibold text-white mb-1">Kategorien-Bibliothek</h3>
                 <p className="text-sm text-slate-400 mb-6">Verwalten Sie hier alle Ihre Kategoriegruppen und Kategorien. Fügen Sie neue hinzu, benennen Sie sie um oder laden Sie die Standardkonfiguration.</p>
+                
+                <div className="bg-sky-900/50 border border-sky-700/50 text-sky-300 text-sm rounded-lg p-4 flex items-start gap-3 mb-6">
+                    <Info className="h-5 w-5 mt-0.5 flex-shrink-0" />
+                    <div>
+                        Klicke auf den Stern ⭐ bei einer Kategorie, um sie als Favorit festzulegen. Favoriten erscheinen für einen schnelleren Zugriff direkt im "Schnell hinzufügen"-Formular.
+                    </div>
+                </div>
+
                 <div className="space-y-6">
                     {/* 1. FLEXIBLE GROUPS */}
                     {flexibleGroupsData.map(group => {

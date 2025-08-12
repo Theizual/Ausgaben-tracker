@@ -11,6 +11,7 @@ import { iconMap, X, Edit, Trash2, Plus, FlaskConical, Link, getIconComponent, R
 import { TagEditorModal } from './ui/TagEditorModal';
 import { PickerModals } from './ui/PickerModals';
 import { TagPill } from '@/shared/ui';
+import { modalBackdropAnimation, modalContentAnimation } from '@/shared/lib/animations';
 
 interface TransactionDetailModalProps {
     isOpen: boolean;
@@ -203,19 +204,6 @@ const TransactionDetailModal = ({
 
     const localTags = getTagNames(formState);
     const isDemo = !!formState.isDemo;
-
-    const backdropAnimation = {
-        initial: { opacity: 0 },
-        animate: { opacity: 1 },
-        exit: { opacity: 0 },
-    };
-
-    const modalAnimation = {
-        initial: { scale: 0.95, opacity: 0 },
-        animate: { scale: 1, opacity: 1 },
-        exit: { scale: 0.95, opacity: 0 },
-        transition: { type: 'spring' as const, stiffness: 350, damping: 30 },
-    };
     
     const iconButtonAnimation = {
         whileHover: { scale: 1.1 },
@@ -239,12 +227,15 @@ const TransactionDetailModal = ({
                     <motion.div
                         className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50 p-4"
                         onClick={onClose}
-                        {...backdropAnimation}
+                        variants={modalBackdropAnimation}
+                        initial="initial"
+                        animate="animate"
+                        exit="exit"
                     >
                         <motion.div
                             className="bg-slate-800 rounded-2xl w-full max-w-lg shadow-2xl border border-slate-700 flex flex-col overflow-hidden max-h-[90vh]"
                             onClick={e => e.stopPropagation()}
-                            {...modalAnimation}
+                            variants={modalContentAnimation}
                         >
                             <div className="overflow-y-auto custom-scrollbar">
                                 <>

@@ -16,7 +16,8 @@ export const UserMergePromptModal: FC<UserMergePromptModalProps> = ({ isOpen, re
         reassignUserForTransactions, 
         addUser,
         users: localUsers,
-        setIsInitialSetupDone
+        setIsInitialSetupDone,
+        deleteUser,
     } = useApp();
 
     const localDemoUser = localUsers.find(u => u.id === 'usr_demo');
@@ -30,6 +31,9 @@ export const UserMergePromptModal: FC<UserMergePromptModalProps> = ({ isOpen, re
         
         setCurrentUserId(selectedUser.id);
         
+        // Silently delete the demo user as it's no longer needed.
+        deleteUser('usr_demo', { silent: true });
+
         toast.success(`Willkommen zurück, ${selectedUser.name}!`, { id: 'merge-toast' });
         onClose();
         
@@ -50,6 +54,9 @@ export const UserMergePromptModal: FC<UserMergePromptModalProps> = ({ isOpen, re
             // Reassign any local non-demo transactions to the new user.
             reassignUserForTransactions('usr_demo', newUser.id, true);
             setCurrentUserId(newUser.id); // Ensure this new user is selected.
+
+            // Silently delete the demo user as it's no longer needed.
+            deleteUser('usr_demo', { silent: true });
 
             toast.success(`Benutzer "${trimmedName}" angelegt!`, { id: 'merge-toast' });
             onClose();

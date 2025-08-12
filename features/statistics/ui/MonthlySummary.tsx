@@ -4,10 +4,10 @@ import { useApp } from '@/contexts/AppContext';
 import type { Transaction } from '@/shared/types';
 import { format, isSameMonth, getDaysInMonth } from 'date-fns';
 import { formatCurrency } from '@/shared/utils/dateUtils';
-import { Home, Wallet, Scale } from '@/shared/ui';
+import { Wallet, Scale } from '@/shared/ui';
 
 export const MonthlySummary: FC<{ transactions: Transaction[], currentMonth: Date }> = ({ transactions, currentMonth }) => {
-    const { deLocale, totalMonthlyFixedCosts } = useApp();
+    const { deLocale } = useApp();
     const summary = useMemo(() => {
         if (transactions.length === 0) return { total: 0, average: 0 };
 
@@ -44,7 +44,7 @@ export const MonthlySummary: FC<{ transactions: Transaction[], currentMonth: Dat
             {...motionProps}
             className="bg-slate-800 p-3 rounded-2xl border border-slate-700"
         >
-             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-0 md:divide-x md:divide-slate-700/50">
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-0 md:divide-x md:divide-slate-700/50">
                 {/* Total Expenses */}
                 <div className="text-center md:px-2">
                     <h3 className="text-slate-400 text-sm font-medium flex justify-center items-center gap-2">
@@ -69,20 +69,6 @@ export const MonthlySummary: FC<{ transactions: Transaction[], currentMonth: Dat
                         {formatCurrency(summary.average)}
                     </p>
                     <p className="text-slate-500 text-xs mt-1 truncate" title={periodLabel}>
-                        {periodLabel}
-                    </p>
-                </div>
-                
-                 {/* Monthly Fixed Costs */}
-                <div className="text-center md:px-2">
-                    <h3 className="text-slate-400 text-sm font-medium flex justify-center items-center gap-2">
-                        <Home className="h-4 w-4 text-sky-400" />
-                        Monatliche Fixkosten
-                    </h3>
-                    <p className="text-2xl font-bold text-white mt-2 truncate" title={formatCurrency(totalMonthlyFixedCosts)}>
-                        {formatCurrency(totalMonthlyFixedCosts)}
-                    </p>
-                     <p className="text-slate-500 text-xs mt-1 truncate" title={periodLabel}>
                         {periodLabel}
                     </p>
                 </div>

@@ -9,14 +9,9 @@ import { getIconComponent, Plus, Trash2, Edit, ChevronDown, ProgressBar, Button,
 import { FIXED_COSTS_GROUP_ID } from '@/constants';
 import { generateUUID } from '@/shared/utils/uuid';
 import { BudgetGroup } from './BudgetGroup';
+import { settingsContentAnimation } from '@/shared/lib/animations';
 
 const BASE_INPUT_CLASSES = "w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-rose-500";
-
-const settingsAnimationVariants = {
-    initial: { opacity: 0, x: 10 },
-    animate: { opacity: 1, x: 0 },
-    exit: { opacity: 0, x: -10 }
-};
 
 export const BudgetSettings = () => {
     const {
@@ -247,7 +242,7 @@ export const BudgetSettings = () => {
     };
 
     return (
-        <motion.div variants={settingsAnimationVariants} initial="initial" animate="animate" exit="exit" key="budget">
+        <motion.div variants={settingsContentAnimation} initial="initial" animate="animate" exit="exit" key="budget">
             <h3 className="text-lg font-semibold text-white mb-1">Budgetverwaltung</h3>
             <p className="text-sm text-slate-400 mb-6">Verwalten Sie hier Ihr gesamtes monatliches Budget, aufgeteilt in flexible Ausgaben und Fixkosten.</p>
             

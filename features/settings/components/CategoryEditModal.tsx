@@ -1,7 +1,7 @@
-import React, { useState, useEffect, FC } from 'react';
+import React, { useState, useEffect, useMemo, FC } from 'react';
 import { toast } from 'react-hot-toast';
 import { useApp } from '@/contexts/AppContext';
-import { Modal, Button, getIconComponent, ChevronDown, Trash2, DesignPicker } from '@/shared/ui';
+import { Modal, Button, getIconComponent, ChevronDown, Trash2, DesignPicker, ToggleSwitch } from '@/shared/ui';
 import { useEscapeKey } from '@/shared/hooks/useEscapeKey';
 
 const BASE_INPUT_CLASSES = "w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-rose-500";
@@ -35,13 +35,23 @@ export const CategoryEditModal: FC<{
     isOpen: boolean; 
     onClose: () => void; 
     categoryData: CategoryFormData | null; 
-    onSave: (data: CategoryFormData) => void; 
+    onSave: (data: CategoryFormData, isColorOverride: boolean) => void; 
     onDelete?: (category: CategoryFormData) => void;
 }> = ({ isOpen, onClose, categoryData, onSave, onDelete }) => {
-    const { groups } = useApp();
+    const { groups, currentUserId, getCategoryColorOverrides } = useApp();
     const [formData, setFormData] = useState(categoryData);
+    const [isColorOverride, setIsColorOverride] = useState(false);
+    const isNewCategory = useMemo(() => categoryData?.id.startsWith('new_') ?? false, [categoryData]);
 
-    useEffect(() => { setFormData(categoryData); }, [categoryData]);
+    useEffect(() => {
+        setFormData(categoryData);
+        if (categoryData && currentUserId) {
+            const overrides = getCategoryColorOverrides(currentUserId);
+            // Initialize toggle based on whether an override exists for this category
+            setIsColorOverride(!!overrides[categoryData.id]);
+        }
+    }, [categoryData, currentUserId, getCategoryColorOverrides]);
+
     useEscapeKey(onClose);
 
     const handleSave = () => {
@@ -49,7 +59,7 @@ export const CategoryEditModal: FC<{
             toast.error("Der Kategoriename darf nicht leer sein.");
             return;
         }
-        onSave(formData);
+        onSave(formData, isColorOverride);
     };
 
     const handleDeleteClick = () => {
@@ -111,7 +121,7 @@ export const CategoryEditModal: FC<{
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div>
                     <label htmlFor="cat-name" className="block text-sm font-medium text-slate-300 mb-1">Name</label>
                     <input id="cat-name" type="text" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className={BASE_INPUT_CLASSES} />
@@ -126,6 +136,16 @@ export const CategoryEditModal: FC<{
                     </div>
                 </div>
             </div>
+
+            {!isNewCategory && (
+                <div className="flex items-center justify-between mb-4 p-3 bg-slate-700/30 rounded-lg">
+                    <div>
+                        <label htmlFor="color-override-toggle" className="block text-sm font-medium text-slate-300">Farbe nur für mich anpassen</label>
+                        <p className="text-xs text-slate-400 mt-1">Andere Änderungen (Name, Icon) gelten für alle.</p>
+                    </div>
+                    <ToggleSwitch id="color-override-toggle" enabled={isColorOverride} setEnabled={setIsColorOverride} />
+                </div>
+            )}
 
             <DesignPicker 
                 value={{ color: formData.color, icon: formData.icon }}

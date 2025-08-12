@@ -11,7 +11,7 @@ import { BudgetProgressBar } from '@/shared/ui/BudgetProgressBar';
 
 export const MonthlyCategoryBreakdown: FC<{ transactions: Transaction[], currentMonth: Date }> = ({ transactions, currentMonth }) => {
     const { categoryMap, handleTransactionClick, deLocale, groupMap, groups } = useApp();
-    const [expandedSupergroups, setExpandedSupergroups] = useState<string[]>(['Variable Kosten']);
+    const [expandedSupergroups, setExpandedSupergroups] = useState<string[]>(['Variable Kosten', 'Fixkosten']);
     const [expandedGroups, setExpandedGroups] = useState<string[]>([]);
     const [expandedCategoryId, setExpandedCategoryId] = useState<string | null>(null);
     const defaultExpandedSet = useRef(false);

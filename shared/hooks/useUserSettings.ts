@@ -1,4 +1,5 @@
 
+
 import { useReducer, useMemo, useCallback, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import type { UserSetting, Category, Group } from '@/shared/types';
@@ -164,6 +165,54 @@ export const useUserSettings = ({ isDemoModeEnabled }: { isDemoModeEnabled: bool
         dispatch({ type: 'UPDATE_SETTING', payload: newSetting });
     }, [rawUserSettings]);
 
+    // --- NEW: Category Color Overrides ---
+
+    const getCategoryColorOverrides = useCallback((userId: string): Record<string, string> => {
+        const setting = liveUserSettings.find(s => s.userId === userId && s.key === 'categoryColorOverrides');
+        if (setting && setting.value) {
+            try {
+                return JSON.parse(setting.value);
+            } catch (e) {
+                console.error("Failed to parse categoryColorOverrides setting:", e);
+                return {};
+            }
+        }
+        return {};
+    }, [liveUserSettings]);
+    
+    const setCategoryColorOverrides = useCallback((userId: string, overrides: Record<string, string>) => {
+        const now = new Date().toISOString();
+        const existingSetting = rawUserSettings.find(s => s.userId === userId && s.key === 'categoryColorOverrides');
+        const value = JSON.stringify(overrides);
+
+        // If the map is empty, we can mark the setting as "deleted" to save space
+        const isDeleted = Object.keys(overrides).length === 0;
+
+        const newSetting: UserSetting = {
+            userId,
+            key: 'categoryColorOverrides',
+            value,
+            lastModified: now,
+            version: (existingSetting?.version || 0) + 1,
+            isDeleted,
+        };
+        dispatch({ type: 'UPDATE_SETTING', payload: newSetting });
+    }, [rawUserSettings]);
+
+    const updateCategoryColorOverride = useCallback((userId: string, categoryId: string, color: string | null) => {
+        const currentOverrides = getCategoryColorOverrides(userId);
+        const hasChanged = color ? currentOverrides[categoryId] !== color : currentOverrides.hasOwnProperty(categoryId);
+        
+        if (!hasChanged) return;
+
+        if (color) {
+            currentOverrides[categoryId] = color;
+        } else {
+            delete currentOverrides[categoryId];
+        }
+        setCategoryColorOverrides(userId, currentOverrides);
+    }, [getCategoryColorOverrides, setCategoryColorOverrides]);
+
 
     return {
         rawUserSettings,
@@ -177,5 +226,7 @@ export const useUserSettings = ({ isDemoModeEnabled }: { isDemoModeEnabled: bool
         updateVisibleGroups,
         getQuickAddHideGroups,
         setQuickAddHideGroups,
+        getCategoryColorOverrides,
+        updateCategoryColorOverride,
     };
 };
