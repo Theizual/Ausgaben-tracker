@@ -1,5 +1,3 @@
-
-
 import React from 'react';
 import { motion } from 'framer-motion';
 import { LayoutGrid, Repeat, BarChart2, Tags } from '@/shared/ui';
@@ -33,7 +31,7 @@ export const MainTabs: React.FC<{
                             <tab.icon className="h-6 w-6" />
                             <span className="text-xs font-medium">{tab.label}</span>
                              {activeTab === tab.id && (
-                                <motion.div layoutId="active-mobile-tab" className="absolute bottom-0 h-1 w-8 bg-rose-400 rounded-t-full" />
+                                <motion.div {...{layoutId: "active-mobile-tab"}} className="absolute bottom-0 h-1 w-8 bg-rose-400 rounded-t-full" />
                             )}
                         </button>
                     ))}
@@ -57,7 +55,7 @@ export const MainTabs: React.FC<{
                     >
                         {activeTab === tab.id && (
                             <motion.div
-                                layoutId="active-desktop-tab"
+                                {...{layoutId: "active-desktop-tab"}}
                                 className="absolute inset-0 bg-gradient-to-r from-rose-500 to-red-600 rounded-lg shadow-lg"
                             />
                         )}

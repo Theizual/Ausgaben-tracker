@@ -1,7 +1,8 @@
 import React, { useState, useMemo, FC } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
-import type { Category } from '@/shared/types';
-import { Modal, Button, ChevronDown } from '@/shared/ui';
+import type { Category, Transaction } from '@/shared/types';
+import { Modal, Button, ChevronDown, StandardTransactionItem } from '@/shared/ui';
 import { toast } from 'react-hot-toast';
 import type { CategoryFormData } from './CategoryEditModal';
 
@@ -10,11 +11,13 @@ interface DeleteCategoryModalProps {
     onClose: () => void;
     category: CategoryFormData;
     transactionCount: number;
+    transactions: Transaction[];
 }
 
-export const DeleteCategoryModal: FC<DeleteCategoryModalProps> = ({ isOpen, onClose, category, transactionCount }) => {
-    const { categories, groups, handleReassignAndDeleteCategory } = useApp();
+export const DeleteCategoryModal: FC<DeleteCategoryModalProps> = ({ isOpen, onClose, category, transactionCount, transactions }) => {
+    const { categories, groups, handleReassignAndDeleteCategory, handleTransactionClick } = useApp();
     const [targetCategoryId, setTargetCategoryId] = useState<string>('');
+    const [showTransactions, setShowTransactions] = useState(false);
 
     const selectableCategories = useMemo(() => {
         return categories
@@ -49,6 +52,12 @@ export const DeleteCategoryModal: FC<DeleteCategoryModalProps> = ({ isOpen, onCl
             </Button>
         </div>
     );
+
+    const transactionListAnimation = {
+        initial: { opacity: 0, height: 0, marginTop: 0 },
+        animate: { opacity: 1, height: 'auto', marginTop: '0.5rem' },
+        exit: { opacity: 0, height: 0, marginTop: 0 },
+    };
     
     return (
         <Modal
@@ -62,6 +71,39 @@ export const DeleteCategoryModal: FC<DeleteCategoryModalProps> = ({ isOpen, onCl
                     Es gibt <span className="font-bold text-white">{transactionCount}</span> Transaktion(en) in dieser Kategorie.
                     Bitte wählen Sie eine neue Kategorie aus, der diese Einträge zugeordnet werden sollen.
                 </p>
+                
+                <div className="mt-4">
+                    <button
+                        onClick={() => setShowTransactions(p => !p)}
+                        className="flex items-center gap-2 text-sm text-slate-400 hover:text-white"
+                        aria-expanded={showTransactions}
+                    >
+                        <ChevronDown className={`h-4 w-4 transition-transform ${showTransactions ? 'rotate-180' : ''}`} />
+                        {showTransactions ? 'Betroffene Transaktionen ausblenden' : 'Betroffene Transaktionen anzeigen'}
+                    </button>
+
+                    <AnimatePresence>
+                        {showTransactions && (
+                            <motion.div
+                                {...transactionListAnimation}
+                                className="overflow-hidden"
+                            >
+                                <div className="max-h-48 overflow-y-auto custom-scrollbar space-y-1 p-2 bg-slate-800 rounded-lg border border-slate-700/50">
+                                    {transactions.map(t => (
+                                        <StandardTransactionItem
+                                            key={t.id}
+                                            transaction={t}
+                                            onClick={() => handleTransactionClick(t)}
+                                            density="compact"
+                                            showSublineInList="date"
+                                        />
+                                    ))}
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </div>
+                
                 <div>
                     <label htmlFor="target-category" className="text-xs text-slate-400">Neue Kategorie</label>
                     <div className="relative">

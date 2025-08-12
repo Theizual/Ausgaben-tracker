@@ -16,7 +16,7 @@ const DEMO_TAGS: Tag[] = [
 
 const makeDemoTransactions = (): Transaction[] => {
     const now = new Date();
-    const standardUser = '1001';
+    const standardUser = 'usrId_0001';
     return [
         { id: 'dev-1', amount: 12.34, description: 'Kaffee & Croissant', categoryId: 'cat_gastro', date: new Date().toISOString(), isDemo: true, lastModified: now.toISOString(), version: 1, createdBy: standardUser },
         { id: 'dev-2', amount: 99.99, description: 'Wocheneinkauf Supermarkt', categoryId: 'cat_supermarkt', date: subDays(now, 1).toISOString(), isDemo: true, tagIds: ['dev-tag-3'], lastModified: now.toISOString(), version: 1, createdBy: standardUser },

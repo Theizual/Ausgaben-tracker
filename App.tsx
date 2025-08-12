@@ -18,6 +18,7 @@ import { SyncPromptToast } from '@/features/sync-prompt/ui/SyncPromptToast';
 import { DeleteCategoryModal } from '@/features/settings/components/DeleteCategoryModal';
 import type { CategoryFormData } from '@/features/settings/components/CategoryEditModal';
 import { UserMergePromptModal } from '@/features/onboarding';
+import type { Transaction } from '@/shared/types';
 
 // Main App Component (now a clean layout/composition root)
 const App = () => {
@@ -176,6 +177,7 @@ const App = () => {
                         onClose={closeReassignModal}
                         category={reassignModalInfo.category as CategoryFormData}
                         transactionCount={reassignModalInfo.txCount}
+                        transactions={reassignModalInfo.transactions as Transaction[]}
                     />
                 )}
             </AnimatePresence>

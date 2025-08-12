@@ -23,7 +23,8 @@ type Action =
     | { type: 'DELETE_CATEGORY'; payload: string }
     | { type: 'ADD_GROUP'; payload: Group }
     | { type: 'UPDATE_GROUP'; payload: { id: string, updates: Partial<Omit<Group, 'id'>> } }
-    | { type: 'DELETE_GROUP'; payload: string };
+    | { type: 'DELETE_GROUP'; payload: string }
+    | { type: 'REORDER_GROUPS'; payload: Group[] };
 
 const categoriesReducer = (state: CategoriesState, action: Action): CategoriesState => {
     const now = new Date().toISOString();
@@ -82,6 +83,21 @@ const categoriesReducer = (state: CategoriesState, action: Action): CategoriesSt
             const newCategories = state.categories.map(c => c.groupId === action.payload ? { ...c, groupId: DEFAULT_GROUP_ID, lastModified: now, version: (c.version || 0) + 1 } : c);
             const newGroups = state.groups.map(g => g.id === action.payload ? { ...g, isDeleted: true, lastModified: now, version: (g.version || 0) + 1 } : g);
             return { categories: newCategories, groups: newGroups };
+        }
+        
+        case 'REORDER_GROUPS': {
+            const newOrderMap = new Map(action.payload.map((g, index) => [g.id, index]));
+            let hasChanges = false;
+            const updatedGroups = state.groups.map(g => {
+                const newIndex = newOrderMap.get(g.id);
+                if (newIndex !== undefined && g.sortIndex !== newIndex) {
+                    hasChanges = true;
+                    return { ...g, sortIndex: newIndex, lastModified: now, version: (g.version || 0) + 1 };
+                }
+                return g;
+            });
+            if (!hasChanges) return state;
+            return { ...state, groups: updatedGroups.sort((a,b) => a.sortIndex - b.sortIndex) };
         }
 
         default:
@@ -219,6 +235,10 @@ export const useCategories = ({ rawUserSettings, updateCategoryConfigurationForU
     }, [state.groups]);
 
     const renameGroup = useCallback((id: string, newName: string) => {
+        if (id === DEFAULT_GROUP_ID || id === FIXED_COSTS_GROUP_ID) {
+            toast.error(`Systemgruppen können nicht umbenannt werden.`);
+            return;
+        }
         const trimmedNewName = newName.trim();
         const existingGroup = state.groups.find(g => g.id === id);
         if (!existingGroup || (existingGroup.name.toLowerCase() === trimmedNewName.toLowerCase() && !existingGroup.isDeleted)) return;
@@ -234,11 +254,19 @@ export const useCategories = ({ rawUserSettings, updateCategoryConfigurationForU
 
     const deleteGroup = useCallback((id: string) => {
         const groupToDelete = state.groups.find(g => g.id === id);
+        if (id === DEFAULT_GROUP_ID || id === FIXED_COSTS_GROUP_ID) {
+            toast.error(`Die Gruppe "${groupToDelete?.name || 'Diese Gruppe'}" kann nicht gelöscht werden.`);
+            return;
+        }
         if (groupToDelete) {
             dispatch({ type: 'DELETE_GROUP', payload: id });
             toast.success(`Gruppe "${groupToDelete.name}" gelöscht.`);
         }
     }, [state.groups]);
+
+    const reorderGroups = useCallback((orderedGroups: Group[]) => {
+        dispatch({ type: 'REORDER_GROUPS', payload: orderedGroups });
+    }, []);
     
     const unassignedCategories = useMemo(() => {
         const baseCats = getBaseCategories();
@@ -298,6 +326,7 @@ export const useCategories = ({ rawUserSettings, updateCategoryConfigurationForU
         renameGroup,
         updateGroup,
         deleteGroup,
+        reorderGroups,
         unassignedCategories,
         loadStandardConfiguration,
         setCategoriesAndGroups,

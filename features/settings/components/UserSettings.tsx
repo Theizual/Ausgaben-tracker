@@ -1,18 +1,16 @@
-
-
-
-
-
-
 import React, { useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
 import { Button, Plus, Trash2, UserAvatar } from '@/shared/ui';
 
-const MotionDiv = motion.div;
-
 const BASE_INPUT_CLASSES = "w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-rose-500";
 const TRANSPARENT_INPUT_CLASSES = "bg-transparent font-medium text-white w-full focus:outline-none focus:bg-slate-600/50 rounded px-2 py-1";
+
+const settingsAnimationVariants = {
+    initial: { opacity: 0, x: 10 },
+    animate: { opacity: 1, x: 0 },
+    exit: { opacity: 0, x: -10 }
+};
 
 export const UserSettings = () => {
     const { users, addUser, updateUser, deleteUser } = useApp();
@@ -29,14 +27,8 @@ export const UserSettings = () => {
 
     const handleNameUpdate = useCallback((id: string, name: string) => updateUser(id, { name }), [updateUser]);
 
-    const settingsAnimationVariants = {
-        initial: { opacity: 0, x: 10 },
-        animate: { opacity: 1, x: 0 },
-        exit: { opacity: 0, x: -10 }
-    };
-
     return (
-        <MotionDiv variants={settingsAnimationVariants} initial="initial" animate="animate" exit="exit" key="users">
+        <motion.div variants={settingsAnimationVariants} initial="initial" animate="animate" exit="exit" key="users">
             <h3 className="text-lg font-semibold text-white mb-1">Benutzer verwalten</h3>
             <p className="text-sm text-slate-400 mb-6">Legen Sie Benutzer an, um Ausgaben zuzuordnen. Der aktuell ausgewählte Benutzer wird neuen Transaktionen automatisch zugewiesen.</p>
             <form onSubmit={handleAddUser} className="flex gap-3 mb-6">
@@ -69,6 +61,6 @@ export const UserSettings = () => {
                     </div>
                 ))}
             </div>
-        </MotionDiv>
+        </motion.div>
     );
 };

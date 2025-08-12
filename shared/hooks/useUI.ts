@@ -19,7 +19,7 @@ export const useUI = (props?: { isDemoModeEnabled: boolean }) => {
     const [confirmationData, setConfirmationData] = useState<{ transactions: Transaction[]; totalSpentBefore: number; } | null>(null);
     const [transactionForDetail, setTransactionForDetail] = useState<{ transaction: Transaction } | null>(null);
     const [isChangelogOpen, setIsChangelogOpen] = useState(false);
-    const [reassignModalInfo, setReassignModalInfo] = useState<{ category: Category | CategoryFormData, txCount: number } | null>(null);
+    const [reassignModalInfo, setReassignModalInfo] = useState<{ category: Category | CategoryFormData, txCount: number, transactions: Transaction[] } | null>(null);
     const [userMergeModalInfo, setUserMergeModalInfo] = useState<{ remoteUsers: User[] } | null>(null);
     
     // Non-namespaced settings
@@ -76,8 +76,8 @@ export const useUI = (props?: { isDemoModeEnabled: boolean }) => {
     const closeTransactionDetail = useCallback(() => setTransactionForDetail(null), []);
     const openChangelog = useCallback(() => setIsChangelogOpen(true), []);
     const closeChangelog = useCallback(() => setIsChangelogOpen(false), []);
-    const openReassignModal = useCallback((category: Category | CategoryFormData, txCount: number) => {
-        setReassignModalInfo({ category, txCount });
+    const openReassignModal = useCallback((category: Category | CategoryFormData, txCount: number, transactions: Transaction[]) => {
+        setReassignModalInfo({ category, txCount, transactions });
     }, []);
     const closeReassignModal = useCallback(() => setReassignModalInfo(null), []);
 

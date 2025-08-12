@@ -1,4 +1,3 @@
-
 export * from './Button';
 export * from './Icons';
 export * from './Modal';
@@ -13,3 +12,4 @@ export { default as Logo } from './Logo';
 export { default as StandardTransactionItem } from './StandardTransactionItem';
 export { default as TagInput } from './TagInput';
 export { default as UserAvatar } from './UserAvatar';
+export { default as DesignPicker } from './DesignPicker';

@@ -1,14 +1,3 @@
-
-
-
-
-
-
-
-
-
-
-
 import React, { useState, useMemo, FC } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
@@ -17,6 +6,7 @@ import type { Category, Group } from '@/shared/types';
 import { Button, iconMap, Trash2, Plus, DownloadCloud, Star, getIconComponent } from '@/shared/ui';
 import { FIXED_COSTS_GROUP_ID, DEFAULT_GROUP_ID, FIXED_COSTS_GROUP_NAME, DEFAULT_GROUP_NAME } from '@/constants';
 import { CategoryEditModal, CategoryFormData } from './CategoryEditModal';
+import { parseISO } from 'date-fns';
 
 const MotionDiv = motion.div;
 
@@ -63,7 +53,9 @@ export const CategoryLibrarySettings: FC = () => {
     };
 
     const handleDeleteCategoryRequest = (category: CategoryFormData) => {
-        const associatedTransactions = transactions.filter(t => t.categoryId === category.id && !t.isDeleted);
+        const associatedTransactions = transactions
+            .filter(t => t.categoryId === category.id && !t.isDeleted)
+            .sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime());
         const txCount = associatedTransactions.length;
     
         setEditingCategory(null); // Close the edit modal first
@@ -75,7 +67,7 @@ export const CategoryLibrarySettings: FC = () => {
             }
         } else {
             // Open the new reassign modal
-            openReassignModal(category, txCount);
+            openReassignModal(category, txCount, associatedTransactions);
         }
     };
 

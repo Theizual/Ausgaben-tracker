@@ -1,7 +1,3 @@
-
-
-
-
 import React, { useState } from 'react';
 import type { FC } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -61,6 +57,13 @@ const TagInput: FC<{
         animate: { opacity: 1, y: 0 },
         exit: { opacity: 0, y: -5 },
     };
+    
+    const tagAnimationProps = {
+        initial: { opacity: 0, scale: 0.8 },
+        animate: { opacity: 1, scale: 1 },
+        exit: { opacity: 0, scale: 0.8 },
+        transition: { duration: 0.15 },
+    };
 
     return (
         <div className="relative">
@@ -70,10 +73,7 @@ const TagInput: FC<{
                     {tags.map(tag => (
                         <motion.div
                             key={tag}
-                            initial={{ opacity: 0, scale: 0.8 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.8 }}
-                            transition={{ duration: 0.15 }}
+                            {...tagAnimationProps}
                             className="flex items-center gap-1 bg-rose-500 text-white text-xs font-medium pl-2 pr-1 py-0.5 rounded-full"
                         >
                             <Tag className="h-3 w-3" />

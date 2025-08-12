@@ -1,11 +1,3 @@
-
-
-
-
-
-
-
-
 import React, { useState, useMemo, FC } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
@@ -14,6 +6,7 @@ import type { Category, Group } from '@/shared/types';
 import { Button, iconMap, Trash2, Plus, DownloadCloud, Star, getIconComponent } from '@/shared/ui';
 import { FIXED_COSTS_GROUP_ID, DEFAULT_GROUP_ID, FIXED_COSTS_GROUP_NAME, DEFAULT_GROUP_NAME } from '@/constants';
 import { CategoryEditModal, CategoryFormData } from './CategoryEditModal';
+import { parseISO } from 'date-fns';
 
 const MotionDiv = motion.div;
 
@@ -60,7 +53,9 @@ export const CategoryLibrarySettings: FC = () => {
     };
 
     const handleDeleteCategoryRequest = (category: CategoryFormData) => {
-        const associatedTransactions = transactions.filter(t => t.categoryId === category.id && !t.isDeleted);
+        const associatedTransactions = transactions
+            .filter(t => t.categoryId === category.id && !t.isDeleted)
+            .sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime());
         const txCount = associatedTransactions.length;
     
         setEditingCategory(null); // Close the edit modal first
@@ -72,7 +67,7 @@ export const CategoryLibrarySettings: FC = () => {
             }
         } else {
             // Open the new reassign modal
-            openReassignModal(category, txCount);
+            openReassignModal(category, txCount, associatedTransactions);
         }
     };
 
@@ -109,8 +104,10 @@ export const CategoryLibrarySettings: FC = () => {
         const isFavorite = favoriteIds.includes(category.id);
         return (
             <div key={category.id} className="relative">
-                <button type="button" onClick={onClick} className="flex items-center gap-2 px-3 py-2 text-white font-medium rounded-lg transition-colors duration-200 border-2 bg-slate-800/50 hover:bg-slate-700/80" style={{ borderColor: category.color }} title={category.name}>
-                    <Icon className="h-5 w-5 shrink-0" style={{ color: category.color }} />
+                <button type="button" onClick={onClick} className="flex items-center gap-2 pl-1.5 pr-3 py-1.5 text-white font-medium rounded-lg transition-colors duration-200 bg-slate-700/50 hover:bg-slate-700" title={category.name}>
+                    <div className="w-8 h-8 rounded-md flex items-center justify-center flex-shrink-0" style={{ backgroundColor: category.color }}>
+                        <Icon className="h-5 w-5 text-white" />
+                    </div>
                     <span className="text-sm">{category.name}</span>
                 </button>
                  <button
@@ -130,8 +127,10 @@ export const CategoryLibrarySettings: FC = () => {
         const isFavorite = favoriteIds.includes(category.id);
          return (
              <div key={category.id} className="relative">
-                <button type="button" onClick={onClick} className="flex items-center gap-2 px-3 py-2 text-white font-medium rounded-lg transition-colors duration-200 border-2 border-dashed border-slate-500 hover:border-slate-400 bg-slate-800/50 hover:bg-slate-700/80" title={`"${category.name}" hinzufügen`}>
-                    <Icon className="h-5 w-5 shrink-0" style={{ color: category.color }} />
+                <button type="button" onClick={onClick} className="flex items-center gap-2 pl-1.5 pr-3 py-1.5 text-white font-medium rounded-lg transition-colors duration-200 border-2 border-dashed border-slate-500 hover:border-slate-400 bg-slate-800/50 hover:bg-slate-700/80" title={`"${category.name}" hinzufügen`}>
+                    <div className="w-8 h-8 rounded-md flex items-center justify-center flex-shrink-0" style={{ backgroundColor: category.color }}>
+                        <Icon className="h-5 w-5 text-white" />
+                    </div>
                     <span className="text-sm">{category.name}</span>
                 </button>
                 <button
@@ -146,7 +145,7 @@ export const CategoryLibrarySettings: FC = () => {
         );
     }
     
-    const settingsAnimationVariants = {
+    const settingsAnimation = {
         initial: { opacity: 0, x: 10 },
         animate: { opacity: 1, x: 0 },
         exit: { opacity: 0, x: -10 }
@@ -154,13 +153,14 @@ export const CategoryLibrarySettings: FC = () => {
 
     return (
         <>
-            <MotionDiv variants={settingsAnimationVariants} initial="initial" animate="animate" exit="exit" key="categories">
+            <MotionDiv {...settingsAnimation} key="categories">
                 <h3 className="text-lg font-semibold text-white mb-1">Kategorien-Bibliothek</h3>
                 <p className="text-sm text-slate-400 mb-6">Verwalten Sie hier alle Ihre Kategoriegruppen und Kategorien. Fügen Sie neue hinzu, benennen Sie sie um oder laden Sie die Standardkonfiguration.</p>
                 <div className="space-y-6">
                     {/* 1. FLEXIBLE GROUPS */}
                     {flexibleGroupsData.map(group => {
                         const GroupIcon = getIconComponent(group.icon);
+                        const isProtected = group.id === DEFAULT_GROUP_ID;
                         return (
                         <div key={group.id}>
                             {editingGroup === group.id ? (
@@ -169,7 +169,12 @@ export const CategoryLibrarySettings: FC = () => {
                                     <input type="text" value={groupNameValue} onChange={(e) => setGroupNameValue(e.target.value)} onBlur={() => handleRenameGroup(group.id)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleRenameGroup(group.id); } if (e.key === 'Escape') { e.preventDefault(); setEditingGroup(null); }}} className="text-xs font-bold uppercase tracking-wider text-white bg-slate-700 rounded p-1 ml-1 w-full max-w-xs focus:ring-2 focus:ring-rose-500 focus:outline-none" autoFocus />
                                 </div>
                             ) : (
-                                <button onClick={() => { setEditingGroup(group.id); setGroupNameValue(group.name); }} className="w-full text-left rounded p-1 -m-1" title="Gruppenname bearbeiten">
+                                <button
+                                    onClick={() => { if (!isProtected) { setEditingGroup(group.id); setGroupNameValue(group.name); }}}
+                                    className="w-full text-left rounded p-1 -m-1"
+                                    disabled={isProtected}
+                                    title={isProtected ? "Diese Gruppe kann nicht umbenannt werden" : "Gruppenname bearbeiten"}
+                                >
                                     <div className="flex items-center gap-2 mb-3">
                                         <GroupIcon className="h-4 w-4 text-slate-500" />
                                         <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 hover:text-white transition-colors">{group.name}</h4>
@@ -183,9 +188,11 @@ export const CategoryLibrarySettings: FC = () => {
                                 <button onClick={() => handleOpenEditor({ groupId: group.id })} className="w-12 h-12 flex items-center justify-center rounded-lg transition-colors duration-200 border-2 border-dashed border-slate-500 hover:border-slate-400 bg-slate-800/50 hover:bg-slate-700/80" title="Neue Kategorie hinzufügen">
                                     <Plus className="h-6 w-6 text-slate-400" />
                                 </button>
-                                <button onClick={() => handleDeleteGroup(group)} className="w-12 h-12 flex items-center justify-center rounded-lg transition-colors duration-200 border-2 border-dashed border-red-500/50 hover:border-red-400 bg-slate-800/50 hover:bg-red-900/40" title="Gruppe löschen">
-                                    <Trash2 className="h-5 w-5 text-red-500" />
-                                </button>
+                                {!isProtected && (
+                                    <button onClick={() => handleDeleteGroup(group)} className="w-12 h-12 flex items-center justify-center rounded-lg transition-colors duration-200 border-2 border-dashed border-red-500/50 hover:border-red-400 bg-slate-800/50 hover:bg-red-900/40" title="Gruppe löschen">
+                                        <Trash2 className="h-5 w-5 text-red-500" />
+                                    </button>
+                                )}
                             </div>
                         </div>
                     )})}
@@ -194,7 +201,7 @@ export const CategoryLibrarySettings: FC = () => {
 
                     {/* 2. ADD NEW GROUP */}
                     <div className="flex gap-3">
-                        <input type="text" value={newGroupName} onChange={e => setNewGroupName(e.target.value)} placeholder="Neue Gruppe hinzufügen..." className="w-full max-w-xs bg-slate-700 border border-slate-600 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-rose-500" />
+                        <input type="text" value={newGroupName} onChange={e => setNewGroupName(e.target.value)} placeholder="Neue Gruppe hinzufügen" className="w-full max-w-xs bg-slate-700 border border-slate-600 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-rose-500" />
                         <Button onClick={handleAddGroup}><Plus className="h-4 w-4"/> Gruppe erstellen</Button>
                     </div>
                     

@@ -1,22 +1,14 @@
-
-
-
-
-
-
-
-
-
-
-
-
 import React from 'react';
 import { motion } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
 import { FileText, Wallet, Info, ChevronRight, ToggleSwitch, Trash2, Button, DownloadCloud, Eye } from '@/shared/ui';
 import { APP_VERSION } from '@/constants';
 
-const MotionDiv = motion.div;
+const settingsAnimationVariants = {
+    initial: { opacity: 0, x: 10 },
+    animate: { opacity: 1, x: 0 },
+    exit: { opacity: 0, x: -10 }
+};
 
 const MANAGER_LIST_ITEM_CLASSES = "w-full text-left bg-slate-700/50 hover:bg-slate-700 p-4 rounded-lg transition-colors flex justify-between items-center";
 
@@ -28,14 +20,8 @@ export const GeneralSettings = ({ onOpenTagManager }: {
         quickAddHideGroups, setQuickAddHideGroups,
     } = useApp();
 
-    const settingsAnimationVariants = {
-        initial: { opacity: 0, x: 10 },
-        animate: { opacity: 1, x: 0 },
-        exit: { opacity: 0, x: -10 }
-    };
-
     return (
-        <MotionDiv variants={settingsAnimationVariants} initial="initial" animate="animate" exit="exit" key="general">
+        <motion.div variants={settingsAnimationVariants} initial="initial" animate="animate" exit="exit" key="general">
             <h3 className="text-lg font-semibold text-white mb-1">Allgemeine Einstellungen</h3>
             <p className="text-sm text-slate-400 mb-6">Verwalten Sie hier die Kerneinstellungen der Anwendung.</p>
             
@@ -119,6 +105,6 @@ export const GeneralSettings = ({ onOpenTagManager }: {
                     </div>
                 </div>
             </div>
-        </MotionDiv>
+        </motion.div>
     );
 };

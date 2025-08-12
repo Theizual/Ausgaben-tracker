@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import type { FC } from 'react';
-import { AnimatePresence, motion, MotionProps } from 'framer-motion';
+import { AnimatePresence, motion, type MotionProps } from 'framer-motion';
 import type { Category, CategoryId, Group } from '@/shared/types';
 import { iconMap, Plus, Star, getIconComponent } from '@/shared/ui';
 
@@ -13,14 +13,15 @@ const CategoryTile: FC<{
 }> = ({ category, isSelected, onSelect, isFavorite, onToggleFavorite }) => {
     const Icon = iconMap[category.icon] || iconMap.MoreHorizontal;
 
-    const buttonAnimation: MotionProps = {
-        transition: { type: 'spring', damping: 20, stiffness: 300 },
+    const buttonAnimation = {
+        transition: { type: 'spring' as const, damping: 20, stiffness: 300 },
     };
     
-    const labelAnimation: MotionProps = {
+    const labelAnimation = {
         initial: { opacity: 0, width: 0 },
         animate: { opacity: 1, width: 'auto' },
         exit: { opacity: 0, width: 0 },
+        transition: { duration: 0.15, ease: 'linear' as const },
     };
 
     return (
@@ -36,7 +37,7 @@ const CategoryTile: FC<{
                 className={`flex items-center justify-center rounded-lg transition-colors duration-200 border-2
                     ${isSelected 
                         ? 'gap-2 px-4 py-3 text-white font-semibold shadow-lg' 
-                        : 'w-12 h-12 bg-slate-800/50 hover:bg-slate-700/80'
+                        : 'w-12 h-12 bg-transparent hover:bg-slate-700/50'
                     }`
                 }
                 title={category.name}
@@ -46,7 +47,6 @@ const CategoryTile: FC<{
                     {isSelected && (
                         <motion.span
                             {...labelAnimation}
-                            transition={{ duration: 0.15, ease: 'linear' }}
                             className="whitespace-nowrap overflow-hidden text-sm"
                         >
                             {category.name}

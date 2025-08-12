@@ -1,4 +1,3 @@
-
 import React, { FC, useState, useMemo, useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
@@ -101,6 +100,12 @@ export const MonthlyCategoryBreakdown: FC<{ transactions: Transaction[], current
         animate: { opacity: 1, height: 'auto', marginTop: '0.5rem' },
         exit: { opacity: 0, height: 0, marginTop: 0 },
     };
+    
+    const groupAnimationProps = {
+        initial: { opacity: 0, height: 0 },
+        animate: { opacity: 1, height: 'auto' },
+        exit: { opacity: 0, height: 0 },
+    };
 
     if (transactions.length === 0) {
         return (
@@ -133,7 +138,7 @@ export const MonthlyCategoryBreakdown: FC<{ transactions: Transaction[], current
                      </button>
                      <AnimatePresence>
                          {expandedSupergroups.includes(supergroup.name) && (
-                             <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+                             <motion.div {...groupAnimationProps} className="overflow-hidden">
                                  <div className="mt-3 pt-3 border-t border-slate-600/50 space-y-2">
                                      {supergroup.groups.map(({ group, categories, totalSpent, totalBudget }) => {
                                          const GroupIcon = getIconComponent(group.icon);

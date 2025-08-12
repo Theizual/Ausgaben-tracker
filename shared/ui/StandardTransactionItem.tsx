@@ -53,7 +53,7 @@ const StandardTransactionItem: FC<StandardTransactionItemProps> = ({
         >
             {/* Icon */}
             <div className={`rounded-full flex items-center justify-center flex-shrink-0 ${isCompact ? 'w-8 h-8' : 'w-10 h-10'}`} style={{ backgroundColor: color }}>
-                <Icon className={`text-white ${isCompact ? 'h-4 w-4' : 'h-5 w-5'}`} />
+                <Icon className={`${isCompact ? 'h-4 w-4' : 'h-5 w-5'} text-white`} />
             </div>
 
             {/* Description, Category, Tags */}

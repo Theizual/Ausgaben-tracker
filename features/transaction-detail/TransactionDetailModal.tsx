@@ -202,6 +202,7 @@ const TransactionDetailModal = ({
     };
 
     const localTags = getTagNames(formState);
+    const isDemo = !!formState.isDemo;
 
     const backdropAnimation = {
         initial: { opacity: 0 },
@@ -254,19 +255,21 @@ const TransactionDetailModal = ({
                                         <div className="relative mb-4">
                                             <motion.button 
                                                 {...iconButtonAnimation}
-                                                onClick={() => setIsPickingIcon(true)}
-                                                className="w-16 h-16 rounded-full flex items-center justify-center transition-transform" 
-                                                style={{ backgroundColor: color }}
-                                                title="Icon ändern"
+                                                onClick={() => !isDemo && setIsPickingIcon(true)}
+                                                disabled={isDemo}
+                                                className="w-16 h-16 rounded-full flex items-center justify-center transition-transform disabled:cursor-not-allowed bg-transparent border-4" 
+                                                style={{ borderColor: color }}
+                                                title={isDemo ? "Demo-Icon kann nicht geändert werden" : "Icon ändern"}
                                             >
-                                                <Icon className="h-8 w-8 text-white" />
+                                                <Icon className="h-8 w-8" style={{ color: color }}/>
                                             </motion.button>
                                             {formState.iconOverride && (
                                                 <motion.button
                                                     {...iconButtonAnimation}
                                                     onClick={handleIconReset}
-                                                    title="Icon zurücksetzen"
-                                                    className="absolute -top-1 -right-1 z-10 p-1 bg-slate-700 rounded-full text-slate-400 hover:text-white"
+                                                    disabled={isDemo}
+                                                    title={isDemo ? "Demo-Icon kann nicht geändert werden" : "Icon zurücksetzen"}
+                                                    className="absolute -top-1 -right-1 z-10 p-1 bg-slate-700 rounded-full text-slate-400 hover:text-white disabled:cursor-not-allowed"
                                                     aria-label="Transaktions-Icon auf Kategorie-Standard zurücksetzen"
                                                 >
                                                     <RefreshCcw className="h-3 w-3" />
@@ -288,7 +291,7 @@ const TransactionDetailModal = ({
                                                 />
                                             </motion.div>
                                         ) : (
-                                            <button onClick={() => { setAmountValue(String(formState.amount).replace('.', ',')); setIsEditingAmount(true); }} className="rounded-lg p-1 -m-1" title="Betrag ändern">
+                                            <button onClick={() => !isDemo && (setAmountValue(String(formState.amount).replace('.', ',')), setIsEditingAmount(true))} disabled={isDemo} className="rounded-lg p-1 -m-1 disabled:cursor-not-allowed" title={isDemo ? "Demo-Betrag kann nicht geändert werden" : "Betrag ändern"}>
                                                 <p className="text-4xl font-bold text-white">{formatCurrency(formState.amount)}</p>
                                             </button>
                                         )}
@@ -306,11 +309,11 @@ const TransactionDetailModal = ({
                                                 />
                                              </motion.div>
                                         ) : (
-                                             <button onClick={() => { setDescriptionValue(formState.description); setIsEditingDescription(true); }} className="w-full rounded-lg p-1 -m-1 mt-2" title="Beschreibung ändern">
+                                             <button onClick={() => !isDemo && (setDescriptionValue(formState.description), setIsEditingDescription(true))} disabled={isDemo} className="w-full rounded-lg p-1 -m-1 mt-2 disabled:cursor-not-allowed" title={isDemo ? "Demo-Beschreibung kann nicht geändert werden" : "Beschreibung ändern"}>
                                                 <p className="text-lg font-semibold text-white truncate">{formState.description}</p>
                                             </button>
                                         )}
-                                        <button onClick={() => setIsPickingCategory(true)} className="mt-1 flex items-center justify-center gap-1.5 text-sm text-slate-400 rounded-lg p-1 -m-1 hover:text-white transition-colors" title="Kategorie ändern">
+                                        <button onClick={() => !isDemo && setIsPickingCategory(true)} disabled={isDemo} className="mt-1 flex items-center justify-center gap-1.5 text-sm text-slate-400 rounded-lg p-1 -m-1 hover:text-white transition-colors disabled:cursor-not-allowed" title={isDemo ? "Demo-Kategorie kann nicht geändert werden" : "Kategorie ändern"}>
                                             <CategoryIcon className="h-4 w-4 flex-shrink-0" style={{ color: category?.color }}/>
                                             <span>{category?.name}</span>
                                         </button>
@@ -329,7 +332,7 @@ const TransactionDetailModal = ({
                                                         autoFocus
                                                       />
                                                  ) : (
-                                                    <button onClick={() => { setDateValue(getFormattedDate(formState.date, "yyyy-MM-dd'T'HH:mm")); setIsEditingDate(true);}} className="text-slate-200 font-medium rounded p-1 -m-1" title="Datum ändern">
+                                                    <button onClick={() => !isDemo && (setDateValue(getFormattedDate(formState.date, "yyyy-MM-dd'T'HH:mm")), setIsEditingDate(true))} disabled={isDemo} className="text-slate-200 font-medium rounded p-1 -m-1 disabled:cursor-not-allowed" title={isDemo ? "Demo-Datum kann nicht geändert werden" : "Datum ändern"}>
                                                         {getFormattedDate(formState.date, 'dd. MMM yyyy, HH:mm')} Uhr
                                                     </button>
                                                  )}
@@ -337,20 +340,20 @@ const TransactionDetailModal = ({
                                             <div className="flex justify-between items-center">
                                                 <span className="text-slate-400 font-medium">Erstellt von</span>
                                                 {createdBy ? (
-                                                    <button onClick={() => setIsPickingUser(true)} className="flex items-center gap-2 text-slate-200 font-medium rounded p-1 -m-1" title="Benutzer ändern">
+                                                    <button onClick={() => !isDemo && setIsPickingUser(true)} disabled={isDemo} className="flex items-center gap-2 text-slate-200 font-medium rounded p-1 -m-1 disabled:cursor-not-allowed" title={isDemo ? "Demo-Benutzer kann nicht geändert werden" : "Benutzer ändern"}>
                                                             <div className="w-5 h-5 rounded-full flex items-center justify-center text-white font-bold text-xs" style={{ backgroundColor: createdBy.color }}>
                                                             {createdBy.name.charAt(0).toUpperCase()}
                                                         </div>
                                                         <span>{createdBy.name}</span>
                                                     </button>
                                                 ) : (
-                                                    <button onClick={() => setIsPickingUser(true)} className="flex items-center gap-1 text-rose-400 font-medium rounded p-1 -m-1 hover:text-rose-300" title="Benutzer zuweisen">
+                                                    <button onClick={() => !isDemo && setIsPickingUser(true)} disabled={isDemo} className="flex items-center gap-1 text-rose-400 font-medium rounded p-1 -m-1 hover:text-rose-300 disabled:cursor-not-allowed" title={isDemo ? "Demo-Benutzer kann nicht geändert werden" : "Benutzer zuweisen"}>
                                                         <Plus className="h-4 w-4" />
                                                         <span>Zuweisen</span>
                                                     </button>
                                                 )}
                                             </div>
-                                            {formState.isDemo && (
+                                            {isDemo && (
                                                  <div className="flex justify-between items-center">
                                                     <span className="text-slate-400 font-medium">Status</span>
                                                     <span className="flex items-center gap-1.5 bg-purple-500/20 text-purple-300 text-xs font-bold px-2 py-1 rounded-full">
@@ -395,7 +398,7 @@ const TransactionDetailModal = ({
 
                                         {/* Tags Section */}
                                         <div className="w-full max-w-sm mt-4 pt-4 border-t border-slate-700/50">
-                                             <button onClick={() => setIsEditingTags(true)} className="w-full text-left rounded-lg p-1 -m-1" title="Tags bearbeiten">
+                                             <button onClick={() => !isDemo && setIsEditingTags(true)} disabled={isDemo} className="w-full text-left rounded-lg p-1 -m-1 disabled:cursor-not-allowed" title={isDemo ? "Demo-Tags können nicht geändert werden" : "Tags bearbeiten"}>
                                                  <h3 className="text-sm font-semibold text-white mb-2">Tags</h3>
                                                 {localTags.length > 0 ? (
                                                      <div className="flex flex-wrap gap-2 justify-center">
@@ -408,7 +411,7 @@ const TransactionDetailModal = ({
                                         </div>
                                     </div>
                                     
-                                    {!formState.isDemo && (
+                                    {!isDemo && (
                                         <div className="p-4 bg-slate-900/50 flex justify-end">
                                             <motion.button
                                                 {...deleteButtonAnimation}
