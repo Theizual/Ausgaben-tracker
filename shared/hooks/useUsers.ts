@@ -1,7 +1,8 @@
-import { useReducer, useMemo, useCallback, useEffect } from 'react';
+import { useReducer, useMemo, useCallback, useEffect, useState } from 'react';
 import { toast } from 'react-hot-toast';
 import type { User } from '@/shared/types';
 import { generateUUID } from '../utils/uuid';
+import { apiGet } from '../lib/http';
 
 type UsersState = {
     users: User[];
@@ -25,32 +26,8 @@ const usersReducer = (state: UsersState, action: Action): UsersState => {
     }
 };
 
-const makeInitializer = (isDemoMode: boolean): (() => UsersState) => () => {
-    const prefix = isDemoMode ? 'demo_' : '';
-    const USERS_KEY = `${prefix}users`;
-
-    try {
-        const storedUsers = JSON.parse(window.localStorage.getItem(USERS_KEY) || '[]');
-        if (Array.isArray(storedUsers) && storedUsers.length > 0) {
-            return { users: storedUsers };
-        }
-    } catch (error) {
-        // Failed to parse users from localStorage, will start fresh.
-    }
-    
-    // If localStorage is empty or corrupt, create the default user only in demo mode.
-    if (isDemoMode) {
-        const defaultUser: User = {
-            id: 'usr_demo',
-            name: 'Demo User',
-            color: '#8b5cf6', // violet-500
-            isDemo: true,
-            lastModified: new Date().toISOString(),
-            version: 1
-        };
-        return { users: [defaultUser] };
-    }
-
+const makeInitializer = (): (() => UsersState) => () => {
+    // Initializer is now simple. The useEffect handles loading from storage or API.
     return { users: [] };
 };
 
@@ -58,13 +35,58 @@ export const useUsers = ({ isDemoModeEnabled }: { isDemoModeEnabled: boolean }) 
     const prefix = isDemoModeEnabled ? 'demo_' : '';
     const USERS_KEY = `${prefix}users`;
 
-    const initializer = useMemo(() => makeInitializer(isDemoModeEnabled), [isDemoModeEnabled]);
-    const [state, dispatch] = useReducer(usersReducer, undefined, initializer);
+    const [state, dispatch] = useReducer(usersReducer, undefined, makeInitializer());
+    const [isLoading, setIsLoading] = useState(true);
 
-    // Persist to localStorage on change
+    // Effect for initializing and persisting users
     useEffect(() => {
-        window.localStorage.setItem(USERS_KEY, JSON.stringify(state.users));
-    }, [state.users, USERS_KEY]);
+        if (!isLoading) { // Only persist after initial load is done
+            window.localStorage.setItem(USERS_KEY, JSON.stringify(state.users));
+        }
+    }, [state.users, USERS_KEY, isLoading]);
+
+    // Effect for initial loading
+    useEffect(() => {
+        const initialSetupDone = JSON.parse(window.localStorage.getItem('initialSetupDone') || 'false');
+        
+        let storedUsers: User[] = [];
+        try {
+            const storedUsersStr = window.localStorage.getItem(USERS_KEY);
+            if (storedUsersStr) storedUsers = JSON.parse(storedUsersStr);
+        } catch {}
+
+        if (storedUsers.length > 0) {
+            dispatch({ type: 'SET_USERS', payload: storedUsers });
+            setIsLoading(false);
+        } else if (!isDemoModeEnabled && initialSetupDone) {
+            // Standard mode, after setup, no users -> fetch from server
+            apiGet('/api/sheets/read?ranges=Users!A2:Z')
+                .then(({ users }) => {
+                    dispatch({ type: 'SET_USERS', payload: users || [] });
+                })
+                .catch(err => {
+                    toast.error("Benutzer konnten nicht geladen werden.");
+                    dispatch({ type: 'SET_USERS', payload: [] });
+                })
+                .finally(() => setIsLoading(false));
+        } else {
+            // Demo mode, or fresh standard install before setup is done
+            const initialUsers: User[] = [];
+            if (isDemoModeEnabled) {
+                 initialUsers.push({
+                    id: 'usr_demo',
+                    name: 'Demo User',
+                    color: '#8b5cf6', // violet-500
+                    isDemo: true,
+                    lastModified: new Date().toISOString(),
+                    version: 1
+                });
+            }
+            dispatch({ type: 'SET_USERS', payload: initialUsers });
+            setIsLoading(false);
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isDemoModeEnabled]); // Re-run only on mode change
 
     const setUsers = useCallback((users: User[]) => {
         dispatch({ type: 'SET_USERS', payload: users });
@@ -134,6 +156,7 @@ export const useUsers = ({ isDemoModeEnabled }: { isDemoModeEnabled: boolean }) 
     return {
         users, // live
         rawUsers: state.users, // for sync
+        isLoading,
         setUsers, // for sync
         addUser,
         updateUser,

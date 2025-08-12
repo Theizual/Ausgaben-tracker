@@ -20,7 +20,7 @@ import { apiGet } from '@/shared/lib/http';
 type AppContextType = 
     Omit<ReturnType<typeof useTransactionData>, 'reassignUserForTransactions'> &
     ReturnType<typeof useUI> &
-    Omit<ReturnType<typeof useUsers>, 'addUser'> &
+    Omit<ReturnType<typeof useUsers>, 'addUser' | 'isLoading'> &
     Omit<ReturnType<typeof useUserSettings>, 'setQuickAddHideGroups'> &
     ReturnType<typeof useCategories> &
     ReturnType<typeof useCategoryPreferences> &
@@ -64,7 +64,7 @@ const ReadyAppProvider: React.FC<{
     isInitialSetupDone: boolean;
     setIsInitialSetupDone: React.Dispatch<React.SetStateAction<boolean>>;
     uiState: ReturnType<typeof useUI>;
-    usersState: ReturnType<typeof useUsers>;
+    usersState: Omit<ReturnType<typeof useUsers>, 'isLoading'>;
     appMode: 'demo' | 'standard';
 }> = ({
     children,
@@ -442,6 +442,11 @@ const AppStateContainer: React.FC<{
     const [isReady, setIsReady] = useState(false);
 
     useEffect(() => {
+        if (usersState.isLoading) {
+            setIsReady(false); // Not ready while users are being loaded.
+            return;
+        }
+
         // This effect ensures we have a valid user selected before proceeding.
         if (usersState.users.length > 0) {
             const currentUserIsValid = uiState.currentUserId && usersState.users.some(u => u.id === uiState.currentUserId);
@@ -450,13 +455,15 @@ const AppStateContainer: React.FC<{
                 // If current user is not set or is invalid, set it to the first available user.
                 // This triggers a re-render. We are not "ready" yet.
                 uiState.setCurrentUserId(usersState.users[0].id);
-                setIsReady(false);
             } else {
                 // The current user ID is valid. We are ready to render the full app.
                 setIsReady(true);
             }
+        } else {
+            // No users, but loading is finished. We are ready to show an empty state.
+            setIsReady(true);
         }
-    }, [usersState.users, uiState.currentUserId, uiState.setCurrentUserId]);
+    }, [usersState.isLoading, usersState.users, uiState.currentUserId, uiState.setCurrentUserId]);
 
     if (!isReady) {
         // Display a loading screen while the user state stabilizes.
@@ -469,12 +476,13 @@ const AppStateContainer: React.FC<{
     }
     
     // Once ready, render the full provider with the now-stable state.
+    const { isLoading: _isLoading, ...restUsersState } = usersState;
     return (
         <ReadyAppProvider
             {...rest}
             appMode={appMode}
             uiState={uiState}
-            usersState={usersState}
+            usersState={restUsersState}
         >
             {children}
         </ReadyAppProvider>
