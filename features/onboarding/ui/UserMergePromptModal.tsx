@@ -19,14 +19,14 @@ export const UserMergePromptModal: FC<UserMergePromptModalProps> = ({ isOpen, re
         setIsInitialSetupDone
     } = useApp();
 
-    const localDemoUser = localUsers.find(u => u.id === 'usrId_0001');
+    const localDemoUser = localUsers.find(u => u.id === 'usr_demo');
     const [newUserName, setNewUserName] = useState(localDemoUser?.name !== 'Demo-Modus' ? localDemoUser?.name || '' : '');
 
     const handleSelect = (selectedUser: User) => {
         toast.loading('Benutzer wird zugeordnet...', { id: 'merge-toast' });
         
         // Reassign any local non-demo transactions from the demo user to the selected remote user.
-        reassignUserForTransactions('usrId_0001', selectedUser.id, true);
+        reassignUserForTransactions('usr_demo', selectedUser.id, true);
         
         setCurrentUserId(selectedUser.id);
         
@@ -48,7 +48,7 @@ export const UserMergePromptModal: FC<UserMergePromptModalProps> = ({ isOpen, re
         try {
             const newUser = addUser(trimmedName);
             // Reassign any local non-demo transactions to the new user.
-            reassignUserForTransactions('usrId_0001', newUser.id, true);
+            reassignUserForTransactions('usr_demo', newUser.id, true);
             setCurrentUserId(newUser.id); // Ensure this new user is selected.
 
             toast.success(`Benutzer "${trimmedName}" angelegt!`, { id: 'merge-toast' });

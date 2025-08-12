@@ -40,7 +40,7 @@ const makeInitializer = (isDemoMode: boolean): (() => UsersState) => () => {
     
     // If localStorage is empty or corrupt, create the default user.
     const defaultUser: User = {
-        id: 'usrId_0001',
+        id: 'usr_demo',
         name: 'Demo-Modus',
         color: '#8b5cf6', // violet-500
         isDemo: true,

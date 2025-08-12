@@ -147,7 +147,7 @@ export const useSync = (props: SyncProps) => {
         
         // --- User Merge Check ---
         if (!isInitialSetupDone) {
-            const localDemoUserExists = rawUsers.some(u => u.id === 'usrId_0001' && u.isDemo && !u.isDeleted);
+            const localDemoUserExists = rawUsers.some(u => u.id === 'usr_demo' && u.isDemo && !u.isDeleted);
             if (localDemoUserExists) {
                 try {
                     const { users: remoteUsersForCheck }: { users?: User[] } = await apiGet('/api/sheets/read?ranges=Users!A2:Z');
