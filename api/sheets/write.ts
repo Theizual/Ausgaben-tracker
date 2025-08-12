@@ -1,9 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { google } from 'googleapis';
 import { JWT } from 'google-auth-library';
-import { withRetry } from '../../shared/lib/retry';
-import { HEADERS, objectsToRows, rowsToObjects } from './utils';
-import { getEnv } from './env';
+import { withRetry } from '../../shared/lib/retry.js';
+import { HEADERS, objectsToRows, rowsToObjects } from './utils.js';
+import { getEnv } from './env.js';
 
 // Hilfsfunktion: Spaltenindex -> Excel-Buchstabe (1 -> A, 26 -> Z, 27 -> AA, ...)
 function colLetter(n: number): string {
