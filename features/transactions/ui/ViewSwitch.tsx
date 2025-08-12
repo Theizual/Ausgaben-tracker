@@ -1,7 +1,7 @@
 
 
 import React, { FC, useRef } from 'react';
-import { motion, AnimatePresence, MotionProps } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { LayoutGrid, List } from '@/shared/ui';
 import type { TransactionViewMode } from '@/shared/types';
 
@@ -36,12 +36,12 @@ export const ViewSwitch: FC<ViewSwitchProps> = ({ viewMode, onChange }) => {
     { mode: 'grid', label: 'Kartenansicht', icon: LayoutGrid },
   ];
   
-  const activeBgAnimation: MotionProps = {
+  const activeBgAnimation = {
     layoutId: "view-switch-active-bg",
     initial: { opacity: 0 },
     animate: { opacity: 1 },
     exit: { opacity: 0 },
-    transition: { type: 'spring', stiffness: 350, damping: 30 },
+    transition: { type: 'spring' as const, stiffness: 350, damping: 30 },
   };
 
   return (

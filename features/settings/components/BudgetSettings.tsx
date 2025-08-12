@@ -1,6 +1,8 @@
 
+
+
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { AnimatePresence, motion, MotionProps } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { useApp } from '@/contexts/AppContext';
 import type { Category, RecurringTransaction, Group } from '@/shared/types';
@@ -52,10 +54,10 @@ export const BudgetSettings = () => {
     const flexPercentage = totalOverallBudget > 0 ? (totalMonthlyBudget / totalOverallBudget) * 100 : 0;
     const fixedPercentage = totalOverallBudget > 0 ? (totalMonthlyFixedCosts / totalOverallBudget) * 100 : 0;
     const flexBarColor = '#3b82f6'; // Per user request: Tailwind blue-500
-    const fixedBarColor = '#dc2626'; // Per user request: Tailwind red-600
+    const fixedBarColor = '#be123c'; // Softer red (Tailwind rose-700)
     
     const fixedGroup = useMemo(() => groups.find(g => g.id === FIXED_COSTS_GROUP_ID), [groups]);
-    const fixedIconColor = fixedGroup?.color || '#dc2626'; // Use theme red for consistency
+    const fixedIconColor = fixedGroup?.color || '#be123c'; // Use theme red for consistency
     const FixedIcon = getIconComponent(fixedGroup?.icon || 'Home');
     
     const recurringMapByCatId = useMemo(() => {
@@ -225,32 +227,32 @@ export const BudgetSettings = () => {
         if (itemToUpdate) updateRecurringTransaction({ ...itemToUpdate, ...updates });
     }, [nonFixedRecurring, updateRecurringTransaction]);
 
-    const settingsAnimation: MotionProps = {
+    const settingsAnimationVariants = {
         initial: { opacity: 0, x: 10 },
         animate: { opacity: 1, x: 0 },
         exit: { opacity: 0, x: -10 }
     };
 
-    const flexBarAnimation: MotionProps = {
+    const flexBarAnimation = {
         initial: { width: '0%' },
         animate: { width: `${flexPercentage}%` },
-        transition: { duration: 0.8, ease: "easeOut" }
+        transition: { duration: 0.8, ease: "easeOut" as const }
     };
 
-    const fixedBarAnimation: MotionProps = {
+    const fixedBarAnimation = {
         initial: { width: '0%' },
         animate: { width: `${fixedPercentage}%` },
-        transition: { duration: 0.8, ease: "easeOut" }
+        transition: { duration: 0.8, ease: "easeOut" as const }
     };
     
-    const detailsAnimation: MotionProps = {
+    const detailsAnimation = {
         initial: { opacity: 0, height: 0 },
         animate: { opacity: 1, height: 'auto' },
         exit: { opacity: 0, height: 0 }
     };
 
     return (
-        <MotionDiv {...settingsAnimation} key="budget">
+        <MotionDiv variants={settingsAnimationVariants} initial="initial" animate="animate" exit="exit" key="budget">
             <h3 className="text-lg font-semibold text-white mb-1">Budgetverwaltung</h3>
             <p className="text-sm text-slate-400 mb-6">Verwalten Sie hier Ihr gesamtes monatliches Budget, aufgeteilt in flexible Ausgaben und Fixkosten.</p>
             
@@ -261,7 +263,7 @@ export const BudgetSettings = () => {
                 </div>
                 <div className="flex justify-between items-baseline">
                     <div className="text-left">
-                        <p className="text-xs text-slate-300 flex items-center gap-1.5"><Wallet className="h-3 w-3 text-amber-700" />Flexibles Budget</p>
+                        <p className="text-xs text-slate-300 flex items-center gap-1.5"><Wallet className="h-3 w-3 text-blue-500" />Flexibles Budget</p>
                         <p className="text-white text-md font-semibold">{formatCurrency(totalMonthlyBudget)}</p>
                     </div>
                      <div className="text-right">
@@ -277,10 +279,11 @@ export const BudgetSettings = () => {
                             initial={{ '--flex-percentage': 0 }}
                             // @ts-ignore
                             animate={{ '--flex-percentage': flexPercentage }}
-                            transition={{ duration: 0.8, ease: "easeOut" }}
+                            transition={{ duration: 0.8, ease: "easeOut" as const }}
                             style={{
                                 // @ts-ignore
-                                background: `linear-gradient(to right, ${flexBarColor} calc(var(--flex-percentage) * 1% - 6px), ${fixedBarColor} calc(var(--flex-percentage) * 1% + 6px))`
+                                background: `linear-gradient(to right, ${flexBarColor} calc(var(--flex-percentage) * 1% - 6px), ${fixedBarColor} calc(var(--flex-percentage) * 1% + 6px))`,
+                                opacity: 0.5,
                             }}
                         />
                         <div className="relative w-full h-full flex items-center">

@@ -2,8 +2,10 @@
 
 
 
+
+
 import React, { useMemo } from 'react';
-import { AnimatePresence, motion, MotionProps } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
 import type { Tag } from '@/shared/types';
 import { parseISO } from 'date-fns';
@@ -57,7 +59,7 @@ const TagsPage = () => {
         );
     }
 
-    const tagDetailAnimation: MotionProps = {
+    const tagDetailAnimation = {
         initial: { opacity: 0, y: 20 },
         animate: { opacity: 1, y: 0 },
         exit: { opacity: 0, y: -20 },

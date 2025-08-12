@@ -1,75 +1,60 @@
-
-import React, { useMemo, useState, FC } from 'react';
+import React, { useMemo } from 'react';
+import type { FC } from 'react';
 import { AnimatePresence, motion, MotionProps } from 'framer-motion';
 import type { Category, CategoryId, Group } from '@/shared/types';
-import { iconMap, Plus, Star, getIconComponent, CheckSquare } from '@/shared/ui';
+import { iconMap, Plus, Star, getIconComponent } from '@/shared/ui';
 
 const CategoryTile: FC<{
     category: Category;
-    isVisuallyExpanded: boolean;
-    onTileClick: (id: string) => void;
+    isSelected: boolean;
+    onSelect: (id: string) => void;
     isFavorite: boolean;
     onToggleFavorite?: (id: string) => void;
-}> = ({ category, isVisuallyExpanded, onTileClick, isFavorite, onToggleFavorite }) => {
-    const Icon = getIconComponent(category.icon);
+}> = ({ category, isSelected, onSelect, isFavorite, onToggleFavorite }) => {
+    const Icon = iconMap[category.icon] || iconMap.MoreHorizontal;
 
     const buttonAnimation: MotionProps = {
-        layout: true,
         transition: { type: 'spring', damping: 20, stiffness: 300 },
     };
     
-    const contentAnimation: MotionProps = {
-        initial: { opacity: 0 },
-        animate: { opacity: 1 },
-        exit: { opacity: 0 },
-        transition: { duration: 0.15 },
+    const labelAnimation: MotionProps = {
+        initial: { opacity: 0, width: 0 },
+        animate: { opacity: 1, width: 'auto' },
+        exit: { opacity: 0, width: 0 },
     };
 
     return (
         <div className="relative" key={category.id}>
             <motion.button
                 type="button"
-                onClick={() => onTileClick(category.id)}
-                aria-expanded={isVisuallyExpanded}
+                onClick={() => onSelect(category.id)}
                 {...buttonAnimation}
                 style={{
-                    backgroundColor: isVisuallyExpanded ? category.color : undefined,
+                    backgroundColor: isSelected ? category.color : undefined,
                     borderColor: category.color,
                 }}
-                className={`flex items-center rounded-lg transition-colors duration-200 border-2
-                    ${isVisuallyExpanded 
-                        ? 'gap-2 px-3 py-2 text-white font-semibold shadow-lg justify-between' 
-                        : 'w-12 h-12 bg-slate-800/50 hover:bg-slate-700/80 justify-center'
+                className={`flex items-center justify-center rounded-lg transition-colors duration-200 border-2
+                    ${isSelected 
+                        ? 'gap-2 px-4 py-3 text-white font-semibold shadow-lg' 
+                        : 'w-12 h-12 bg-slate-800/50 hover:bg-slate-700/80'
                     }`
                 }
                 title={category.name}
             >
-                <div className="flex items-center gap-2">
-                    <Icon className="h-6 w-6 shrink-0" style={{ color: isVisuallyExpanded ? 'white' : category.color }} />
-                    <AnimatePresence>
-                        {isVisuallyExpanded && (
-                            <motion.span
-                                {...contentAnimation}
-                                className="whitespace-nowrap overflow-hidden text-sm"
-                            >
-                                {category.name}
-                            </motion.span>
-                        )}
-                    </AnimatePresence>
-                </div>
-                 <AnimatePresence>
-                    {isVisuallyExpanded && (
-                        <motion.div
-                            {...contentAnimation}
-                            className="pl-2 ml-2 border-l border-white/20"
-                            aria-hidden="true"
+                <Icon className="h-6 w-6 shrink-0" style={{ color: isSelected ? 'white' : category.color }} />
+                <AnimatePresence>
+                    {isSelected && (
+                        <motion.span
+                            {...labelAnimation}
+                            transition={{ duration: 0.15, ease: 'linear' }}
+                            className="whitespace-nowrap overflow-hidden text-sm"
                         >
-                            <CheckSquare className="h-5 w-5" />
-                        </motion.div>
+                            {category.name}
+                        </motion.span>
                     )}
                 </AnimatePresence>
             </motion.button>
-            {onToggleFavorite && (
+            {onToggleFavorite ? (
                 <button
                     onClick={(e) => {
                         e.stopPropagation();
@@ -81,7 +66,15 @@ const CategoryTile: FC<{
                 >
                     <Star className={`h-3 w-3 transition-all ${isFavorite ? 'fill-yellow-400 text-yellow-400' : 'hover:fill-yellow-400/50'}`} />
                 </button>
-            )}
+            ) : isFavorite ? (
+                <div
+                    className="absolute -top-1 -right-1 z-10 p-1 bg-slate-700 rounded-full text-yellow-400 pointer-events-none"
+                    title="Favoriten in der Kategorienbibliothek verwalten"
+                    aria-hidden="true"
+                >
+                    <Star className="h-3 w-3 fill-yellow-400" />
+                </div>
+            ) : null}
         </div>
     );
 };
@@ -105,23 +98,11 @@ const CategoryButtons: FC<{
     favoriteIds = [],
     onToggleFavorite,
 }) => {
-    const [expandedId, setExpandedId] = useState<CategoryId | null>(null);
-
-    const handleTileClick = (categoryId: CategoryId) => {
-        // If the clicked tile is already expanded, it's a selection action.
-        if (expandedId === categoryId) {
-            onSelectCategory(categoryId);
-            setExpandedId(null);
-        } else {
-            // Otherwise, it's an expansion action.
-            setExpandedId(categoryId);
-        }
-    };
     
     const tileProps = (category: Category) => ({
         category: category,
-        isVisuallyExpanded: expandedId === category.id || selectedCategoryId === category.id,
-        onTileClick: handleTileClick,
+        isSelected: selectedCategoryId === category.id,
+        onSelect: onSelectCategory,
         isFavorite: favoriteIds.includes(category.id),
         onToggleFavorite: onToggleFavorite,
     });

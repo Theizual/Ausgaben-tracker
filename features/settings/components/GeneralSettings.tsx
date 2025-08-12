@@ -6,8 +6,12 @@
 
 
 
+
+
+
+
 import React from 'react';
-import { motion, MotionProps } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
 import { FileText, Wallet, Info, ChevronRight, ToggleSwitch, Trash2, Button, DownloadCloud, Eye } from '@/shared/ui';
 import { APP_VERSION } from '@/constants';
@@ -24,14 +28,14 @@ export const GeneralSettings = ({ onOpenTagManager }: {
         quickAddHideGroups, setQuickAddHideGroups,
     } = useApp();
 
-    const settingsAnimation: MotionProps = {
+    const settingsAnimationVariants = {
         initial: { opacity: 0, x: 10 },
         animate: { opacity: 1, x: 0 },
         exit: { opacity: 0, x: -10 }
     };
 
     return (
-        <MotionDiv {...settingsAnimation} key="general">
+        <MotionDiv variants={settingsAnimationVariants} initial="initial" animate="animate" exit="exit" key="general">
             <h3 className="text-lg font-semibold text-white mb-1">Allgemeine Einstellungen</h3>
             <p className="text-sm text-slate-400 mb-6">Verwalten Sie hier die Kerneinstellungen der Anwendung.</p>
             

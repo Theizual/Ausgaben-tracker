@@ -1,5 +1,7 @@
+
+
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { motion, AnimatePresence, MotionProps } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { useApp } from '@/contexts/AppContext';
 import type { Transaction, CategoryId, User } from '@/shared/types';
@@ -201,30 +203,30 @@ const TransactionDetailModal = ({
 
     const localTags = getTagNames(formState);
 
-    const backdropAnimation: MotionProps = {
+    const backdropAnimation = {
         initial: { opacity: 0 },
         animate: { opacity: 1 },
         exit: { opacity: 0 },
     };
 
-    const modalAnimation: MotionProps = {
+    const modalAnimation = {
         initial: { scale: 0.95, opacity: 0 },
         animate: { scale: 1, opacity: 1 },
         exit: { scale: 0.95, opacity: 0 },
-        transition: { type: 'spring', stiffness: 350, damping: 30 },
+        transition: { type: 'spring' as const, stiffness: 350, damping: 30 },
     };
     
-    const iconButtonAnimation: MotionProps = {
+    const iconButtonAnimation = {
         whileHover: { scale: 1.1 },
         whileTap: { scale: 0.95 },
     };
 
-    const inputAnimation: MotionProps = {
+    const inputAnimation = {
         initial: { opacity: 0, y: -5 },
         animate: { opacity: 1, y: 0 },
     };
     
-    const deleteButtonAnimation: MotionProps = {
+    const deleteButtonAnimation = {
         whileHover: { scale: 1.05 },
         whileTap: { scale: 0.98 },
     };

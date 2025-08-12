@@ -2,8 +2,10 @@
 
 
 
+
+
 import React, { FC, useMemo } from 'react';
-import { AnimatePresence, motion, MotionProps } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
 import type { Transaction } from '@/shared/types';
 import { format, parseISO, isToday, isYesterday, startOfWeek, endOfWeek, getWeek, isValid, startOfDay, endOfDay } from 'date-fns';
@@ -132,7 +134,7 @@ export const TransactionList: FC = () => {
         );
     }
     
-    const groupAnimation: MotionProps = {
+    const groupAnimation = {
         initial: { opacity: 0, y: 20 },
         animate: { opacity: 1, y: 0 },
         exit: { opacity: 0, y: 20 },

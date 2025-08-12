@@ -1,7 +1,9 @@
 
 
+
+
 import React, { useState, useMemo, FC } from 'react';
-import { AnimatePresence, motion, MotionProps } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
 import type { Category } from '@/shared/types';
 import { ChevronDown } from '@/shared/ui';
@@ -36,7 +38,7 @@ export const MultiCategoryPicker: FC<{
         return [...categories].sort((a,b) => a.name.localeCompare(b.name));
     }, [categories]);
 
-    const dropdownAnimation: MotionProps = {
+    const dropdownAnimation = {
         initial: { opacity: 0, y: -5 },
         animate: { opacity: 1, y: 0 },
         exit: { opacity: 0, y: -5 },

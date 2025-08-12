@@ -68,10 +68,16 @@ export const TagDetailView: FC<{
         const total = filteredTransactions.reduce((sum, t) => sum + t.amount, 0);
         return { total, count: filteredTransactions.length };
     }, [filteredTransactions]);
+    
+    const animationVariants = {
+        initial: { opacity: 0 },
+        animate: { opacity: 1 },
+        exit: { opacity: 0 },
+    };
 
     if (filteredTransactions.length === 0) {
         return (
-             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col items-center justify-center h-96 bg-slate-800/50 rounded-2xl border border-slate-700/50 p-6 text-center">
+             <motion.div variants={animationVariants} initial="initial" animate="animate" exit="exit" className="flex flex-col items-center justify-center h-96 bg-slate-800/50 rounded-2xl border border-slate-700/50 p-6 text-center">
                  <Hash className="text-slate-600 h-12 w-12 mb-4" />
                  <h2 className="text-xl font-bold text-white">Keine Daten für {formattedTagNames}</h2>
                  <p className="text-slate-400">Für den gewählten Zeitraum gibt es keine Transaktionen mit diesen Tags.</p>
@@ -80,7 +86,7 @@ export const TagDetailView: FC<{
     }
 
     return (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6">
+        <motion.div variants={animationVariants} initial="initial" animate="animate" exit="exit" className="space-y-6">
             <h2 className="text-2xl font-bold text-white flex items-center gap-2 flex-wrap">
                 {formattedTagNames}
             </h2>

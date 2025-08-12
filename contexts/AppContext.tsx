@@ -9,7 +9,7 @@ import { useCategories } from '@/shared/hooks/useCategories';
 import { useCategoryPreferences } from '@/shared/hooks/useCategoryPreferences';
 import useLocalStorage from '@/shared/hooks/useLocalStorage';
 import type { User, Category, Group, RecurringTransaction, Transaction, Tag, UserSetting } from '@/shared/types';
-import { FIXED_COSTS_GROUP_ID } from '@/constants';
+import { FIXED_COSTS_GROUP_ID, DEFAULT_CATEGORY_ID } from '@/constants';
 import { isWithinInterval, parseISO, startOfMonth, endOfMonth } from 'date-fns';
 import type { Locale } from 'date-fns';
 import { de } from 'date-fns/locale';
@@ -139,12 +139,22 @@ const ReadyAppProvider: React.FC<{
         addRecentCategory: categoryPreferencesState.addRecent,
     });
     
+    const enrichedTransactions = useMemo(() => {
+        return transactionDataState.transactions.map(tx => {
+            if (finalCategoryMap.has(tx.categoryId)) {
+                return tx;
+            }
+            console.warn(`Transaction ${tx.id} has orphan categoryId ${tx.categoryId}. Re-assigning to 'Sonstiges'.`);
+            return { ...tx, categoryId: DEFAULT_CATEGORY_ID };
+        });
+    }, [transactionDataState.transactions, finalCategoryMap]);
+
     const totalSpentThisMonth = useMemo(() => {
         const monthInterval = { start: startOfMonth(new Date()), end: endOfMonth(new Date()) };
-        return transactionDataState.transactions
+        return enrichedTransactions
             .filter(t => !fixedCategoryIds.has(t.categoryId) && isWithinInterval(parseISO(t.date), monthInterval))
             .reduce((sum, t) => sum + t.amount, 0);
-    }, [transactionDataState.transactions, fixedCategoryIds]);
+    }, [enrichedTransactions, fixedCategoryIds]);
     
     const totalMonthlyFixedCosts = useMemo(() => {
         return transactionDataState.recurringTransactions
@@ -312,9 +322,10 @@ const ReadyAppProvider: React.FC<{
         categoryMap: finalCategoryMap,
         ...categoryPreferencesState,
         totalMonthlyBudget,
+        ...transactionDataState,
+        transactions: enrichedTransactions,
         totalSpentThisMonth,
         totalMonthlyFixedCosts,
-        ...transactionDataState,
         ...usersState,
         ...restUserSettingsState,
         currentUser,

@@ -33,6 +33,46 @@ type Payload = {
 
 const isLegacyId = (id: string, prefix: string) => id && !id.startsWith(prefix);
 
+function cleanAndMigrate(
+    items: any[],
+    entity: string,
+    idPrefix: string,
+    pad: number,
+    getNextId: (entity: string, prefix: string, pad: number) => string,
+    idMigrationMap: Map<string, string>,
+    countersChangedRef: { value: boolean }
+) {
+    const migratedItems = (items || []).map(item => {
+        if (item.id && isLegacyId(item.id, idPrefix)) {
+            const newId = getNextId(entity, idPrefix, pad);
+            idMigrationMap.set(item.id, newId);
+            countersChangedRef.value = true;
+            return { ...item, legacyId: item.id, id: newId };
+        }
+        return item;
+    });
+
+    const finalItemsMap = new Map<string, any>();
+    for (const item of migratedItems) {
+        const key = item.legacyId || item.id;
+        const existing = finalItemsMap.get(key);
+
+        if (!existing) {
+            finalItemsMap.set(key, item);
+        } else {
+            if (item.legacyId && !existing.legacyId) {
+                finalItemsMap.set(key, item);
+            } else if (item.legacyId && existing.legacyId) {
+                if (item.id > existing.id) {
+                    finalItemsMap.set(key, item);
+                }
+            }
+        }
+    }
+    return Array.from(finalItemsMap.values());
+}
+
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
@@ -54,27 +94,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     };
 
     const idMigrationMap = new Map<string, string>();
-    let countersChanged = false;
+    const countersChangedRef = { value: false };
 
-    const migrate = (items: any[], entity: string, idPrefix: string, pad: number) => {
-        return items.map(item => {
-            if (item.id && isLegacyId(item.id, idPrefix)) {
-                const newId = getNextId(entity, idPrefix, pad);
-                idMigrationMap.set(item.id, newId);
-                countersChanged = true;
-                return { ...item, legacyId: item.id, id: newId };
-            }
-            return item;
-        });
-    };
-    
     const migratedItems = {
-      groups:       migrate(body.groups ?? [], 'Group', 'grpId', 5),
-      categories:   migrate(body.categories ?? [], 'Category', 'catId', 5),
-      transactions: migrate(body.transactions ?? [], 'Transaction', 'txId', 7),
-      recurring:    migrate(body.recurring ?? [], 'Recurring', 'recId', 5),
-      tags:         migrate(body.tags ?? [], 'Tag', 'tagId', 5),
-      users:        migrate(body.users ?? [], 'User', 'usrId', 4),
+      groups:       cleanAndMigrate(body.groups ?? [], 'Group', 'grpId', 5, getNextId, idMigrationMap, countersChangedRef),
+      categories:   cleanAndMigrate(body.categories ?? [], 'Category', 'catId', 5, getNextId, idMigrationMap, countersChangedRef),
+      transactions: cleanAndMigrate(body.transactions ?? [], 'Transaction', 'txId', 7, getNextId, idMigrationMap, countersChangedRef),
+      recurring:    cleanAndMigrate(body.recurring ?? [], 'Recurring', 'recId', 5, getNextId, idMigrationMap, countersChangedRef),
+      tags:         cleanAndMigrate(body.tags ?? [], 'Tag', 'tagId', 5, getNextId, idMigrationMap, countersChangedRef),
+      users:        cleanAndMigrate(body.users ?? [], 'User', 'usrId', 4, getNextId, idMigrationMap, countersChangedRef),
       userSettings: body.userSettings ?? [],
     };
 
@@ -123,7 +151,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return { range: `${name}!A1:${lastCol}`, values: [headers, ...rows], majorDimension: 'ROWS' as const };
     });
 
-    if (countersChanged) {
+    if (countersChangedRef.value) {
         dataToWrite.push({
             range: 'Counters!A2:Z',
             values: Array.from(counters.entries()),

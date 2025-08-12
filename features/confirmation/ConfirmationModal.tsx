@@ -1,5 +1,7 @@
+
+
 import React, { useEffect, useMemo } from 'react';
-import { motion, MotionProps } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
 import type { Transaction } from '@/shared/types';
 import { formatCurrency } from '@/shared/utils/dateUtils';
@@ -86,29 +88,29 @@ const ConfirmationModal = ({
         return defaultColor;
     };
 
-    const backdropAnimation: MotionProps = {
+    const backdropAnimation = {
         initial: { opacity: 0 },
         animate: { opacity: 1 },
         exit: { opacity: 0 },
     };
     
-    const modalAnimation: MotionProps = {
+    const modalAnimation = {
         initial: { y: "100%" },
         animate: { y: 0 },
         exit: { y: "100%" },
-        transition: { type: 'spring', bounce: 0.4, duration: 0.5 },
+        transition: { type: 'spring' as const, bounce: 0.4, duration: 0.5 },
     };
     
-    const checkAnimation: MotionProps = {
+    const checkAnimation = {
         initial: { scale: 0 },
         animate: { scale: 1 },
-        transition: { delay: 0.2, type: 'spring', stiffness: 260, damping: 20 },
+        transition: { delay: 0.2, type: 'spring' as const, stiffness: 260, damping: 20 },
     };
     
-    const barAnimation = (percentageBefore: number, percentageAfter: number): MotionProps => ({
+    const barAnimation = (percentageBefore: number, percentageAfter: number) => ({
         initial: { width: `${Math.min(percentageBefore, 100)}%` },
         animate: { width: `${Math.min(percentageAfter, 100)}%` },
-        transition: { duration: 0.8, ease: "easeOut", delay: 0.3 },
+        transition: { duration: 0.8, ease: "easeOut" as const, delay: 0.3 },
     });
 
     return (

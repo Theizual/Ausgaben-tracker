@@ -1,7 +1,5 @@
-
-
 import React, { useState, useMemo, FC } from 'react';
-import { AnimatePresence, motion, MotionProps } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { useApp } from '@/contexts/AppContext';
 import type { Transaction, Category, ViewMode, CategoryId, Tag, Group } from '@/shared/types';
@@ -9,6 +7,7 @@ import { Plus, Coins, Button, Info } from '@/shared/ui';
 import { CategoryButtons, TagInput, AvailableTags } from '@/shared/ui';
 import { parseISO } from 'date-fns';
 import { FIXED_COSTS_GROUP_ID } from '@/constants';
+import { MoreCategoriesModal } from './MoreCategoriesModal';
 
 export const QuickAddForm: FC = () => {
     const { 
@@ -20,16 +19,16 @@ export const QuickAddForm: FC = () => {
         favoriteIds,
         recentCategoryIds,
         addRecent,
-        toggleFavorite,
         quickAddHideGroups,
         groups,
+        openSettings,
     } = useApp();
     
     const [amount, setAmount] = useState('');
     const [description, setDescription] = useState('');
     const [categoryId, setCategoryId] = useState('');
     const [tags, setTags] = useState<string[]>([]);
-    const [showAllTemporarily, setShowAllTemporarily] = useState(false);
+    const [isMoreCategoriesOpen, setIsMoreCategoriesOpen] = useState(false);
 
     const flexibleGroups = useMemo(() => groups.filter(g => g.id !== FIXED_COSTS_GROUP_ID), [groups]);
 
@@ -65,8 +64,8 @@ export const QuickAddForm: FC = () => {
     const handleSelectCategory = (newCategoryId: string) => {
         setCategoryId(newCategoryId);
         addRecent(newCategoryId);
-        if (quickAddHideGroups) {
-            setShowAllTemporarily(false);
+        if (isMoreCategoriesOpen) {
+            setIsMoreCategoriesOpen(false);
         }
     };
 
@@ -117,9 +116,6 @@ export const QuickAddForm: FC = () => {
         setDescription('');
         setTags([]);
         setCategoryId('');
-        if (quickAddHideGroups) {
-            setShowAllTemporarily(false);
-        }
     };
 
     const handleTagClick = (tag: string) => {
@@ -128,15 +124,14 @@ export const QuickAddForm: FC = () => {
         );
     };
 
-    const formAnimation: MotionProps = {
+    const formAnimation = {
         initial: { opacity: 0, y: -10 },
         animate: { opacity: 1, y: 0 },
         transition: { delay: 0.1 }
     };
 
-    const showFullList = !quickAddHideGroups || showAllTemporarily;
-
     return (
+        <>
         <motion.div {...formAnimation}>
             <div className="bg-slate-800/50 p-3 rounded-2xl border border-slate-700/50">
                 <h3 className="text-lg font-bold text-white mb-2">Schnell hinzufügen</h3>
@@ -183,18 +178,8 @@ export const QuickAddForm: FC = () => {
                             )}
                         </div>
                          
-                        {showFullList ? (
-                             <CategoryButtons 
-                                categories={flexibleCategories}
-                                groups={flexibleGroups}
-                                selectedCategoryId={categoryId}
-                                onSelectCategory={handleSelectCategory}
-                                showGroups={true}
-                                favoriteIds={favoriteIds}
-                                onToggleFavorite={toggleFavorite}
-                            />
-                        ) : (
-                            <div className="space-y-2">
+                        {quickAddHideGroups ? (
+                             <div className="space-y-2">
                                 {favoriteCategories.length > 0 && (
                                     <div>
                                         <h5 className="text-xs font-bold uppercase tracking-wider text-slate-500/80 mb-1.5 ml-1">Favoriten</h5>
@@ -204,9 +189,21 @@ export const QuickAddForm: FC = () => {
                                             onSelectCategory={handleSelectCategory}
                                             showGroups={false}
                                             favoriteIds={favoriteIds}
-                                            onToggleFavorite={toggleFavorite}
                                         />
                                     </div>
+                                )}
+                                {favoriteCategories.length === 0 && (
+                                     <div className="text-center text-sm text-slate-400 p-2">
+                                         Keine Favoriten festgelegt.
+                                         <button 
+                                            type="button" 
+                                            onClick={() => openSettings('categories')} 
+                                            className="ml-1 underline hover:text-white font-semibold"
+                                            aria-label="Gehe zur Kategorienbibliothek, um Favoriten zu verwalten"
+                                        >
+                                             Favoriten verwalten
+                                         </button>
+                                     </div>
                                 )}
                                 {recentCategories.length > 0 && (
                                     <div>
@@ -217,23 +214,29 @@ export const QuickAddForm: FC = () => {
                                             onSelectCategory={handleSelectCategory}
                                             showGroups={false}
                                             favoriteIds={favoriteIds}
-                                            onToggleFavorite={toggleFavorite}
                                         />
                                     </div>
                                 )}
+                                <div className="flex justify-end pt-1">
+                                    <Button
+                                        type="button"
+                                        variant="secondary"
+                                        size="sm"
+                                        onClick={() => setIsMoreCategoriesOpen(true)}
+                                    >
+                                        Alle Gruppen anzeigen
+                                    </Button>
+                                </div>
                             </div>
-                        )}
-                         {quickAddHideGroups && !showAllTemporarily && (
-                            <div className="flex justify-end">
-                                <Button
-                                    type="button"
-                                    variant="secondary"
-                                    size="sm"
-                                    onClick={() => setShowAllTemporarily(true)}
-                                >
-                                    Alle Gruppen anzeigen
-                                </Button>
-                            </div>
+                        ) : (
+                            <CategoryButtons 
+                                categories={flexibleCategories}
+                                groups={flexibleGroups}
+                                selectedCategoryId={categoryId}
+                                onSelectCategory={handleSelectCategory}
+                                showGroups={true}
+                                favoriteIds={favoriteIds}
+                            />
                         )}
                     </div>
 
@@ -264,5 +267,15 @@ export const QuickAddForm: FC = () => {
                 </form>
             </div>
         </motion.div>
+         <AnimatePresence>
+            {isMoreCategoriesOpen && (
+                 <MoreCategoriesModal
+                    isOpen={isMoreCategoriesOpen}
+                    onClose={() => setIsMoreCategoriesOpen(false)}
+                    onSelectCategory={handleSelectCategory}
+                />
+            )}
+        </AnimatePresence>
+        </>
     );
 };

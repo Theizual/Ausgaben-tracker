@@ -48,7 +48,6 @@ const StandardTransactionItem: FC<StandardTransactionItemProps> = ({
 
     const listLayout = (
         <motion.button
-            layout
             onClick={() => onClick(transaction)}
             className={`w-full flex items-center rounded-lg transition-colors duration-150 hover:bg-slate-700/50 text-left ${isCompact ? 'gap-2 px-2 py-1' : 'gap-3 p-2'}`}
         >

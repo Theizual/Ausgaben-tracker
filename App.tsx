@@ -1,8 +1,9 @@
 
 
 
+
 import React, { useState, useEffect } from 'react';
-import { AnimatePresence, motion, MotionProps } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { Toaster } from 'react-hot-toast';
 import { useApp } from '@/contexts/AppContext';
 import { DashboardPage } from '@/features/dashboard';
@@ -80,7 +81,7 @@ const App = () => {
         }
     };
 
-    const contentAnimation: MotionProps = {
+    const contentAnimation = {
         initial: { opacity: 0, y: 20 },
         animate: { opacity: 1, y: 0 },
         exit: { opacity: 0, y: -20 },

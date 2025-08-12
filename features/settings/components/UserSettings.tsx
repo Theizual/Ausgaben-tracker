@@ -1,6 +1,9 @@
 
+
+
+
 import React, { useState, useCallback } from 'react';
-import { motion, MotionProps } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
 import { Button, Plus, Trash2, UserAvatar } from '@/shared/ui';
 
@@ -24,14 +27,14 @@ export const UserSettings = () => {
 
     const handleNameUpdate = useCallback((id: string, name: string) => updateUser(id, { name }), [updateUser]);
 
-    const settingsAnimation: MotionProps = {
+    const settingsAnimationVariants = {
         initial: { opacity: 0, x: 10 },
         animate: { opacity: 1, x: 0 },
         exit: { opacity: 0, x: -10 }
     };
 
     return (
-        <MotionDiv {...settingsAnimation} key="users">
+        <MotionDiv variants={settingsAnimationVariants} initial="initial" animate="animate" exit="exit" key="users">
             <h3 className="text-lg font-semibold text-white mb-1">Benutzer verwalten</h3>
             <p className="text-sm text-slate-400 mb-6">Legen Sie Benutzer an, um Ausgaben zuzuordnen. Der aktuell ausgewählte Benutzer wird neuen Transaktionen automatisch zugewiesen.</p>
             <form onSubmit={handleAddUser} className="flex gap-3 mb-6">

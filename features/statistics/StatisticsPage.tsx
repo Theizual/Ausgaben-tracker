@@ -3,8 +3,10 @@
 
 
 
+
+
 import React, { useState, useMemo } from 'react';
-import { AnimatePresence, motion, MotionProps } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
 import { isSameMonth, isSameDay, parseISO, startOfMonth, endOfMonth } from 'date-fns';
 import { Calendar } from '@/shared/ui';
@@ -14,7 +16,7 @@ import { MonthlySummary } from './ui/MonthlySummary';
 import { MonthlyCategoryBreakdown } from './ui/MonthlyCategoryBreakdown';
 import { BudgetBurndownChart } from './ui/BudgetBurndownChart';
 
-const placeholderAnimation: MotionProps = {
+const placeholderAnimation = {
     initial: { opacity: 0, scale: 0.95 },
     animate: { opacity: 1, scale: 1 },
     exit: { opacity: 0, scale: 0.95 },

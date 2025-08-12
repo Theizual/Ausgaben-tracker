@@ -1,10 +1,7 @@
 
 
-
-
-
 import React, { useEffect } from 'react';
-import { AnimatePresence, motion, MotionProps } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { X } from './Icons';
 import { useEscapeKey } from '@/shared/hooks/useEscapeKey';
 import { clsx } from 'clsx';
@@ -47,17 +44,17 @@ export const Modal = ({
 
     if (!isOpen) return null;
 
-    const backdropAnimation: MotionProps = {
+    const backdropAnimation = {
         initial: { opacity: 0 },
         animate: { opacity: 1 },
         exit: { opacity: 0 },
     };
     
-    const modalAnimation: MotionProps = {
+    const modalAnimation = {
         initial: { scale: 0.95, y: 20 },
         animate: { scale: 1, y: 0 },
         exit: { scale: 0.95, y: 20 },
-        transition: { type: 'spring', stiffness: 350, damping: 30 },
+        transition: { type: 'spring' as const, stiffness: 350, damping: 30 },
     };
 
     return (

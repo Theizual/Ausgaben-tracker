@@ -3,8 +3,10 @@
 
 
 
+
+
 import React, { useState, useMemo, FC } from 'react';
-import { AnimatePresence, motion, MotionProps } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { useApp } from '@/contexts/AppContext';
 import type { Category, Group } from '@/shared/types';
@@ -143,7 +145,7 @@ export const CategoryLibrarySettings: FC = () => {
         );
     }
     
-    const settingsAnimation: MotionProps = {
+    const settingsAnimation = {
         initial: { opacity: 0, x: 10 },
         animate: { opacity: 1, x: 0 },
         exit: { opacity: 0, x: -10 }

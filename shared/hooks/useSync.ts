@@ -73,6 +73,47 @@ interface ConflictData {
 
 type SyncStatus = 'idle' | 'loading' | 'syncing' | 'success' | 'error' | 'conflict';
 
+function resolveLegacyIds(data: ReadApiResponse): ReadApiResponse {
+    const { groups, categories, transactions, recurring, tags } = data || {};
+
+    const buildLegacyMap = (items: ({ id: string; legacyId?: string } | undefined)[] | undefined) => {
+        const map = new Map<string, string>();
+        (items || []).forEach(item => {
+            if (item && item.legacyId && item.id && item.legacyId !== item.id) {
+                map.set(item.legacyId, item.id);
+            }
+        });
+        return map;
+    };
+    
+    const groupsLegacyMap = buildLegacyMap(groups);
+    const categoriesLegacyMap = buildLegacyMap(categories);
+    const recurringLegacyMap = buildLegacyMap(recurring);
+    const tagsLegacyMap = buildLegacyMap(tags);
+    
+    const resolveId = (id: string | undefined, map: Map<string, string>) => (id ? map.get(id) || id : undefined);
+
+    const resolvedCategories = (categories || []).map(cat => ({
+        ...cat,
+        groupId: resolveId(cat.groupId, groupsLegacyMap)!,
+    }));
+
+    const resolvedTransactions = (transactions || []).map(tx => ({
+        ...tx,
+        categoryId: resolveId(tx.categoryId, categoriesLegacyMap)!,
+        recurringId: resolveId(tx.recurringId, recurringLegacyMap),
+        tagIds: (tx.tagIds || []).map(id => tagsLegacyMap.get(id) || id).filter(Boolean),
+    }));
+
+    const resolvedRecurring = (recurring || []).map(rec => ({
+        ...rec,
+        categoryId: resolveId(rec.categoryId, categoriesLegacyMap)!,
+    }));
+
+    return { ...data, categories: resolvedCategories, transactions: resolvedTransactions, recurring: resolvedRecurring };
+}
+
+
 export const useSync = (props: SyncProps) => {
     const {
         rawCategories, rawGroups, rawTransactions, rawRecurringTransactions, rawAllAvailableTags, rawUsers, rawUserSettings,
@@ -158,12 +199,13 @@ export const useSync = (props: SyncProps) => {
                 tags: rawAllAvailableTags, users: rawUsers, userSettings: finalPayload,
             });
             
-            setCategoriesAndGroups(remoteData.categories, remoteData.groups);
-            setTransactions(remoteData.transactions);
-            setRecurringTransactions(remoteData.recurring);
-            setAllAvailableTags(remoteData.tags);
-            setUsers(remoteData.users);
-            setUserSettings(remoteData.userSettings);
+            const resolvedData = resolveLegacyIds(remoteData);
+            setCategoriesAndGroups(resolvedData.categories, resolvedData.groups);
+            setTransactions(resolvedData.transactions);
+            setRecurringTransactions(resolvedData.recurring);
+            setAllAvailableTags(resolvedData.tags);
+            setUsers(resolvedData.users);
+            setUserSettings(resolvedData.userSettings);
 
             setLastSync(new Date().toISOString());
             setSyncStatus('success');
@@ -201,12 +243,13 @@ export const useSync = (props: SyncProps) => {
 
         try {
             const { data }: { data: ReadApiResponse } = await apiGet('/api/sheets/read');
-            setCategoriesAndGroups(data.categories, data.groups);
-            setTransactions(data.transactions);
-            setRecurringTransactions(data.recurring);
-            setAllAvailableTags(data.tags);
-            setUsers(data.users);
-            setUserSettings(data.userSettings);
+            const resolvedData = resolveLegacyIds(data);
+            setCategoriesAndGroups(resolvedData.categories, resolvedData.groups);
+            setTransactions(resolvedData.transactions);
+            setRecurringTransactions(resolvedData.recurring);
+            setAllAvailableTags(resolvedData.tags);
+            setUsers(resolvedData.users);
+            setUserSettings(resolvedData.userSettings);
             setLastSync(new Date().toISOString());
             setSyncStatus('success');
         } catch (e: any) {

@@ -39,6 +39,7 @@ export interface Category {
   icon: string;
   budget?: number;
   groupId: string;
+  groupLegacyId?: string;
   lastModified: string; // ISO string
   isDeleted?: boolean;
   version: number;
@@ -50,9 +51,12 @@ export interface Transaction {
   amount: number;
   description: string;
   categoryId: string;
+  categoryLegacyId?: string;
   date: string; // ISO string format
   tagIds?: string[];
+  tagLegacyIds?: string;
   recurringId?: string;
+  recurringLegacyId?: string;
   lastModified: string; // ISO string
   isDeleted?: boolean;
   version: number;

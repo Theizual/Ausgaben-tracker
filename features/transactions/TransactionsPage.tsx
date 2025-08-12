@@ -2,8 +2,10 @@
 
 
 
+
+
 import React, { useState, useMemo } from 'react';
-import { motion, MotionProps } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
 import type { QuickFilterId } from '@/shared/types';
 import { format, subDays, startOfMonth, endOfMonth } from 'date-fns';
@@ -86,9 +88,9 @@ const TransactionsPage = () => {
                transactionFilters.maxAmount);
     }, [transactionFilters]);
     
-    const motionContainerProps: MotionProps = { layout: true };
-    const motionButtonProps: MotionProps = { layout: true };
-    const motionDotProps: MotionProps = { layoutId: "filter-dot" };
+    const motionContainerProps = { layout: true };
+    const motionButtonProps = { layout: true };
+    const motionDotProps = { layoutId: "filter-dot" };
 
     return (
         <div className="space-y-4">

@@ -1,11 +1,5 @@
-
-
-
-
-
-
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { AnimatePresence, motion, MotionProps } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
 import type { SettingsTab } from '@/shared/types';
 import { Settings, X, LayoutGrid, Target, SlidersHorizontal, Users, BookOpen } from '@/shared/ui';
@@ -99,13 +93,13 @@ const SettingsModal = ({ isOpen, onClose, initialTab }: { isOpen: boolean; onClo
 
     if (!isOpen) return null;
 
-    const backdropAnimation: MotionProps = {
+    const backdropAnimation = {
         initial: { opacity: 0 },
         animate: { opacity: 1 },
         exit: { opacity: 0 },
     };
     
-    const modalAnimation: MotionProps = {
+    const modalAnimation = {
         initial: { scale: 0.95, opacity: 0 },
         animate: { scale: 1, opacity: 1 },
         exit: { scale: 0.95, opacity: 0 },
@@ -124,12 +118,20 @@ const SettingsModal = ({ isOpen, onClose, initialTab }: { isOpen: boolean; onClo
                     className="bg-slate-800/80 backdrop-blur-md rounded-xl w-full max-w-4xl shadow-2xl border border-slate-700 flex flex-col h-[90vh] md:h-[85vh]" 
                     onClick={e => e.stopPropagation()}
                 >
+                    <header className="flex flex-shrink-0 items-center justify-between gap-4 p-3 md:p-4 border-b border-slate-700">
+                        <h2 className="text-lg font-bold text-white">Einstellungen</h2>
+                        <button
+                            onClick={onClose}
+                            className="grid h-10 w-10 place-items-center rounded-full text-slate-400 transition-colors hover:bg-slate-700 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/50"
+                            aria-label="Einstellungen schließen"
+                        >
+                            <X className="h-5 w-5" />
+                        </button>
+                    </header>
+
                     <div className="flex flex-col md:flex-row flex-1 min-h-0">
                         {/* Spalte 1: Navigation */}
                         <aside className="w-full md:w-56 flex-shrink-0 border-b md:border-b-0 md:border-r border-slate-700">
-                           <div className="p-4 hidden md:block">
-                             <h2 className="text-lg font-bold text-white">Einstellungen</h2>
-                           </div>
                             <nav ref={navRef} className="flex flex-row md:flex-col p-2 md:p-4 md:space-y-1 justify-around md:justify-start">
                                 {TABS.map(tab => {
                                     const isActive = activeTab === tab.id;

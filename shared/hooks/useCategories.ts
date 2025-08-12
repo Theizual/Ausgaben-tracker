@@ -251,10 +251,19 @@ export const useCategories = ({ rawUserSettings, updateCategoryConfigurationForU
         toast.success("Standardkonfiguration geladen.");
     }, []);
     
-    const liveCategories = useMemo(() => state.categories.filter(c => !c.isDeleted), [state.categories]);
-    const categoryMap = useMemo(() => new Map(liveCategories.map(c => [c.id, c])), [liveCategories]);
-
     const liveGroups = useMemo(() => state.groups.filter(g => !g.isDeleted).sort((a,b) => a.sortIndex - b.sortIndex), [state.groups]);
+    const liveCategories = useMemo(() => {
+        const liveGroupsMap = new Map(liveGroups.map(g => [g.id, g]));
+        return state.categories.filter(c => !c.isDeleted).map(cat => {
+            if (liveGroupsMap.has(cat.groupId)) {
+                return cat;
+            }
+            console.warn(`Category ${cat.name} (${cat.id}) has orphan groupId ${cat.groupId}. Re-assigning to 'Sonstiges' group.`);
+            return { ...cat, groupId: DEFAULT_GROUP_ID };
+        });
+    }, [state.categories, liveGroups]);
+
+    const categoryMap = useMemo(() => new Map(liveCategories.map(c => [c.id, c])), [liveCategories]);
     const groupMap = useMemo(() => new Map(liveGroups.map(g => [g.id, g])), [liveGroups]);
     const groupNames = useMemo(() => liveGroups.map(g => g.name), [liveGroups]);
 

@@ -1,4 +1,5 @@
 
+
 import React, { useState, useRef, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
@@ -39,6 +40,13 @@ export const UserSelector: React.FC = () => {
     }
 
     if (!currentUser) return null;
+    
+    const dropdownAnimation = {
+        initial: { opacity: 0, y: -5, scale: 0.95 }, 
+        animate: { opacity: 1, y: 0, scale: 1 },
+        exit: { opacity: 0, y: -5, scale: 0.95 },
+        transition: { duration: 0.1 },
+    };
 
     return (
         <div className="relative" ref={wrapperRef}>
@@ -49,10 +57,7 @@ export const UserSelector: React.FC = () => {
             <AnimatePresence>
                 {isOpen && (
                      <motion.div 
-                        initial={{ opacity: 0, y: -5, scale: 0.95 }} 
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: -5, scale: 0.95 }}
-                        transition={{ duration: 0.1 }}
+                        {...dropdownAnimation}
                         className="absolute z-40 top-full mt-2 right-0 w-60 bg-slate-800 border border-slate-700 rounded-lg shadow-xl py-2"
                     >
                          <p className="px-4 py-1 text-xs text-slate-400 font-semibold uppercase">Benutzer wechseln</p>

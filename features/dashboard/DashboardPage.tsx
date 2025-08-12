@@ -1,7 +1,6 @@
 
-
 import React, { useState, useMemo, useEffect } from 'react';
-import { AnimatePresence, motion, MotionProps } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
 import type { Transaction, ViewMode, Category } from '@/shared/types';
 import { format, parseISO, isWithinInterval, startOfMonth, endOfMonth, startOfWeek, endOfWeek, isSameDay } from 'date-fns';
@@ -136,14 +135,14 @@ const DashboardPage = () => {
     const TotalExpensesIcon = dashboardViewMode === 'woche' ? Calendar : CalendarDays;
     const totalExpensesIconClassName = 'h-5 w-5 mr-2 flex-shrink-0 text-green-400';
     
-    const cardAnimation: MotionProps = {
+    const cardAnimation = {
         initial: { opacity: 0, y: 10 },
         animate: { opacity: 1, y: 0 },
     };
     
-    const summaryCardAnimation: MotionProps = { ...cardAnimation, transition: { delay: 0.1 } };
+    const summaryCardAnimation = { ...cardAnimation, transition: { delay: 0.1 } };
 
-    const transactionDetailsAnimation: MotionProps = {
+    const transactionDetailsAnimation = {
         initial: { opacity: 0, height: 0, marginTop: 0 },
         animate: { opacity: 1, height: 'auto', marginTop: '1rem' },
         exit: { opacity: 0, height: 0, marginTop: 0 },
@@ -236,8 +235,9 @@ const DashboardPage = () => {
                                     const GroupIcon = getIconComponent(group.icon);
                                     
                                     return (
-                                        <div key={group.id} className="bg-slate-700/30 p-3 rounded-lg space-y-3">
-                                            <div className="flex flex-col">
+                                        <div key={group.id} className="relative bg-slate-700/30 p-3 rounded-lg space-y-3 overflow-hidden">
+                                            <div className="absolute inset-0 pointer-events-none" style={{ backgroundColor: group.color || '#64748b', opacity: 0.07 }}></div>
+                                            <div className="relative flex flex-col">
                                                 <div className="flex justify-between items-center text-sm mb-1.5">
                                                     <div className="flex items-center gap-3 truncate">
                                                         <GroupIcon className="h-5 w-5 flex-shrink-0" style={{ color: group.color }} />
@@ -251,7 +251,7 @@ const DashboardPage = () => {
                                                 <BudgetProgressBar percentage={groupPercentage} color={group.color} />
                                             </div>
 
-                                            <div className="space-y-4 pt-3 ml-4 pl-4 border-l-2 border-slate-600/50">
+                                            <div className="relative space-y-4 pt-3 ml-4 pl-4 border-l-2 border-slate-600/50">
                                                 {data.categories.map((category: Category) => {
                                                     const spent = spendingByCategory.get(category.id) || 0;
                                                     const budget = category.budget!;

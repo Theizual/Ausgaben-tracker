@@ -1,5 +1,7 @@
 
 
+
+
 import React, { FC, useMemo } from 'react';
 import { motion, MotionProps } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
@@ -29,15 +31,17 @@ export const MonthlySummary: FC<{ transactions: Transaction[], currentMonth: Dat
 
     const periodLabel = format(currentMonth, 'MMMM yyyy', { locale: deLocale });
     
-    const summaryAnimation: MotionProps = {
+    const summaryAnimationVariants = {
         initial: { opacity: 0, y: 10 },
         animate: { opacity: 1, y: 0 },
-        transition: { delay: 0.1 },
     };
 
     return (
         <motion.div
-            {...summaryAnimation}
+            variants={summaryAnimationVariants}
+            initial="initial"
+            animate="animate"
+            transition={{ delay: 0.1 }}
             className="bg-slate-800 p-3 rounded-2xl border border-slate-700"
         >
              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-0 md:divide-x md:divide-slate-700/50">

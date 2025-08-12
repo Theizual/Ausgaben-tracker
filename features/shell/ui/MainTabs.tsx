@@ -1,4 +1,5 @@
 
+
 import React from 'react';
 import { motion } from 'framer-motion';
 import { LayoutGrid, Repeat, BarChart2, Tags } from '@/shared/ui';
@@ -24,7 +25,7 @@ export const MainTabs: React.FC<{
                         <button
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id as any)}
-                            className={`relative flex flex-col items-center justify-center gap-1 w-full h-full transition-colors ${
+                            className={`relative flex flex-1 flex-col items-center justify-center gap-1 h-full transition-colors ${
                                 activeTab === tab.id ? 'text-rose-400' : 'text-slate-400 hover:text-white'
                             }`}
                             title={tab.label}
@@ -32,7 +33,7 @@ export const MainTabs: React.FC<{
                             <tab.icon className="h-6 w-6" />
                             <span className="text-xs font-medium">{tab.label}</span>
                              {activeTab === tab.id && (
-                                <motion.div className="absolute bottom-0 h-1 w-8 bg-rose-400 rounded-t-full" layoutId="underline" />
+                                <motion.div layoutId="active-mobile-tab" className="absolute bottom-0 h-1 w-8 bg-rose-400 rounded-t-full" />
                             )}
                         </button>
                     ))}
@@ -45,17 +46,23 @@ export const MainTabs: React.FC<{
                     <button
                         key={tab.id}
                         onClick={() => setActiveTab(tab.id as any)}
-                        className={`flex items-center justify-center rounded-lg text-sm font-medium transition-all gap-2 p-3 px-4 py-2
+                        className={`relative flex items-center justify-center rounded-lg text-sm font-medium transition-all gap-2 p-3 px-4 py-2
                             ${
                                 activeTab === tab.id
-                                    ? 'bg-gradient-to-r from-rose-500 to-red-600 text-white shadow-lg'
+                                    ? 'text-white'
                                     : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
                             }`
                         }
                         title={tab.label}
                     >
-                        <tab.icon className="h-5 w-5" />
-                        <span>{tab.label}</span>
+                        {activeTab === tab.id && (
+                            <motion.div
+                                layoutId="active-desktop-tab"
+                                className="absolute inset-0 bg-gradient-to-r from-rose-500 to-red-600 rounded-lg shadow-lg"
+                            />
+                        )}
+                        <tab.icon className="relative z-10 h-5 w-5" />
+                        <span className="relative z-10">{tab.label}</span>
                     </button>
                 ))}
             </div>

@@ -1,7 +1,9 @@
 
 
+
+
 import React, { useState, useEffect, FC } from 'react';
-import { AnimatePresence, motion, MotionProps } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
 import { Modal, Search, Tag, ChevronDown } from '@/shared/ui';
 import { MultiCategoryPicker } from './MultiCategoryPicker';
@@ -49,7 +51,7 @@ export const FilterModal: FC<{
         </div>
     );
 
-    const advancedFilterAnimation: MotionProps = {
+    const advancedFilterAnimation = {
         initial: { opacity: 0, height: 0 },
         animate: { opacity: 1, height: 'auto' },
         exit: { opacity: 0, height: 0 },

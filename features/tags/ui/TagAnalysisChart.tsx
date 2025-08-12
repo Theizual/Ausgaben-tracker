@@ -1,7 +1,8 @@
 
 
-import React, { FC, useMemo } from 'react';
+import React, { FC, useMemo, useState } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { clsx } from 'clsx';
 import { useApp } from '@/contexts/AppContext';
 import { formatCurrency, format, parseISO, addMonths, addDays, differenceInDays, startOfDay, isWithinInterval } from '@/shared/utils/dateUtils';
 import type { Transaction, PeriodType } from '@/shared/types';
@@ -54,6 +55,19 @@ interface TagAnalysisChartProps {
 
 export const TagAnalysisChart: FC<TagAnalysisChartProps> = ({ transactions, tagIds, interval, periodType }) => {
     const { tagMap, deLocale } = useApp();
+    const [inactiveLegendItems, setInactiveLegendItems] = useState<string[]>([]);
+    const [hoveredLegendItem, setHoveredLegendItem] = useState<string | null>(null);
+
+    const handleLegendClick = (data: any) => {
+        const { dataKey } = data;
+        setInactiveLegendItems(prev =>
+            prev.includes(dataKey)
+                ? prev.filter(key => key !== dataKey)
+                : [...prev, dataKey]
+        );
+    };
+    const handleLegendHover = (data: any) => setHoveredLegendItem(data.dataKey);
+    const handleLegendLeave = () => setHoveredLegendItem(null);
 
     const chartMetrics = useMemo(() => {
         if (transactions.length === 0) {
@@ -61,7 +75,7 @@ export const TagAnalysisChart: FC<TagAnalysisChartProps> = ({ transactions, tagI
         }
 
         const colors: Record<string, string> = {};
-        const colorPalette = ['#f43f5e', '#3b82f6', '#22c55e', '#f97316', '#a855f7', '#64748b', '#06b6d4', '#d946ef'];
+        const colorPalette = ['#3b82f6', '#ec4899', '#10b981', '#f97316', '#8b5cf6', '#06b6d4', '#eab308', '#ef4444'];
         tagIds.forEach((id, index) => {
             colors[id] = colorPalette[index % colorPalette.length];
         });
@@ -122,7 +136,7 @@ export const TagAnalysisChart: FC<TagAnalysisChartProps> = ({ transactions, tagI
     }, [transactions, tagIds, interval, periodType]);
 
     return (
-        <div className="bg-slate-800/50 p-4 rounded-2xl border border-slate-700/50">
+        <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700">
             <div className="mb-4">
                 <h3 className="font-bold text-white">Ausgaben im Zeitverlauf</h3>
                 <p className="text-sm text-slate-400">{`${format(interval.start, 'd. MMM yyyy', { locale: deLocale })} - ${format(interval.end, 'd. MMM yyyy', { locale: deLocale })}`}</p>
@@ -140,9 +154,28 @@ export const TagAnalysisChart: FC<TagAnalysisChartProps> = ({ transactions, tagI
                         </defs>
                         <CartesianGrid strokeDasharray="3 3" stroke="#475569" strokeOpacity={0.3}/>
                         <XAxis dataKey="date" tickFormatter={(d) => format(parseISO(d), chartMetrics.chartData.length > 31 ? 'MMM yy' : 'd. MMM', {locale: deLocale})} stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} dy={10} />
-                        <YAxis tickFormatter={(v) => formatCurrency(v)} stroke="#94a3b8" fontSize={12} width={80} axisLine={false} tickLine={false} />
+                        <YAxis tickFormatter={(v) => formatCurrency(v)} stroke="#94a3b8" fontSize={12} width={80} axisLine={false} tickLine={false} domain={[0, 'auto']} />
                         <Tooltip content={<CustomTooltip tagMap={tagMap} deLocale={deLocale} />} cursor={{ stroke: '#f43f5e', strokeWidth: 1, strokeDasharray: '3 3' }}/>
-                        <Legend wrapperStyle={{paddingTop: '20px'}} />
+                        <Legend
+                            wrapperStyle={{paddingTop: '20px'}}
+                            onClick={handleLegendClick}
+                            onMouseEnter={handleLegendHover}
+                            onMouseLeave={handleLegendLeave}
+                            formatter={(value, entry) => {
+                                const { dataKey } = entry;
+                                const isInactive = inactiveLegendItems.includes(dataKey as string);
+                                const isDimmed = hoveredLegendItem && hoveredLegendItem !== dataKey;
+                                return (
+                                    <span className={clsx('text-sm cursor-pointer transition-opacity', {
+                                            'text-slate-300': !isInactive,
+                                            'text-slate-500 line-through': isInactive,
+                                            'opacity-50': isDimmed,
+                                        })}>
+                                        {value}
+                                    </span>
+                                );
+                            }}
+                        />
                         {tagIds.map(id => (
                             <Area
                                 key={id}
@@ -151,10 +184,12 @@ export const TagAnalysisChart: FC<TagAnalysisChartProps> = ({ transactions, tagI
                                 name={tagMap.get(id) || 'Unbekannt'}
                                 stroke={chartMetrics.colors[id]}
                                 strokeWidth={2.5}
-                                fillOpacity={1}
+                                fillOpacity={hoveredLegendItem && hoveredLegendItem !== id ? 0.3 : 1}
                                 fill={`url(#color-${id})`}
                                 dot={false}
-                                activeDot={{ r: 6, stroke: '#111827', strokeWidth: 2, fill: chartMetrics.colors[id] }}
+                                activeDot={{ r: 6, stroke: '#1e293b', strokeWidth: 2, fill: chartMetrics.colors[id] }}
+                                hide={inactiveLegendItems.includes(id)}
+                                strokeOpacity={hoveredLegendItem && hoveredLegendItem !== id ? 0.3 : 1}
                             />
                         ))}
                     </AreaChart>

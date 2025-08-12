@@ -1,15 +1,14 @@
 
 
-
 import React from 'react';
-import { motion, MotionProps } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { clsx } from 'clsx';
 
 export const ProgressBar = ({ percentage, color = '#22c55e', className = '' }: { percentage: number; color?: string; className?: string }) => {
-    const barAnimation: MotionProps = {
+    const barAnimation = {
         initial: { width: 0 },
         animate: { width: `${Math.min(100, Math.max(0, percentage))}%` },
-        transition: { duration: 0.8, ease: "easeOut" },
+        transition: { duration: 0.8, ease: "easeOut" as const },
     };
     
     return (

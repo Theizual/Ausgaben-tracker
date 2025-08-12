@@ -1,4 +1,4 @@
-import React, { FC, useMemo } from 'react';
+import React, { FC, useMemo, useState, useEffect } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import type { User, Transaction } from '@/shared/types';
 import { useApp } from '@/contexts/AppContext';
@@ -28,21 +28,40 @@ export const PickerModals: FC<{
     currentTransaction,
     isPickingIcon, setIsPickingIcon, handleIconUpdate, handleIconReset,
 }) => {
-    const { categories, groups, users, tagMap, favoriteIds, toggleFavorite } = useApp();
+    const { categories, groups, users, tagMap, favoriteIds } = useApp();
+    const [expandedCategoryId, setExpandedCategoryId] = useState<string | null>(null);
     const currentTagNames = useMemo(() => (currentTransaction.tagIds || []).map((id:string) => tagMap.get(id)).filter(Boolean) as string[], [currentTransaction.tagIds, tagMap]);
+    
+    useEffect(() => {
+        if (!isPickingCategory) {
+            setExpandedCategoryId(null);
+        }
+    }, [isPickingCategory]);
+
+    const handleCategoryClick = (newCategoryId: string) => {
+        if (expandedCategoryId === newCategoryId) {
+            handleCategoryUpdate(newCategoryId);
+        } else {
+            setExpandedCategoryId(newCategoryId);
+        }
+    };
+
+    const handleModalClose = () => {
+        setIsPickingCategory(false);
+    };
+
 
     return (
         <>
             <AnimatePresence>
                 {isPickingCategory && (
-                     <Modal isOpen={isPickingCategory} onClose={() => setIsPickingCategory(false)} title="Kategorie ändern">
+                     <Modal isOpen={isPickingCategory} onClose={handleModalClose} title="Kategorie ändern">
                         <CategoryButtons 
                             categories={categories}
                             groups={groups}
-                            selectedCategoryId={currentTransaction.categoryId}
-                            onSelectCategory={handleCategoryUpdate}
+                            selectedCategoryId={expandedCategoryId || ''}
+                            onSelectCategory={handleCategoryClick}
                             favoriteIds={favoriteIds}
-                            onToggleFavorite={toggleFavorite}
                         />
                      </Modal>
                 )}

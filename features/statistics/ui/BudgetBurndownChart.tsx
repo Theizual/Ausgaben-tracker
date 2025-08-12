@@ -1,6 +1,8 @@
+
+
 import React, { useMemo, FC, useState, useEffect, useRef } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceDot } from 'recharts';
-import { motion, MotionProps } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { clsx } from 'clsx';
 import type { Transaction, Category } from '@/shared/types';
 import { eachDayOfInterval, format, parseISO, startOfMonth, endOfMonth, isAfter, getDate, getDaysInMonth } from 'date-fns';
@@ -196,9 +198,9 @@ export const BudgetBurndownChart: FC<BudgetBurndownChartProps> = ({ transactions
                     const newCumulative = (cumulativeSpending.get(item.name) || 0) + dailySpendOnItem;
                     cumulativeSpending.set(item.name, newCumulative);
                     const remaining = item.budget - newCumulative;
-                    dataPoint[item.name] = remaining;
+                    dataPoint[item.name] = Math.max(0, remaining);
                     
-                    dataPoint[`${item.name}_trend`] = dayKey === todayKey ? remaining : null;
+                    dataPoint[`${item.name}_trend`] = dayKey === todayKey ? Math.max(0, remaining) : null;
                 } else {
                     dataPoint[item.name] = null;
                     dataPoint[`${item.name}_trend`] = Math.max(0, item.budget - (item.averageDailySpend * dayNumber));
@@ -234,7 +236,7 @@ export const BudgetBurndownChart: FC<BudgetBurndownChartProps> = ({ transactions
     
     const chartHeight = Math.max(320, 150 + activeItems.length * 20);
 
-    const chartAnimation: MotionProps = {
+    const chartAnimation = {
         initial: { opacity: 0, y: 10 },
         animate: { opacity: 1, y: 0 },
         transition: { delay: 0.2 },

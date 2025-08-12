@@ -1,4 +1,5 @@
 
+
 import React, { useState } from 'react';
 import type { FC } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -53,6 +54,12 @@ const TagInput: FC<{
         setTags(tags.filter(tag => tag !== tagToRemove));
     };
 
+    const suggestionsAnimation = {
+        initial: { opacity: 0, y: -5 },
+        animate: { opacity: 1, y: 0 },
+        exit: { opacity: 0, y: -5 },
+    };
+
     return (
         <div className="relative">
             <div className="flex flex-wrap items-center gap-1.5 w-full bg-slate-700 border border-slate-600 rounded-lg px-2 py-1 focus-within:ring-2 focus-within:ring-rose-500">
@@ -60,7 +67,6 @@ const TagInput: FC<{
                 <AnimatePresence>
                     {tags.map(tag => (
                         <motion.div
-                            layout
                             key={tag}
                             initial={{ opacity: 0, scale: 0.8 }}
                             animate={{ opacity: 1, scale: 1 }}
@@ -90,9 +96,7 @@ const TagInput: FC<{
             <AnimatePresence>
                 {suggestions.length > 0 && (
                     <motion.ul 
-                        initial={{ opacity: 0, y: -5 }} 
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -5 }}
+                        {...suggestionsAnimation}
                         className="absolute z-20 top-full mt-1 w-full bg-slate-800 border border-slate-600 rounded-lg shadow-xl overflow-y-auto max-h-48"
                     >
                         {suggestions.map(suggestion => (

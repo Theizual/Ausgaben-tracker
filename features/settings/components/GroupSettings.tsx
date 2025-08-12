@@ -2,6 +2,8 @@
 
 
 
+
+
 import React, { useState, FC } from 'react';
 import { motion, AnimatePresence, MotionProps } from 'framer-motion';
 import { toast } from 'react-hot-toast';
@@ -64,7 +66,7 @@ export const GroupSettings: FC = () => {
         setIsIconPickerOpen(false);
     };
 
-    const settingsAnimation: MotionProps = {
+    const settingsAnimationVariants = {
         initial: { opacity: 0, x: 10 },
         animate: { opacity: 1, x: 0 },
         exit: { opacity: 0, x: -10 }
@@ -72,7 +74,7 @@ export const GroupSettings: FC = () => {
 
     return (
         <>
-            <MotionDiv {...settingsAnimation} key="groups">
+            <MotionDiv variants={settingsAnimationVariants} initial="initial" animate="animate" exit="exit" key="groups">
                 <h3 className="text-lg font-semibold text-white mb-1">Gruppen verwalten</h3>
                 <p className="text-sm text-slate-400 mb-6">
                     Erstellen, bearbeiten und löschen Sie Kategoriegruppen. Passen Sie außerdem die Farbe und das Icon für jede Gruppe individuell an.

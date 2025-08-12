@@ -1,5 +1,7 @@
 
 
+
+
 import React, { FC } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
@@ -44,6 +46,13 @@ export const PeriodNavigator: FC<{
     };
 
     const isNavDisabled = periodType === 'last3Months' || periodType === 'custom';
+    
+    const customAnimation = {
+        initial: { opacity: 0, width: 0 },
+        animate: { opacity: 1, width: 'auto' },
+        exit: { opacity: 0, width: 0 },
+        transition: { duration: 0.3 },
+    };
 
     return (
         <div className="flex flex-col sm:flex-row gap-4 justify-between items-center bg-slate-800/50 p-3 rounded-2xl border border-slate-700/50">
@@ -67,10 +76,7 @@ export const PeriodNavigator: FC<{
                 {periodType === 'custom' ? (
                     <motion.div 
                         key="custom"
-                        initial={{ opacity: 0, width: 0 }}
-                        animate={{ opacity: 1, width: 'auto' }}
-                        exit={{ opacity: 0, width: 0 }}
-                        transition={{ duration: 0.3 }}
+                        {...customAnimation}
                         className="flex items-center gap-2 overflow-hidden"
                     >
                         <input
@@ -90,10 +96,7 @@ export const PeriodNavigator: FC<{
                 ) : (
                     <motion.div 
                         key="nav"
-                        initial={{ opacity: 0, width: 0 }}
-                        animate={{ opacity: 1, width: 'auto' }}
-                        exit={{ opacity: 0, width: 0 }}
-                        transition={{ duration: 0.3 }}
+                        {...customAnimation}
                         className="flex items-center gap-4"
                     >
                         <button onClick={() => changeDate('prev')} disabled={isNavDisabled} className="p-2 rounded-full hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed"><ChevronLeft className="h-5 w-5" /></button>
