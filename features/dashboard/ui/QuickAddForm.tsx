@@ -28,6 +28,7 @@ export const QuickAddForm: FC = () => {
     const [description, setDescription] = useState('');
     const [categoryId, setCategoryId] = useState('');
     const [tags, setTags] = useState<string[]>([]);
+    const [tagInputValue, setTagInputValue] = useState('');
     const [isMoreCategoriesOpen, setIsMoreCategoriesOpen] = useState(false);
 
     const flexibleGroups = useMemo(() => groups.filter(g => g.id !== FIXED_COSTS_GROUP_ID), [groups]);
@@ -82,6 +83,12 @@ export const QuickAddForm: FC = () => {
             }
             return;
         }
+
+        const finalTags = [...tags];
+        const trimmedInput = tagInputValue.trim();
+        if (trimmedInput && !finalTags.includes(trimmedInput)) {
+            finalTags.push(trimmedInput);
+        }
         
         const items = description.split(',').map(d => d.trim()).filter(Boolean);
 
@@ -102,19 +109,20 @@ export const QuickAddForm: FC = () => {
                     amount: itemCents / 100,
                 };
             });
-            addMultipleTransactions(transactionsToCreate, { categoryId, tags });
+            addMultipleTransactions(transactionsToCreate, { categoryId, tags: finalTags });
         } else {
             addTransaction({ 
                 amount: numAmount, 
                 description, 
                 categoryId, 
-                tags,
+                tags: finalTags,
             });
         }
         
         setAmount('');
         setDescription('');
         setTags([]);
+        setTagInputValue('');
         setCategoryId('');
     };
 
@@ -236,6 +244,8 @@ export const QuickAddForm: FC = () => {
                         <TagInput 
                             tags={tags} 
                             setTags={setTags}
+                            inputValue={tagInputValue}
+                            onInputChange={setTagInputValue}
                             allAvailableTags={allAvailableTags}
                         />
                         <AvailableTags 

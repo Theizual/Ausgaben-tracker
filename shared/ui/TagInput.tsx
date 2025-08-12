@@ -7,15 +7,16 @@ import type { Tag as TagType } from '@/shared/types';
 const TagInput: FC<{
     tags: string[];
     setTags: (tags: string[]) => void;
+    inputValue: string;
+    onInputChange: (value: string) => void;
     allAvailableTags: TagType[];
-}> = ({ tags, setTags, allAvailableTags }) => {
-    const [inputValue, setInputValue] = useState('');
+}> = ({ tags, setTags, inputValue, onInputChange, allAvailableTags }) => {
     const [suggestions, setSuggestions] = useState<string[]>([]);
     const suggestionTagNames = allAvailableTags.map(t => t.name);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const value = e.target.value;
-        setInputValue(value);
+        onInputChange(value);
 
         if (value.trim() && suggestionTagNames.length > 0) {
             const filteredSuggestions = suggestionTagNames
@@ -34,7 +35,7 @@ const TagInput: FC<{
         if (newTag && !tags.includes(newTag)) {
             setTags([...tags, newTag]);
         }
-        setInputValue('');
+        onInputChange('');
         setSuggestions([]);
     };
 

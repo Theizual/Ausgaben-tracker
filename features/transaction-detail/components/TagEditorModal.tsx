@@ -12,9 +12,15 @@ export const TagEditorModal: FC<{
 }> = ({ initialTagNames, onSave, onClose }) => {
     const { allAvailableTags } = useApp();
     const [currentTags, setCurrentTags] = useState<string[]>(initialTagNames);
+    const [tagInputValue, setTagInputValue] = useState('');
 
     const handleSave = () => {
-        onSave(currentTags);
+        const finalTags = [...currentTags];
+        const trimmedInput = tagInputValue.trim();
+        if (trimmedInput && !finalTags.includes(trimmedInput)) {
+            finalTags.push(trimmedInput);
+        }
+        onSave(finalTags);
     };
 
     const recentlyUsedTags = useMemo(() => {
@@ -46,6 +52,8 @@ export const TagEditorModal: FC<{
                 <TagInput
                     tags={currentTags}
                     setTags={setCurrentTags}
+                    inputValue={tagInputValue}
+                    onInputChange={setTagInputValue}
                     allAvailableTags={allAvailableTags}
                 />
                 <AvailableTags
