@@ -1,9 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { google } from 'googleapis';
 import { JWT } from 'google-auth-library';
-import { withRetry } from '../../shared/lib/retry.js';
-import { HEADERS, objectsToRows, rowsToObjects } from './utils.js';
-import { getEnv } from './env.js';
+import { withRetry } from '../../shared/lib/retry';
+import { HEADERS, objectsToRows, rowsToObjects } from './utils';
+import { getEnv } from './env';
 
 // Hilfsfunktion: Spaltenindex -> Excel-Buchstabe (1 -> A, 26 -> Z, 27 -> AA, ...)
 function colLetter(n: number): string {
@@ -31,47 +31,6 @@ type Payload = {
   tags?: any[]; users?: any[]; userSettings?: any[];
 };
 
-const isLegacyId = (id: string, prefix: string) => id && !id.startsWith(prefix);
-
-function cleanAndMigrate(
-    items: any[],
-    entity: string,
-    idPrefix: string,
-    pad: number,
-    getNextId: (entity: string, prefix: string, pad: number) => string,
-    idMigrationMap: Map<string, string>,
-    countersChangedRef: { value: boolean }
-) {
-    const migratedItems = (items || []).map(item => {
-        if (item.id && isLegacyId(item.id, idPrefix)) {
-            const newId = getNextId(entity, idPrefix, pad);
-            idMigrationMap.set(item.id, newId);
-            countersChangedRef.value = true;
-            return { ...item, legacyId: item.id, id: newId };
-        }
-        return item;
-    });
-
-    const finalItemsMap = new Map<string, any>();
-    for (const item of migratedItems) {
-        const key = item.legacyId || item.id;
-        const existing = finalItemsMap.get(key);
-
-        if (!existing) {
-            finalItemsMap.set(key, item);
-        } else {
-            if (item.legacyId && !existing.legacyId) {
-                finalItemsMap.set(key, item);
-            } else if (item.legacyId && existing.legacyId) {
-                if (item.id > existing.id) {
-                    finalItemsMap.set(key, item);
-                }
-            }
-        }
-    }
-    return Array.from(finalItemsMap.values());
-}
-
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
@@ -82,66 +41,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const sheets = google.sheets({ version: 'v4', auth });
     const body = (req.body || {}) as Payload;
 
-    // --- ID Migration Logic ---
-    const countersResp = await withRetry(() => sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range: 'Counters!A2:Z' }));
-    const counterRows = (countersResp as any).data.values || [];
-    const counters = new Map<string, number>(counterRows.map(row => [row[0], parseInt(row[1], 10) || 1]));
-
-    const getNextId = (entity: string, prefix: string, pad: number) => {
-        const nextIdNum = counters.get(entity) || 1;
-        counters.set(entity, nextIdNum + 1);
-        return `${prefix}_${String(nextIdNum).padStart(pad, '0')}`;
-    };
-
-    const idMigrationMap = new Map<string, string>();
-    const countersChangedRef = { value: false };
-
-    const migratedItems = {
-      groups:       cleanAndMigrate(body.groups ?? [], 'Group', 'grpId', 5, getNextId, idMigrationMap, countersChangedRef),
-      categories:   cleanAndMigrate(body.categories ?? [], 'Category', 'catId', 5, getNextId, idMigrationMap, countersChangedRef),
-      transactions: cleanAndMigrate(body.transactions ?? [], 'Transaction', 'txId', 7, getNextId, idMigrationMap, countersChangedRef),
-      recurring:    cleanAndMigrate(body.recurring ?? [], 'Recurring', 'recId', 5, getNextId, idMigrationMap, countersChangedRef),
-      tags:         cleanAndMigrate(body.tags ?? [], 'Tag', 'tagId', 5, getNextId, idMigrationMap, countersChangedRef),
-      users:        cleanAndMigrate(body.users ?? [], 'User', 'usrId', 4, getNextId, idMigrationMap, countersChangedRef),
-      userSettings: body.userSettings ?? [],
-    };
-
-    // Update references
-    migratedItems.categories.forEach(cat => {
-        if (cat.groupId && idMigrationMap.has(cat.groupId)) {
-            cat.groupLegacyId = cat.groupId;
-            cat.groupId = idMigrationMap.get(cat.groupId)!;
-        }
-    });
-    migratedItems.transactions.forEach(tx => {
-        if (tx.categoryId && idMigrationMap.has(tx.categoryId)) {
-            tx.categoryLegacyId = tx.categoryId;
-            tx.categoryId = idMigrationMap.get(tx.categoryId)!;
-        }
-        if (tx.recurringId && idMigrationMap.has(tx.recurringId)) {
-            tx.recurringLegacyId = tx.recurringId;
-            tx.recurringId = idMigrationMap.get(tx.recurringId)!;
-        }
-        if (tx.tagIds && Array.isArray(tx.tagIds)) {
-            tx.tagLegacyIds = tx.tagIds.filter(id => idMigrationMap.has(id)).join(',');
-            tx.tagIds = tx.tagIds.map(id => idMigrationMap.get(id) || id);
-        }
-    });
-    migratedItems.recurring.forEach(rec => {
-        if (rec.categoryId && idMigrationMap.has(rec.categoryId)) {
-            rec.categoryLegacyId = rec.categoryId;
-            rec.categoryId = idMigrationMap.get(rec.categoryId)!;
-        }
-    });
-
     const sheetsSpec = [
-      ['Groups',       migratedItems.groups]       as const,
-      ['Categories',   migratedItems.categories]   as const,
-      ['Transactions', migratedItems.transactions] as const,
-      ['Recurring',    migratedItems.recurring]    as const,
-      ['Tags',         migratedItems.tags]         as const,
-      ['Users',        migratedItems.users]        as const,
-      ['UserSettings', migratedItems.userSettings] as const,
+      ['Groups',       body.groups]       as const,
+      ['Categories',   body.categories]   as const,
+      ['Transactions', body.transactions] as const,
+      ['Recurring',    body.recurring]    as const,
+      ['Tags',         body.tags]         as const,
+      ['Users',        body.users]        as const,
+      ['UserSettings', body.userSettings] as const,
     ];
 
     const dataToWrite = sheetsSpec.map(([name, arr]) => {
@@ -150,14 +57,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const lastCol = colLetter(headers.length);
       return { range: `${name}!A1:${lastCol}`, values: [headers, ...rows], majorDimension: 'ROWS' as const };
     });
-
-    if (countersChangedRef.value) {
-        dataToWrite.push({
-            range: 'Counters!A2:Z',
-            values: Array.from(counters.entries()),
-            majorDimension: 'ROWS' as const,
-        });
-    }
 
     await withRetry(() =>
       sheets.spreadsheets.values.batchUpdate({
@@ -182,7 +81,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       userSettings:  rowsToObjects('UserSettings', valueRanges[6]?.values || []),
     };
 
-    return res.status(200).json({ data: out, migrationMap: Object.fromEntries(idMigrationMap) });
+    return res.status(200).json({ data: out, migrationMap: {} });
   } catch (e: any) {
     const msg = e?.message || String(e);
     const code = e?.code || e?.response?.status;

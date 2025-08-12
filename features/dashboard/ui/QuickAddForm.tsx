@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { useApp } from '@/contexts/AppContext';
 import type { Transaction, Category, ViewMode, CategoryId, Tag, Group } from '@/shared/types';
-import { Plus, Coins, Button, Info } from '@/shared/ui';
+import { Plus, Coins, Button } from '@/shared/ui';
 import { CategoryButtons, TagInput, AvailableTags } from '@/shared/ui';
 import { parseISO } from 'date-fns';
 import { FIXED_COSTS_GROUP_ID } from '@/constants';
@@ -168,14 +168,6 @@ export const QuickAddForm: FC = () => {
                     <div className="space-y-2.5">
                         <div className="flex items-center gap-2 mb-1.5 ml-1">
                             <h5 className="text-xs font-bold uppercase tracking-wider text-slate-500">Kategorie wählen</h5>
-                            {favoriteCategories.length === 0 && recentCategories.length === 0 && (
-                                <div className="relative group flex items-center">
-                                    <Info className="h-4 w-4 text-slate-500 cursor-help" />
-                                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 bg-slate-900 text-slate-300 text-xs rounded py-1.5 px-2.5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 shadow-lg border border-slate-700">
-                                        Klicke auf den Stern ⭐ bei einer Kategorie, um sie als Favorit zu speichern und hier schneller darauf zuzugreifen.
-                                    </div>
-                                </div>
-                            )}
                         </div>
                          
                         {quickAddHideGroups ? (

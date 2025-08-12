@@ -60,9 +60,8 @@ const StandardTransactionItem: FC<StandardTransactionItemProps> = ({
             <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                     {isDemo && (
-                        <span className="flex items-center gap-1 bg-purple-600 text-white text-xs font-bold px-1.5 py-0.5 rounded-full flex-shrink-0" title="Demo Eintrag">
+                        <span className="flex items-center gap-1 bg-purple-500/20 text-purple-300 text-xs font-bold px-1.5 py-0.5 rounded-full flex-shrink-0" title="Demo Eintrag">
                              <FlaskConical className="h-3 w-3" />
-                             DEMO
                         </span>
                     )}
                     {isGrouped && (

@@ -7,6 +7,23 @@
 
     <!-- Tailwind via CDN (optional, kann bleiben) -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              'theme-primary': '#e11d48', // rose-600
+              'theme-primary-hover': '#f43f5e', // rose-500
+              'theme-secondary': '#475569', // slate-600
+              'theme-secondary-hover': '#64748b', // slate-500
+              'theme-destructive': '#dc2626', // red-600
+              'theme-destructive-hover': '#ef4444', // red-500
+              'theme-ring': '#f43f5e', // rose-500
+            }
+          }
+        }
+      }
+    </script>
 
     <link rel="stylesheet" href="/index.css" />
     <style>

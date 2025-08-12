@@ -15,11 +15,11 @@ type Action =
 const usersReducer = (state: UsersState, action: Action): UsersState => {
     switch (action.type) {
         case 'SET_USERS':
-            return { ...state, users: action.payload.sort((a, b) => parseInt(a.id, 10) - parseInt(b.id, 10)) };
+            return { ...state, users: action.payload.sort((a, b) => a.id.localeCompare(b.id)) };
         case 'ADD_USER':
-            return { ...state, users: [...state.users, action.payload].sort((a, b) => parseInt(a.id, 10) - parseInt(b.id, 10)) };
+            return { ...state, users: [...state.users, action.payload].sort((a, b) => a.id.localeCompare(b.id)) };
         case 'UPDATE_USER':
-            return { ...state, users: state.users.map(u => u.id === action.payload.id ? action.payload : u).sort((a, b) => parseInt(a.id, 10) - parseInt(b.id, 10)) };
+            return { ...state, users: state.users.map(u => u.id === action.payload.id ? action.payload : u).sort((a, b) => a.id.localeCompare(b.id)) };
         default:
             return state;
     }
@@ -41,8 +41,9 @@ const makeInitializer = (isDemoMode: boolean): (() => UsersState) => () => {
     // If localStorage is empty or corrupt, create the default user.
     const defaultUser: User = {
         id: 'usrId_0001',
-        name: 'Benutzer',
-        color: '#64748b',
+        name: 'Demo-Modus',
+        color: '#8b5cf6', // violet-500
+        isDemo: true,
         lastModified: new Date().toISOString(),
         version: 1
     };
@@ -67,11 +68,12 @@ export const useUsers = ({ isDemoModeEnabled }: { isDemoModeEnabled: boolean }) 
 
     const users = useMemo(() => state.users.filter(u => !u.isDeleted), [state.users]);
     
-    const addUser = useCallback((name: string) => {
+    const addUser = useCallback((name: string): User => {
         const trimmedName = name.trim();
         if (!trimmedName) {
-            toast.error("Benutzername darf nicht leer sein.");
-            return;
+            const err = "Benutzername darf nicht leer sein.";
+            toast.error(err);
+            throw new Error(err);
         }
         const now = new Date().toISOString();
         const newUser: User = {
@@ -79,10 +81,12 @@ export const useUsers = ({ isDemoModeEnabled }: { isDemoModeEnabled: boolean }) 
             name: trimmedName,
             color: `#${Math.floor(Math.random()*16777215).toString(16).padStart(6, '0')}`,
             lastModified: now,
-            version: 1
+            version: 1,
+            isDemo: false,
         };
         dispatch({ type: 'ADD_USER', payload: newUser });
         toast.success(`Benutzer "${trimmedName}" hinzugefügt.`);
+        return newUser;
     }, []);
 
     const updateUser = useCallback((id: string, updates: Partial<Omit<User, 'id' | 'version' | 'lastModified'>>) => {

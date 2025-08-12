@@ -118,9 +118,16 @@ const makeInitializer = (isDemoMode: boolean): (() => DataState) => () => {
     }
 };
 
-interface useTransactionDataProps { showConfirmation: (data: { transactions: Transaction[]; totalSpentBefore: number }) => void; closeTransactionDetail: () => void; currentUserId: string | null; isDemoModeEnabled: boolean; addRecentCategory: (categoryId: CategoryId) => void; }
+interface useTransactionDataProps { 
+    showConfirmation: (data: { transactions: Transaction[]; totalSpentBefore: number }) => void; 
+    closeTransactionDetail: () => void; 
+    currentUserId: string | null; 
+    isDemoModeEnabled: boolean; 
+    addRecentCategory: (categoryId: CategoryId) => void; 
+    showDemoData: boolean;
+}
 
-export const useTransactionData = ({ showConfirmation, closeTransactionDetail, currentUserId, isDemoModeEnabled, addRecentCategory }: useTransactionDataProps) => {
+export const useTransactionData = ({ showConfirmation, closeTransactionDetail, currentUserId, isDemoModeEnabled, addRecentCategory, showDemoData }: useTransactionDataProps) => {
     const prefix = isDemoModeEnabled ? 'demo_' : '';
     const T_KEY = `${prefix}transactions`;
     const TAGS_KEY = `${prefix}allAvailableTags`;
@@ -152,16 +159,16 @@ export const useTransactionData = ({ showConfirmation, closeTransactionDetail, c
     const liveTags = useMemo(() => rawState.tags.filter(t => !t.isDeleted), [rawState.tags]);
     
     const transactions = useMemo(() => {
-        return isDemoModeEnabled && demoData
+        return showDemoData && demoData
             ? sortTransactions([...demoData.transactions, ...liveTransactions])
             : liveTransactions;
-    }, [liveTransactions, isDemoModeEnabled, demoData]);
+    }, [liveTransactions, showDemoData, demoData]);
     
     const allAvailableTags = useMemo(() => {
-        return isDemoModeEnabled && demoData
+        return showDemoData && demoData
             ? [...demoData.tags, ...liveTags]
             : liveTags;
-    }, [liveTags, isDemoModeEnabled, demoData]);
+    }, [liveTags, showDemoData, demoData]);
 
     const recurringTransactions = useMemo(() => rawState.recurring.filter(r => !r.isDeleted), [rawState.recurring]);
     const tagMap = useMemo(() => new Map(allAvailableTags.map(t => [t.id, t.name])), [allAvailableTags]);
@@ -264,11 +271,11 @@ export const useTransactionData = ({ showConfirmation, closeTransactionDetail, c
         dispatch({ type: 'SET_TRANSACTIONS', payload: updatedTransactions });
     }, [rawState.transactions]);
     
-    const reassignUserForTransactions = useCallback((sourceUserId: string, targetUserId: string) => {
+    const reassignUserForTransactions = useCallback((sourceUserId: string, targetUserId: string, onlyNonDemo: boolean = false) => {
         if (!sourceUserId || !targetUserId) return;
         const now = new Date().toISOString();
         const updatedTransactions = rawState.transactions.map(t => 
-            t.createdBy === sourceUserId
+            (t.createdBy === sourceUserId && (!onlyNonDemo || !t.isDemo))
             ? { ...t, createdBy: targetUserId, lastModified: now, version: (t.version || 0) + 1 }
             : t
         );

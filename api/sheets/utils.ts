@@ -1,10 +1,10 @@
 export const HEADERS = {
-  Groups:       ['id','legacyId','name','sortIndex','lastModified','version','isDeleted', 'color', 'isDefault', 'icon'],
-  Categories:   ['id','legacyId','name','color','group','budget','icon','lastModified','version','isDeleted', 'groupId', 'groupLegacyId'],
-  Transactions: ['id','legacyId','amount','description','categoryId','categoryLegacyId','date','tagIds','tagLegacyIds','lastModified','isDeleted','recurringId','recurringLegacyId','version','userId','transactionGroupId','iconOverride'],
-  Recurring:    ['id','legacyId','amount','description','categoryId','categoryLegacyId','frequency','dayOfMonth','startDate','endDate','lastProcessedDate','active','lastModified','version','isDeleted'],
-  Tags:         ['id','legacyId','name','color','lastModified','version','isDeleted'],
-  Users:        ['id','legacyId','name','color','lastModified','version','isDeleted'],
+  Groups:       ['id','name','sortIndex','lastModified','version','isDeleted', 'color', 'isDefault', 'icon'],
+  Categories:   ['id','name','color','budget','icon','lastModified','version','isDeleted', 'groupId'],
+  Transactions: ['id','amount','description','categoryId','date','tagIds','lastModified','isDeleted','recurringId','version','userId','transactionGroupId','iconOverride'],
+  Recurring:    ['id','amount','description','categoryId','frequency','dayOfMonth','startDate','endDate','lastProcessedDate','active','lastModified','version','isDeleted'],
+  Tags:         ['id','name','color','lastModified','version','isDeleted'],
+  Users:        ['id','name','color','lastModified','version','isDeleted'],
   UserSettings: ['userId','key','value','lastModified','version'],
   Counters:     ['entity', 'nextId']
 } as const;
@@ -40,24 +40,14 @@ export function rowsToObjects(sheet: SheetName, rows: any[][] = []): any[] {
     .filter(r => {
       if (!Array.isArray(r) || r.length === 0) return false;
       if (sheet === 'UserSettings') {
-        // key oder settingKey akzeptieren
         return r[0] && String(r[0]).trim() !== '' &&
-               (r[1] && String(r[1]).trim() !== '' || (headers as readonly string[]).indexOf('key') > -1 && r[(headers as readonly string[]).indexOf('key')] || (headers as readonly string[]).indexOf('value') > -1 && r[(headers as readonly string[]).indexOf('value')]);
+               (r[1] && String(r[1]).trim() !== '' || r[2] && String(r[2]).trim() !== '');
       }
       return r[0] && String(r[0]).trim() !== '';
     })
     .map(r => {
       const obj: Record<string, any> = {};
       headers.forEach((h, i) => { obj[h] = r[i] ?? ''; });
-      
-      // Abwärtskompatibilität: Das Frontend (useCategories Hook) löst jetzt `group` (Name) nach `groupId` auf.
-      // Wir behalten das `group`-Feld bei, falls es existiert, aber kopieren es nicht mehr in `groupId`.
-
-      // Backwards-Compat: settingKey/settingValue auf key/value mappen
-      if (sheet === 'UserSettings') {
-        if (!obj.key && (obj as any).settingKey) obj.key = (obj as any).settingKey;
-        if (!obj.value && (obj as any).settingValue) obj.value = (obj as any).settingValue;
-      }
 
       // Robust number parsing
       if (sheet === 'Transactions' || sheet === 'Recurring') {
@@ -71,6 +61,9 @@ export function rowsToObjects(sheet: SheetName, rows: any[][] = []): any[] {
       }
 
       // Robust date parsing
+      if ('lastModified' in obj && obj.lastModified) {
+        obj.lastModified = parseGermanDateToISO(obj.lastModified);
+      }
       if (sheet === 'Transactions') {
         if (obj.date) obj.date = parseGermanDateToISO(obj.date);
       }
@@ -111,7 +104,8 @@ export function rowsToObjects(sheet: SheetName, rows: any[][] = []): any[] {
       }
 
       if ('version' in obj) {
-        obj.version = Number(obj.version) || 0;
+        const parsedVersion = parseInt(String(obj.version).replace(',', '.'), 10);
+        obj.version = isNaN(parsedVersion) ? 0 : parsedVersion;
       } else {
         (obj as any).version = 0;
       }
@@ -123,15 +117,14 @@ export function rowsToObjects(sheet: SheetName, rows: any[][] = []): any[] {
 export function objectsToRows(sheet: SheetName, items: any[] = []): any[][] {
   const headers = HEADERS[sheet];
   return items.map(it => headers.map(h => {
-    // Schreibe immer groupId, ignoriere den alten 'group' Header
-    if (h === 'group' && sheet === 'Categories') return '';
-    
     // Map createdBy (App) -> userId (Sheet) für Transactions
     const val = h === 'userId' && sheet === 'Transactions' ? it.createdBy : it[h];
 
     if (Array.isArray(val)) return val.join(',');
-    if (typeof val === 'number')
-      return val.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    if (typeof val === 'number') {
+        if (h === 'version' || h === 'sortIndex') return val;
+        return val.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
 
     if (h === 'date' || h === 'startDate' || h === 'endDate' || h === 'lastModified' || h === 'lastProcessedDate') {
       try {

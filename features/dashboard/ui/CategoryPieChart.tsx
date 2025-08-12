@@ -1,4 +1,5 @@
 
+
 import React, { useState, useMemo, useEffect, FC, useRef } from 'react';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend, Sector } from 'recharts';
 import { useApp } from '@/contexts/AppContext';
@@ -82,7 +83,7 @@ export const CategoryPieChart: React.FC<CategoryPieChartProps> = ({ transactions
   const getCategoryById = (id: string): Category | undefined => categoryMap.get(id);
 
   const [isMobileView, setIsMobileView] = useState(false);
-  const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  const [activeIndex, setActiveIndex] = useState<number | undefined>(undefined);
   const chartRef = useRef<HTMLDivElement>(null);
   
   const totalSpent = useMemo(() => transactions.reduce((sum, t) => sum + t.amount, 0), [transactions]);
@@ -97,12 +98,12 @@ export const CategoryPieChart: React.FC<CategoryPieChartProps> = ({ transactions
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (chartRef.current && !chartRef.current.contains(event.target as Node)) {
-        setActiveIndex(null);
+        setActiveIndex(undefined);
       }
     };
     const handleEscape = (event: KeyboardEvent) => {
         if (event.key === 'Escape') {
-            setActiveIndex(null);
+            setActiveIndex(undefined);
         }
     };
     
@@ -163,7 +164,7 @@ export const CategoryPieChart: React.FC<CategoryPieChartProps> = ({ transactions
   };
 
   const onPieClick = (_: any, index: number) => {
-      setActiveIndex(prevIndex => (prevIndex === index ? null : index));
+      setActiveIndex(prevIndex => (prevIndex === index ? undefined : index));
   };
 
   if (transactions.length === 0) {
@@ -185,7 +186,8 @@ export const CategoryPieChart: React.FC<CategoryPieChartProps> = ({ transactions
                 isAnimationActive={false}
             />
             <Pie
-            activeIndex={activeIndex ?? undefined}
+            // @ts-ignore
+            activeIndex={activeIndex}
             activeShape={renderActiveShape}
             onClick={onPieClick}
             data={data}

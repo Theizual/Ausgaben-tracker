@@ -1,3 +1,4 @@
+
 export interface User {
   id: string;
   name: string;
@@ -6,6 +7,7 @@ export interface User {
   isDeleted?: boolean;
   version: number;
   conflicted?: boolean;
+  isDemo?: boolean;
 }
 
 export interface Group {
@@ -39,7 +41,6 @@ export interface Category {
   icon: string;
   budget?: number;
   groupId: string;
-  groupLegacyId?: string;
   lastModified: string; // ISO string
   isDeleted?: boolean;
   version: number;
@@ -51,12 +52,9 @@ export interface Transaction {
   amount: number;
   description: string;
   categoryId: string;
-  categoryLegacyId?: string;
   date: string; // ISO string format
   tagIds?: string[];
-  tagLegacyIds?: string;
   recurringId?: string;
-  recurringLegacyId?: string;
   lastModified: string; // ISO string
   isDeleted?: boolean;
   version: number;

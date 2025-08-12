@@ -1,5 +1,3 @@
-
-
 import React, { useState, useRef, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
@@ -30,6 +28,9 @@ export const UserSelector: React.FC = () => {
         setIsOpen(false);
         openSettings('general');
     };
+    
+    const hasRealUsers = users.some(u => !u.isDemo);
+    const usersForDropdown = hasRealUsers ? users.filter(u => !u.isDemo) : users;
 
     if (users.length === 0) {
         return (
@@ -61,7 +62,7 @@ export const UserSelector: React.FC = () => {
                         className="absolute z-40 top-full mt-2 right-0 w-60 bg-slate-800 border border-slate-700 rounded-lg shadow-xl py-2"
                     >
                          <p className="px-4 py-1 text-xs text-slate-400 font-semibold uppercase">Benutzer wechseln</p>
-                        {users.map(user => (
+                        {usersForDropdown.map(user => (
                             <button
                                 key={user.id}
                                 onClick={() => {

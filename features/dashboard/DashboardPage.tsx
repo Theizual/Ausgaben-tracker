@@ -1,11 +1,13 @@
 
-import React, { useState, useMemo, useEffect } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+
+
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { AnimatePresence, motion, Variants } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
 import type { Transaction, ViewMode, Category } from '@/shared/types';
 import { format, parseISO, isWithinInterval, startOfMonth, endOfMonth, startOfWeek, endOfWeek, isSameDay } from 'date-fns';
 import { formatCurrency } from '@/shared/utils/dateUtils';
-import { Wallet, getIconComponent, Calendar, CalendarDays } from '@/shared/ui';
+import { Wallet, getIconComponent, Calendar, CalendarDays, ChevronDown } from '@/shared/ui';
 import { FIXED_COSTS_GROUP_ID } from '@/constants';
 import { StandardTransactionItem } from '@/shared/ui';
 import { CategoryPieChart } from './ui/CategoryPieChart';
@@ -13,6 +15,7 @@ import { QuickAddForm } from './ui/QuickAddForm';
 import { MoreCategoriesModal } from './ui/MoreCategoriesModal';
 import { ViewTabs } from './ui/ViewTabs';
 import { BudgetProgressBar } from '@/shared/ui/BudgetProgressBar';
+import useLocalStorage from '@/shared/hooks/useLocalStorage';
 
 const DashboardPage = () => {
     const {
@@ -30,6 +33,7 @@ const DashboardPage = () => {
     } = useApp();
 
     const [expandedBudgetId, setExpandedBudgetId] = useState<string | null>(null);
+    const [expandedBudgetGroupIds, setExpandedBudgetGroupIds] = useLocalStorage<string[] | null>('dashboard-budget-groups-expanded', null);
     
     const { filteredTransactions, totalExpenses, todaysExpenses, totalExpensesLabel, todaysExpensesLabel, monthlyTransactions } = useMemo(() => {
         const now = new Date();
@@ -121,6 +125,22 @@ const DashboardPage = () => {
         return { groupedBudgetedCategories: result, spendingByCategory: spendingMap };
     }, [monthlyTransactions, flexibleCategories, groups]);
 
+    useEffect(() => {
+        // On first load when there's no stored preference, expand all groups by default.
+        if (expandedBudgetGroupIds === null && groupedBudgetedCategories.length > 0) {
+            setExpandedBudgetGroupIds(groupedBudgetedCategories.map(g => g.group.id));
+        }
+    }, [groupedBudgetedCategories, expandedBudgetGroupIds, setExpandedBudgetGroupIds]);
+
+    const toggleBudgetGroup = (groupId: string) => {
+        if (expandedBudgetGroupIds === null) return;
+        setExpandedBudgetGroupIds(prev =>
+            prev && prev.includes(groupId)
+                ? prev.filter(id => id !== groupId)
+                : [...(prev || []), groupId]
+        );
+    };
+
     const totalBudgetPercentage = totalMonthlyBudget > 0 ? (totalSpentThisMonth / totalMonthlyBudget) * 100 : 0;
     
     const hasAnyBudgetedCategories = groupedBudgetedCategories.length > 0;
@@ -146,6 +166,12 @@ const DashboardPage = () => {
         initial: { opacity: 0, height: 0, marginTop: 0 },
         animate: { opacity: 1, height: 'auto', marginTop: '1rem' },
         exit: { opacity: 0, height: 0, marginTop: 0 },
+    };
+
+    const budgetGroupContentAnimation: Variants = {
+        initial: { opacity: 0, height: 0 },
+        animate: { opacity: 1, height: 'auto', transition: { duration: 0.2, ease: 'easeInOut' } },
+        exit: { opacity: 0, height: 0, transition: { duration: 0.2, ease: 'easeInOut' } },
     };
 
 
@@ -233,13 +259,15 @@ const DashboardPage = () => {
                                 {groupedBudgetedCategories.map(({group, ...data}) => {
                                     const groupPercentage = data.totalBudget > 0 ? (data.totalSpent / data.totalBudget) * 100 : (data.totalSpent > 0 ? 101 : 0);
                                     const GroupIcon = getIconComponent(group.icon);
+                                    const isGroupExpanded = expandedBudgetGroupIds?.includes(group.id) ?? true;
                                     
                                     return (
-                                        <div key={group.id} className="relative bg-slate-700/30 p-3 rounded-lg space-y-3 overflow-hidden">
+                                        <div key={group.id} className="relative bg-slate-700/30 p-3 rounded-lg overflow-hidden">
                                             <div className="absolute inset-0 pointer-events-none" style={{ backgroundColor: group.color || '#64748b', opacity: 0.07 }}></div>
                                             <div className="relative flex flex-col">
-                                                <div className="flex justify-between items-center text-sm mb-1.5">
+                                                <button onClick={() => toggleBudgetGroup(group.id)} className="w-full flex justify-between items-center text-sm mb-1.5 text-left" aria-expanded={isGroupExpanded}>
                                                     <div className="flex items-center gap-3 truncate">
+                                                         <ChevronDown className={`h-5 w-5 flex-shrink-0 text-slate-400 transition-transform ${isGroupExpanded ? 'rotate-180' : ''}`} aria-hidden="true" />
                                                         <GroupIcon className="h-5 w-5 flex-shrink-0" style={{ color: group.color }} />
                                                         <span className="font-bold text-white truncate">{group.name}</span>
                                                     </div>
@@ -247,66 +275,76 @@ const DashboardPage = () => {
                                                         {formatCurrency(data.totalSpent)}
                                                         <span className="text-slate-500 text-xs"> / {formatCurrency(data.totalBudget)}</span>
                                                     </div>
-                                                </div>
+                                                </button>
                                                 <BudgetProgressBar percentage={groupPercentage} color={group.color} />
                                             </div>
-
-                                            <div className="relative space-y-4 pt-3 ml-4 pl-4 border-l-2 border-slate-600/50">
-                                                {data.categories.map((category: Category) => {
-                                                    const spent = spendingByCategory.get(category.id) || 0;
-                                                    const budget = category.budget!;
-                                                    const percentage = budget > 0 ? (spent / budget) * 100 : (spent > 0 ? 101 : 0);
-                                                    const Icon = getIconComponent(category.icon);
-                                                    const isExpanded = expandedBudgetId === category.id;
-                                                    
-                                                    return (
-                                                        <div key={category.id}>
-                                                            <div
-                                                                className="flex flex-col cursor-pointer"
-                                                                onClick={() => setExpandedBudgetId(isExpanded ? null : category.id)}
-                                                            >
-                                                                <div className="flex justify-between items-center text-sm mb-1.5">
-                                                                    <div className="flex items-center gap-3 truncate">
-                                                                        <Icon className="h-4 w-4 flex-shrink-0" style={{ color: category.color }} />
-                                                                        <span className="font-medium text-white truncate">{category.name}</span>
-                                                                        {/* ChevronDown should be imported from ui */}
-                                                                    </div>
-                                                                    <div className="font-semibold text-white flex-shrink-0 pl-2">
-                                                                        {formatCurrency(spent)}
-                                                                        <span className="text-slate-500 text-xs"> / {formatCurrency(budget)}</span>
-                                                                    </div>
-                                                                </div>
-                                                                <BudgetProgressBar percentage={percentage} color={category.color} />
-                                                            </div>
-                                                            <AnimatePresence>
-                                                                {isExpanded && (
-                                                                    <motion.div
-                                                                        {...transactionDetailsAnimation}
-                                                                        className="overflow-hidden"
-                                                                    >
-                                                                        <div className="ml-4 pl-4 border-l-2 border-slate-600/50 space-y-1">
-                                                                            {monthlyTransactions.filter(t => t.categoryId === category.id)
-                                                                                .sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime())
-                                                                                .map(t => (
-                                                                                    <StandardTransactionItem
-                                                                                        key={t.id}
-                                                                                        transaction={t}
-                                                                                        onClick={() => handleTransactionClick(t)}
-                                                                                        showSublineInList="date"
-                                                                                    />
-                                                                                ))
-                                                                            }
-                                                                            {monthlyTransactions.filter(t => t.categoryId === category.id).length === 0 && (
-                                                                                <p className="text-slate-500 text-sm p-2">Keine Ausgaben diesen Monat.</p>
-                                                                            )}
+                                            <AnimatePresence>
+                                                {isGroupExpanded && (
+                                                    <motion.div
+                                                        initial="initial"
+                                                        animate="animate"
+                                                        exit="exit"
+                                                        variants={budgetGroupContentAnimation}
+                                                        className="overflow-hidden"
+                                                    >
+                                                        <div className="relative space-y-4 pt-3 ml-4 pl-4 border-l-2 border-slate-600/50">
+                                                            {data.categories.map((category: Category) => {
+                                                                const spent = spendingByCategory.get(category.id) || 0;
+                                                                const budget = category.budget!;
+                                                                const percentage = budget > 0 ? (spent / budget) * 100 : (spent > 0 ? 101 : 0);
+                                                                const Icon = getIconComponent(category.icon);
+                                                                const isExpanded = expandedBudgetId === category.id;
+                                                                
+                                                                return (
+                                                                    <div key={category.id}>
+                                                                        <div
+                                                                            className="flex flex-col cursor-pointer"
+                                                                            onClick={() => setExpandedBudgetId(isExpanded ? null : category.id)}
+                                                                        >
+                                                                            <div className="flex justify-between items-center text-sm mb-1.5">
+                                                                                <div className="flex items-center gap-3 truncate">
+                                                                                    <Icon className="h-4 w-4 flex-shrink-0" style={{ color: category.color }} />
+                                                                                    <span className="font-medium text-white truncate">{category.name}</span>
+                                                                                </div>
+                                                                                <div className="font-semibold text-white flex-shrink-0 pl-2">
+                                                                                    {formatCurrency(spent)}
+                                                                                    <span className="text-slate-500 text-xs"> / {formatCurrency(budget)}</span>
+                                                                                </div>
+                                                                            </div>
+                                                                            <BudgetProgressBar percentage={percentage} color={category.color} />
                                                                         </div>
-                                                                    </motion.div>
-                                                                )}
-                                                            </AnimatePresence>
+                                                                        <AnimatePresence>
+                                                                            {isExpanded && (
+                                                                                <motion.div
+                                                                                    {...transactionDetailsAnimation}
+                                                                                    className="overflow-hidden"
+                                                                                >
+                                                                                    <div className="ml-4 pl-4 border-l-2 border-slate-600/50 space-y-1">
+                                                                                        {monthlyTransactions.filter(t => t.categoryId === category.id)
+                                                                                            .sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime())
+                                                                                            .map(t => (
+                                                                                                <StandardTransactionItem
+                                                                                                    key={t.id}
+                                                                                                    transaction={t}
+                                                                                                    onClick={() => handleTransactionClick(t)}
+                                                                                                    showSublineInList="date"
+                                                                                                />
+                                                                                            ))
+                                                                                        }
+                                                                                        {monthlyTransactions.filter(t => t.categoryId === category.id).length === 0 && (
+                                                                                            <p className="text-slate-500 text-sm p-2">Keine Ausgaben diesen Monat.</p>
+                                                                                        )}
+                                                                                    </div>
+                                                                                </motion.div>
+                                                                            )}
+                                                                        </AnimatePresence>
+                                                                    </div>
+                                                                );
+                                                            })}
                                                         </div>
-                                                    );
-                                                })}
-                                            </div>
+                                                    </motion.div>
+                                                )}
+                                            </AnimatePresence>
                                         </div>
                                     );
                                 })}

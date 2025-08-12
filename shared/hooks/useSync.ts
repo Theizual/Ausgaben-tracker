@@ -1,4 +1,3 @@
-
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'react-hot-toast';
 import useLocalStorage from '@/shared/hooks/useLocalStorage';
@@ -75,46 +74,6 @@ interface ConflictData {
 
 type SyncStatus = 'idle' | 'loading' | 'syncing' | 'success' | 'error' | 'conflict';
 
-function resolveLegacyIds(data: ReadApiResponse): ReadApiResponse {
-    const { groups, categories, transactions, recurring, tags } = data || {};
-
-    const buildLegacyMap = (items: ({ id: string; legacyId?: string } | undefined)[] | undefined) => {
-        const map = new Map<string, string>();
-        (items || []).forEach(item => {
-            if (item && item.legacyId && item.id && item.legacyId !== item.id) {
-                map.set(item.legacyId, item.id);
-            }
-        });
-        return map;
-    };
-    
-    const groupsLegacyMap = buildLegacyMap(groups);
-    const categoriesLegacyMap = buildLegacyMap(categories);
-    const recurringLegacyMap = buildLegacyMap(recurring);
-    const tagsLegacyMap = buildLegacyMap(tags);
-    
-    const resolveId = (id: string | undefined, map: Map<string, string>) => (id ? map.get(id) || id : undefined);
-
-    const resolvedCategories = (categories || []).map(cat => ({
-        ...cat,
-        groupId: resolveId(cat.groupId, groupsLegacyMap)!,
-    }));
-
-    const resolvedTransactions = (transactions || []).map(tx => ({
-        ...tx,
-        categoryId: resolveId(tx.categoryId, categoriesLegacyMap)!,
-        recurringId: resolveId(tx.recurringId, recurringLegacyMap),
-        tagIds: (tx.tagIds || []).map(id => tagsLegacyMap.get(id) || id).filter(Boolean),
-    }));
-
-    const resolvedRecurring = (recurring || []).map(rec => ({
-        ...rec,
-        categoryId: resolveId(rec.categoryId, categoriesLegacyMap)!,
-    }));
-
-    return { ...data, categories: resolvedCategories, transactions: resolvedTransactions, recurring: resolvedRecurring };
-}
-
 
 export const useSync = (props: SyncProps) => {
     const {
@@ -167,11 +126,11 @@ export const useSync = (props: SyncProps) => {
         
         // --- User Merge Check ---
         if (!isInitialSetupDone) {
-            const localDefaultUserExists = rawUsers.some(u => u.id === 'usrId_0001' && u.name === 'Benutzer' && !u.isDeleted);
-            if (localDefaultUserExists) {
+            const localDemoUserExists = rawUsers.some(u => u.id === 'usrId_0001' && u.isDemo && !u.isDeleted);
+            if (localDemoUserExists) {
                 try {
                     const { users: remoteUsersForCheck }: { users?: User[] } = await apiGet('/api/sheets/read?ranges=Users!A2:Z');
-                    const liveRemoteUsers = remoteUsersForCheck?.filter(u => !u.isDeleted) || [];
+                    const liveRemoteUsers = remoteUsersForCheck?.filter(u => !u.isDeleted && !u.isDemo) || [];
                     if (liveRemoteUsers.length > 0) {
                         openUserMergeModal(liveRemoteUsers);
                         syncInProgressRef.current = false;
@@ -191,36 +150,32 @@ export const useSync = (props: SyncProps) => {
         setSyncError(null);
 
         try {
-            // Push-First Strategy: Send local state to the server directly.
+            // Push-First Strategy: Send local state to the server.
             // The server will overwrite the sheet, read it back, and return the new source of truth.
-            // This ensures the user's latest changes are always sent.
-            const existingModeSetting = rawUserSettings.find(s => s.userId === 'app_meta' && s.key === 'mode');
-            const modeSetting: UserSetting = {
-                userId: 'app_meta',
-                key: 'mode',
-                value: appMode,
-                lastModified: new Date().toISOString(),
-                version: (existingModeSetting?.version || 0) + 1,
-            };
-            const payloadWithoutMode = rawUserSettings.filter(s => !(s.userId === 'app_meta' && s.key === 'mode'));
+            // We explicitly filter out the 'app_meta' mode setting to prevent the client from overwriting it.
+            // The Google Sheet is the single source of truth for the app's mode.
+            const userSettingsForPayload = rawUserSettings.filter(
+                s => !(s.userId === 'app_meta' && s.key === 'mode')
+            );
 
-            const { data: remoteData }: { data: ReadApiResponse; migrationMap: Record<string, string> } = await apiPost('/api/sheets/write', {
+            const payload = {
                 groups: rawGroups,
                 categories: rawCategories,
-                transactions: rawTransactions,
+                transactions: rawTransactions.filter(t => !t.isDemo),
                 recurring: rawRecurringTransactions,
-                tags: rawAllAvailableTags,
+                tags: rawAllAvailableTags.filter(t => !t.isDemo),
                 users: rawUsers,
-                userSettings: [...payloadWithoutMode, modeSetting],
-            });
+                userSettings: userSettingsForPayload,
+            };
+
+            const { data: remoteData }: { data: ReadApiResponse; migrationMap: Record<string, string> } = await apiPost('/api/sheets/write', payload);
             
-            const resolvedData = resolveLegacyIds(remoteData);
-            setCategoriesAndGroups(resolvedData.categories, resolvedData.groups);
-            setTransactions(resolvedData.transactions);
-            setRecurringTransactions(resolvedData.recurring);
-            setAllAvailableTags(resolvedData.tags);
-            setUsers(resolvedData.users);
-            setUserSettings(resolvedData.userSettings);
+            setCategoriesAndGroups(remoteData.categories, remoteData.groups);
+            setTransactions(remoteData.transactions);
+            setRecurringTransactions(remoteData.recurring);
+            setAllAvailableTags(remoteData.tags);
+            setUsers(remoteData.users);
+            setUserSettings(remoteData.userSettings);
 
             setLastSync(new Date().toISOString());
             setSyncStatus('success');
@@ -244,7 +199,7 @@ export const useSync = (props: SyncProps) => {
             syncInProgressRef.current = false;
         }
     }, [
-        isDemoModeEnabled, isInitialSetupDone, setIsInitialSetupDone, appMode,
+        isDemoModeEnabled, isInitialSetupDone, setIsInitialSetupDone,
         rawCategories, rawGroups, rawTransactions, rawRecurringTransactions, rawAllAvailableTags, rawUsers, rawUserSettings,
         handleMergeConflicts, setLastSync, setCategoriesAndGroups, setTransactions, setRecurringTransactions, setAllAvailableTags, setUsers, setUserSettings,
         openUserMergeModal
@@ -258,13 +213,12 @@ export const useSync = (props: SyncProps) => {
 
         try {
             const { data }: { data: ReadApiResponse } = await apiGet('/api/sheets/read');
-            const resolvedData = resolveLegacyIds(data);
-            setCategoriesAndGroups(resolvedData.categories, resolvedData.groups);
-            setTransactions(resolvedData.transactions);
-            setRecurringTransactions(resolvedData.recurring);
-            setAllAvailableTags(resolvedData.tags);
-            setUsers(resolvedData.users);
-            setUserSettings(resolvedData.userSettings);
+            setCategoriesAndGroups(data.categories, data.groups);
+            setTransactions(data.transactions);
+            setRecurringTransactions(data.recurring);
+            setAllAvailableTags(data.tags);
+            setUsers(data.users);
+            setUserSettings(data.userSettings);
             setLastSync(new Date().toISOString());
             setSyncStatus('success');
         } catch (e: any) {

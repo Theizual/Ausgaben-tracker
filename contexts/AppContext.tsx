@@ -18,15 +18,17 @@ import { apiGet } from '@/shared/lib/http';
 
 // Combine the return types of all hooks to define the shape of the context
 type AppContextType = 
-    ReturnType<typeof useTransactionData> &
+    Omit<ReturnType<typeof useTransactionData>, 'reassignUserForTransactions'> &
     ReturnType<typeof useUI> &
-    ReturnType<typeof useUsers> &
+    Omit<ReturnType<typeof useUsers>, 'addUser'> &
     Omit<ReturnType<typeof useUserSettings>, 'setQuickAddHideGroups'> &
     ReturnType<typeof useCategories> &
     ReturnType<typeof useCategoryPreferences> &
     { currentUser: User | null } &
     ReturnType<typeof useSync> &
     { 
+        addUser: (name: string) => User;
+        reassignUserForTransactions: (sourceUserId: string, targetUserId: string, onlyNonDemo?: boolean) => void;
         isDemoModeEnabled: boolean;
         isInitialSetupDone: boolean;
         setIsInitialSetupDone: React.Dispatch<React.SetStateAction<boolean>>;
@@ -39,6 +41,8 @@ type AppContextType =
         handleReassignAndDeleteCategory: (sourceCategoryId: string, targetCategoryId: string) => void;
         quickAddHideGroups: boolean;
         setQuickAddHideGroups: (hide: boolean) => void;
+        showDemoData: boolean;
+        setShowDemoData: React.Dispatch<React.SetStateAction<boolean>>;
     };
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -74,12 +78,14 @@ const ReadyAppProvider: React.FC<{
     // uiState and usersState are now stable and passed as props.
     // The currentUserId is guaranteed to be valid here.
     const deLocale = de;
+    const [showDemoData, setShowDemoData] = useLocalStorage<boolean>(`${appMode}_showDemoData`, true);
+
 
     // This effect transitions the app from demo mode to production mode.
     useEffect(() => {
         if (!isInitialSetupDone) {
-            const firstUser = usersState.users[0];
-            if (firstUser && firstUser.name !== 'Benutzer') {
+            const hasRealUsers = usersState.users.some(u => !u.isDemo);
+            if(hasRealUsers) {
                 setIsInitialSetupDone(true);
             }
         }
@@ -137,6 +143,7 @@ const ReadyAppProvider: React.FC<{
         currentUserId: uiState.currentUserId,
         isDemoModeEnabled: isDemoModeEnabled,
         addRecentCategory: categoryPreferencesState.addRecent,
+        showDemoData: showDemoData,
     });
     
     const enrichedTransactions = useMemo(() => {
@@ -331,6 +338,9 @@ const ReadyAppProvider: React.FC<{
     ]);
 
     const { setQuickAddHideGroups: _, ...restUserSettingsState } = userSettingsState;
+    const { addUser: _addUser, ...restUsersState } = usersState;
+    const { reassignUserForTransactions: _reassign, ...restTxState } = transactionDataState;
+
 
     const value: AppContextType = {
         ...uiState,
@@ -341,11 +351,12 @@ const ReadyAppProvider: React.FC<{
         categoryMap: finalCategoryMap,
         ...categoryPreferencesState,
         totalMonthlyBudget,
-        ...transactionDataState,
+        ...restTxState,
         transactions: enrichedTransactions,
         totalSpentThisMonth,
         totalMonthlyFixedCosts,
-        ...usersState,
+        ...restUsersState,
+        addUser: usersState.addUser,
         ...restUserSettingsState,
         currentUser,
         deleteMultipleTransactions: transactionDataState.deleteMultipleTransactions,
@@ -359,8 +370,11 @@ const ReadyAppProvider: React.FC<{
         resetAppData,
         visibleCategoryGroups,
         handleReassignAndDeleteCategory,
+        reassignUserForTransactions: transactionDataState.reassignUserForTransactions,
         quickAddHideGroups,
         setQuickAddHideGroups,
+        showDemoData,
+        setShowDemoData,
     };
     
     return (

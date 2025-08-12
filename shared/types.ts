@@ -1,5 +1,4 @@
 
-
 export interface User {
   id: string;
   name: string;
@@ -8,6 +7,7 @@ export interface User {
   isDeleted?: boolean;
   version: number;
   conflicted?: boolean;
+  isDemo?: boolean;
 }
 
 export interface Group {

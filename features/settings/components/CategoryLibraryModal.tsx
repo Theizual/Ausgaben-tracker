@@ -10,16 +10,14 @@ import { parseISO } from 'date-fns';
 
 const MotionDiv = motion.div;
 
-export const CategoryLibrarySettings: FC = () => {
+export const CategoryLibrarySettings: FC<{ onEditGroupDesign: (group: Group) => void }> = ({ onEditGroupDesign }) => {
     const { 
-        categories, groups, upsertCategory, deleteCategory, renameGroup, addGroup, deleteGroup, 
+        categories, groups, upsertCategory, deleteCategory, addGroup, deleteGroup, 
         loadStandardConfiguration, unassignedCategories, favoriteIds, toggleFavorite, transactions, openReassignModal
     } = useApp();
 
     const [editingCategory, setEditingCategory] = useState<CategoryFormData | null>(null);
     const [newGroupName, setNewGroupName] = useState('');
-    const [editingGroup, setEditingGroup] = useState<string | null>(null);
-    const [groupNameValue, setGroupNameValue] = useState('');
     
     const { flexibleGroupsData, fixedGroupData } = useMemo(() => {
         const groupMap = new Map<string, Category[]>();
@@ -69,15 +67,6 @@ export const CategoryLibrarySettings: FC = () => {
             // Open the new reassign modal
             openReassignModal(category, txCount, associatedTransactions);
         }
-    };
-
-    const handleRenameGroup = (id: string) => {
-        if (!id || !groupNameValue.trim()) {
-            setEditingGroup(null);
-            return;
-        }
-        renameGroup(id, groupNameValue.trim());
-        setEditingGroup(null);
     };
 
     const handleAddGroup = () => {
@@ -158,19 +147,12 @@ export const CategoryLibrarySettings: FC = () => {
                         const GroupIcon = getIconComponent(group.icon);
                         return (
                         <div key={group.id}>
-                            {editingGroup === group.id ? (
+                            <button onClick={() => onEditGroupDesign(group)} className="w-full text-left rounded p-1 -m-1" title="Gruppen-Design bearbeiten">
                                 <div className="flex items-center gap-2 mb-3">
                                     <GroupIcon className="h-4 w-4 text-slate-500" />
-                                    <input type="text" value={groupNameValue} onChange={(e) => setGroupNameValue(e.target.value)} onBlur={() => handleRenameGroup(group.id)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleRenameGroup(group.id); } if (e.key === 'Escape') { e.preventDefault(); setEditingGroup(null); }}} className="text-xs font-bold uppercase tracking-wider text-white bg-slate-700 rounded p-1 ml-1 w-full max-w-xs focus:ring-2 focus:ring-rose-500 focus:outline-none" autoFocus />
+                                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 hover:text-white transition-colors">{group.name}</h4>
                                 </div>
-                            ) : (
-                                <button onClick={() => { setEditingGroup(group.id); setGroupNameValue(group.name); }} className="w-full text-left rounded p-1 -m-1" title="Gruppenname bearbeiten">
-                                    <div className="flex items-center gap-2 mb-3">
-                                        <GroupIcon className="h-4 w-4 text-slate-500" />
-                                        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 hover:text-white transition-colors">{group.name}</h4>
-                                    </div>
-                                </button>
-                            )}
+                            </button>
                             <div className="flex flex-wrap gap-2">
                                 {group.categories.length > 0 ? (
                                     group.categories.map(category => renderCategoryButton(category, () => handleOpenEditor(category)))
@@ -200,12 +182,14 @@ export const CategoryLibrarySettings: FC = () => {
                         const FixedGroupIcon = getIconComponent(fixedGroupData.icon);
                         return (
                             <div>
-                                <div className="flex items-center gap-2 mb-3">
-                                    <div className="h-4 w-4 text-slate-500">
-                                        <FixedGroupIcon className="h-full w-full" />
+                                <button onClick={() => onEditGroupDesign(fixedGroupData)} className="w-full text-left rounded p-1 -m-1" title="Gruppen-Design bearbeiten">
+                                    <div className="flex items-center gap-2 mb-3">
+                                        <div className="h-4 w-4 text-slate-500">
+                                            <FixedGroupIcon className="h-full w-full" />
+                                        </div>
+                                        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 hover:text-white transition-colors">{fixedGroupData.name}</h4>
                                     </div>
-                                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">{fixedGroupData.name}</h4>
-                                </div>
+                                </button>
                                 <div className="flex flex-wrap gap-2">
                                     {fixedGroupData.categories.map(category => renderCategoryButton(category, () => handleOpenEditor(category)))}
                                     <button onClick={() => handleOpenEditor({ groupId: fixedGroupData.id })} className="w-12 h-12 flex items-center justify-center rounded-lg transition-colors duration-200 border-2 border-dashed border-slate-500 hover:border-slate-400 bg-slate-800/50 hover:bg-slate-700/80" title="Neue Kategorie hinzufügen">

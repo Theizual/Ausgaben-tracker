@@ -3,10 +3,10 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
 import type { Transaction, Category, Group } from '@/shared/types';
 import { format, parseISO } from 'date-fns';
-import { ChevronDown, getIconComponent, ToggleSwitch } from '@/shared/ui';
+import { ChevronDown, getIconComponent } from '@/shared/ui';
 import { formatCurrency } from '@/shared/utils/dateUtils';
 import { StandardTransactionItem } from '@/shared/ui';
-import { FIXED_COSTS_GROUP_ID, FIXED_COSTS_GROUP_NAME } from '@/constants';
+import { FIXED_COSTS_GROUP_ID } from '@/constants';
 import { BudgetProgressBar } from '@/shared/ui/BudgetProgressBar';
 
 export const MonthlyCategoryBreakdown: FC<{ transactions: Transaction[], currentMonth: Date }> = ({ transactions, currentMonth }) => {
@@ -14,7 +14,6 @@ export const MonthlyCategoryBreakdown: FC<{ transactions: Transaction[], current
     const [expandedSupergroups, setExpandedSupergroups] = useState<string[]>(['Variable Kosten']);
     const [expandedGroups, setExpandedGroups] = useState<string[]>([]);
     const [expandedCategoryId, setExpandedCategoryId] = useState<string | null>(null);
-    const [showFixedCosts, setShowFixedCosts] = useState(false);
     const defaultExpandedSet = useRef(false);
 
     const { supergroupedData, spendingByCategory } = useMemo(() => {
@@ -25,25 +24,30 @@ export const MonthlyCategoryBreakdown: FC<{ transactions: Transaction[], current
             }
         });
 
-        const categoriesWithSpending = Array.from(spendingMap.keys()).map(id => categoryMap.get(id)).filter((c): c is Category => !!c);
-
         const groupDataMap = new Map<string, { totalSpent: number; totalBudget: number; categories: Category[]; group: Group }>();
         
+        // 1. Initialize map for each group
         groups.forEach(group => {
-            groupDataMap.set(group.id, { totalSpent: 0, totalBudget: 0, categories: [], group });
+            groupDataMap.set(group.id, { 
+                totalSpent: 0, 
+                totalBudget: 0, 
+                categories: [],
+                group 
+            });
         });
 
-        categoriesWithSpending.forEach(category => {
+        // 2. Populate groups with ALL their categories from the main categoryMap
+        categoryMap.forEach(category => {
             if (groupDataMap.has(category.groupId)) {
                 const groupData = groupDataMap.get(category.groupId)!;
-                groupData.totalSpent += spendingMap.get(category.id) || 0;
                 groupData.categories.push(category);
             }
         });
 
-        groupDataMap.forEach((data, groupId) => {
-            const allCategoriesInGroup = Array.from(categoryMap.values()).filter(c => c.groupId === groupId && c.budget);
-            data.totalBudget = allCategoriesInGroup.reduce((sum, cat) => sum + (cat.budget || 0), 0);
+        // 3. Calculate totals for each group and sort their categories by spending
+        groupDataMap.forEach((data) => {
+            data.totalSpent = data.categories.reduce((sum, cat) => sum + (spendingMap.get(cat.id) || 0), 0);
+            data.totalBudget = data.categories.reduce((sum, cat) => sum + (cat.budget || 0), 0);
             data.categories.sort((a, b) => (spendingMap.get(b.id) || 0) - (spendingMap.get(a.id) || 0));
         });
 
@@ -83,14 +87,7 @@ export const MonthlyCategoryBreakdown: FC<{ transactions: Transaction[], current
         }
     }, [supergroupedData]);
 
-    const dataToRender = useMemo(() => {
-        if (showFixedCosts) {
-            const allGroupData = supergroupedData.flatMap(sg => sg.groups);
-            const total = allGroupData.reduce((sum, group) => sum + group.totalSpent, 0);
-            return [{ name: 'Alle Kosten', total, groups: allGroupData }];
-        }
-        return supergroupedData.filter(sg => sg.name !== 'Fixkosten');
-    }, [supergroupedData, showFixedCosts]);
+    const dataToRender = supergroupedData;
     
     const toggleSupergroup = (name: string) => setExpandedSupergroups(p => p.includes(name) ? p.filter(i => i !== name) : [...p, name]);
     const toggleGroup = (id: string) => setExpandedGroups(p => p.includes(id) ? p.filter(i => i !== id) : [...p, id]);
@@ -120,12 +117,6 @@ export const MonthlyCategoryBreakdown: FC<{ transactions: Transaction[], current
         <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 space-y-4">
             <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
                 <h3 className="text-lg font-bold text-white">Monatsübersicht nach Kategorien</h3>
-                 <div className="flex items-center gap-3 self-end sm:self-center">
-                    <label htmlFor="show-fixed-costs-toggle" className="text-sm font-medium text-slate-300 cursor-pointer">
-                        Fixkosten einblenden
-                    </label>
-                    <ToggleSwitch id="show-fixed-costs-toggle" enabled={showFixedCosts} setEnabled={setShowFixedCosts} />
-                </div>
             </div>
             {dataToRender.map(supergroup => (
                  <div key={supergroup.name} className="bg-slate-700/30 p-2.5 rounded-lg">

@@ -1,9 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { google } from 'googleapis';
 import { JWT } from 'google-auth-library';
-import { withRetry } from '../../shared/lib/retry.js';
-import { rowsToObjects } from './utils.js';
-import { getEnv } from './env.js';
+import { withRetry } from '../../shared/lib/retry';
+import { rowsToObjects } from './utils';
+import { getEnv } from './env';
 
 function getAuth() {
   const email = getEnv('GOOGLE_SERVICE_ACCOUNT_EMAIL');

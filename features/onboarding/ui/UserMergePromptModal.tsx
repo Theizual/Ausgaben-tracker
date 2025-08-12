@@ -1,4 +1,3 @@
-
 import React, { FC, useState } from 'react';
 import { useApp } from '@/contexts/AppContext';
 import type { User } from '@/shared/types';
@@ -15,44 +14,52 @@ export const UserMergePromptModal: FC<UserMergePromptModalProps> = ({ isOpen, re
     const { 
         setCurrentUserId, 
         reassignUserForTransactions, 
-        deleteUser, 
-        updateUser, 
+        addUser,
         users: localUsers,
         setIsInitialSetupDone
     } = useApp();
 
-    const [newUserName, setNewUserName] = useState(localUsers.find(u => u.id === 'usrId_0001')?.name || 'Benutzer');
+    const localDemoUser = localUsers.find(u => u.id === 'usrId_0001');
+    const [newUserName, setNewUserName] = useState(localDemoUser?.name !== 'Demo-Modus' ? localDemoUser?.name || '' : '');
 
     const handleSelect = (selectedUser: User) => {
         toast.loading('Benutzer wird zugeordnet...', { id: 'merge-toast' });
         
-        // Only reassign and delete if the target is a different user
-        if (selectedUser.id !== 'usrId_0001') {
-            reassignUserForTransactions('usrId_0001', selectedUser.id);
-            deleteUser('usrId_0001'); // This will mark it as deleted
-        }
+        // Reassign any local non-demo transactions from the demo user to the selected remote user.
+        reassignUserForTransactions('usrId_0001', selectedUser.id, true);
         
         setCurrentUserId(selectedUser.id);
         
         toast.success(`Willkommen zurück, ${selectedUser.name}!`, { id: 'merge-toast' });
         onClose();
         
-        // This state change will trigger the sync effect in AppContext
+        // This state change will trigger the final sync in AppContext
         setIsInitialSetupDone(true);
     };
     
     const handleCreate = () => {
-        if (!newUserName.trim()) {
+        const trimmedName = newUserName.trim();
+        if (!trimmedName) {
             toast.error('Bitte gib einen Namen ein.');
             return;
         }
         toast.loading('Neuer Benutzer wird angelegt...', { id: 'merge-toast' });
-        updateUser('usrId_0001', { name: newUserName.trim() });
-        toast.success(`Benutzer "${newUserName.trim()}" angelegt!`, { id: 'merge-toast' });
-        onClose();
+        
+        try {
+            const newUser = addUser(trimmedName);
+            // Reassign any local non-demo transactions to the new user.
+            reassignUserForTransactions('usrId_0001', newUser.id, true);
+            setCurrentUserId(newUser.id); // Ensure this new user is selected.
 
-        // This state change will trigger the sync effect in AppContext
-        setIsInitialSetupDone(true);
+            toast.success(`Benutzer "${trimmedName}" angelegt!`, { id: 'merge-toast' });
+            onClose();
+
+            // This state change will trigger the final sync in AppContext
+            setIsInitialSetupDone(true);
+        } catch (e: any) {
+            // addUser can throw an error if name is empty, which we already check, but this is for safety.
+             toast.error(e.message, { id: 'merge-toast' });
+        }
     };
 
     return (

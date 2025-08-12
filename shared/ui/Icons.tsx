@@ -1,3 +1,4 @@
+
 import {
   Anchor, Antenna, Apple, Armchair, AtSign, Atom, Award, Axe, Baby,
   Backpack, BaggageClaim, Banana, BarChart2, Bath, Bean, BedDouble, Beef, Beer,
@@ -30,6 +31,7 @@ import {
   Truck, Tv, Tv2, TvMinimalPlay, Twitch, Twitter, Umbrella, University, User,
   Users, Utensils, UtensilsCrossed, Vegan, VenetianMask, Video, Videotape,
   Volleyball, Wallet, Watch, Waves, Wifi, Wine, Wrench, X, Youtube, Zap,
+  Minus, ArrowLeftRight, ArrowUpDown,
 } from 'lucide-react';
 import type { LucideProps } from 'lucide-react';
 import type { FC } from 'react';
@@ -66,6 +68,7 @@ export const iconMap: { [key: string]: FC<LucideProps> } = {
   Truck, Tv, Tv2, TvMinimalPlay, Twitch, Twitter, Umbrella, University, User,
   Users, Utensils, UtensilsCrossed, Vegan, VenetianMask, Video, Videotape,
   Volleyball, Wallet, Watch, Waves, Wifi, Wine, Wrench, X, Youtube, Zap,
+  Minus, ArrowLeftRight, ArrowUpDown,
 };
 
 export {
@@ -101,6 +104,7 @@ export {
   Twitch, Twitter, Umbrella, University, User, Users, Utensils, UtensilsCrossed,
   Vegan, VenetianMask, Video, Videotape, Volleyball, Wallet, Watch, Waves, Wifi,
   Wine, Wrench, X, Youtube, Zap,
+  Minus, ArrowLeftRight, ArrowUpDown,
 };
 
 /** Fallback liefert ein valides Icon, wenn key unbekannt. */

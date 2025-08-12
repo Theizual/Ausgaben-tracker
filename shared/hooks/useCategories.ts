@@ -51,6 +51,7 @@ const categoriesReducer = (state: CategoriesState, action: Action): CategoriesSt
                         budget: update.budget === undefined ? 0 : update.budget,
                         lastModified: now,
                         version: 1,
+                        isDeleted: false,
                     };
                     categoriesMap.set(id, newCategory);
                 }
@@ -197,7 +198,10 @@ export const useCategories = ({ rawUserSettings, updateCategoryConfigurationForU
     }, []);
     
     const upsertMultipleCategories = useCallback((categoriesData: (Partial<Category> & { id: string })[]) => {
-        dispatch({ type: 'UPSERT_MULTIPLE_CATEGORIES', payload: categoriesData });
+        // Ensure that when a category is upserted, it is marked as not deleted.
+        // This is crucial for "restoring" standard categories from the library.
+        const payload = categoriesData.map(c => ({ ...c, isDeleted: false }));
+        dispatch({ type: 'UPSERT_MULTIPLE_CATEGORIES', payload });
     }, []);
 
     const upsertCategory = useCallback((categoryData: Partial<Category> & { id: string }) => {

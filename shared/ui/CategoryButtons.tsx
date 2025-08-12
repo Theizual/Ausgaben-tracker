@@ -145,19 +145,22 @@ const CategoryButtons: FC<{
     }
     
     return (
-        <div className="space-y-4">
+        <div className="space-y-3">
             {groupedCategories?.map(group => {
                 const GroupIcon = getIconComponent(group.icon);
                 return (
-                    <div key={group.id}>
-                        <div className="flex items-center gap-2 mb-2">
-                            <GroupIcon className="h-4 w-4 text-slate-500" />
-                            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">{group.name}</h4>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                            {group.categories.map(category => (
-                                <CategoryTile key={category.id} {...tileProps(category)} />
-                            ))}
+                    <div key={group.id} className="relative bg-slate-700/30 p-3 rounded-lg overflow-hidden border border-slate-700/50">
+                        <div className="absolute inset-0 pointer-events-none" style={{ backgroundColor: group.color || '#64748b', opacity: 0.1 }}></div>
+                        <div className="relative">
+                            <div className="flex items-center gap-2 mb-2">
+                                <GroupIcon className="h-4 w-4 text-slate-500" />
+                                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">{group.name}</h4>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                                {group.categories.map(category => (
+                                    <CategoryTile key={category.id} {...tileProps(category)} />
+                                ))}
+                            </div>
                         </div>
                     </div>
                 );
