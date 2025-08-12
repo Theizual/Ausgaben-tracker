@@ -38,16 +38,20 @@ const makeInitializer = (isDemoMode: boolean): (() => UsersState) => () => {
         // Failed to parse users from localStorage, will start fresh.
     }
     
-    // If localStorage is empty or corrupt, create the default user.
-    const defaultUser: User = {
-        id: 'usr_demo',
-        name: 'Demo-Modus',
-        color: '#8b5cf6', // violet-500
-        isDemo: true,
-        lastModified: new Date().toISOString(),
-        version: 1
-    };
-    return { users: [defaultUser] };
+    // If localStorage is empty or corrupt, create the default user only in demo mode.
+    if (isDemoMode) {
+        const defaultUser: User = {
+            id: 'usr_demo',
+            name: 'Demo User',
+            color: '#8b5cf6', // violet-500
+            isDemo: true,
+            lastModified: new Date().toISOString(),
+            version: 1
+        };
+        return { users: [defaultUser] };
+    }
+
+    return { users: [] };
 };
 
 export const useUsers = ({ isDemoModeEnabled }: { isDemoModeEnabled: boolean }) => {

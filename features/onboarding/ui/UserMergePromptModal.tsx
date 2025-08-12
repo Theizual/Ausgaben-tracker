@@ -21,7 +21,7 @@ export const UserMergePromptModal: FC<UserMergePromptModalProps> = ({ isOpen, re
     } = useApp();
 
     const localDemoUser = localUsers.find(u => u.id === 'usr_demo');
-    const [newUserName, setNewUserName] = useState(localDemoUser?.name !== 'Demo-Modus' ? localDemoUser?.name || '' : '');
+    const [newUserName, setNewUserName] = useState(localDemoUser?.name !== 'Demo User' ? localDemoUser?.name || '' : '');
 
     const handleSelect = (selectedUser: User) => {
         toast.loading('Benutzer wird zugeordnet...', { id: 'merge-toast' });
