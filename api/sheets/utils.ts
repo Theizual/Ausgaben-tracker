@@ -6,7 +6,6 @@ export const HEADERS = {
   Tags:         ['id','name','color','lastModified','version','isDeleted'],
   Users:        ['id','name','color','lastModified','version','isDeleted'],
   UserSettings: ['userId','key','value','lastModified','version'],
-  Counters:     ['entity', 'nextId']
 } as const;
 
 export type SheetName = keyof typeof HEADERS;

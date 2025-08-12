@@ -23,6 +23,7 @@ GOOGLE_SHEET_ID=your_google_sheet_id
 ### Google Sheet Setup
 
 Your Google Sheet must have the following tabs with the exact names:
+- `Groups`
 - `Categories`
 - `Transactions`
 - `Recurring`
