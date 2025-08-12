@@ -74,6 +74,27 @@ interface ConflictData {
 
 type SyncStatus = 'idle' | 'loading' | 'syncing' | 'success' | 'error' | 'conflict';
 
+/**
+ * Translates common Google API errors into user-friendly German messages.
+ * @param errorMessage The raw error message from the API.
+ * @returns A user-friendly string.
+ */
+const translateGoogleApiError = (errorMessage: string): string => {
+    const lowerCaseError = (errorMessage || '').toLowerCase();
+
+    if (lowerCaseError.includes('permission denied')) {
+        return 'Keine Berechtigung für das Google Sheet. Bitte prüfen Sie die Freigabe-Einstellungen für die Service-Account-E-Mail.';
+    }
+    if (lowerCaseError.includes('unable to parse range') || lowerCaseError.includes('not found')) {
+        return 'Ein Tabellenblatt im Google Sheet konnte nicht gefunden werden. Bitte prüfen Sie die Namen der Tabs (z.B. "Transactions", "Categories").';
+    }
+    if (lowerCaseError.includes('request entity too large')) {
+        return 'Die Datenmenge ist zu groß für eine einzelne Anfrage. Bitte versuchen Sie es später erneut.';
+    }
+    // Return the original message if no specific translation is found
+    return errorMessage || 'Ein unbekannter Fehler ist aufgetreten.';
+};
+
 
 export const useSync = (props: SyncProps) => {
     const {
@@ -192,7 +213,8 @@ export const useSync = (props: SyncProps) => {
                     setSyncStatus('error');
                 }
             } else {
-                setSyncError(e.message);
+                const detailedMessage = translateGoogleApiError(e.message);
+                setSyncError(detailedMessage);
                 setSyncStatus('error');
             }
         } finally {
@@ -222,7 +244,8 @@ export const useSync = (props: SyncProps) => {
             setLastSync(new Date().toISOString());
             setSyncStatus('success');
         } catch (e: any) {
-            setSyncError(e.message);
+            const detailedMessage = translateGoogleApiError(e.message);
+            setSyncError(detailedMessage);
             setSyncStatus('error');
         } finally {
             syncInProgressRef.current = false;

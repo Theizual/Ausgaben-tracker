@@ -85,7 +85,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   } catch (e: any) {
     const msg = e?.message || String(e);
     const code = e?.code || e?.response?.status;
-    console.error('Sheets WRITE error:', { msg, code, stack: e?.stack });
+    console.error('Sheets WRITE error:', e); // Log full error object for better debugging
     return res.status(500).json({ error: 'Failed to write', message: msg, code });
   }
 }
