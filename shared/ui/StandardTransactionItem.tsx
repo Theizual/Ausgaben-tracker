@@ -44,7 +44,7 @@ const StandardTransactionItem: FC<StandardTransactionItemProps> = ({
     
     const sublineText = showSublineInList === 'category'
         ? category.name
-        : transaction.date ? `${format(parseISO(transaction.date), 'dd.MM, HH:mm')} Uhr` : '...';
+        : transaction.date ? `${format(parseISO(transaction.date), 'dd.MM, HH:mm')} Uhr` : '';
 
     const listLayout = (
         <motion.button

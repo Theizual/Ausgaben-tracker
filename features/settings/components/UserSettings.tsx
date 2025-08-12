@@ -2,6 +2,8 @@
 
 
 
+
+
 import React, { useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
@@ -38,7 +40,7 @@ export const UserSettings = () => {
             <h3 className="text-lg font-semibold text-white mb-1">Benutzer verwalten</h3>
             <p className="text-sm text-slate-400 mb-6">Legen Sie Benutzer an, um Ausgaben zuzuordnen. Der aktuell ausgewählte Benutzer wird neuen Transaktionen automatisch zugewiesen.</p>
             <form onSubmit={handleAddUser} className="flex gap-3 mb-6">
-                <input type="text" value={newUserName} onChange={(e) => setNewUserName(e.currentTarget.value)} placeholder="Neuer Benutzername..." className={BASE_INPUT_CLASSES} />
+                <input type="text" value={newUserName} onChange={(e) => setNewUserName(e.currentTarget.value)} placeholder="Neuer Benutzername" className={BASE_INPUT_CLASSES} />
                 <Button type="submit" size="sm"><Plus className="h-4 w-4"/> Hinzufügen</Button>
             </form>
             <div className="space-y-3">

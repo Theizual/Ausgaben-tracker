@@ -10,11 +10,11 @@ This project connects to Google Sheets to store data. You need to create a `.env
 
 ```
 # The email address of your Google Service Account
-GOOGLE_SERVICE_ACCOUNT_EMAIL=your-service-account-email@...
+GOOGLE_SERVICE_ACCOUNT_EMAIL=your-service-account-email@
 
 # The private key for your Google Service Account.
 # Make sure to format it correctly, replacing newlines with \n if necessary.
-GOOGLE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+GOOGLE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n\n-----END PRIVATE KEY-----\n"
 
 # The ID of the Google Sheet you want to use for storage.
 GOOGLE_SHEET_ID=your_google_sheet_id

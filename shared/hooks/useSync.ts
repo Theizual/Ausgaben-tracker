@@ -1,3 +1,4 @@
+
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'react-hot-toast';
 import useLocalStorage from '@/shared/hooks/useLocalStorage';
@@ -23,6 +24,7 @@ export interface SyncProps {
     setIsInitialSetupDone: React.Dispatch<React.SetStateAction<boolean>>;
     currentUserId: string | null;
     appMode: 'demo' | 'standard';
+    openUserMergeModal: (users: User[]) => void;
 }
 
 interface Mergeable {
@@ -118,7 +120,7 @@ export const useSync = (props: SyncProps) => {
     const {
         rawCategories, rawGroups, rawTransactions, rawRecurringTransactions, rawAllAvailableTags, rawUsers, rawUserSettings,
         setCategoriesAndGroups, setTransactions, setRecurringTransactions, setAllAvailableTags, setUsers, setUserSettings,
-        isInitialSetupDone, isDemoModeEnabled, setIsInitialSetupDone, currentUserId, appMode,
+        isInitialSetupDone, isDemoModeEnabled, setIsInitialSetupDone, currentUserId, appMode, openUserMergeModal
     } = props;
     
     const prefix = isDemoModeEnabled ? 'demo_' : '';
@@ -154,6 +156,7 @@ export const useSync = (props: SyncProps) => {
 
     const syncData = useCallback(async (options: { isAuto?: boolean } = {}) => {
         if (syncInProgressRef.current) return;
+        
         if (isDemoModeEnabled && !isInitialSetupDone) {
              if (!window.confirm("Möchten Sie Ihre Demo-Daten in Google Sheets speichern? Dadurch wird eine Verbindung hergestellt und die Synchronisierung aktiviert.")) {
                 return;
@@ -161,26 +164,36 @@ export const useSync = (props: SyncProps) => {
         }
         
         syncInProgressRef.current = true;
+        
+        // --- User Merge Check ---
+        if (!isInitialSetupDone) {
+            const localDefaultUserExists = rawUsers.some(u => u.id === 'usrId_0001' && u.name === 'Benutzer' && !u.isDeleted);
+            if (localDefaultUserExists) {
+                try {
+                    const { users: remoteUsersForCheck }: { users?: User[] } = await apiGet('/api/sheets/read?ranges=Users!A2:Z');
+                    const liveRemoteUsers = remoteUsersForCheck?.filter(u => !u.isDeleted) || [];
+                    if (liveRemoteUsers.length > 0) {
+                        openUserMergeModal(liveRemoteUsers);
+                        syncInProgressRef.current = false;
+                        setSyncStatus('idle');
+                        return; // Abort sync until user resolves the merge
+                    }
+                } catch (e: any) {
+                     toast.error(`Fehler beim Abrufen der Benutzer: ${e.message}`);
+                     syncInProgressRef.current = false;
+                     setSyncStatus('error');
+                     return;
+                }
+            }
+        }
+        
         setSyncStatus(options.isAuto ? 'loading' : 'syncing');
         setSyncError(null);
 
         try {
-            const { data: serverState }: { data: ReadApiResponse } = await apiGet('/api/sheets/read');
-            const remoteUserSettings = serverState.userSettings || [];
-            
-            let userSettingsPayload: UserSetting[];
-            if (currentUserId) {
-                const currentUserLocalSettings = rawUserSettings.filter(s => s.userId === currentUserId);
-                const otherUsersRemoteSettings = remoteUserSettings.filter(s => s.userId !== currentUserId);
-                userSettingsPayload = [...otherUsersRemoteSettings, ...currentUserLocalSettings];
-            } else {
-                toast.error("Kein Benutzer ausgewählt. Synchronisierung abgebrochen.");
-                setSyncStatus('error');
-                setSyncError("Kein Benutzer ausgewählt.");
-                syncInProgressRef.current = false;
-                return;
-            }
-
+            // Push-First Strategy: Send local state to the server directly.
+            // The server will overwrite the sheet, read it back, and return the new source of truth.
+            // This ensures the user's latest changes are always sent.
             const existingModeSetting = rawUserSettings.find(s => s.userId === 'app_meta' && s.key === 'mode');
             const modeSetting: UserSetting = {
                 userId: 'app_meta',
@@ -189,14 +202,16 @@ export const useSync = (props: SyncProps) => {
                 lastModified: new Date().toISOString(),
                 version: (existingModeSetting?.version || 0) + 1,
             };
-            const payloadWithoutMode = userSettingsPayload.filter(s => !(s.userId === 'app_meta' && s.key === 'mode'));
-            const finalPayload = [...payloadWithoutMode, modeSetting];
+            const payloadWithoutMode = rawUserSettings.filter(s => !(s.userId === 'app_meta' && s.key === 'mode'));
 
             const { data: remoteData }: { data: ReadApiResponse; migrationMap: Record<string, string> } = await apiPost('/api/sheets/write', {
                 groups: rawGroups,
                 categories: rawCategories,
-                transactions: rawTransactions, recurring: rawRecurringTransactions,
-                tags: rawAllAvailableTags, users: rawUsers, userSettings: finalPayload,
+                transactions: rawTransactions,
+                recurring: rawRecurringTransactions,
+                tags: rawAllAvailableTags,
+                users: rawUsers,
+                userSettings: [...payloadWithoutMode, modeSetting],
             });
             
             const resolvedData = resolveLegacyIds(remoteData);
@@ -232,7 +247,7 @@ export const useSync = (props: SyncProps) => {
         isDemoModeEnabled, isInitialSetupDone, setIsInitialSetupDone, appMode,
         rawCategories, rawGroups, rawTransactions, rawRecurringTransactions, rawAllAvailableTags, rawUsers, rawUserSettings,
         handleMergeConflicts, setLastSync, setCategoriesAndGroups, setTransactions, setRecurringTransactions, setAllAvailableTags, setUsers, setUserSettings,
-        currentUserId
+        openUserMergeModal
     ]);
 
     const loadFromSheet = useCallback(async () => {

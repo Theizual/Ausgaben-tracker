@@ -5,7 +5,6 @@
 
 
 
-
 import React, { useState } from 'react';
 import { motion, MotionProps } from 'framer-motion';
 import { toast } from 'react-hot-toast';
@@ -83,7 +82,7 @@ export const GroupSettings = () => {
                     value={newGroupName} 
                     onChange={e => setNewGroupName(e.target.value)} 
                     onKeyDown={(e) => e.key === 'Enter' && handleAddGroup()}
-                    placeholder="Neue Gruppe hinzufügen..." 
+                    placeholder="Neue Gruppe hinzufügen" 
                     className="w-full max-w-xs bg-slate-700 border border-slate-600 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-rose-500" 
                 />
                 <Button onClick={handleAddGroup}><Plus className="h-4 w-4"/> Erstellen</Button>

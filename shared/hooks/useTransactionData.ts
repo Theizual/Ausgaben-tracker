@@ -263,6 +263,17 @@ export const useTransactionData = ({ showConfirmation, closeTransactionDetail, c
         );
         dispatch({ type: 'SET_TRANSACTIONS', payload: updatedTransactions });
     }, [rawState.transactions]);
+    
+    const reassignUserForTransactions = useCallback((sourceUserId: string, targetUserId: string) => {
+        if (!sourceUserId || !targetUserId) return;
+        const now = new Date().toISOString();
+        const updatedTransactions = rawState.transactions.map(t => 
+            t.createdBy === sourceUserId
+            ? { ...t, createdBy: targetUserId, lastModified: now, version: (t.version || 0) + 1 }
+            : t
+        );
+        dispatch({ type: 'SET_TRANSACTIONS', payload: updatedTransactions });
+    }, [rawState.transactions]);
 
     const addRecurringTransaction = useCallback((item: Omit<RecurringTransaction, 'id' | 'lastModified' | 'version'>, id: string) => {
         const newRec: RecurringTransaction = { ...item, id: id.startsWith('rec_') ? id : generateUUID('rec'), lastModified: new Date().toISOString(), version: 1 };
@@ -338,5 +349,6 @@ export const useTransactionData = ({ showConfirmation, closeTransactionDetail, c
         addTransaction, addMultipleTransactions, updateTransaction, deleteTransaction, deleteMultipleTransactions,
         addRecurringTransaction, updateRecurringTransaction, deleteRecurringTransaction, handleUpdateTag, handleDeleteTag,
         reassignCategoryForTransactions,
+        reassignUserForTransactions,
     };
 };

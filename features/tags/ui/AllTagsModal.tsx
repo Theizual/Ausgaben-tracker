@@ -1,5 +1,7 @@
 
 
+
+
 import React, { useState, useMemo, FC } from 'react';
 import type { Tag } from '@/shared/types';
 import { Modal, Search, Button, TagPill } from '@/shared/ui';
@@ -35,7 +37,7 @@ export const AllTagsModal: FC<{
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                 <input
                     type="text"
-                    placeholder="Tags suchen..."
+                    placeholder="Tags suchen"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="w-full bg-slate-700 border border-slate-600 rounded-md pl-8 pr-3 py-1.5 text-white placeholder-slate-500 text-sm"

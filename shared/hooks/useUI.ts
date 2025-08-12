@@ -1,8 +1,7 @@
 
-
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { format, subDays } from '@/shared/utils/dateUtils';
-import type { Transaction, ViewMode, PeriodType, QuickFilterId, SettingsTab, Category } from '@/shared/types';
+import type { Transaction, ViewMode, PeriodType, QuickFilterId, SettingsTab, Category, User } from '@/shared/types';
 import useLocalStorage from '@/shared/hooks/useLocalStorage';
 import type { CategoryFormData } from '@/features/settings/components/CategoryEditModal';
 
@@ -21,6 +20,7 @@ export const useUI = (props?: { isDemoModeEnabled: boolean }) => {
     const [transactionForDetail, setTransactionForDetail] = useState<{ transaction: Transaction } | null>(null);
     const [isChangelogOpen, setIsChangelogOpen] = useState(false);
     const [reassignModalInfo, setReassignModalInfo] = useState<{ category: Category | CategoryFormData, txCount: number } | null>(null);
+    const [userMergeModalInfo, setUserMergeModalInfo] = useState<{ remoteUsers: User[] } | null>(null);
     
     // Non-namespaced settings
     const [isChangelogAutoShowEnabled, setIsChangelogAutoShowEnabled] = useLocalStorage('changelogAutoShowEnabled', true);
@@ -80,6 +80,12 @@ export const useUI = (props?: { isDemoModeEnabled: boolean }) => {
         setReassignModalInfo({ category, txCount });
     }, []);
     const closeReassignModal = useCallback(() => setReassignModalInfo(null), []);
+
+    const openUserMergeModal = useCallback((remoteUsers: User[]) => {
+        setUserMergeModalInfo({ remoteUsers });
+    }, []);
+    const closeUserMergeModal = useCallback(() => setUserMergeModalInfo(null), []);
+
 
     // Cross-tab navigation handlers
     const handleTagAnalyticsClick = useCallback((tagId: string) => {
@@ -146,5 +152,10 @@ export const useUI = (props?: { isDemoModeEnabled: boolean }) => {
         reassignModalInfo,
         openReassignModal,
         closeReassignModal,
+
+        // User Merge Modal State
+        userMergeModalInfo,
+        openUserMergeModal,
+        closeUserMergeModal,
     };
 };

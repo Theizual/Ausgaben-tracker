@@ -1,7 +1,4 @@
 
-
-
-
 import React, { useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Toaster } from 'react-hot-toast';
@@ -20,6 +17,7 @@ import useLocalStorage from '@/shared/hooks/useLocalStorage';
 import { SyncPromptToast } from '@/features/sync-prompt/ui/SyncPromptToast';
 import { DeleteCategoryModal } from '@/features/settings/components/DeleteCategoryModal';
 import type { CategoryFormData } from '@/features/settings/components/CategoryEditModal';
+import { UserMergePromptModal } from '@/features/onboarding';
 
 // Main App Component (now a clean layout/composition root)
 const App = () => {
@@ -42,6 +40,8 @@ const App = () => {
         setIsChangelogAutoShowEnabled,
         reassignModalInfo,
         closeReassignModal,
+        userMergeModalInfo,
+        closeUserMergeModal,
         // Sync State & Handlers
         syncOperation,
         lastSync,
@@ -176,6 +176,16 @@ const App = () => {
                         onClose={closeReassignModal}
                         category={reassignModalInfo.category as CategoryFormData}
                         transactionCount={reassignModalInfo.txCount}
+                    />
+                )}
+            </AnimatePresence>
+
+            <AnimatePresence>
+                {userMergeModalInfo && (
+                    <UserMergePromptModal
+                        isOpen={!!userMergeModalInfo}
+                        remoteUsers={userMergeModalInfo.remoteUsers}
+                        onClose={closeUserMergeModal}
                     />
                 )}
             </AnimatePresence>

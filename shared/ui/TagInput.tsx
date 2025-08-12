@@ -1,5 +1,7 @@
 
 
+
+
 import React, { useState } from 'react';
 import type { FC } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -89,7 +91,7 @@ const TagInput: FC<{
                     onKeyDown={handleKeyDown}
                     onFocus={handleInputChange}
                     onBlur={() => setTimeout(() => setSuggestions([]), 150)}
-                    placeholder={tags.length === 0 ? "Tags hinzufügen..." : ""}
+                    placeholder={tags.length === 0 ? "Tags hinzufügen" : ""}
                     className="bg-transparent text-white placeholder-slate-500 flex-grow focus:outline-none text-sm min-w-[100px]"
                 />
             </div>

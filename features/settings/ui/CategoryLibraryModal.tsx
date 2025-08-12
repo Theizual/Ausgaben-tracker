@@ -1,5 +1,7 @@
 
 
+
+
 import React, { useState, useMemo, FC } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
@@ -136,7 +138,7 @@ export const CategoryLibraryModal: FC<{ isOpen: boolean; onClose: () => void; }>
 
                     {/* 2. ADD NEW GROUP */}
                     <div className="flex gap-3">
-                        <input type="text" value={newGroupName} onChange={e => setNewGroupName(e.target.value)} placeholder="Neue Gruppe hinzufügen..." className="w-full max-w-xs bg-theme-input border border-theme-border rounded-md px-3 py-2 text-white placeholder-theme-text-muted focus:outline-none focus:ring-2 focus:ring-theme-ring" />
+                        <input type="text" value={newGroupName} onChange={e => setNewGroupName(e.target.value)} placeholder="Neue Gruppe hinzufügen" className="w-full max-w-xs bg-theme-input border border-theme-border rounded-md px-3 py-2 text-white placeholder-theme-text-muted focus:outline-none focus:ring-2 focus:ring-theme-ring" />
                         <Button onClick={handleAddGroup}><Plus className="h-4 w-4"/> Gruppe erstellen</Button>
                     </div>
                     

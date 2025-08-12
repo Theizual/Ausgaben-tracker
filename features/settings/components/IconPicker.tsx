@@ -24,7 +24,7 @@ export const IconPicker: FC<{ onSelect: (iconName: string) => void; onClose: () 
                         <Search className="h-4 w-4 text-slate-400 shrink-0" />
                         <input
                             type="text"
-                            placeholder="Icon suchen..."
+                            placeholder="Icon suchen"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             className="w-full bg-transparent border-none pl-2 py-2 text-white placeholder-slate-500 focus:outline-none"

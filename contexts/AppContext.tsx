@@ -209,16 +209,23 @@ const ReadyAppProvider: React.FC<{
         setIsInitialSetupDone: setIsInitialSetupDone,
         currentUserId: uiState.currentUserId,
         appMode,
+        openUserMergeModal: uiState.openUserMergeModal,
     });
     
-     const { syncStatus, syncError } = syncState;
-     useEffect(() => {
-        if (syncStatus === 'syncing') toast.loading('Synchronisiere Daten...', { id: 'sync-toast' });
-        if (syncStatus === 'loading') toast.loading('Lade Daten vom Server...', { id: 'sync-toast' });
-        if (syncStatus === 'success' && toast.custom) { toast.success('Synchronisierung erfolgreich!', { id: 'sync-toast' });}
-        if (syncStatus === 'error' && syncError) toast.error(`Fehler: ${syncError}`, { id: 'sync-toast' });
-        if (syncStatus === 'conflict') toast.error('Konflikt! Daten wurden zusammengeführt.', { id: 'sync-toast', duration: 5000 });
-     }, [syncStatus, syncError]);
+    const { syncStatus, syncError } = syncState;
+    useEffect(() => {
+        if (syncStatus === 'syncing') {
+            toast.loading('Synchronisiere Daten...', { id: 'sync-toast' });
+        } else if (syncStatus === 'loading') {
+            toast.loading('Lade Daten vom Server...', { id: 'sync-toast' });
+        } else if (syncStatus === 'success') {
+            toast.success('Synchronisierung erfolgreich!', { id: 'sync-toast' });
+        } else if (syncStatus === 'error' && syncError) {
+            toast.error(`Fehler: ${syncError}`, { id: 'sync-toast' });
+        } else if (syncStatus === 'conflict') {
+            toast.error('Konflikt! Daten wurden zusammengeführt.', { id: 'sync-toast', duration: 5000 });
+        }
+    }, [syncStatus, syncError]);
 
 
     const currentUser = useMemo(() => {
@@ -255,6 +262,18 @@ const ReadyAppProvider: React.FC<{
         userSettingsState.rawUserSettings,
         debouncedSync
     ]);
+
+    const isInitialSetupDoneRef = useRef(isInitialSetupDone);
+    useEffect(() => {
+        if (isInitialSetupDoneRef.current === false && isInitialSetupDone === true) {
+            // This transition means the user just finished the merge modal. Time to sync.
+            toast("Setup abgeschlossen. Starte finale Synchronisierung...", { id: 'setup-sync-toast' });
+            syncState.syncData();
+        }
+        // Keep the ref updated for the next render.
+        isInitialSetupDoneRef.current = isInitialSetupDone;
+    }, [isInitialSetupDone, syncState]);
+
 
     const resetAppData = useCallback(() => {
         const mode = isDemoModeEnabled ? 'Demo' : 'Produktiv';

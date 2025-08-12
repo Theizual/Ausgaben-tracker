@@ -158,7 +158,7 @@ export const QuickAddForm: FC = () => {
                                 type="text"
                                 value={description}
                                 onChange={e => setDescription(e.target.value)}
-                                placeholder="Beschreibung (mehrere mit Komma trennen)..."
+                                placeholder="Beschreibung (mehrere mit Komma trennen)"
                                 className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-1.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-rose-500 text-sm"
                                 required
                             />

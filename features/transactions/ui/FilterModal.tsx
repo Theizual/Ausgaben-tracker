@@ -2,6 +2,8 @@
 
 
 
+
+
 import React, { useState, useEffect, FC } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
@@ -71,7 +73,7 @@ export const FilterModal: FC<{
                         <Search className="h-5 w-5 text-slate-400 shrink-0" />
                         <input
                             type="text"
-                            placeholder="Suche nach Beschreibung..."
+                            placeholder="Suche nach Beschreibung"
                             value={localFilters.text}
                             onChange={e => handleFilterChange('text', e.target.value)}
                             className="w-full bg-transparent border-none pl-2 py-2.5 text-white placeholder-slate-500 focus:outline-none"
@@ -81,7 +83,7 @@ export const FilterModal: FC<{
                         <Tag className="h-5 w-5 text-slate-400 shrink-0" />
                         <input
                             type="text"
-                            placeholder="Filter nach Tag (mit Komma trennen)..."
+                            placeholder="Filter nach Tag (mit Komma trennen)"
                             value={localFilters.tags}
                             onChange={e => handleFilterChange('tags', e.target.value)}
                             className="w-full bg-transparent border-none pl-2 py-2.5 text-white placeholder-slate-500 focus:outline-none"
