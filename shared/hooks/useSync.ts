@@ -272,6 +272,23 @@ export const useSync = (props: SyncProps) => {
         }
     }, [isInitialSetupDone, isAutoSyncEnabled, lastSync, loadFromSheet, isDemoModeEnabled, syncPromptDismissedUntil]);
 
+    // Effect for periodic background refresh (pulling data from the sheet)
+    useEffect(() => {
+        if (!isAutoSyncEnabled || isDemoModeEnabled || !isInitialSetupDone) {
+            return; // Do nothing if auto-sync is off, in demo mode, or setup isn't done
+        }
+
+        const intervalId = setInterval(() => {
+            // The loadFromSheet function already prevents running if a sync is in progress
+            console.log('Performing periodic background data refresh...');
+            loadFromSheet();
+        }, 60000); // Poll every 60 seconds
+
+        return () => {
+            clearInterval(intervalId); // Cleanup on unmount or when deps change
+        };
+    }, [isAutoSyncEnabled, isDemoModeEnabled, isInitialSetupDone, loadFromSheet]);
+
 
     const syncOperation: 'sync' | null = syncStatus === 'syncing' ? 'sync' : null;
 

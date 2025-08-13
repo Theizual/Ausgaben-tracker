@@ -175,8 +175,15 @@ const loadConfiguration = (userId: string | null, userSettings: UserSetting[], i
 export const useCategories = ({ rawUserSettings, updateCategoryConfigurationForUser, currentUserId, isDemoModeEnabled }: UseCategoriesProps) => {
     
     const initializer = useMemo(() => {
+        // Not including rawUserSettings in the dependency array is intentional.
+        // This memo should only re-run when the user or mode changes, not when the
+        // underlying settings data changes for the same user. This prevents the
+        // flicker-causing re-initialization of the whole category state after a sync.
+        // It's safe because the AppStateContainer ensures that when currentUserId changes,
+        // the rawUserSettings passed to this hook are already the correct ones for the new user.
         return loadConfiguration(currentUserId, rawUserSettings, isDemoModeEnabled);
-    }, [currentUserId, rawUserSettings, isDemoModeEnabled]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [currentUserId, isDemoModeEnabled]);
 
     const [state, dispatch] = useReducer(categoriesReducer, initializer);
 
