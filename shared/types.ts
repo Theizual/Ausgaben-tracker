@@ -1,5 +1,4 @@
 
-
 export interface User {
   id: string;
   name: string;
@@ -42,6 +41,7 @@ export interface Category {
   icon: string;
   budget?: number;
   groupId: string;
+  sortIndex: number;
   lastModified: string; // ISO string
   isDeleted?: boolean;
   version: number;

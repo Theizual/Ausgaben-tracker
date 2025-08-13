@@ -9,15 +9,14 @@ import { UserSettings } from './components/UserSettings';
 import { BudgetSettings } from './components/BudgetSettings';
 import { GroupSettings } from './components/GroupSettings';
 import { TagManagerModal } from './components/TagManagerModal';
-import { CategoryLibrarySettings } from './components/CategoryLibraryModal';
+import { CategoryLibrarySettings } from './components/CategoryLibrarySettings';
 import { GroupDesignModal } from './components/GroupDesignModal';
 import { modalBackdropAnimation, modalContentAnimation } from '@/shared/lib/animations';
 
 const TABS: { id: SettingsTab; label: string; icon: React.FC<any>; }[] = [
     { id: 'general', label: 'Allgemein', icon: SlidersHorizontal }, 
-    { id: 'categories', label: 'Kategorien', icon: BookOpen },
+    { id: 'categories', label: 'Gruppen & Kategorien', icon: LayoutGrid },
     { id: 'budget', label: 'Budget', icon: Target }, 
-    { id: 'groups', label: 'Gruppen', icon: LayoutGrid },
     { id: 'users', label: 'Benutzer', icon: Users },
 ];
 
@@ -91,7 +90,6 @@ const SettingsModal = ({ isOpen, onClose, initialTab }: { isOpen: boolean; onClo
             case 'general': return <GeneralSettings onOpenTagManager={() => setTagManagerOpen(true)} />;
             case 'categories': return <CategoryLibrarySettings onEditGroupDesign={setEditingGroupDesign} />;
             case 'budget': return <BudgetSettings />;
-            case 'groups': return <GroupSettings onEditGroupDesign={setEditingGroupDesign} />;
             case 'users': return <UserSettings />;
             default: return null;
         }

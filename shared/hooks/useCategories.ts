@@ -26,7 +26,8 @@ type Action =
     | { type: 'ADD_GROUP'; payload: Group }
     | { type: 'UPDATE_GROUP'; payload: { id: string, updates: Partial<Omit<Group, 'id'>> } }
     | { type: 'DELETE_GROUP'; payload: string }
-    | { type: 'REORDER_GROUPS'; payload: Group[] };
+    | { type: 'REORDER_GROUPS'; payload: Group[] }
+    | { type: 'REORDER_CATEGORIES'; payload: Category[] };
 
 const categoriesReducer = (state: CategoriesState, action: Action): CategoriesState => {
     const now = new Date().toISOString();
@@ -50,6 +51,7 @@ const categoriesReducer = (state: CategoriesState, action: Action): CategoriesSt
                         color: update.color || '#808080',
                         icon: update.icon || baseCategory?.icon || 'MoreHorizontal',
                         groupId: update.groupId || DEFAULT_GROUP_ID,
+                        sortIndex: update.sortIndex || 0,
                         budget: update.budget === undefined ? 0 : update.budget,
                         lastModified: now,
                         version: 1,
@@ -101,6 +103,31 @@ const categoriesReducer = (state: CategoriesState, action: Action): CategoriesSt
             });
             if (!hasChanges) return state;
             return { ...state, groups: updatedGroups.sort((a,b) => a.sortIndex - b.sortIndex) };
+        }
+
+        case 'REORDER_CATEGORIES': {
+            if (action.payload.length === 0) return state;
+
+            const groupId = action.payload[0].groupId;
+
+            // Create a map of the newly ordered categories with updated sortIndex and version
+            const updatedOrderMap = new Map(
+                action.payload.map((cat, index) => {
+                    const existingCat = state.categories.find(c => c.id === cat.id);
+                    return [
+                        cat.id,
+                        { ...cat, sortIndex: index, lastModified: now, version: (existingCat?.version || 0) + 1 }
+                    ];
+                })
+            );
+
+            // Filter out the old versions of categories from the reordered group
+            const otherCategories = state.categories.filter(c => c.groupId !== groupId);
+
+            // Combine with the new, ordered, and version-bumped categories
+            const newCategories = [...otherCategories, ...Array.from(updatedOrderMap.values())];
+            
+            return { ...state, categories: newCategories };
         }
 
         default:
@@ -230,6 +257,10 @@ export const useCategories = ({ currentUserId, isDemoModeEnabled, hiddenCategory
     const reorderGroups = useCallback((orderedGroups: Group[]) => {
         dispatch({ type: 'REORDER_GROUPS', payload: orderedGroups });
     }, []);
+
+    const reorderCategories = useCallback((orderedCategories: Category[]) => {
+        dispatch({ type: 'REORDER_CATEGORIES', payload: orderedCategories });
+    }, []);
     
     const liveGroups = useMemo(() => state.groups.filter(g => !g.isDeleted).sort((a,b) => a.sortIndex - b.sortIndex), [state.groups]);
     const liveCategories = useMemo(() => {
@@ -241,7 +272,7 @@ export const useCategories = ({ currentUserId, isDemoModeEnabled, hiddenCategory
                     return cat;
                 }
                 return { ...cat, groupId: DEFAULT_GROUP_ID };
-        });
+            }).sort((a, b) => (a.sortIndex || 0) - (b.sortIndex || 0));
     }, [state.categories, liveGroups, hiddenCategoryIds]);
 
     const unassignedCategories = useMemo(() => {
@@ -294,6 +325,7 @@ export const useCategories = ({ currentUserId, isDemoModeEnabled, hiddenCategory
         updateGroup,
         deleteGroup,
         reorderGroups,
+        reorderCategories,
         unassignedCategories,
         loadStandardConfiguration,
         setCategoriesAndGroups,

@@ -2,7 +2,7 @@ import type { Group, Category as CategoryType } from '@/shared/types';
 import { DEFAULT_GROUP_ID, FIXED_COSTS_GROUP_ID } from '@/constants';
 
 // Striktere Typisierung für die Konfigurationsdatei
-type TaxonomyCategory = Omit<CategoryType, 'lastModified' | 'version' | 'isDeleted' | 'conflicted'>;
+type TaxonomyCategory = Omit<CategoryType, 'sortIndex' | 'lastModified' | 'version' | 'isDeleted' | 'conflicted'>;
 type TaxonomyGroup = Omit<Group, 'sortIndex' | 'lastModified' | 'version' | 'isDeleted' | 'conflicted' | 'isDefault' | 'icon'> & { icon: string, categories: TaxonomyCategory[] };
 
 export const CATEGORY_TAXONOMY: readonly TaxonomyGroup[] = [
@@ -66,8 +66,9 @@ export const CATEGORY_TAXONOMY: readonly TaxonomyGroup[] = [
 
 
 const allCategories: readonly CategoryType[] = CATEGORY_TAXONOMY.flatMap(group => 
-    group.categories.map(category => ({
+    group.categories.map((category, index) => ({
         ...category,
+        sortIndex: index,
         lastModified: new Date().toISOString(),
         version: 1,
     }))

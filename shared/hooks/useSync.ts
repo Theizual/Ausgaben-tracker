@@ -227,7 +227,7 @@ export const useSync = (props: SyncProps) => {
         openUserMergeModal
     ]);
 
-    const loadFromSheet = useCallback(async () => {
+    const loadFromSheet = useCallback(async (options?: { preserveLocalTransactions?: boolean, preserveNewLocalUsers?: boolean }) => {
         if (syncInProgressRef.current || isDemoModeEnabled) return;
         syncInProgressRef.current = true;
         setSyncStatus('loading');
@@ -235,11 +235,25 @@ export const useSync = (props: SyncProps) => {
 
         try {
             const { data }: { data: ReadApiResponse } = await apiGet('/api/sheets/read');
+            
             setCategoriesAndGroups(data.categories, data.groups);
-            setTransactions(data.transactions);
+            
+            if (!options?.preserveLocalTransactions) {
+                setTransactions(data.transactions);
+            }
+            
             setRecurringTransactions(data.recurring);
             setAllAvailableTags(data.tags);
-            setUsers(data.users);
+    
+            if (options?.preserveNewLocalUsers) {
+                // Find local users that are not on the server (i.e., newly created ones)
+                const serverUserIds = new Set(data.users.map(u => u.id));
+                const newLocalUsers = rawUsers.filter(u => !serverUserIds.has(u.id));
+                setUsers([...data.users, ...newLocalUsers]);
+            } else {
+                setUsers(data.users);
+            }
+    
             setUserSettings(data.userSettings);
             setLastSync(new Date().toISOString());
             setSyncStatus('success');
@@ -250,7 +264,7 @@ export const useSync = (props: SyncProps) => {
         } finally {
             syncInProgressRef.current = false;
         }
-    }, [isDemoModeEnabled, setCategoriesAndGroups, setTransactions, setRecurringTransactions, setAllAvailableTags, setUsers, setUserSettings, setLastSync]);
+    }, [isDemoModeEnabled, rawUsers, setCategoriesAndGroups, setTransactions, setRecurringTransactions, setAllAvailableTags, setUsers, setUserSettings, setLastSync]);
 
 
     useEffect(() => {

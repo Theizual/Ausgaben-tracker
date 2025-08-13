@@ -1,102 +1,199 @@
-import React, { useState, useMemo, FC } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import React, { useState, useMemo, FC, useEffect } from 'react';
+import { AnimatePresence, motion, Reorder, useDragControls } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { useApp } from '@/contexts/AppContext';
 import type { Category, Group } from '@/shared/types';
-import { Button, iconMap, Trash2, Plus, DownloadCloud, Star, getIconComponent, Info } from '@/shared/ui';
-import { FIXED_COSTS_GROUP_ID, DEFAULT_GROUP_ID, FIXED_COSTS_GROUP_NAME, DEFAULT_GROUP_NAME } from '@/constants';
+import { Button, Trash2, Plus, DownloadCloud, Star, getIconComponent, Info, GripVertical } from '@/shared/ui';
+import { FIXED_COSTS_GROUP_ID, DEFAULT_GROUP_ID, DEFAULT_GROUP_NAME } from '@/constants';
 import { CategoryEditModal, CategoryFormData } from './CategoryEditModal';
 import { parseISO } from 'date-fns';
+import { settingsContentAnimation } from '@/shared/lib/animations';
 
 const MotionDiv = motion.div;
 
+const CategoryReorderItem: FC<{
+    category: Category;
+    onEdit: (category: Category) => void;
+    onToggleFavorite: (id: string) => void;
+    isFavorite: boolean;
+}> = ({ category, onEdit, onToggleFavorite, isFavorite }) => {
+    const dragControls = useDragControls();
+    const Icon = getIconComponent(category.icon);
+
+    return (
+        <Reorder.Item
+            value={category}
+            dragListener={false}
+            dragControls={dragControls}
+            className="relative"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+        >
+            <div className="flex items-center gap-2 bg-slate-800/50 p-1.5 rounded-lg">
+                <div
+                    onPointerDown={(e) => dragControls.start(e)}
+                    className="p-2 cursor-grab active:cursor-grabbing text-slate-500 hover:text-white touch-none"
+                    aria-label={`Kategorie ${category.name} verschieben`}
+                >
+                    <GripVertical className="h-4 w-4" />
+                </div>
+                 <button
+                    type="button"
+                    onClick={() => onEdit(category)}
+                    className="flex items-center gap-2 pl-1 pr-3 py-1 text-white font-medium transition-colors duration-200 flex-1 rounded-md hover:bg-slate-700/50"
+                    title={category.name}
+                >
+                    <div className="w-6 h-6 rounded-md flex items-center justify-center border-2 flex-shrink-0" style={{ borderColor: category.color }}>
+                        <Icon className="h-4 w-4" style={{ color: category.color }} />
+                    </div>
+                    <span className="text-sm truncate">{category.name}</span>
+                </button>
+                <button
+                    onClick={(e) => { e.stopPropagation(); onToggleFavorite(category.id); }}
+                    className="p-2 text-slate-400 hover:text-yellow-400"
+                    aria-pressed={isFavorite}
+                    title={isFavorite ? 'Favorit entfernen' : 'Als Favorit markieren'}
+                >
+                    <Star className={`h-4 w-4 transition-all ${isFavorite ? 'fill-yellow-400 text-yellow-400' : 'hover:fill-yellow-400/50'}`} />
+                </button>
+            </div>
+        </Reorder.Item>
+    );
+};
+
+const GroupItem: FC<{
+    group: Group;
+    categories: Category[];
+    onEditGroupDesign: (group: Group) => void;
+    onDeleteGroup: (group: Group) => void;
+    onRenameGroup: (id: string, newName: string) => void;
+    onEditCategory: (category: CategoryFormData) => void;
+}> = ({ group, categories, onEditGroupDesign, onDeleteGroup, onRenameGroup, onEditCategory }) => {
+    const { reorderCategories, favoriteIds, toggleFavorite } = useApp();
+    const [localCategories, setLocalCategories] = useState(categories);
+    const [isEditing, setIsEditing] = useState(false);
+    const [nameValue, setNameValue] = useState(group.name);
+    const dragControls = useDragControls();
+    
+    useEffect(() => { setLocalCategories(categories); }, [categories]);
+
+    const handleReorder = (newOrder: Category[]) => {
+        setLocalCategories(newOrder);
+        reorderCategories(newOrder);
+    };
+
+    const handleRename = () => {
+        if (nameValue.trim() && nameValue.trim() !== group.name) {
+            onRenameGroup(group.id, nameValue.trim());
+        }
+        setIsEditing(false);
+    };
+
+    const GroupIcon = getIconComponent(group.icon);
+    const isProtected = group.id === DEFAULT_GROUP_ID || group.id === FIXED_COSTS_GROUP_ID;
+
+    return (
+         <div className="bg-slate-700/30 p-3 rounded-lg">
+            <div className="flex items-center justify-between gap-2">
+                <div
+                    onPointerDown={(e) => { e.preventDefault(); dragControls.start(e); }}
+                    className="p-2 -ml-2 text-slate-500 cursor-grab active:cursor-grabbing touch-none flex-shrink-0"
+                    aria-label={`Gruppe ${group.name} verschieben`}
+                >
+                    <GripVertical className="h-5 w-5" />
+                </div>
+                <button 
+                    onClick={() => onEditGroupDesign(group)}
+                    className="w-8 h-8 rounded-md flex items-center justify-center flex-shrink-0 bg-transparent border-2 hover:bg-slate-700/50 transition-colors"
+                    style={{ borderColor: group.color }}
+                    title="Design ändern"
+                >
+                    <GroupIcon className="h-4 w-4" style={{ color: group.color }} />
+                </button>
+                 <div className="flex-grow min-w-0">
+                    {isEditing ? (
+                        <input type="text" value={nameValue} onChange={(e) => setNameValue(e.target.value)} onBlur={handleRename} onKeyDown={(e) => { if (e.key === 'Enter') handleRename(); if (e.key === 'Escape') setIsEditing(false); }} className="font-semibold text-white bg-slate-600/50 rounded px-2 py-1 w-full focus:ring-2 focus:ring-rose-500 focus:outline-none" autoFocus />
+                    ) : (
+                        <button onClick={() => !isProtected && setIsEditing(true)} className="w-full text-left p-1 -m-1" disabled={isProtected} title={isProtected ? "Diese Gruppe kann nicht umbenannt werden" : "Gruppenname bearbeiten"}>
+                            <h4 className="font-semibold text-white truncate">{group.name}</h4>
+                        </button>
+                    )}
+                </div>
+                 {!isProtected && ( <Button variant="destructive-ghost" size="icon-auto" onClick={() => onDeleteGroup(group)} title="Gruppe löschen"><Trash2 className="h-5 w-5" /></Button> )}
+            </div>
+             <div className="pl-10 mt-3 pt-3 border-t border-slate-700/50">
+                 <Reorder.Group axis="y" values={localCategories} onReorder={handleReorder} className="space-y-1">
+                     {localCategories.map(cat => ( <CategoryReorderItem key={cat.id} category={cat} onEdit={onEditCategory} onToggleFavorite={toggleFavorite} isFavorite={favoriteIds.includes(cat.id)} /> ))}
+                 </Reorder.Group>
+                <button onClick={() => onEditCategory({ groupId: group.id } as CategoryFormData)} className="mt-2 w-full flex items-center justify-center gap-2 text-sm text-slate-400 hover:text-white p-2 rounded-lg hover:bg-slate-700/50 transition-colors"><Plus className="h-4 w-4" /> Neue Kategorie</button>
+            </div>
+        </div>
+    );
+};
+
+
 export const CategoryLibrarySettings: FC<{ onEditGroupDesign: (group: Group) => void }> = ({ onEditGroupDesign }) => {
     const { 
-        categories, groups, upsertCategory, deleteCategory, addGroup, deleteGroup, 
-        loadStandardConfiguration, unassignedCategories, favoriteIds, toggleFavorite, transactions, openReassignModal,
-        currentUserId, updateCategoryColorOverride,
+        categories, groups, upsertCategory, addGroup, deleteGroup, renameGroup, reorderGroups,
+        loadStandardConfiguration, unassignedCategories, transactions, openReassignModal,
+        currentUserId, updateCategoryColorOverride
     } = useApp();
-
+    
+    const [orderedGroups, setOrderedGroups] = useState(groups);
     const [editingCategory, setEditingCategory] = useState<CategoryFormData | null>(null);
     const [newGroupName, setNewGroupName] = useState('');
     
-    const { flexibleGroupsData, fixedGroupData } = useMemo(() => {
-        const groupMap = new Map<string, Category[]>();
+    useEffect(() => { setOrderedGroups(groups); }, [groups]);
+
+    const groupedCategories = useMemo(() => {
+        const map = new Map<string, Category[]>();
         categories.forEach(category => {
-            const group = category.groupId;
-            if (!groupMap.has(group)) groupMap.set(group, []);
-            groupMap.get(group)!.push(category);
+            const list = map.get(category.groupId) || [];
+            list.push(category);
+            map.set(category.groupId, list);
         });
-        
-        const allGroupsData = groups.map(group => ({
-            ...group,
-            categories: groupMap.get(group.id) || []
-        }));
+        return map;
+    }, [categories]);
 
-        const flexible = allGroupsData.filter(g => g.id !== FIXED_COSTS_GROUP_ID);
-        const fixed = allGroupsData.find(g => g.id === FIXED_COSTS_GROUP_ID);
-        
-        return { flexibleGroupsData: flexible, fixedGroupData: fixed };
-    }, [categories, groups]);
+    const handleReorderGroups = (newOrder: Group[]) => {
+        setOrderedGroups(newOrder);
+        reorderGroups(newOrder);
+    };
 
-    const handleOpenEditor = (libraryCategory: Partial<Category> & { groupId: string }) => {
-        const existingCategory = categories.find(c => c.id === libraryCategory.id);
-        const categoryToEdit = existingCategory ? { ...existingCategory } : { ...libraryCategory, id: libraryCategory.id || `new_${Date.now()}`, name: libraryCategory.name || '', icon: libraryCategory.icon || 'MoreHorizontal', color: libraryCategory.color || '#808080', budget: libraryCategory.budget || 0 };
-        setEditingCategory(categoryToEdit);
+    const handleOpenEditor = (category: Partial<Category> & { groupId: string }) => {
+        const existingCategory = categories.find(c => c.id === category.id);
+        const categoryToEdit = existingCategory ? { ...existingCategory } : { ...category, id: category.id || `new_${Date.now()}`, name: category.name || '', icon: category.icon || 'MoreHorizontal', color: category.color || '#808080', budget: category.budget || 0 };
+        setEditingCategory(categoryToEdit as CategoryFormData);
     };
     
-    const handleSaveCategory = (data: CategoryFormData, isColorOverride: boolean) => {
+     const handleSaveCategory = (data: CategoryFormData, isColorOverride: boolean) => {
         const isNewCategory = data.id.startsWith('new_');
-    
         if (isColorOverride && currentUserId && !isNewCategory) {
-            // Case 1: Existing category, with "override color" toggled ON.
-            // Save the color change only for the current user.
             updateCategoryColorOverride(currentUserId, data.id, data.color);
-    
-            // Save all other changes (name, icon, group, etc.) globally,
-            // but explicitly keep the original global color.
             const originalCategory = categories.find(c => c.id === data.id);
             if (originalCategory) {
                 const globalUpdates = { ...data, color: originalCategory.color };
                 upsertCategory(globalUpdates);
                 toast.success(`Änderungen für "${data.name}" gespeichert, Farbe personalisiert.`);
-            } else {
-                // Fallback: This should not happen if it's not a new category.
-                upsertCategory(data);
-                toast.error(`Original-Kategorie nicht gefunden. Alle Änderungen wurden global gespeichert.`);
             }
         } else {
-            // Case 2: New category OR "override color" is OFF.
-            // All changes are saved globally.
-            
-            // First, remove any existing personal color override for this user/category.
-            if (currentUserId) {
-                updateCategoryColorOverride(currentUserId, data.id, null);
-            }
-            // Then, save all data globally.
+            if (currentUserId) updateCategoryColorOverride(currentUserId, data.id, null);
             upsertCategory(data);
             toast.success(`Kategorie "${data.name}" gespeichert.`);
         }
-    
         setEditingCategory(null);
     };
 
     const handleDeleteCategoryRequest = (category: CategoryFormData) => {
-        const associatedTransactions = transactions
-            .filter(t => t.categoryId === category.id && !t.isDeleted)
-            .sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime());
+        const associatedTransactions = transactions.filter(t => t.categoryId === category.id && !t.isDeleted).sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime());
         const txCount = associatedTransactions.length;
-    
-        setEditingCategory(null); // Close the edit modal first
-    
-        if (txCount === 0) {
-            if (window.confirm(`Möchtest du die Kategorie "${category.name}" wirklich löschen? Es sind keine Transaktionen damit verknüpft.`)) {
-                deleteCategory(category.id);
-                toast.success(`Kategorie "${category.name}" gelöscht.`);
-            }
-        } else {
-            // Open the new reassign modal
+        setEditingCategory(null);
+        if (txCount > 0) {
             openReassignModal(category, txCount, associatedTransactions);
+        } else if (window.confirm(`Möchtest du die Kategorie "${category.name}" wirklich löschen?`)) {
+            upsertCategory({ ...category, isDeleted: true });
+            toast.success(`Kategorie "${category.name}" gelöscht.`);
         }
     };
 
@@ -108,152 +205,65 @@ export const CategoryLibrarySettings: FC<{ onEditGroupDesign: (group: Group) => 
     };
     
     const handleDeleteGroup = (group: Group) => {
-        if (group.id === DEFAULT_GROUP_ID || group.id === FIXED_COSTS_GROUP_ID) {
-            toast.error(`Die Gruppe "${group.name}" kann nicht gelöscht werden.`);
-            return;
-        }
-        if (window.confirm(`Gruppe "${group.name}" wirklich löschen? Zugehörige Kategorien werden automatisch in die Gruppe "${DEFAULT_GROUP_NAME}" verschoben.`)) {
+        if (window.confirm(`Gruppe "${group.name}" wirklich löschen? Zugehörige Kategorien werden automatisch in "${DEFAULT_GROUP_NAME}" verschoben.`)) {
             deleteGroup(group.id);
         }
     };
 
-    const Separator = () => <div className="border-b border-slate-700/50"></div>;
-
-    const renderCategoryButton = (category: Category, onClick: () => void) => {
-        const Icon = iconMap[category.icon] || iconMap.MoreHorizontal;
-        const isFavorite = favoriteIds.includes(category.id);
-        return (
-            <div key={category.id} className="relative">
-                <button type="button" onClick={onClick} className="flex items-center gap-2 px-3 py-2 text-white font-medium rounded-lg transition-colors duration-200 border-2 bg-slate-800/50 hover:bg-slate-700/80" style={{ borderColor: category.color }} title={category.name}>
-                    <Icon className="h-5 w-5 shrink-0" style={{ color: category.color }} />
-                    <span className="text-sm">{category.name}</span>
-                </button>
-                 <button
-                    onClick={(e) => { e.stopPropagation(); toggleFavorite(category.id); }}
-                    className="absolute -top-1 -right-1 z-10 p-1 bg-slate-700 rounded-full text-slate-400 hover:text-yellow-400"
-                    aria-pressed={isFavorite}
-                    title={isFavorite ? 'Favorit entfernen' : 'Als Favorit markieren'}
-                >
-                    <Star className={`h-3 w-3 transition-all ${isFavorite ? 'fill-yellow-400 text-yellow-400' : 'hover:fill-yellow-400/50'}`} />
-                </button>
-            </div>
-        );
-    }
-
-    const renderUnassignedButton = (category: Category, onClick: () => void) => {
-        const Icon = iconMap[category.icon] || iconMap.MoreHorizontal;
-        const isFavorite = favoriteIds.includes(category.id);
-         return (
-             <div key={category.id} className="relative">
-                <button type="button" onClick={onClick} className="flex items-center gap-2 px-3 py-2 text-white font-medium rounded-lg transition-colors duration-200 border-2 border-dashed border-slate-500 hover:border-slate-400 bg-slate-800/50 hover:bg-slate-700/80" title={`"${category.name}" hinzufügen`}>
-                    <Icon className="h-5 w-5 shrink-0" style={{ color: category.color }} />
-                    <span className="text-sm">{category.name}</span>
-                </button>
-                <button
-                    onClick={(e) => { e.stopPropagation(); toggleFavorite(category.id); }}
-                    className="absolute -top-1 -right-1 z-10 p-1 bg-slate-700 rounded-full text-slate-400 hover:text-yellow-400"
-                    aria-pressed={isFavorite}
-                    title={isFavorite ? 'Favorit entfernen' : 'Als Favorit markieren'}
-                >
-                    <Star className={`h-3 w-3 transition-all ${isFavorite ? 'fill-yellow-400 text-yellow-400' : 'hover:fill-yellow-400/50'}`} />
-                </button>
-             </div>
-        );
-    }
-    
-    const settingsAnimation = {
-        initial: { opacity: 0, x: 10 },
-        animate: { opacity: 1, x: 0 },
-        exit: { opacity: 0, x: -10 }
-    };
+    const Separator = () => <div className="border-b border-slate-700/50 my-6"></div>;
 
     return (
         <>
-            <MotionDiv {...settingsAnimation} key="categories">
-                <h3 className="text-lg font-semibold text-white mb-1">Kategorien-Bibliothek</h3>
-                <p className="text-sm text-slate-400 mb-6">Verwalten Sie hier alle Ihre Kategoriegruppen und Kategorien. Fügen Sie neue hinzu, benennen Sie sie um oder laden Sie die Standardkonfiguration.</p>
+            <MotionDiv variants={settingsContentAnimation} initial="initial" animate="animate" exit="exit" key="categories">
+                <h3 className="text-lg font-semibold text-white mb-1">Gruppen & Kategorien</h3>
+                <p className="text-sm text-slate-400 mb-6">Verwalten Sie hier Ihre Ausgabenstruktur. Sortieren Sie Gruppen und Kategorien per Drag & Drop.</p>
                 
                 <div className="bg-sky-900/50 border border-sky-700/50 text-sky-300 text-sm rounded-lg p-4 flex items-start gap-3 mb-6">
                     <Info className="h-5 w-5 mt-0.5 flex-shrink-0" />
                     <div>
-                        Klicke auf den Stern ⭐ bei einer Kategorie, um sie als Favorit festzulegen. Favoriten erscheinen für einen schnelleren Zugriff direkt im "Schnell hinzufügen"-Formular.
+                        Fassen Sie eine Gruppe oder Kategorie am Griff-Symbol <GripVertical className="inline h-4 w-4 -mt-1" /> an, um sie zu verschieben und neu anzuordnen.
                     </div>
                 </div>
 
-                <div className="space-y-6">
-                    {/* 1. FLEXIBLE GROUPS */}
-                    {flexibleGroupsData.map(group => {
-                        const GroupIcon = getIconComponent(group.icon);
-                        return (
-                        <div key={group.id}>
-                            <button onClick={() => onEditGroupDesign(group)} className="w-full text-left rounded p-1 -m-1" title="Gruppen-Design bearbeiten">
-                                <div className="flex items-center gap-2 mb-3">
-                                    <GroupIcon className="h-4 w-4 text-slate-500" />
-                                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 hover:text-white transition-colors">{group.name}</h4>
-                                </div>
+                <Reorder.Group axis="y" values={orderedGroups} onReorder={handleReorderGroups} className="space-y-3">
+                    {orderedGroups.map(group => (
+                        <Reorder.Item key={group.id} value={group}>
+                             <GroupItem
+                                group={group}
+                                categories={groupedCategories.get(group.id) || []}
+                                onEditGroupDesign={onEditGroupDesign}
+                                onDeleteGroup={handleDeleteGroup}
+                                onRenameGroup={renameGroup}
+                                onEditCategory={handleOpenEditor}
+                            />
+                        </Reorder.Item>
+                    ))}
+                </Reorder.Group>
+                
+                <Separator />
+                
+                <div className="flex gap-3">
+                    <input type="text" value={newGroupName} onChange={e => setNewGroupName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleAddGroup()} placeholder="Neue Gruppe hinzufügen" className="w-full max-w-xs bg-slate-700 border border-slate-600 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-rose-500" />
+                    <Button onClick={handleAddGroup}><Plus className="h-4 w-4"/> Gruppe erstellen</Button>
+                </div>
+                
+                <Separator />
+                
+                <div>
+                     <h4 className="text-md font-semibold text-white mb-3">Standard-Kategorien</h4>
+                     <p className="text-sm text-slate-400 mb-4">Fügen Sie Kategorien aus der Standardbibliothek zu Ihren Gruppen hinzu oder laden Sie die komplette Konfiguration neu.</p>
+                     <div className="flex flex-wrap gap-2 mb-6">
+                        {unassignedCategories.map(category => (
+                            <button key={category.id} type="button" onClick={() => handleOpenEditor(category)} className="flex items-center gap-2 px-3 py-2 text-white font-medium rounded-lg transition-colors duration-200 border-2 border-dashed border-slate-500 hover:border-slate-400 bg-slate-800/50 hover:bg-slate-700/80" title={`"${category.name}" hinzufügen`}>
+                                <Plus className="h-4 w-4 text-slate-400"/>
+                                <span className="text-sm">{category.name}</span>
                             </button>
-                            <div className="flex flex-wrap gap-2">
-                                {group.categories.length > 0 ? (
-                                    group.categories.map(category => renderCategoryButton(category, () => handleOpenEditor(category)))
-                                ) : <p className="text-sm text-slate-500 italic ml-1">Keine Kategorien in dieser Gruppe.</p>}
-                                <button onClick={() => handleOpenEditor({ groupId: group.id })} className="w-12 h-12 flex items-center justify-center rounded-lg transition-colors duration-200 border-2 border-dashed border-slate-500 hover:border-slate-400 bg-slate-800/50 hover:bg-slate-700/80" title="Neue Kategorie hinzufügen">
-                                    <Plus className="h-6 w-6 text-slate-400" />
-                                </button>
-                                <button onClick={() => handleDeleteGroup(group)} className="w-12 h-12 flex items-center justify-center rounded-lg transition-colors duration-200 border-2 border-dashed border-red-500/50 hover:border-red-400 bg-slate-800/50 hover:bg-red-900/40" title="Gruppe löschen">
-                                    <Trash2 className="h-5 w-5 text-red-500" />
-                                </button>
-                            </div>
-                        </div>
-                    )})}
-                    
-                    <Separator />
-
-                    {/* 2. ADD NEW GROUP */}
-                    <div className="flex gap-3">
-                        <input type="text" value={newGroupName} onChange={e => setNewGroupName(e.target.value)} placeholder="Neue Gruppe hinzufügen" className="w-full max-w-xs bg-slate-700 border border-slate-600 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-rose-500" />
-                        <Button onClick={handleAddGroup}><Plus className="h-4 w-4"/> Gruppe erstellen</Button>
-                    </div>
-                    
-                    <Separator />
-                    
-                    {/* 3. FIXED COSTS GROUP (Non-editable structure) */}
-                    {fixedGroupData && (() => {
-                        const FixedGroupIcon = getIconComponent(fixedGroupData.icon);
-                        return (
-                            <div>
-                                <button onClick={() => onEditGroupDesign(fixedGroupData)} className="w-full text-left rounded p-1 -m-1" title="Gruppen-Design bearbeiten">
-                                    <div className="flex items-center gap-2 mb-3">
-                                        <div className="h-4 w-4 text-slate-500">
-                                            <FixedGroupIcon className="h-full w-full" />
-                                        </div>
-                                        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 hover:text-white transition-colors">{fixedGroupData.name}</h4>
-                                    </div>
-                                </button>
-                                <div className="flex flex-wrap gap-2">
-                                    {fixedGroupData.categories.map(category => renderCategoryButton(category, () => handleOpenEditor(category)))}
-                                    <button onClick={() => handleOpenEditor({ groupId: fixedGroupData.id })} className="w-12 h-12 flex items-center justify-center rounded-lg transition-colors duration-200 border-2 border-dashed border-slate-500 hover:border-slate-400 bg-slate-800/50 hover:bg-slate-700/80" title="Neue Kategorie hinzufügen">
-                                        <Plus className="h-6 w-6 text-slate-400" />
-                                    </button>
-                                </div>
-                            </div>
-                        );
-                    })()}
-                    
-                    <Separator />
-
-                    {/* 4. UNASSIGNED & STANDARD */}
-                    <div>
-                         <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3 ml-1">Verfügbare Standard-Kategorien</h4>
-                         <p className="text-sm text-slate-400 mb-4">Fügen Sie Kategorien aus der Standardbibliothek zu Ihren Gruppen hinzu oder laden Sie die komplette Standardkonfiguration.</p>
-                         <div className="flex flex-wrap gap-2 mb-6">
-                            {unassignedCategories.map(category => renderUnassignedButton(category, () => handleOpenEditor(category)))}
-                         </div>
-                         <Button onClick={loadStandardConfiguration} variant="secondary">
-                            <DownloadCloud className="h-4 w-4" />
-                            Standardkonfiguration laden
-                        </Button>
-                    </div>
-
+                        ))}
+                     </div>
+                     <Button onClick={loadStandardConfiguration} variant="secondary">
+                        <DownloadCloud className="h-4 w-4" />
+                        Standardkonfiguration laden
+                    </Button>
                 </div>
             </MotionDiv>
 

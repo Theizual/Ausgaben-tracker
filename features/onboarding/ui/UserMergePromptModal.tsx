@@ -18,30 +18,35 @@ export const UserMergePromptModal: FC<UserMergePromptModalProps> = ({ isOpen, re
         users: localUsers,
         setIsInitialSetupDone,
         deleteUser,
+        loadFromSheet,
+        syncData,
     } = useApp();
 
     const localDemoUser = localUsers.find(u => u.id === 'usr_demo');
     const [newUserName, setNewUserName] = useState(localDemoUser?.name !== 'Demo User' ? localDemoUser?.name || '' : '');
 
-    const handleSelect = (selectedUser: User) => {
+    const handleSelect = async (selectedUser: User) => {
         toast.loading('Benutzer wird zugeordnet...', { id: 'merge-toast' });
         
-        // Reassign any local non-demo transactions from the demo user to the selected remote user.
+        // 1. Modify local state: reassign transactions, delete the demo user, and set the current user.
         reassignUserForTransactions('usr_demo', selectedUser.id, true);
-        
+        deleteUser('usr_demo', { silent: true });
         setCurrentUserId(selectedUser.id);
         
-        // Silently delete the demo user as it's no longer needed.
-        deleteUser('usr_demo', { silent: true });
+        // 2. Pull server data, but PRESERVE the local transaction changes we just made.
+        await loadFromSheet({ preserveLocalTransactions: true });
+        
+        // 3. Mark setup as complete. This will NOT trigger another sync.
+        setIsInitialSetupDone(true);
+        
+        // 4. Now do a final, regular sync to push the merged state to the server.
+        await syncData();
 
         toast.success(`Willkommen zurück, ${selectedUser.name}!`, { id: 'merge-toast' });
         onClose();
-        
-        // This state change will trigger the final sync in AppContext
-        setIsInitialSetupDone(true);
     };
     
-    const handleCreate = () => {
+    const handleCreate = async () => {
         const trimmedName = newUserName.trim();
         if (!trimmedName) {
             toast.error('Bitte gib einen Namen ein.');
@@ -50,21 +55,25 @@ export const UserMergePromptModal: FC<UserMergePromptModalProps> = ({ isOpen, re
         toast.loading('Neuer Benutzer wird angelegt...', { id: 'merge-toast' });
         
         try {
+            // 1. Modify local state: add the new user, reassign transactions, delete demo, set current.
             const newUser = addUser(trimmedName);
-            // Reassign any local non-demo transactions to the new user.
             reassignUserForTransactions('usr_demo', newUser.id, true);
-            setCurrentUserId(newUser.id); // Ensure this new user is selected.
-
-            // Silently delete the demo user as it's no longer needed.
             deleteUser('usr_demo', { silent: true });
+            setCurrentUserId(newUser.id);
+
+            // 2. Pull server data, preserving local transactions AND the new user we just added.
+            await loadFromSheet({ preserveLocalTransactions: true, preserveNewLocalUsers: true });
+            
+            // 3. Mark setup as complete.
+            setIsInitialSetupDone(true);
+            
+            // 4. Final sync to push merged state (including the new user) to the server.
+            await syncData();
 
             toast.success(`Benutzer "${trimmedName}" angelegt!`, { id: 'merge-toast' });
             onClose();
 
-            // This state change will trigger the final sync in AppContext
-            setIsInitialSetupDone(true);
         } catch (e: any) {
-            // addUser can throw an error if name is empty, which we already check, but this is for safety.
              toast.error(e.message, { id: 'merge-toast' });
         }
     };

@@ -350,14 +350,11 @@ const ReadyAppProvider: React.FC<{
 
     const isInitialSetupDoneRef = useRef(isInitialSetupDone);
     useEffect(() => {
-        if (isInitialSetupDoneRef.current === false && isInitialSetupDone === true) {
-            // This transition means the user just finished the merge modal. Time to sync.
-            toast("Setup abgeschlossen. Starte finale Synchronisierung...", { id: 'setup-sync-toast' });
-            syncState.syncData();
-        }
-        // Keep the ref updated for the next render.
+        // This ref keeps track of the previous value of isInitialSetupDone.
+        // The logic for triggering the initial sync has been moved to the UserMergePromptModal
+        // to ensure it happens with the correct context and at the right time.
         isInitialSetupDoneRef.current = isInitialSetupDone;
-    }, [isInitialSetupDone, syncState]);
+    }, [isInitialSetupDone]);
 
 
     const resetAppData = useCallback(() => {
