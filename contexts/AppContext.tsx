@@ -8,7 +8,7 @@ import { useUserSettings } from '@/shared/hooks/useUserSettings';
 import { useCategories } from '@/shared/hooks/useCategories';
 import { useCategoryPreferences } from '@/shared/hooks/useCategoryPreferences';
 import useLocalStorage from '@/shared/hooks/useLocalStorage';
-import type { User, Category, Group, RecurringTransaction, Transaction, Tag, UserSetting } from '@/shared/types';
+import type { User, Category, Group, RecurringTransaction, Transaction, Tag, UserSetting, TransactionGroup } from '@/shared/types';
 import { FIXED_COSTS_GROUP_ID, DEFAULT_CATEGORY_ID } from '@/constants';
 import { isWithinInterval, parseISO, startOfMonth, endOfMonth } from 'date-fns';
 import type { Locale } from 'date-fns';
@@ -44,6 +44,12 @@ type AppContextType =
         setQuickAddHideGroups: (hide: boolean) => void;
         showDemoData: boolean;
         setShowDemoData: (value: boolean | ((prev: boolean) => boolean)) => void;
+        transactionGroups: TransactionGroup[];
+        createTransactionGroup: (transactionIds: string[]) => void;
+        addTransactionsToGroup: (groupId: string, transactionIds: string[]) => void;
+        removeTransactionFromGroup: (transactionId: string) => void;
+        updateTransactionInGroup: (transactionId: string, newAmount: number) => void;
+        resetCorrectionInGroup: (transactionId: string) => void;
     };
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -284,12 +290,14 @@ const ReadyAppProvider: React.FC<{
         rawAllAvailableTags: transactionDataState.rawAllAvailableTags,
         rawUsers: usersState.rawUsers,
         rawUserSettings: userSettingsState.rawUserSettings,
+        rawTransactionGroups: transactionDataState.rawTransactionGroups,
         setCategoriesAndGroups: categoryState.setCategoriesAndGroups,
         setTransactions: transactionDataState.setTransactions,
         setRecurringTransactions: transactionDataState.setRecurringTransactions,
         setAllAvailableTags: transactionDataState.setAllAvailableTags,
         setUsers: usersState.setUsers,
         setUserSettings: userSettingsState.setUserSettings,
+        setTransactionGroups: transactionDataState.setTransactionGroups,
         isInitialSetupDone: isInitialSetupDone,
         isDemoModeEnabled,
         setIsInitialSetupDone: setIsInitialSetupDone,
@@ -346,6 +354,7 @@ const ReadyAppProvider: React.FC<{
         transactionDataState.rawAllAvailableTags,
         usersState.rawUsers,
         userSettingsState.rawUserSettings,
+        transactionDataState.rawTransactionGroups,
         debouncedSync
     ]);
 
@@ -365,7 +374,7 @@ const ReadyAppProvider: React.FC<{
             const keysToClear = [
                 'transactions', 'allAvailableTags', 'recurringTransactions',
                 'users', 'userSettings', 'app-current-user-id', 'transactionViewMode',
-                'lastSyncTimestamp', 'autoSyncEnabled', 'categories', 'groups'
+                'lastSyncTimestamp', 'autoSyncEnabled', 'categories', 'groups', 'transactionGroups'
             ];
             
             // Also clear favorites and recents for all users under the current mode
@@ -452,6 +461,12 @@ const ReadyAppProvider: React.FC<{
         setQuickAddHideGroups,
         showDemoData,
         setShowDemoData,
+        transactionGroups: transactionDataState.transactionGroups,
+        createTransactionGroup: transactionDataState.createTransactionGroup,
+        addTransactionsToGroup: transactionDataState.addTransactionsToGroup,
+        removeTransactionFromGroup: transactionDataState.removeTransactionFromGroup,
+        updateTransactionInGroup: transactionDataState.updateTransactionInGroup,
+        resetCorrectionInGroup: transactionDataState.resetCorrectionInGroup,
     };
     
     return (

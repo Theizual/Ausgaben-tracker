@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'react-hot-toast';
 import useLocalStorage from '@/shared/hooks/useLocalStorage';
-import type { Category, Transaction, RecurringTransaction, Tag, User, UserSetting, Group } from '@/shared/types';
+import type { Category, Transaction, RecurringTransaction, Tag, User, UserSetting, Group, TransactionGroup } from '@/shared/types';
 import { apiGet, apiPost, HttpError } from '@/shared/lib/http';
 
 export interface SyncProps {
@@ -12,12 +12,14 @@ export interface SyncProps {
     rawAllAvailableTags: Tag[];
     rawUsers: User[];
     rawUserSettings: UserSetting[];
+    rawTransactionGroups: TransactionGroup[];
     setCategoriesAndGroups: (categories: Category[], groups: Group[]) => void;
     setTransactions: (data: Transaction[]) => void;
     setRecurringTransactions: (data: RecurringTransaction[]) => void;
     setAllAvailableTags: (data: Tag[]) => void;
     setUsers: (data: User[]) => void;
     setUserSettings: (data: UserSetting[]) => void;
+    setTransactionGroups: (data: TransactionGroup[]) => void;
     isInitialSetupDone: boolean;
     isDemoModeEnabled: boolean;
     setIsInitialSetupDone: React.Dispatch<React.SetStateAction<boolean>>;
@@ -64,12 +66,12 @@ function mergeItems<T extends Mergeable>(localItems: T[], remoteItems: T[], conf
 interface ReadApiResponse {
     groups: Group[];
     categories: Category[]; transactions: Transaction[]; recurring: RecurringTransaction[];
-    tags: Tag[]; users: User[]; userSettings: UserSetting[];
+    tags: Tag[]; users: User[]; userSettings: UserSetting[]; transactionGroups: TransactionGroup[];
 }
 interface ConflictData {
     groups: Group[];
     categories: Category[]; transactions: Transaction[]; recurring: RecurringTransaction[];
-    tags: Tag[]; users: User[]; userSettings: UserSetting[];
+    tags: Tag[]; users: User[]; userSettings: UserSetting[]; transactionGroups: TransactionGroup[];
 }
 
 type SyncStatus = 'idle' | 'loading' | 'syncing' | 'success' | 'error' | 'conflict';
@@ -98,8 +100,8 @@ const translateGoogleApiError = (errorMessage: string): string => {
 
 export const useSync = (props: SyncProps) => {
     const {
-        rawCategories, rawGroups, rawTransactions, rawRecurringTransactions, rawAllAvailableTags, rawUsers, rawUserSettings,
-        setCategoriesAndGroups, setTransactions, setRecurringTransactions, setAllAvailableTags, setUsers, setUserSettings,
+        rawCategories, rawGroups, rawTransactions, rawRecurringTransactions, rawAllAvailableTags, rawUsers, rawUserSettings, rawTransactionGroups,
+        setCategoriesAndGroups, setTransactions, setRecurringTransactions, setAllAvailableTags, setUsers, setUserSettings, setTransactionGroups,
         isInitialSetupDone, isDemoModeEnabled, setIsInitialSetupDone, currentUserId, appMode, openUserMergeModal
     } = props;
     
@@ -128,10 +130,11 @@ export const useSync = (props: SyncProps) => {
         setAllAvailableTags(mergeItems<Tag>(rawAllAvailableTags, [], conflicts.tags));
         setUsers(mergeItems<User>(rawUsers, [], conflicts.users));
         setUserSettings(mergeItems<UserSetting>(rawUserSettings, [], conflicts.userSettings));
+        setTransactionGroups(mergeItems<TransactionGroup>(rawTransactionGroups, [], conflicts.transactionGroups));
         setSyncStatus('conflict');
     }, [
-        rawCategories, rawGroups, rawTransactions, rawRecurringTransactions, rawAllAvailableTags, rawUsers, rawUserSettings,
-        setCategoriesAndGroups, setTransactions, setRecurringTransactions, setAllAvailableTags, setUsers, setUserSettings
+        rawCategories, rawGroups, rawTransactions, rawRecurringTransactions, rawAllAvailableTags, rawUsers, rawUserSettings, rawTransactionGroups,
+        setCategoriesAndGroups, setTransactions, setRecurringTransactions, setAllAvailableTags, setUsers, setUserSettings, setTransactionGroups
     ]);
 
     const syncData = useCallback(async (options: { isAuto?: boolean } = {}) => {
@@ -198,6 +201,7 @@ export const useSync = (props: SyncProps) => {
             const mergedTags = merge(rawAllAvailableTags, remoteData.tags);
             const mergedUsers = merge(rawUsers, remoteData.users);
             const mergedUserSettings = merge(rawUserSettings, remoteData.userSettings);
+            const mergedTransactionGroups = merge(rawTransactionGroups, remoteData.transactionGroups);
             
             // 3. PUSH the merged data to the server
             const payload = {
@@ -208,6 +212,7 @@ export const useSync = (props: SyncProps) => {
                 tags: mergedTags.filter(t => !t.isDemo),
                 users: mergedUsers,
                 userSettings: mergedUserSettings.filter(s => !(s.userId === 'app_meta' && s.key === 'mode')),
+                transactionGroups: mergedTransactionGroups,
             };
 
             const { data: finalData }: { data: ReadApiResponse } = await apiPost('/api/sheets/write', payload);
@@ -219,6 +224,7 @@ export const useSync = (props: SyncProps) => {
             setAllAvailableTags(finalData.tags);
             setUsers(finalData.users);
             setUserSettings(finalData.userSettings);
+            setTransactionGroups(finalData.transactionGroups);
 
             setLastSync(new Date().toISOString());
             setSyncStatus('success');
@@ -246,9 +252,9 @@ export const useSync = (props: SyncProps) => {
     }, [
         isDemoModeEnabled, isInitialSetupDone, setIsInitialSetupDone, rawUsers, openUserMergeModal,
         setSyncStatus, setSyncError, rawGroups, rawCategories, rawTransactions, rawRecurringTransactions,
-        rawAllAvailableTags, rawUserSettings, handleMergeConflicts, setLastSync,
+        rawAllAvailableTags, rawUserSettings, rawTransactionGroups, handleMergeConflicts, setLastSync,
         setCategoriesAndGroups, setTransactions, setRecurringTransactions, setAllAvailableTags,
-        setUsers, setUserSettings
+        setUsers, setUserSettings, setTransactionGroups
     ]);
 
     const loadFromSheet = useCallback(async (options?: { preserveLocalTransactions?: boolean, preserveNewLocalUsers?: boolean }) => {
@@ -268,6 +274,7 @@ export const useSync = (props: SyncProps) => {
             
             setRecurringTransactions(data.recurring);
             setAllAvailableTags(data.tags);
+            setTransactionGroups(data.transactionGroups);
     
             if (options?.preserveNewLocalUsers) {
                 // Find local users that are not on the server (i.e., newly created ones)
@@ -288,7 +295,7 @@ export const useSync = (props: SyncProps) => {
         } finally {
             syncInProgressRef.current = false;
         }
-    }, [isDemoModeEnabled, rawUsers, setCategoriesAndGroups, setTransactions, setRecurringTransactions, setAllAvailableTags, setUsers, setUserSettings, setLastSync]);
+    }, [isDemoModeEnabled, rawUsers, setCategoriesAndGroups, setTransactions, setRecurringTransactions, setAllAvailableTags, setUsers, setUserSettings, setTransactionGroups, setLastSync]);
 
 
     useEffect(() => {

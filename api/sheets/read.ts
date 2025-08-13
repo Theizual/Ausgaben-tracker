@@ -23,6 +23,7 @@ const ALL_RANGES = [
   'Tags!A2:Z',
   'Users!A2:Z',
   'UserSettings!A2:Z',
+  'TransactionGroups!A2:Z',
 ];
 
 const rangeNameToKeyMap: { [key: string]: string } = {
@@ -33,6 +34,7 @@ const rangeNameToKeyMap: { [key: string]: string } = {
   'Tags': 'tags',
   'Users': 'users',
   'UserSettings': 'userSettings',
+  'TransactionGroups': 'transactionGroups',
 };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {

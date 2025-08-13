@@ -63,7 +63,19 @@ export interface Transaction {
   createdBy?: string;
   isDemo?: boolean;
   transactionGroupId?: string;
+  isCorrected?: boolean;
+  groupBaseAmount?: number;
   iconOverride?: string;
+}
+
+export interface TransactionGroup {
+    id: string;
+    targetAmount: number;
+    createdAt: string; // ISO string
+    lastModified: string; // ISO string
+    isDeleted?: boolean;
+    version: number;
+    conflicted?: boolean;
 }
 
 export interface RecurringTransaction {

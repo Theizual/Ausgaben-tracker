@@ -1,11 +1,12 @@
 export const HEADERS = {
   Groups:       ['id','name','sortIndex','lastModified','version','isDeleted', 'color', 'isDefault', 'icon'],
   Categories:   ['id','name','color','budget','icon','lastModified','version','isDeleted', 'groupId', 'sortIndex'],
-  Transactions: ['id','amount','description','categoryId','date','tagIds','lastModified','isDeleted','recurringId','version','userId','transactionGroupId','iconOverride'],
+  Transactions: ['id','amount','description','categoryId','date','tagIds','lastModified','isDeleted','recurringId','version','userId','transactionGroupId','isCorrected','groupBaseAmount','iconOverride'],
   Recurring:    ['id','amount','description','categoryId','frequency','dayOfMonth','startDate','endDate','lastProcessedDate','active','lastModified','version','isDeleted'],
   Tags:         ['id','name','color','lastModified','version','isDeleted'],
   Users:        ['id','name','color','lastModified','version','isDeleted'],
   UserSettings: ['userId','key','value','lastModified','version'],
+  TransactionGroups: ['id','targetAmount','createdAt','lastModified','version','isDeleted'],
 } as const;
 
 export type SheetName = keyof typeof HEADERS;
@@ -66,6 +67,11 @@ export function rowsToObjects(sheet: SheetName, rows: any[][] = []): any[] {
       }
       if (sheet === 'Transactions') {
         if (obj.date) obj.date = parseGermanDateToISO(obj.date);
+        obj.groupBaseAmount = parseGermanNumber(obj.groupBaseAmount);
+      }
+       if (sheet === 'TransactionGroups') {
+        obj.targetAmount = parseGermanNumber(obj.targetAmount);
+        if (obj.createdAt) obj.createdAt = parseGermanDateToISO(obj.createdAt);
       }
       if (sheet === 'Recurring') {
         if (obj.startDate) obj.startDate = parseGermanDateToISO(obj.startDate);
@@ -93,6 +99,9 @@ export function rowsToObjects(sheet: SheetName, rows: any[][] = []): any[] {
       } else {
         (obj as any).isDeleted = false;
       }
+       if (sheet === 'Transactions' && 'isCorrected' in obj) {
+          obj.isCorrected = String(obj.isCorrected).toUpperCase() === 'TRUE';
+       }
       
       if (sheet === 'Groups') {
         obj.isDefault = String(obj.isDefault).toUpperCase() === 'TRUE';
@@ -126,7 +135,7 @@ export function objectsToRows(sheet: SheetName, items: any[] = []): any[][] {
         return val.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
 
-    if (h === 'date' || h === 'startDate' || h === 'endDate' || h === 'lastModified' || h === 'lastProcessedDate') {
+    if (h === 'date' || h === 'startDate' || h === 'endDate' || h === 'lastModified' || h === 'lastProcessedDate' || h === 'createdAt') {
       try {
         const d = new Date(val);
         if (!isNaN(d.getTime())) {

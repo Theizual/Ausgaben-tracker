@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { toast } from 'react-hot-toast';
-import type { Transaction, RecurringTransaction, Tag, CategoryId } from '@/shared/types';
+import type { Transaction, RecurringTransaction, Tag, CategoryId, TransactionGroup } from '@/shared/types';
 import { addMonths, addYears, isSameDay, parseISO, isWithinInterval, isValid, format, subDays, startOfMonth, endOfMonth } from 'date-fns';
 import { generateUUID } from '@/shared/utils/uuid';
 import { FIXED_COSTS_GROUP_ID } from '@/constants';
@@ -16,32 +16,53 @@ const sortTransactions = (transactions: Transaction[]): Transaction[] =>
     [...transactions].sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime());
 
 // --- STATE MANAGEMENT ---
-type DataState = { transactions: Transaction[]; tags: Tag[]; recurring: RecurringTransaction[]; };
+type DataState = { transactions: Transaction[]; tags: Tag[]; recurring: RecurringTransaction[]; transactionGroups: TransactionGroup[]; };
 type Action =
-    | { type: 'SET_ALL_DATA'; payload: { transactions: Transaction[]; tags: Tag[]; recurring: RecurringTransaction[] } }
+    | { type: 'SET_ALL_DATA'; payload: { transactions: Transaction[]; tags: Tag[]; recurring: RecurringTransaction[]; transactionGroups: TransactionGroup[] } }
     | { type: 'SET_TRANSACTIONS'; payload: Transaction[] }
+    | { type: 'UPDATE_MULTIPLE_TRANSACTIONS'; payload: Transaction[] }
     | { type: 'SET_TAGS'; payload: Tag[] }
     | { type: 'SET_RECURRING'; payload: RecurringTransaction[] }
+    | { type: 'SET_TRANSACTION_GROUPS'; payload: TransactionGroup[] }
     | { type: 'ADD_TRANSACTION'; payload: Transaction }
     | { type: 'ADD_MULTIPLE_TRANSACTIONS'; payload: Transaction[] }
     | { type: 'UPDATE_TRANSACTION'; payload: Transaction }
     | { type: 'ADD_RECURRING'; payload: RecurringTransaction }
     | { type: 'UPDATE_RECURRING'; payload: RecurringTransaction }
+    | { type: 'UPSERT_TRANSACTION_GROUP'; payload: TransactionGroup }
     | { type: 'ADD_TAGS'; payload: Tag[] }
     | { type: 'UPDATE_TAG'; payload: Tag }
     | { type: 'PROCESS_RECURRING_UPDATES'; payload: { newTransactions: Transaction[], updatedRecurring: RecurringTransaction[] } };
 
 const dataReducer = (state: DataState, action: Action): DataState => {
     switch (action.type) {
-        case 'SET_ALL_DATA': return { ...state, transactions: sortTransactions(action.payload.transactions), tags: action.payload.tags, recurring: action.payload.recurring };
+        case 'SET_ALL_DATA': return { ...state, transactions: sortTransactions(action.payload.transactions), tags: action.payload.tags, recurring: action.payload.recurring, transactionGroups: action.payload.transactionGroups || [] };
         case 'SET_TRANSACTIONS': return { ...state, transactions: sortTransactions(action.payload) };
+        case 'UPDATE_MULTIPLE_TRANSACTIONS': {
+            const updatesMap = new Map(action.payload.map(t => [t.id, t]));
+            return {
+                ...state,
+                transactions: sortTransactions(state.transactions.map(t => updatesMap.get(t.id) || t)),
+            };
+        }
         case 'SET_TAGS': return { ...state, tags: action.payload };
         case 'SET_RECURRING': return { ...state, recurring: action.payload };
+        case 'SET_TRANSACTION_GROUPS': return { ...state, transactionGroups: action.payload };
         case 'ADD_TRANSACTION': return { ...state, transactions: sortTransactions([...state.transactions, action.payload]) };
         case 'ADD_MULTIPLE_TRANSACTIONS': return { ...state, transactions: sortTransactions([...state.transactions, ...action.payload]) };
         case 'UPDATE_TRANSACTION': return { ...state, transactions: sortTransactions(state.transactions.map(t => t.id === action.payload.id ? action.payload : t)) };
         case 'ADD_RECURRING': return { ...state, recurring: [...state.recurring, action.payload] };
         case 'UPDATE_RECURRING': return { ...state, recurring: state.recurring.map(r => r.id === action.payload.id ? action.payload : r) };
+        case 'UPSERT_TRANSACTION_GROUP': {
+            const newGroup = action.payload;
+            const existingIndex = state.transactionGroups.findIndex(g => g.id === newGroup.id);
+            if (existingIndex > -1) {
+                const newGroups = [...state.transactionGroups];
+                newGroups[existingIndex] = newGroup;
+                return { ...state, transactionGroups: newGroups };
+            }
+            return { ...state, transactionGroups: [...state.transactionGroups, newGroup] };
+        }
         case 'ADD_TAGS': {
              const newTags = action.payload.filter(newTag => !state.tags.some(existing => existing.id === newTag.id));
              if (newTags.length === 0) return state;
@@ -94,16 +115,18 @@ const makeInitializer = (isDemoMode: boolean): (() => DataState) => () => {
     const T_KEY = `${prefix}transactions`;
     const TAGS_KEY = `${prefix}allAvailableTags`;
     const R_KEY = `${prefix}recurringTransactions`;
+    const TGRP_KEY = `${prefix}transactionGroups`;
     
     try {
         const storedTransactions = JSON.parse(window.localStorage.getItem(T_KEY) || '[]') as Transaction[];
         const storedTags = JSON.parse(window.localStorage.getItem(TAGS_KEY) || '[]') as Tag[];
         // Use 'null' as default to distinguish between "not set" and "empty array"
         const storedRecurring = JSON.parse(window.localStorage.getItem(R_KEY) || 'null') as RecurringTransaction[] | null;
+        const storedTransactionGroups = JSON.parse(window.localStorage.getItem(TGRP_KEY) || '[]') as TransactionGroup[];
         
-        if (!Array.isArray(storedTransactions) || !Array.isArray(storedTags)) {
+        if (!Array.isArray(storedTransactions) || !Array.isArray(storedTags) || !Array.isArray(storedTransactionGroups)) {
              // If basic data is corrupt, start completely fresh
-            return { transactions: [], tags: [], recurring: createInitialRecurringTransactions() };
+            return { transactions: [], tags: [], recurring: createInitialRecurringTransactions(), transactionGroups: [] };
         }
 
         // Only create initial recurring if they have never been set before.
@@ -111,10 +134,10 @@ const makeInitializer = (isDemoMode: boolean): (() => DataState) => () => {
             ? storedRecurring 
             : createInitialRecurringTransactions();
 
-        return { transactions: sortTransactions(storedTransactions), tags: storedTags, recurring: recurring };
+        return { transactions: sortTransactions(storedTransactions), tags: storedTags, recurring: recurring, transactionGroups: storedTransactionGroups };
     } catch (error) {
         // Fallback in case of any parsing error
-        return { transactions: [], tags: [], recurring: createInitialRecurringTransactions() };
+        return { transactions: [], tags: [], recurring: createInitialRecurringTransactions(), transactionGroups: [] };
     }
 };
 
@@ -132,6 +155,7 @@ export const useTransactionData = ({ showConfirmation, closeTransactionDetail, c
     const T_KEY = `${prefix}transactions`;
     const TAGS_KEY = `${prefix}allAvailableTags`;
     const R_KEY = `${prefix}recurringTransactions`;
+    const TGRP_KEY = `${prefix}transactionGroups`;
 
     const initializer = useMemo(() => makeInitializer(isDemoModeEnabled), [isDemoModeEnabled]);
     const [rawState, dispatch] = useReducer(dataReducer, undefined, initializer);
@@ -154,9 +178,11 @@ export const useTransactionData = ({ showConfirmation, closeTransactionDetail, c
     useEffect(() => { window.localStorage.setItem(T_KEY, JSON.stringify(rawState.transactions)); }, [rawState.transactions, T_KEY]);
     useEffect(() => { window.localStorage.setItem(TAGS_KEY, JSON.stringify(rawState.tags)); }, [rawState.tags, TAGS_KEY]);
     useEffect(() => { window.localStorage.setItem(R_KEY, JSON.stringify(rawState.recurring)); }, [rawState.recurring, R_KEY]);
+    useEffect(() => { window.localStorage.setItem(TGRP_KEY, JSON.stringify(rawState.transactionGroups)); }, [rawState.transactionGroups, TGRP_KEY]);
 
     const liveTransactions = useMemo(() => rawState.transactions.filter(t => !t.isDeleted), [rawState.transactions]);
     const liveTags = useMemo(() => rawState.tags.filter(t => !t.isDeleted), [rawState.tags]);
+    const liveTransactionGroups = useMemo(() => rawState.transactionGroups.filter(g => !g.isDeleted), [rawState.transactionGroups]);
     
     const transactions = useMemo(() => {
         return showDemoData && demoData
@@ -346,16 +372,154 @@ export const useTransactionData = ({ showConfirmation, closeTransactionDetail, c
             dispatch({ type: 'PROCESS_RECURRING_UPDATES', payload: { newTransactions, updatedRecurring } });
         }
     }, [rawState.recurring, rawState.transactions]);
+
+    const createTransactionGroup = useCallback((transactionIds: string[]) => {
+        if (transactionIds.length < 2) return;
+        const now = new Date().toISOString();
+        const transactionsInGroup = rawState.transactions.filter(t => transactionIds.includes(t.id));
+        if (transactionsInGroup.some(t => t.transactionGroupId)) {
+            toast.error("Einige Transaktionen gehören bereits zu einer Gruppe.");
+            return;
+        }
+        const targetAmount = transactionsInGroup.reduce((sum, t) => sum + t.amount, 0);
+        const newGroup: TransactionGroup = { id: generateUUID('tgrp'), targetAmount, createdAt: now, lastModified: now, version: 1 };
+        const updatedTransactions = transactionsInGroup.map(t => ({ ...t, transactionGroupId: newGroup.id, groupBaseAmount: t.amount, isCorrected: false, lastModified: now, version: (t.version || 0) + 1 }));
+        dispatch({ type: 'UPSERT_TRANSACTION_GROUP', payload: newGroup });
+        dispatch({ type: 'UPDATE_MULTIPLE_TRANSACTIONS', payload: updatedTransactions });
+        toast.success("Transaktionsgruppe erstellt.");
+    }, [rawState.transactions]);
+
+    const addTransactionsToGroup = useCallback((groupId: string, transactionIds: string[]) => {
+        const group = rawState.transactionGroups.find(g => g.id === groupId);
+        if (!group) return;
+        const now = new Date().toISOString();
+        const transactionsToAdd = rawState.transactions.filter(t => transactionIds.includes(t.id) && !t.transactionGroupId);
+        if (transactionsToAdd.length === 0) return;
+        const newTargetAmount = group.targetAmount + transactionsToAdd.reduce((sum, t) => sum + t.amount, 0);
+        const updatedGroup = { ...group, targetAmount: newTargetAmount, lastModified: now, version: (group.version || 0) + 1 };
+        const updatedTransactions = transactionsToAdd.map(t => ({ ...t, transactionGroupId: groupId, groupBaseAmount: t.amount, isCorrected: false, lastModified: now, version: (t.version || 0) + 1 }));
+        dispatch({ type: 'UPSERT_TRANSACTION_GROUP', payload: updatedGroup });
+        dispatch({ type: 'UPDATE_MULTIPLE_TRANSACTIONS', payload: updatedTransactions });
+        toast.success(`${transactionIds.length} Transaktion(en) zur Gruppe hinzugefügt.`);
+    }, [rawState.transactions, rawState.transactionGroups]);
+
+    const removeTransactionFromGroup = useCallback((transactionId: string) => {
+        const transaction = rawState.transactions.find(t => t.id === transactionId);
+        if (!transaction?.transactionGroupId) return;
+        
+        const now = new Date().toISOString();
+        const updatedTransaction: Transaction = { ...transaction, transactionGroupId: undefined, groupBaseAmount: undefined, isCorrected: undefined, lastModified: now, version: (transaction.version || 0) + 1 };
+        
+        const group = rawState.transactionGroups.find(g => g.id === transaction.transactionGroupId);
+        if (group) {
+            const members = rawState.transactions.filter(t => t.transactionGroupId === group.id && t.id !== transactionId);
+            if (members.length < 2) {
+                const updatedMembers = members.map(m => ({ ...m, transactionGroupId: undefined, groupBaseAmount: undefined, isCorrected: undefined, lastModified: now, version: (m.version || 0) + 1 }));
+                const updatedGroup = { ...group, isDeleted: true, lastModified: now, version: (group.version || 0) + 1 };
+                dispatch({ type: 'UPDATE_MULTIPLE_TRANSACTIONS', payload: [updatedTransaction, ...updatedMembers] });
+                dispatch({ type: 'UPSERT_TRANSACTION_GROUP', payload: updatedGroup });
+                 toast.success("Gruppe aufgelöst.");
+            } else {
+                const newTargetAmount = group.targetAmount - transaction.amount;
+                const updatedGroup = { ...group, targetAmount: newTargetAmount, lastModified: now, version: (group.version || 0) + 1 };
+                dispatch({ type: 'UPDATE_TRANSACTION', payload: updatedTransaction });
+                dispatch({ type: 'UPSERT_TRANSACTION_GROUP', payload: updatedGroup });
+                 toast.success("Transaktion aus Gruppe entfernt.");
+            }
+        } else {
+            dispatch({ type: 'UPDATE_TRANSACTION', payload: updatedTransaction });
+        }
+    }, [rawState.transactions, rawState.transactionGroups]);
+
+     const updateTransactionInGroup = useCallback((transactionId: string, newAmount: number) => {
+        const transaction = rawState.transactions.find(t => t.id === transactionId);
+        if (!transaction?.transactionGroupId) return;
+        const groupId = transaction.transactionGroupId;
+        const group = rawState.transactionGroups.find(g => g.id === groupId);
+        if (!group) return;
+
+        const now = new Date().toISOString();
+        const members = rawState.transactions.filter(t => t.transactionGroupId === groupId);
+        
+        const updatedTransaction = { ...transaction, amount: newAmount, isCorrected: true, lastModified: now, version: (transaction.version || 0) + 1, groupBaseAmount: transaction.groupBaseAmount === undefined ? transaction.amount : transaction.groupBaseAmount };
+        const otherMembers = members.filter(t => t.id !== transactionId);
+        const correctedMembers = [...otherMembers.filter(t => t.isCorrected), updatedTransaction];
+        const uncorrectedMembers = otherMembers.filter(t => !t.isCorrected);
+        const sumCorrected = correctedMembers.reduce((sum, t) => sum + t.amount, 0);
+        const remainingTarget = group.targetAmount - sumCorrected;
+        const sumUncorrectedBase = uncorrectedMembers.reduce((sum, t) => sum + (t.groupBaseAmount || t.amount), 0);
+        const updatedTransactions = [updatedTransaction];
+
+        if (sumUncorrectedBase > 0) {
+            let distributedAmount = 0;
+            uncorrectedMembers.forEach((t, index) => {
+                const isLast = index === uncorrectedMembers.length - 1;
+                const newTxAmount = isLast ? remainingTarget - distributedAmount : Math.round(remainingTarget * ((t.groupBaseAmount || t.amount) / sumUncorrectedBase) * 100) / 100;
+                distributedAmount += newTxAmount;
+                updatedTransactions.push({ ...t, amount: newTxAmount, lastModified: now, version: (t.version || 0) + 1 });
+            });
+        } else if (uncorrectedMembers.length > 0) {
+            const amountPerTx = remainingTarget / uncorrectedMembers.length;
+            uncorrectedMembers.forEach(t => updatedTransactions.push({ ...t, amount: amountPerTx, lastModified: now, version: (t.version || 0) + 1 }));
+        }
+        dispatch({ type: 'UPDATE_MULTIPLE_TRANSACTIONS', payload: updatedTransactions });
+    }, [rawState.transactions, rawState.transactionGroups]);
+    
+    const resetCorrectionInGroup = useCallback((transactionId: string) => {
+        const transaction = rawState.transactions.find(t => t.id === transactionId);
+        if (!transaction || !transaction.transactionGroupId || !transaction.isCorrected) return;
+        
+        const now = new Date().toISOString();
+        
+        // Create a temporary state with the transaction reset
+        const tempTransaction = { ...transaction, amount: transaction.groupBaseAmount || transaction.amount, isCorrected: false };
+        const tempMembers = rawState.transactions.map(t => t.id === transactionId ? tempTransaction : t);
+
+        const groupId = transaction.transactionGroupId;
+        const group = rawState.transactionGroups.find(g => g.id === groupId);
+        if (!group) return;
+
+        const members = tempMembers.filter(t => t.transactionGroupId === groupId);
+        const correctedMembers = members.filter(t => t.isCorrected);
+        const uncorrectedMembers = members.filter(t => !t.isCorrected);
+        
+        const sumCorrected = correctedMembers.reduce((sum, t) => sum + t.amount, 0);
+        const remainingTarget = group.targetAmount - sumCorrected;
+        const sumUncorrectedBase = uncorrectedMembers.reduce((sum, t) => sum + (t.groupBaseAmount || t.amount), 0);
+        
+        const updatedTransactions = [...correctedMembers];
+
+        if (sumUncorrectedBase > 0) {
+            let distributedAmount = 0;
+            uncorrectedMembers.forEach((t, index) => {
+                const isLast = index === uncorrectedMembers.length - 1;
+                const newTxAmount = isLast ? remainingTarget - distributedAmount : Math.round(remainingTarget * ((t.groupBaseAmount || t.amount) / sumUncorrectedBase) * 100) / 100;
+                distributedAmount += newTxAmount;
+                updatedTransactions.push({ ...t, amount: newTxAmount, isCorrected: false, lastModified: now, version: (t.version || 0) + 1 });
+            });
+        } // Handle other cases if needed
+
+        dispatch({ type: 'UPDATE_MULTIPLE_TRANSACTIONS', payload: updatedTransactions });
+        toast.info("Korrektur zurückgesetzt und Beträge neu verteilt.");
+    }, [rawState.transactions, rawState.transactionGroups]);
     
     return {
         transactions, recurringTransactions, allAvailableTags, tagMap, selectTotalSpentForMonth, totalSpentThisMonth,
         rawTransactions: rawState.transactions, rawRecurringTransactions: rawState.recurring, rawAllAvailableTags: rawState.tags,
+        rawTransactionGroups: rawState.transactionGroups,
+        transactionGroups: liveTransactionGroups,
         setTransactions: (data: Transaction[]) => dispatch({type: 'SET_TRANSACTIONS', payload: data}),
         setAllAvailableTags: (data: Tag[]) => dispatch({type: 'SET_TAGS', payload: data}),
         setRecurringTransactions: (data: RecurringTransaction[]) => dispatch({type: 'SET_RECURRING', payload: data}),
+        setTransactionGroups: (data: TransactionGroup[]) => dispatch({type: 'SET_TRANSACTION_GROUPS', payload: data}),
         addTransaction, addMultipleTransactions, updateTransaction, deleteTransaction, deleteMultipleTransactions,
         addRecurringTransaction, updateRecurringTransaction, deleteRecurringTransaction, handleUpdateTag, handleDeleteTag,
         reassignCategoryForTransactions,
         reassignUserForTransactions,
+        createTransactionGroup,
+        addTransactionsToGroup,
+        removeTransactionFromGroup,
+        updateTransactionInGroup,
+        resetCorrectionInGroup,
     };
 };

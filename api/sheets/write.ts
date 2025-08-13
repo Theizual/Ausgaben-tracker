@@ -28,7 +28,7 @@ function getAuth() {
 
 type Payload = {
   groups?: any[]; categories?: any[]; transactions?: any[]; recurring?: any[];
-  tags?: any[]; users?: any[]; userSettings?: any[];
+  tags?: any[]; users?: any[]; userSettings?: any[]; transactionGroups?: any[];
 };
 
 
@@ -42,13 +42,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const body = (req.body || {}) as Payload;
 
     const sheetsSpec = [
-      ['Groups',       body.groups]       as const,
-      ['Categories',   body.categories]   as const,
-      ['Transactions', body.transactions] as const,
-      ['Recurring',    body.recurring]    as const,
-      ['Tags',         body.tags]         as const,
-      ['Users',        body.users]        as const,
-      ['UserSettings', body.userSettings] as const,
+      ['Groups',            body.groups]            as const,
+      ['Categories',        body.categories]        as const,
+      ['Transactions',      body.transactions]      as const,
+      ['Recurring',         body.recurring]         as const,
+      ['Tags',              body.tags]              as const,
+      ['Users',             body.users]             as const,
+      ['UserSettings',      body.userSettings]      as const,
+      ['TransactionGroups', body.transactionGroups] as const,
     ];
 
     const dataToWrite = sheetsSpec.map(([name, arr]) => {
@@ -72,13 +73,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const valueRanges = (readResp as any).data.valueRanges || [];
     const out = {
-      groups:        rowsToObjects('Groups',       valueRanges[0]?.values || []),
-      categories:    rowsToObjects('Categories',   valueRanges[1]?.values || []),
-      transactions:  rowsToObjects('Transactions', valueRanges[2]?.values || []),
-      recurring:     rowsToObjects('Recurring',    valueRanges[3]?.values || []),
-      tags:          rowsToObjects('Tags',         valueRanges[4]?.values || []),
-      users:         rowsToObjects('Users',        valueRanges[5]?.values || []),
-      userSettings:  rowsToObjects('UserSettings', valueRanges[6]?.values || []),
+      groups:            rowsToObjects('Groups',            valueRanges[0]?.values || []),
+      categories:        rowsToObjects('Categories',        valueRanges[1]?.values || []),
+      transactions:      rowsToObjects('Transactions',      valueRanges[2]?.values || []),
+      recurring:         rowsToObjects('Recurring',         valueRanges[3]?.values || []),
+      tags:              rowsToObjects('Tags',              valueRanges[4]?.values || []),
+      users:             rowsToObjects('Users',             valueRanges[5]?.values || []),
+      userSettings:      rowsToObjects('UserSettings',      valueRanges[6]?.values || []),
+      transactionGroups: rowsToObjects('TransactionGroups', valueRanges[7]?.values || []),
     };
 
     return res.status(200).json({ data: out, migrationMap: {} });
