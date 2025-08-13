@@ -6,10 +6,12 @@ import { getCategories as getBaseCategories, getGroups as getBaseGroups } from '
 import type { Category, UserSetting, Group } from '@/shared/types';
 
 interface UseCategoriesProps {
-    rawUserSettings: UserSetting[];
-    updateCategoryConfigurationForUser: (userId: string, config: { categories: Category[], groups: Group[] }) => void;
     currentUserId: string | null;
     isDemoModeEnabled: boolean;
+    hiddenCategoryIds: string[];
+    hideCategory: (categoryId: string) => void;
+    unhideCategory: (categoryId: string) => void;
+    clearHiddenCategories: () => void;
 }
 
 type CategoriesState = {
@@ -106,111 +108,68 @@ const categoriesReducer = (state: CategoriesState, action: Action): CategoriesSt
     }
 };
 
-const loadConfiguration = (userId: string | null, userSettings: UserSetting[], isDemoModeEnabled: boolean): { categories: Category[], groups: Group[] } => {
-    const baseConfig = { categories: getBaseCategories(), groups: getBaseGroups() };
-
-    if (isDemoModeEnabled) {
-        return baseConfig;
-    }
-
-    if (userId) {
-        const setting = userSettings.find(s => s.userId === userId && s.key === 'categoryConfiguration' && !s.isDeleted);
-        if (setting && setting.value) {
-            try {
-                const stored = JSON.parse(setting.value);
-                if (Array.isArray(stored.categories) && Array.isArray(stored.groups)) {
-                    const groupNameToIdMap = new Map((stored.groups as Group[]).map(g => [g.name.toLowerCase(), g.id]));
-                    const groupMap = new Map((stored.groups as Group[]).map(g => [g.id, g]));
-
-                    const normalizedCategories = (stored.categories as Category[]).map(cat => {
-                        if (cat.groupId && groupMap.has(cat.groupId)) return cat;
-                        const legacyGroupName = (cat as any).group;
-                        if (legacyGroupName && typeof legacyGroupName === 'string') {
-                            const resolvedGroupId = groupNameToIdMap.get(legacyGroupName.toLowerCase());
-                            if (resolvedGroupId) {
-                                const newCat: Category = { ...cat, groupId: resolvedGroupId };
-                                delete (newCat as any).group;
-                                return newCat;
-                            }
-                        }
-                        const newCat: Category = { ...cat, groupId: DEFAULT_GROUP_ID };
-                        delete (newCat as any).group;
-                        return newCat;
-                    });
-                    
-                    stored.categories = normalizedCategories;
-
-                    const baseCategoryMap = new Map(baseConfig.categories.map(c => [c.id, c]));
-                    const finalGroups = [...baseConfig.groups];
-                    const finalCategories = [...baseConfig.categories];
-                    const finalGroupMap = new Map(finalGroups.map(g => [g.id, g]));
-                    const finalCategoryMap = new Map(finalCategories.map(c => [c.id, c]));
-
-                    for (const storedGroup of stored.groups as Group[]) {
-                        if (finalGroupMap.has(storedGroup.id)) {
-                             finalGroupMap.set(storedGroup.id, { ...finalGroupMap.get(storedGroup.id)!, ...storedGroup });
-                        } else {
-                            finalGroupMap.set(storedGroup.id, storedGroup);
-                        }
-                    }
-
-                    for (const storedCat of stored.categories as Category[]) {
-                        if (finalCategoryMap.has(storedCat.id)) {
-                             finalCategoryMap.set(storedCat.id, { ...finalCategoryMap.get(storedCat.id)!, ...storedCat });
-                        } else {
-                            finalCategoryMap.set(storedCat.id, storedCat);
-                        }
-                    }
-                    
-                    return { categories: Array.from(finalCategoryMap.values()), groups: Array.from(finalGroupMap.values()) };
-                }
-            } catch (e) {
-                console.error("Failed to parse category configuration, falling back to default.", e);
-            }
+const makeInitializer = (isDemoMode: boolean): (() => CategoriesState) => () => {
+    const prefix = isDemoMode ? 'demo_' : '';
+    // These keys are intentionally different from sync/user-settings to avoid conflicts.
+    // This is a global cache for the app's category structure.
+    const CAT_KEY = `${prefix}categories`;
+    const GRP_KEY = `${prefix}groups`;
+    
+    try {
+        const storedCats = window.localStorage.getItem(CAT_KEY);
+        const storedGrps = window.localStorage.getItem(GRP_KEY);
+        if (storedCats && storedGrps) {
+            return { categories: JSON.parse(storedCats), groups: JSON.parse(storedGrps) };
         }
-    }
-    return baseConfig;
+    } catch {}
+
+    // Fallback to base taxonomy for a fresh start.
+    return { categories: getBaseCategories(), groups: getBaseGroups() };
 };
 
-export const useCategories = ({ rawUserSettings, updateCategoryConfigurationForUser, currentUserId, isDemoModeEnabled }: UseCategoriesProps) => {
+export const useCategories = ({ currentUserId, isDemoModeEnabled, hiddenCategoryIds, hideCategory, unhideCategory, clearHiddenCategories }: UseCategoriesProps) => {
     
-    const initializer = useMemo(() => {
-        return loadConfiguration(currentUserId, rawUserSettings, isDemoModeEnabled);
-    }, [currentUserId, rawUserSettings, isDemoModeEnabled]);
-
-    const [state, dispatch] = useReducer(categoriesReducer, initializer);
-
-    // Re-initialize state when user changes
+    const prefix = isDemoModeEnabled ? 'demo_' : '';
+    const CAT_KEY = `${prefix}categories`;
+    const GRP_KEY = `${prefix}groups`;
+    
+    const initializer = useMemo(() => makeInitializer(isDemoModeEnabled), [isDemoModeEnabled]);
+    const [state, dispatch] = useReducer(categoriesReducer, undefined, initializer);
+    
+    // Persist to localStorage
     useEffect(() => {
-        dispatch({ type: 'SET_CONFIG', payload: initializer });
-    }, [initializer]);
+        window.localStorage.setItem(CAT_KEY, JSON.stringify(state.categories));
+        window.localStorage.setItem(GRP_KEY, JSON.stringify(state.groups));
+    }, [state.categories, state.groups, CAT_KEY, GRP_KEY]);
 
-    // Persist changes to userSettings
-    useEffect(() => {
-        if (currentUserId && !isDemoModeEnabled) {
-            updateCategoryConfigurationForUser(currentUserId, state);
-        }
-    }, [state, currentUserId, isDemoModeEnabled, updateCategoryConfigurationForUser]);
-
+    const standardCategoryIds = useMemo(() => new Set(getBaseCategories().map(c => c.id)), []);
+    const isStandardCategory = useCallback((id: string) => standardCategoryIds.has(id), [standardCategoryIds]);
 
     const setCategoriesAndGroups = useCallback((newCategories: Category[], newGroups: Group[]) => {
         dispatch({ type: 'SET_CONFIG', payload: { categories: newCategories, groups: newGroups } });
     }, []);
     
     const upsertMultipleCategories = useCallback((categoriesData: (Partial<Category> & { id: string })[]) => {
-        // Ensure that when a category is upserted, it is marked as not deleted.
-        // This is crucial for "restoring" standard categories from the library.
         const payload = categoriesData.map(c => ({ ...c, isDeleted: false }));
         dispatch({ type: 'UPSERT_MULTIPLE_CATEGORIES', payload });
     }, []);
 
     const upsertCategory = useCallback((categoryData: Partial<Category> & { id: string }) => {
+        if (isStandardCategory(categoryData.id) && currentUserId) {
+            unhideCategory(categoryData.id);
+        }
         upsertMultipleCategories([categoryData]);
-    }, [upsertMultipleCategories]);
+    }, [upsertMultipleCategories, isStandardCategory, currentUserId, unhideCategory]);
 
     const deleteCategory = useCallback((id: string) => {
-        dispatch({ type: 'DELETE_CATEGORY', payload: id });
-    }, []);
+        if (isStandardCategory(id) && currentUserId) {
+            hideCategory(id);
+            toast.success("Standard-Kategorie ausgeblendet.");
+        } else {
+            // This is a custom category, do a global soft delete
+            dispatch({ type: 'DELETE_CATEGORY', payload: id });
+        }
+    }, [isStandardCategory, currentUserId, hideCategory]);
 
     const updateGroup = useCallback((id: string, updates: Partial<Omit<Group, 'id'>>) => {
         const groupToUpdate = state.groups.find(g => g.id === id);
@@ -272,29 +231,33 @@ export const useCategories = ({ rawUserSettings, updateCategoryConfigurationForU
         dispatch({ type: 'REORDER_GROUPS', payload: orderedGroups });
     }, []);
     
-    const unassignedCategories = useMemo(() => {
-        const baseCats = getBaseCategories();
-        const existingIds = new Set(state.categories.filter(c => !c.isDeleted).map(c => c.id));
-        return baseCats.filter(c => !existingIds.has(c.id));
-    }, [state.categories]);
-
-    const loadStandardConfiguration = useCallback(() => {
-        dispatch({ type: 'SET_CONFIG', payload: { categories: getBaseCategories(), groups: getBaseGroups() } });
-        toast.success("Standardkonfiguration geladen.");
-    }, []);
-    
     const liveGroups = useMemo(() => state.groups.filter(g => !g.isDeleted).sort((a,b) => a.sortIndex - b.sortIndex), [state.groups]);
     const liveCategories = useMemo(() => {
         const liveGroupsMap = new Map(liveGroups.map(g => [g.id, g]));
-        return state.categories.filter(c => !c.isDeleted).map(cat => {
-            if (liveGroupsMap.has(cat.groupId)) {
-                return cat;
-            }
-            console.warn(`Category ${cat.name} (${cat.id}) has orphan groupId ${cat.groupId}. Re-assigning to 'Sonstiges' group.`);
-            return { ...cat, groupId: DEFAULT_GROUP_ID };
+        return state.categories
+            .filter(c => !c.isDeleted && !hiddenCategoryIds.includes(c.id))
+            .map(cat => {
+                if (liveGroupsMap.has(cat.groupId)) {
+                    return cat;
+                }
+                return { ...cat, groupId: DEFAULT_GROUP_ID };
         });
-    }, [state.categories, liveGroups]);
+    }, [state.categories, liveGroups, hiddenCategoryIds]);
 
+    const unassignedCategories = useMemo(() => {
+        const baseCats = getBaseCategories();
+        const currentIds = new Set(state.categories.filter(c => !c.isDeleted).map(c => c.id));
+        return baseCats.filter(c => !currentIds.has(c.id) || hiddenCategoryIds.includes(c.id));
+    }, [state.categories, hiddenCategoryIds]);
+
+    const loadStandardConfiguration = useCallback(() => {
+        if (currentUserId) {
+            clearHiddenCategories();
+        }
+        dispatch({ type: 'SET_CONFIG', payload: { categories: getBaseCategories(), groups: getBaseGroups() } });
+        toast.success("Standardkonfiguration geladen.");
+    }, [currentUserId, clearHiddenCategories]);
+    
     const categoryMap = useMemo(() => new Map(liveCategories.map(c => [c.id, c])), [liveCategories]);
     const groupMap = useMemo(() => new Map(liveGroups.map(g => [g.id, g])), [liveGroups]);
     const groupNames = useMemo(() => liveGroups.map(g => g.name), [liveGroups]);

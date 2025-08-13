@@ -120,11 +120,18 @@ const ReadyAppProvider: React.FC<{
 
     // Now that uiState and usersState are stable, initialize the rest of the app's state.
     const userSettingsState = useUserSettings({ isDemoModeEnabled });
+    
+    const hiddenCategoryIds = useMemo(() => 
+        uiState.currentUserId ? userSettingsState.getHiddenCategoryIds(uiState.currentUserId) : [],
+    [userSettingsState, uiState.currentUserId]);
+
     const categoryState = useCategories({
-        rawUserSettings: userSettingsState.rawUserSettings,
-        updateCategoryConfigurationForUser: userSettingsState.updateCategoryConfigurationForUser,
         currentUserId: uiState.currentUserId,
         isDemoModeEnabled: isDemoModeEnabled,
+        hiddenCategoryIds: hiddenCategoryIds,
+        hideCategory: (catId) => uiState.currentUserId && userSettingsState.hideCategory(uiState.currentUserId, catId),
+        unhideCategory: (catId) => uiState.currentUserId && userSettingsState.unhideCategory(uiState.currentUserId, catId),
+        clearHiddenCategories: () => uiState.currentUserId && userSettingsState.clearHiddenCategories(uiState.currentUserId),
     });
 
     // --- Create final groups with user color overrides applied ---
@@ -186,11 +193,42 @@ const ReadyAppProvider: React.FC<{
         showDemoData: showDemoData,
     });
     
+    // --- Orphaned Transaction Cleanup ---
+    // This effect ensures that if a category is deleted (e.g., via sync from another user),
+    // any transactions assigned to it are moved to the default category.
+    // This prevents UI flickering and maintains data integrity.
+    useEffect(() => {
+        const transactionsToReassign = transactionDataState.rawTransactions
+            .filter(tx => !tx.isDeleted && !categoryState.categoryMap.has(tx.categoryId) && tx.categoryId !== DEFAULT_CATEGORY_ID);
+    
+        if (transactionsToReassign.length > 0) {
+            console.warn(`[Orphan Cleanup] Found ${transactionsToReassign.length} transactions to reassign.`);
+            const now = new Date().toISOString();
+            
+            const updatedTransactions = transactionDataState.rawTransactions.map(t => {
+                if (!t.isDeleted && !categoryState.categoryMap.has(t.categoryId) && t.categoryId !== DEFAULT_CATEGORY_ID) {
+                    return {
+                        ...t,
+                        categoryId: DEFAULT_CATEGORY_ID,
+                        lastModified: now,
+                        version: (t.version || 0) + 1,
+                    };
+                }
+                return t;
+            });
+            
+            transactionDataState.setTransactions(updatedTransactions);
+            toast(`${transactionsToReassign.length} Transaktion(en) wurde(n) neu zugeordnet, da die ursprüngliche Kategorie gelöscht wurde.`, { duration: 5000 });
+        }
+    }, [transactionDataState.rawTransactions, categoryState.categoryMap, transactionDataState.setTransactions]);
+
+
     const enrichedTransactions = useMemo(() => {
         return transactionDataState.transactions.map(tx => {
             if (finalCategoryMap.has(tx.categoryId)) {
                 return tx;
             }
+            // This might log briefly before the cleanup effect runs, which is acceptable.
             console.warn(`Transaction ${tx.id} has orphan categoryId ${tx.categoryId}. Re-assigning to 'Sonstiges'.`);
             return { ...tx, categoryId: DEFAULT_CATEGORY_ID };
         });
@@ -329,7 +367,7 @@ const ReadyAppProvider: React.FC<{
             const keysToClear = [
                 'transactions', 'allAvailableTags', 'recurringTransactions',
                 'users', 'userSettings', 'app-current-user-id', 'transactionViewMode',
-                'lastSyncTimestamp', 'autoSyncEnabled'
+                'lastSyncTimestamp', 'autoSyncEnabled', 'categories', 'groups'
             ];
             
             // Also clear favorites and recents for all users under the current mode
@@ -357,7 +395,7 @@ const ReadyAppProvider: React.FC<{
         // 1. Reassign transactions
         transactionDataState.reassignCategoryForTransactions(sourceCategoryId, targetCategoryId);
     
-        // 2. "Delete" the category (soft delete)
+        // 2. "Delete" the category (soft delete for custom, hide for standard)
         categoryState.deleteCategory(sourceCategoryId);
     
         // 3. Clean up preferences

@@ -1,4 +1,5 @@
 
+
 export interface User {
   id: string;
   name: string;
@@ -84,8 +85,8 @@ export interface RecurringTransaction {
 
 export interface UserSetting {
   userId: string | 'app_meta';
-  key: 'groupColors' | 'categoryConfiguration' | 'visibleGroups' | 'mode' | 'quickAddHideGroups' | 'categoryColorOverrides';
-  value: string; // Comma-separated list for visibleGroups, JSON string for groupColors/categoryConfiguration/categoryColorOverrides
+  key: 'groupColors' | 'visibleGroups' | 'mode' | 'quickAddHideGroups' | 'categoryColorOverrides' | 'hiddenCategories';
+  value: string; // Comma-separated list for visibleGroups, JSON string for groupColors/categoryColorOverrides/hiddenCategories
   lastModified: string;
   version: number;
   isDeleted?: boolean;

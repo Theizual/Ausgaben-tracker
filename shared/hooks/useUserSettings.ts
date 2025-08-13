@@ -1,5 +1,7 @@
 
 
+
+
 import { useReducer, useMemo, useCallback, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import type { UserSetting, Category, Group } from '@/shared/types';
@@ -115,36 +117,6 @@ export const useUserSettings = ({ isDemoModeEnabled }: { isDemoModeEnabled: bool
         const newColors = { ...currentColors, [groupName]: color };
         setGroupColorsForUser(userId, newColors);
     }, [getGroupColorsForUser, setGroupColorsForUser]);
-    
-    const getCategoryConfigurationForUser = useCallback((userId: string): { categories: Category[], groups: Group[] } | null => {
-        const setting = liveUserSettings.find(s => s.userId === userId && s.key === 'categoryConfiguration');
-        if (setting && setting.value) {
-            try {
-                const config = JSON.parse(setting.value);
-                if (Array.isArray(config.categories) && Array.isArray(config.groups)) {
-                    return config;
-                }
-            } catch (e) {
-                console.error("Failed to parse categoryConfiguration:", e);
-                return null;
-            }
-        }
-        return null;
-    }, [liveUserSettings]);
-
-    const updateCategoryConfigurationForUser = useCallback((userId: string, config: { categories: Category[], groups: Group[] }) => {
-        const now = new Date().toISOString();
-        const existingSetting = rawUserSettings.find(s => s.userId === userId && s.key === 'categoryConfiguration');
-        const newSetting: UserSetting = {
-            userId,
-            key: 'categoryConfiguration',
-            value: JSON.stringify(config),
-            lastModified: now,
-            version: (existingSetting?.version || 0) + 1,
-            isDeleted: false,
-        };
-        dispatch({ type: 'UPDATE_SETTING', payload: newSetting });
-    }, [rawUserSettings]);
 
     const getQuickAddHideGroups = useCallback((userId: string): boolean => {
         const setting = liveUserSettings.find(s => s.userId === userId && s.key === 'quickAddHideGroups');
@@ -212,6 +184,54 @@ export const useUserSettings = ({ isDemoModeEnabled }: { isDemoModeEnabled: bool
         }
         setCategoryColorOverrides(userId, currentOverrides);
     }, [getCategoryColorOverrides, setCategoryColorOverrides]);
+    
+    const getHiddenCategoryIds = useCallback((userId: string): string[] => {
+        if (!userId) return [];
+        const setting = liveUserSettings.find(s => s.userId === userId && s.key === 'hiddenCategories');
+        if (setting && setting.value) {
+            try {
+                const parsed = JSON.parse(setting.value);
+                return Array.isArray(parsed) ? parsed : [];
+            } catch {
+                return [];
+            }
+        }
+        return [];
+    }, [liveUserSettings]);
+
+    const setHiddenCategoryIds = useCallback((userId: string, hiddenIds: string[]) => {
+        if (!userId) return;
+        const now = new Date().toISOString();
+        const existingSetting = rawUserSettings.find(s => s.userId === userId && s.key === 'hiddenCategories');
+        const newSetting: UserSetting = {
+            userId,
+            key: 'hiddenCategories',
+            value: JSON.stringify(hiddenIds),
+            lastModified: now,
+            version: (existingSetting?.version || 0) + 1,
+            isDeleted: hiddenIds.length === 0,
+        };
+        dispatch({ type: 'UPDATE_SETTING', payload: newSetting });
+    }, [rawUserSettings]);
+
+    const hideCategory = useCallback((userId: string, categoryId: string) => {
+        const currentHidden = getHiddenCategoryIds(userId);
+        if (!currentHidden.includes(categoryId)) {
+            setHiddenCategoryIds(userId, [...currentHidden, categoryId]);
+        }
+    }, [getHiddenCategoryIds, setHiddenCategoryIds]);
+
+    const unhideCategory = useCallback((userId: string, categoryId: string) => {
+        const currentHidden = getHiddenCategoryIds(userId);
+        if (currentHidden.includes(categoryId)) {
+            setHiddenCategoryIds(userId, currentHidden.filter(id => id !== categoryId));
+        }
+    }, [getHiddenCategoryIds, setHiddenCategoryIds]);
+
+    const clearHiddenCategories = useCallback((userId: string) => {
+        if (!userId) return;
+        setHiddenCategoryIds(userId, []);
+    }, [setHiddenCategoryIds]);
 
 
     return {
@@ -220,13 +240,15 @@ export const useUserSettings = ({ isDemoModeEnabled }: { isDemoModeEnabled: bool
         getGroupColorsForUser,
         updateGroupColor,
         setGroupColorsForUser,
-        getCategoryConfigurationForUser,
-        updateCategoryConfigurationForUser,
         getVisibleGroupsForUser,
         updateVisibleGroups,
         getQuickAddHideGroups,
         setQuickAddHideGroups,
         getCategoryColorOverrides,
         updateCategoryColorOverride,
+        getHiddenCategoryIds,
+        hideCategory,
+        unhideCategory,
+        clearHiddenCategories,
     };
 };
