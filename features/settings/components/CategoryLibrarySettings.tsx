@@ -1,4 +1,4 @@
-import React, { useState, useMemo, FC, useEffect } from 'react';
+import React, { useState, useMemo, FC, useEffect, useRef } from 'react';
 import { AnimatePresence, motion, Reorder, useDragControls } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { useApp } from '@/contexts/AppContext';
@@ -60,7 +60,7 @@ const CategoryReorderItem: FC<{
             <div className="flex items-center gap-2 bg-slate-800/50 p-1.5 rounded-lg group">
                 <div
                     onPointerDown={(e) => dragControls.start(e) }
-                    className="p-2 cursor-grab active:cursor-grabbing text-slate-500 hover:text-white touch-none"
+                    className="p-3 cursor-grab active:cursor-grabbing text-slate-500 hover:text-white touch-none"
                     aria-label={`Kategorie ${category.name} verschieben`}
                 >
                     <GripVertical className="h-4 w-4" />
@@ -79,7 +79,7 @@ const CategoryReorderItem: FC<{
                 </div>
                 <button
                     onClick={() => onEdit(category)}
-                    className="p-2 text-slate-400 hover:text-white opacity-0 group-hover:opacity-100 focus-within:opacity-100"
+                    className="p-2 text-slate-400 hover:text-white opacity-100 focus-within:opacity-100 md:opacity-0 md:group-hover:opacity-100"
                     title="Kategorie bearbeiten"
                 >
                     <Edit className="h-4 w-4" />
@@ -108,7 +108,8 @@ export const CategoryLibrarySettings: FC<{}> = () => {
     const [editingCategory, setEditingCategory] = useState<CategoryFormData | null>(null);
     const [editingGroupDesign, setEditingGroupDesign] = useState<Group | null>(null);
     const [newGroupName, setNewGroupName] = useState('');
-    const [expandedGroupIds, setExpandedGroupIds] = useLocalStorage<string[]>('settings-expanded-groups', groups.map(g => g.id));
+    const [expandedGroupIds, setExpandedGroupIds] = useLocalStorage<string[]>('settings-expanded-groups', []);
+    const expandedStateBeforeDrag = useRef<string[]>([]);
     
     useEffect(() => { setOrderedGroups(groups); }, [groups]);
 
@@ -129,8 +130,18 @@ export const CategoryLibrarySettings: FC<{}> = () => {
         setOrderedGroups(newOrder);
         reorderGroups(newOrder);
     };
+
+    const handleGroupDragStart = () => {
+        expandedStateBeforeDrag.current = expandedGroupIds;
+        requestAnimationFrame(() => {
+            setExpandedGroupIds([]);
+        });
+    };
+
+    const handleGroupDragEnd = () => {
+        setExpandedGroupIds(expandedStateBeforeDrag.current);
+    };
     
-    const dragControls = useDragControls();
 
     const handleOpenEditor = (category: Partial<Category> & { groupId: string }) => {
         const existingCategory = categories.find(c => c.id === category.id);
@@ -249,19 +260,19 @@ export const CategoryLibrarySettings: FC<{}> = () => {
 
                 <Reorder.Group axis="y" values={orderedGroups} onReorder={handleReorderGroups} className="space-y-2">
                     {orderedGroups.map(group => (
-                        <Reorder.Item key={group.id} value={group} dragListener={false} dragControls={dragControls}>
-                             <GroupItem
-                                group={group}
-                                dragControls={dragControls}
-                                categories={groupedCategories.get(group.id) || []}
-                                isExpanded={expandedGroupIds.includes(group.id)}
-                                onToggleExpand={() => toggleGroupExpand(group.id)}
-                                onEditGroupDesign={() => setEditingGroupDesign(group)}
-                                onDeleteGroup={handleDeleteGroup}
-                                onRenameGroup={renameGroup}
-                                onEditCategory={handleOpenEditor}
-                             />
-                        </Reorder.Item>
+                        <GroupReorderWrapper
+                            key={group.id}
+                            group={group}
+                            onDragStart={handleGroupDragStart}
+                            onDragEnd={handleGroupDragEnd}
+                            categories={groupedCategories.get(group.id) || []}
+                            isExpanded={expandedGroupIds.includes(group.id)}
+                            onToggleExpand={() => toggleGroupExpand(group.id)}
+                            onEditGroupDesign={() => setEditingGroupDesign(group)}
+                            onDeleteGroup={handleDeleteGroup}
+                            onRenameGroup={renameGroup}
+                            onEditCategory={handleOpenEditor}
+                        />
                     ))}
                 </Reorder.Group>
                 
@@ -316,7 +327,8 @@ export const CategoryLibrarySettings: FC<{}> = () => {
     );
 };
 
-const GroupItem: FC<{
+
+interface GroupItemProps {
     group: Group;
     dragControls: ReturnType<typeof useDragControls>;
     categories: Category[];
@@ -326,7 +338,9 @@ const GroupItem: FC<{
     onDeleteGroup: (group: Group) => void;
     onRenameGroup: (id: string, newName: string) => void;
     onEditCategory: (category: Partial<Category> & { groupId: string }) => void;
-}> = ({ group, dragControls, categories, isExpanded, onToggleExpand, onEditGroupDesign, onDeleteGroup, onRenameGroup, onEditCategory }) => {
+}
+
+const GroupItem: FC<GroupItemProps> = ({ group, dragControls, categories, isExpanded, onToggleExpand, onEditGroupDesign, onDeleteGroup, onRenameGroup, onEditCategory }) => {
     const { reorderCategories, favoriteIds, toggleFavorite } = useApp();
     const [localCategories, setLocalCategories] = useState(categories);
     const [isEditing, setIsEditing] = useState(false);
@@ -356,14 +370,17 @@ const GroupItem: FC<{
          <div className="relative bg-slate-700/30 p-3 rounded-lg overflow-hidden">
             <div className="absolute inset-0 pointer-events-none" style={{ backgroundColor: group.color || '#64748b', opacity: 0.15 }}></div>
             <div className="relative">
-                <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
                     <div
                         onPointerDown={(e) => dragControls.start(e)}
-                        className="p-2 -ml-2 text-slate-500 cursor-grab active:cursor-grabbing touch-none"
+                        className="p-3 -ml-2 text-slate-500 cursor-grab active:cursor-grabbing touch-none"
                         aria-label={`Gruppe ${group.name} verschieben`}
                     >
                         <GripVertical className="h-5 w-5" />
                     </div>
+                     <button onClick={onToggleExpand} className="p-2 rounded-full hover:bg-slate-700/50" aria-expanded={isExpanded} aria-label={isExpanded ? "Gruppe einklappen" : "Gruppe ausklappen"}>
+                        <ChevronDown className={`h-5 w-5 text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                    </button>
                     <div className="flex-grow min-w-0 flex items-center gap-2">
                         <div className="w-8 h-8 rounded-md flex items-center justify-center flex-shrink-0 border-2" style={{ borderColor: group.color }}>
                             <GroupIcon className="h-4 w-4" style={{ color: group.color }} />
@@ -376,13 +393,12 @@ const GroupItem: FC<{
                             </button>
                         )}
                     </div>
-                    <Button variant="ghost" size="icon-auto" onClick={() => onEditGroupDesign(group)} title="Design und Name bearbeiten">
-                        <Edit className="h-4 w-4 text-slate-400" />
-                    </Button>
-                    <button onClick={onToggleExpand} className="p-2 rounded-full hover:bg-slate-700/50" aria-expanded={isExpanded} aria-label={isExpanded ? "Gruppe einklappen" : "Gruppe ausklappen"}>
-                        <ChevronDown className={`h-5 w-5 text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
-                    </button>
-                    {!isProtected && ( <Button variant="destructive-ghost" size="icon-auto" onClick={() => onDeleteGroup(group)} title="Gruppe löschen"><Trash2 className="h-5 w-5" /></Button> )}
+                     <div className="flex items-center gap-1 flex-shrink-0">
+                        <Button variant="ghost" size="icon-auto" onClick={() => onEditGroupDesign(group)} title="Design und Name bearbeiten">
+                            <Edit className="h-4 w-4 text-slate-400" />
+                        </Button>
+                        {!isProtected && ( <Button variant="destructive-ghost" size="icon-auto" onClick={() => onDeleteGroup(group)} title="Gruppe löschen"><Trash2 className="h-5 w-5" /></Button> )}
+                    </div>
                 </div>
 
                 <AnimatePresence>
@@ -399,5 +415,31 @@ const GroupItem: FC<{
                 </AnimatePresence>
             </div>
         </div>
+    );
+};
+
+interface GroupReorderWrapperProps extends Omit<GroupItemProps, 'dragControls'> {
+    onDragStart: () => void;
+    onDragEnd: () => void;
+}
+
+const GroupReorderWrapper: FC<GroupReorderWrapperProps> = ({ group, onDragStart, onDragEnd, ...rest }) => {
+    const dragControls = useDragControls();
+    return (
+        <Reorder.Item
+            key={group.id}
+            value={group}
+            dragListener={false}
+            dragControls={dragControls}
+            onDragStart={onDragStart}
+            onDragEnd={onDragEnd}
+            onDragCancel={onDragEnd}
+        >
+            <GroupItem
+                group={group}
+                dragControls={dragControls}
+                {...rest}
+            />
+        </Reorder.Item>
     );
 };

@@ -141,13 +141,13 @@ export const QuickAddForm: FC = () => {
     return (
         <>
         <motion.div {...formAnimation}>
-            <div className="bg-slate-800/50 p-3 rounded-2xl border border-slate-700/50">
-                <h3 className="text-lg font-bold text-white mb-2">Schnell hinzufügen</h3>
-                <form onSubmit={handleSubmit} className="space-y-2.5">
-                    <div className="flex flex-col sm:flex-row gap-2">
-                        <div className="sm:w-36 flex-shrink-0">
-                            <div className="flex items-center bg-slate-700 border border-slate-600 rounded-lg focus-within:ring-2 focus-within:ring-rose-500 px-3">
-                                <Coins className="h-4 w-4 text-slate-400 shrink-0" />
+            <div className="bg-slate-800/50 p-4 rounded-2xl border border-slate-700/50">
+                <h3 className="text-lg font-bold text-white mb-4">Schnell hinzufügen</h3>
+                <form onSubmit={handleSubmit} className="space-y-3">
+                     <div className="flex flex-col sm:flex-row gap-3">
+                        <div className="sm:w-40 flex-shrink-0">
+                            <div className="flex items-center h-10 bg-slate-700 border border-slate-500 rounded-lg focus-within:ring-2 focus-within:ring-rose-500 px-4">
+                                <Coins className="h-5 w-5 text-slate-400 shrink-0" />
                                 <input
                                     id="amount"
                                     type="text"
@@ -155,7 +155,7 @@ export const QuickAddForm: FC = () => {
                                     value={amount}
                                     onChange={e => setAmount(e.target.value)}
                                     placeholder="Betrag"
-                                    className="w-full bg-transparent border-none pl-2 pr-0 py-1.5 text-white placeholder-slate-500 focus:outline-none text-sm"
+                                    className="w-full bg-transparent border-none pl-3 pr-0 py-2 text-white placeholder-slate-400 focus:outline-none text-base"
                                     required
                                 />
                             </div>
@@ -167,14 +167,14 @@ export const QuickAddForm: FC = () => {
                                 value={description}
                                 onChange={e => setDescription(e.target.value)}
                                 placeholder="Beschreibung (mehrere mit Komma trennen)"
-                                className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-1.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-rose-500 text-sm"
+                                className="w-full h-10 bg-slate-700 border border-slate-500 rounded-lg px-4 py-2 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500 text-base"
                                 required
                             />
                         </div>
                     </div>
                     
-                    <div className="space-y-2.5">
-                        <div className="flex items-center gap-2 mb-1.5 ml-1">
+                    <div className="space-y-3">
+                        <div className="flex items-center gap-2 mb-1.5 ml-1 pt-1">
                             <h5 className="text-xs font-bold uppercase tracking-wider text-slate-500">Kategorie wählen</h5>
                         </div>
                          
@@ -240,7 +240,8 @@ export const QuickAddForm: FC = () => {
                         )}
                     </div>
 
-                    <div className="space-y-1.5 pt-2.5 border-t border-slate-700/50">
+                    <div className="space-y-2 pt-3 border-t border-slate-700/50">
+                        <h5 className="text-xs font-bold uppercase tracking-wider text-slate-500 mt-2 mb-1 ml-1">Schnellauswahl Tags</h5>
                         <TagInput 
                             tags={tags} 
                             setTags={setTags}
@@ -256,7 +257,7 @@ export const QuickAddForm: FC = () => {
                         />
                     </div>
                     
-                    <div className="flex justify-end pt-1">
+                    <div className="flex justify-end pt-2">
                         <button
                             type="submit"
                             className="w-full sm:w-auto flex-shrink-0 flex items-center justify-center gap-2 bg-gradient-to-r from-rose-500 to-red-600 text-white font-semibold px-5 py-2 rounded-lg shadow-md hover:opacity-90 transition-opacity"

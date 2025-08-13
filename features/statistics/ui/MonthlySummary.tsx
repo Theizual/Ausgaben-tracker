@@ -42,33 +42,33 @@ export const MonthlySummary: FC<{ transactions: Transaction[], currentMonth: Dat
     return (
         <motion.div
             {...motionProps}
-            className="bg-slate-800 p-3 rounded-2xl border border-slate-700"
+            className="bg-slate-800 p-2 rounded-2xl border border-slate-700"
         >
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-0 md:divide-x md:divide-slate-700/50">
+             <div className="grid grid-cols-2 gap-0 divide-x divide-slate-700/50">
                 {/* Total Expenses */}
-                <div className="text-center md:px-2">
+                <div className="text-center px-2">
                     <h3 className="text-slate-400 text-sm font-medium flex justify-center items-center gap-2">
                         <Wallet className="h-4 w-4 text-amber-700" />
                         Gesamtausgaben
                     </h3>
-                    <p className="text-2xl font-bold text-white mt-2 truncate" title={formatCurrency(summary.total)}>
+                    <p className="text-2xl font-bold text-white mt-1 truncate" title={formatCurrency(summary.total)}>
                         {formatCurrency(summary.total)}
                     </p>
-                    <p className="text-slate-500 text-xs mt-1 truncate" title={periodLabel}>
+                    <p className="text-slate-500 text-xs mt-0.5 truncate" title={periodLabel}>
                         {periodLabel}
                     </p>
                 </div>
 
                 {/* Daily Average */}
-                <div className="text-center md:px-2">
+                <div className="text-center px-2">
                      <h3 className="text-slate-400 text-sm font-medium flex justify-center items-center gap-2">
                         <Scale className="h-4 w-4 text-indigo-400" />
                         Tagesdurchschnitt
                     </h3>
-                    <p className="text-2xl font-bold text-white mt-2 truncate" title={formatCurrency(summary.average)}>
+                    <p className="text-2xl font-bold text-white mt-1 truncate" title={formatCurrency(summary.average)}>
                         {formatCurrency(summary.average)}
                     </p>
-                    <p className="text-slate-500 text-xs mt-1 truncate" title={periodLabel}>
+                    <p className="text-slate-500 text-xs mt-0.5 truncate" title={periodLabel}>
                         {periodLabel}
                     </p>
                 </div>

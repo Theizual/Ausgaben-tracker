@@ -49,11 +49,11 @@ export const BudgetSettings = () => {
     const totalOverallBudget = totalMonthlyBudget + totalMonthlyFixedCosts;
     const flexPercentage = totalOverallBudget > 0 ? (totalMonthlyBudget / totalOverallBudget) * 100 : 0;
     const fixedPercentage = totalOverallBudget > 0 ? (totalMonthlyFixedCosts / totalOverallBudget) * 100 : 0;
-    const flexBarColor = '#3b82f6'; // Per user request: Tailwind blue-500
-    const fixedBarColor = '#be123c'; // Softer red (Tailwind rose-700)
+    const flexBarColor = '#38bdf8'; // sky-500 (Vibrant, friendly blue)
+    const fixedBarColor = '#ec626c'; // Friendly Red
     
     const fixedGroup = useMemo(() => groups.find(g => g.id === FIXED_COSTS_GROUP_ID), [groups]);
-    const fixedIconColor = fixedGroup?.color || '#be123c'; // Use theme red for consistency
+    const fixedIconColor = fixedGroup?.color || fixedBarColor; 
     const FixedIcon = getIconComponent(fixedGroup?.icon || 'Home');
     
     const recurringMapByCatId = useMemo(() => {
@@ -253,7 +253,7 @@ export const BudgetSettings = () => {
                 </div>
                 <div className="flex justify-between items-baseline">
                     <div className="text-left">
-                        <p className="text-xs text-slate-300 flex items-center gap-1.5"><Wallet className="h-3 w-3 text-blue-500" />Flexibles Budget</p>
+                        <p className="text-xs text-slate-300 flex items-center gap-1.5"><Wallet className="h-3 w-3" style={{ color: flexBarColor }} />Flexibles Budget</p>
                         <p className="text-white text-md font-semibold">{formatCurrency(totalMonthlyBudget)}</p>
                     </div>
                      <div className="text-right">
@@ -262,40 +262,28 @@ export const BudgetSettings = () => {
                     </div>
                 </div>
                 {totalOverallBudget > 0 ? (
-                    <div className="w-full relative h-6 rounded-full overflow-hidden bg-slate-900/50" aria-label="Gesamtbudgetverteilung: Flexibles Budget vs. Fixkosten">
+                    <div className="w-full relative h-6 rounded-full overflow-hidden bg-slate-900/50 flex" aria-label="Gesamtbudgetverteilung: Flexibles Budget vs. Fixkosten">
+                        {/* Layered approach for sharp dividing line */}
                         <motion.div
-                            className="absolute inset-0"
-                            // @ts-ignore
-                            initial={{ '--flex-percentage': 0 }}
-                            // @ts-ignore
-                            animate={{ '--flex-percentage': flexPercentage }}
-                            transition={{ duration: 0.8, ease: "easeOut" as const }}
-                            style={{
-                                // @ts-ignore
-                                background: `linear-gradient(to right, ${flexBarColor} calc(var(--flex-percentage) * 1% - 6px), ${fixedBarColor} calc(var(--flex-percentage) * 1% + 6px))`,
-                                opacity: 0.5,
-                            }}
-                        />
-                        <div className="relative w-full h-full flex items-center">
-                            <motion.div
-                                className="h-full flex items-center justify-center"
-                                {...flexBarAnimation}
-                                title={`Flexible Budgets: ${flexPercentage.toFixed(0)}%`}
-                            >
-                                {flexPercentage >= 10 && (
-                                    <span className="text-white text-xs font-bold drop-shadow-sm">{flexPercentage.toFixed(0)}%</span>
-                                )}
-                            </motion.div>
-                            <motion.div
-                                className="h-full flex items-center justify-center"
-                                {...fixedBarAnimation}
-                                title={`Fixkosten: ${fixedPercentage.toFixed(0)}%`}
-                            >
-                                {fixedPercentage >= 10 && (
-                                    <span className="text-white text-xs font-bold drop-shadow-sm">{fixedPercentage.toFixed(0)}%</span>
-                                )}
-                            </motion.div>
-                        </div>
+                            className="h-full flex items-center justify-center"
+                            style={{ backgroundColor: flexBarColor }}
+                            {...flexBarAnimation}
+                            title={`Flexible Budgets: ${flexPercentage.toFixed(0)}%`}
+                        >
+                            {flexPercentage >= 10 && (
+                                <span className="text-white text-xs font-bold drop-shadow-sm">{flexPercentage.toFixed(0)}%</span>
+                            )}
+                        </motion.div>
+                        <motion.div
+                            className="h-full flex items-center justify-center"
+                            style={{ backgroundColor: fixedBarColor }}
+                            {...fixedBarAnimation}
+                            title={`Fixkosten: ${fixedPercentage.toFixed(0)}%`}
+                        >
+                            {fixedPercentage >= 10 && (
+                                <span className="text-white text-xs font-bold drop-shadow-sm">{fixedPercentage.toFixed(0)}%</span>
+                            )}
+                        </motion.div>
                     </div>
                 ) : (
                     <div className="w-full relative flex h-6 rounded-full overflow-hidden bg-slate-900/50" aria-label="Gesamtbudgetverteilung: Flexibles Budget vs. Fixkosten">

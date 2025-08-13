@@ -1,5 +1,3 @@
-
-
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { format, subDays } from '@/shared/utils/dateUtils';
 import type { Transaction, ViewMode, PeriodType, QuickFilterId, SettingsTab, Category, User } from '@/shared/types';
@@ -32,7 +30,7 @@ export const useUI = (props?: { isDemoModeEnabled: boolean }) => {
 
     // Page-specific persistent states
     // Dashboard
-    const [dashboardViewMode, setDashboardViewMode] = useState<ViewMode>('woche');
+    const [dashboardViewMode, setDashboardViewMode] = useState<ViewMode>('monat');
     
     // Statistics
     const [statisticsCurrentMonth, setStatisticsCurrentMonth] = useState(new Date());

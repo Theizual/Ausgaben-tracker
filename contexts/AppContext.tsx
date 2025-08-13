@@ -15,6 +15,7 @@ import type { Locale } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { Loader2 } from '@/shared/ui';
 import { apiGet } from '@/shared/lib/http';
+import { FirstUserSetup } from '@/features/onboarding';
 
 // Combine the return types of all hooks to define the shape of the context
 type AppContextType = 
@@ -27,7 +28,7 @@ type AppContextType =
     { currentUser: User | null } &
     ReturnType<typeof useSync> &
     { 
-        addUser: (name: string) => User;
+        addUser: (name: string, color?: string) => User;
         reassignUserForTransactions: (sourceUserId: string, targetUserId: string, onlyNonDemo?: boolean) => void;
         isDemoModeEnabled: boolean;
         isInitialSetupDone: boolean;
@@ -474,33 +475,7 @@ const AppStateContainer: React.FC<{
     const uiState = useUI({ isDemoModeEnabled: props.isDemoModeEnabled });
     const usersState = useUsers({ isDemoModeEnabled: props.isDemoModeEnabled });
     
-    const [isReady, setIsReady] = useState(false);
-
-    useEffect(() => {
-        if (usersState.isLoading) {
-            setIsReady(false); // Not ready while users are being loaded.
-            return;
-        }
-
-        // This effect ensures we have a valid user selected before proceeding.
-        if (usersState.users.length > 0) {
-            const currentUserIsValid = uiState.currentUserId && usersState.users.some(u => u.id === uiState.currentUserId);
-            
-            if (!currentUserIsValid) {
-                // If current user is not set or is invalid, set it to the first available user.
-                // This triggers a re-render. We are not "ready" yet.
-                uiState.setCurrentUserId(usersState.users[0].id);
-            } else {
-                // The current user ID is valid. We are ready to render the full app.
-                setIsReady(true);
-            }
-        } else {
-            // No users, but loading is finished. We are ready to show an empty state.
-            setIsReady(true);
-        }
-    }, [usersState.isLoading, usersState.users, uiState.currentUserId, uiState.setCurrentUserId]);
-
-    if (!isReady) {
+    if (usersState.isLoading) {
         // Display a loading screen while the user state stabilizes.
         // This prevents downstream hooks from running with invalid state.
         return (
@@ -508,6 +483,46 @@ const AppStateContainer: React.FC<{
                 <Loader2 className="h-8 w-8 animate-spin text-slate-500" />
             </div>
         );
+    }
+    
+    // Once users are loaded, check if we need to show the initial setup screen.
+    if (!props.isDemoModeEnabled && usersState.users.length === 0) {
+        // We need to provide a limited context for the setup screen to function.
+        const limitedContextValue = {
+            addUser: usersState.addUser,
+            setCurrentUserId: uiState.setCurrentUserId,
+            setIsInitialSetupDone: rest.setIsInitialSetupDone,
+            syncData: () => Promise.resolve(), // No-op sync initially
+        };
+        // This feels a bit like a hack. It's better to provide the full context.
+        // The ReadyAppProvider will initialize everything. 
+        // We can pass a flag to it or just render a different component here.
+         return (
+             <ReadyAppProvider
+                {...rest}
+                appMode={appMode}
+                uiState={uiState}
+                usersState={usersState}
+            >
+                <FirstUserSetup />
+            </ReadyAppProvider>
+        );
+    }
+
+    // This effect ensures we have a valid user selected before proceeding.
+    if (usersState.users.length > 0) {
+        const currentUserIsValid = uiState.currentUserId && usersState.users.some(u => u.id === uiState.currentUserId);
+        if (!currentUserIsValid) {
+            // If current user is not set or is invalid, set it to the first available user.
+            // This triggers a re-render.
+            uiState.setCurrentUserId(usersState.users[0].id);
+            // Return loading screen for one frame to prevent rendering with invalid userId
+            return (
+                 <div className="fixed inset-0 bg-slate-900 flex items-center justify-center">
+                    <Loader2 className="h-8 w-8 animate-spin text-slate-500" />
+                </div>
+            );
+        }
     }
     
     // Once ready, render the full provider with the now-stable state.

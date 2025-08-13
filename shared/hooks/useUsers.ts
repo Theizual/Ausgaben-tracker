@@ -70,19 +70,8 @@ export const useUsers = ({ isDemoModeEnabled }: { isDemoModeEnabled: boolean }) 
                 })
                 .finally(() => setIsLoading(false));
         } else {
-            // Demo mode, or fresh standard install before setup is done
-            const initialUsers: User[] = [];
-            if (isDemoModeEnabled) {
-                 initialUsers.push({
-                    id: 'usr_demo',
-                    name: 'Demo User',
-                    color: '#8b5cf6', // violet-500
-                    isDemo: true,
-                    lastModified: new Date().toISOString(),
-                    version: 1
-                });
-            }
-            dispatch({ type: 'SET_USERS', payload: initialUsers });
+            // Demo mode, or fresh standard install before setup is done, start with no users.
+            dispatch({ type: 'SET_USERS', payload: [] });
             setIsLoading(false);
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -94,7 +83,7 @@ export const useUsers = ({ isDemoModeEnabled }: { isDemoModeEnabled: boolean }) 
 
     const users = useMemo(() => state.users.filter(u => !u.isDeleted), [state.users]);
     
-    const addUser = useCallback((name: string): User => {
+    const addUser = useCallback((name: string, color?: string): User => {
         const trimmedName = name.trim();
         if (!trimmedName) {
             const err = "Benutzername darf nicht leer sein.";
@@ -105,7 +94,7 @@ export const useUsers = ({ isDemoModeEnabled }: { isDemoModeEnabled: boolean }) 
         const newUser: User = {
             id: generateUUID('usr'),
             name: trimmedName,
-            color: `#${Math.floor(Math.random()*16777215).toString(16).padStart(6, '0')}`,
+            color: color || `#${Math.floor(Math.random()*16777215).toString(16).padStart(6, '0')}`,
             lastModified: now,
             version: 1,
             isDemo: false,

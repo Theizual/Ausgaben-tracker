@@ -145,16 +145,16 @@ const CategoryButtons: FC<{
     }
     
     return (
-        <div className="space-y-3">
+        <div className="grid grid-cols-2 gap-3">
             {groupedCategories?.map(group => {
                 const GroupIcon = getIconComponent(group.icon);
                 return (
-                    <div key={group.id} className="relative bg-slate-700/30 p-3 rounded-lg overflow-hidden border border-slate-700/50">
-                        <div className="absolute inset-0 pointer-events-none" style={{ backgroundColor: group.color || '#64748b', opacity: 0.1 }}></div>
+                    <div key={group.id} className="relative bg-slate-700/30 p-1.5 rounded-xl overflow-hidden border border-slate-700/50 flex flex-col">
+                        <div className="absolute inset-0 pointer-events-none" style={{ backgroundColor: group.color || '#64748b', opacity: 0.08 }}></div>
                         <div className="relative">
-                            <div className="flex items-center gap-2 mb-2">
+                            <div className="flex items-center gap-2 mb-1.5 px-1 pt-0 pb-1">
                                 <GroupIcon className="h-4 w-4 text-slate-500" />
-                                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">{group.name}</h4>
+                                <h4 className="text-sm font-bold text-slate-300">{group.name}</h4>
                             </div>
                             <div className="flex flex-wrap gap-2">
                                 {group.categories.map(category => (
