@@ -1,9 +1,10 @@
 
+
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { format, subDays } from '@/shared/utils/dateUtils';
 import type { Transaction, ViewMode, PeriodType, QuickFilterId, SettingsTab, Category, User } from '@/shared/types';
 import useLocalStorage from '@/shared/hooks/useLocalStorage';
-import type { CategoryFormData } from '@/features/settings/components/CategoryEditModal';
+import type { CategoryFormData } from '@/features/settings/components/CategoryLibrarySettings';
 
 
 export const useUI = (props?: { isDemoModeEnabled: boolean }) => {

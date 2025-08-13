@@ -4,7 +4,7 @@ import { useApp } from '@/contexts/AppContext';
 import type { Category, Transaction } from '@/shared/types';
 import { Modal, Button, ChevronDown, StandardTransactionItem } from '@/shared/ui';
 import { toast } from 'react-hot-toast';
-import type { CategoryFormData } from './CategoryEditModal';
+import type { CategoryFormData } from './CategoryLibrarySettings';
 
 interface DeleteCategoryModalProps {
     isOpen: boolean;

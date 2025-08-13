@@ -7,8 +7,6 @@ import { Settings, X, LayoutGrid, Target, SlidersHorizontal, Users, BookOpen } f
 import { GeneralSettings } from './components/GeneralSettings';
 import { UserSettings } from './components/UserSettings';
 import { BudgetSettings } from './components/BudgetSettings';
-import { GroupSettings } from './components/GroupSettings';
-import { TagManagerModal } from './components/TagManagerModal';
 import { CategoryLibrarySettings } from './components/CategoryLibrarySettings';
 import { GroupDesignModal } from './components/GroupDesignModal';
 import { modalBackdropAnimation, modalContentAnimation } from '@/shared/lib/animations';
@@ -21,9 +19,8 @@ const TABS: { id: SettingsTab; label: string; icon: React.FC<any>; }[] = [
 ];
 
 const SettingsModal = ({ isOpen, onClose, initialTab }: { isOpen: boolean; onClose: () => void; initialTab?: SettingsTab; }) => {
-    const { updateGroup } = useApp();
+    const { updateGroup, updateGroupColor, currentUserId, renameGroup } = useApp();
     const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab || 'general');
-    const [isTagManagerOpen, setTagManagerOpen] = useState(false);
     const [editingGroupDesign, setEditingGroupDesign] = useState<Group | null>(null);
     const navRef = useRef<HTMLElement>(null);
     const [isNavCompact, setIsNavCompact] = useState(false);
@@ -54,9 +51,8 @@ const SettingsModal = ({ isOpen, onClose, initialTab }: { isOpen: boolean; onClo
 
     const handleEscape = useCallback(() => {
         if (editingGroupDesign) setEditingGroupDesign(null);
-        else if (isTagManagerOpen) setTagManagerOpen(false);
         else onClose();
-    }, [isTagManagerOpen, editingGroupDesign, onClose]);
+    }, [editingGroupDesign, onClose]);
     
     useEffect(() => {
         if (!isOpen) return;
@@ -79,16 +75,32 @@ const SettingsModal = ({ isOpen, onClose, initialTab }: { isOpen: boolean; onClo
         };
     }, [isOpen]);
 
-    const handleSaveGroupDesign = (groupId: string, design: { color?: string, icon?: string }) => {
-        updateGroup(groupId, design);
-        toast.success("Gruppen-Design aktualisiert.");
+    const handleSaveGroupDesign = (design: { name: string; color: string; icon: string }, changeColorForAll: boolean) => {
+        if (!editingGroupDesign) return;
+        const { id, name: originalName } = editingGroupDesign;
+
+        if (design.name !== originalName) {
+            renameGroup(id, design.name);
+        }
+
+        if (changeColorForAll) {
+            updateGroup(id, { color: design.color, icon: design.icon });
+        } else {
+            if (currentUserId) {
+                updateGroupColor(currentUserId, design.name, design.color);
+            }
+            if (editingGroupDesign.icon !== design.icon) {
+                updateGroup(id, { icon: design.icon });
+            }
+        }
         setEditingGroupDesign(null);
+        toast.success("Gruppen-Design aktualisiert.");
     };
 
     const renderContent = () => {
         switch (activeTab) {
-            case 'general': return <GeneralSettings onOpenTagManager={() => setTagManagerOpen(true)} />;
-            case 'categories': return <CategoryLibrarySettings onEditGroupDesign={setEditingGroupDesign} />;
+            case 'general': return <GeneralSettings />;
+            case 'categories': return <CategoryLibrarySettings />;
             case 'budget': return <BudgetSettings />;
             case 'users': return <UserSettings />;
             default: return null;
@@ -166,16 +178,7 @@ const SettingsModal = ({ isOpen, onClose, initialTab }: { isOpen: boolean; onClo
                     <GroupDesignModal 
                         group={editingGroupDesign}
                         onClose={() => setEditingGroupDesign(null)}
-                        onSave={(design) => handleSaveGroupDesign(editingGroupDesign.id, design)}
-                    />
-                )}
-            </AnimatePresence>
-
-            <AnimatePresence>
-                {isTagManagerOpen && (
-                    <TagManagerModal 
-                        isOpen={isTagManagerOpen} 
-                        onClose={() => setTagManagerOpen(false)} 
+                        onSave={handleSaveGroupDesign}
                     />
                 )}
             </AnimatePresence>

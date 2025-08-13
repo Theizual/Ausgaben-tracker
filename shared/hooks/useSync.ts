@@ -171,32 +171,54 @@ export const useSync = (props: SyncProps) => {
         setSyncError(null);
 
         try {
-            // Push-First Strategy: Send local state to the server.
-            // The server will overwrite the sheet, read it back, and return the new source of truth.
-            // We explicitly filter out the 'app_meta' mode setting to prevent the client from overwriting it.
-            // The Google Sheet is the single source of truth for the app's mode.
-            const userSettingsForPayload = rawUserSettings.filter(
-                s => !(s.userId === 'app_meta' && s.key === 'mode')
-            );
+            // 1. FETCH remote data first
+            const { data: remoteData }: { data: ReadApiResponse } = await apiGet('/api/sheets/read');
 
-            const payload = {
-                groups: rawGroups,
-                categories: rawCategories,
-                transactions: rawTransactions.filter(t => !t.isDemo),
-                recurring: rawRecurringTransactions,
-                tags: rawAllAvailableTags.filter(t => !t.isDemo),
-                users: rawUsers,
-                userSettings: userSettingsForPayload,
+            // 2. MERGE local and remote data
+            const merge = <T extends Mergeable>(local: T[], remote: T[]): T[] => {
+                const map = new Map<string, T>();
+                // Add all remote items to the map. They are the base.
+                (remote || []).forEach(item => map.set(getItemKey(item), item));
+
+                // Iterate over local items. Add them if they are new, or update if their version is higher.
+                (local || []).forEach(item => {
+                    const key = getItemKey(item);
+                    const existing = map.get(key);
+                    if (!existing || item.version > existing.version) {
+                        map.set(key, item);
+                    }
+                });
+                return Array.from(map.values());
             };
 
-            const { data: remoteData }: { data: ReadApiResponse; migrationMap: Record<string, string> } = await apiPost('/api/sheets/write', payload);
+            const mergedGroups = merge(rawGroups, remoteData.groups);
+            const mergedCategories = merge(rawCategories, remoteData.categories);
+            const mergedTransactions = merge(rawTransactions, remoteData.transactions);
+            const mergedRecurring = merge(rawRecurringTransactions, remoteData.recurring);
+            const mergedTags = merge(rawAllAvailableTags, remoteData.tags);
+            const mergedUsers = merge(rawUsers, remoteData.users);
+            const mergedUserSettings = merge(rawUserSettings, remoteData.userSettings);
             
-            setCategoriesAndGroups(remoteData.categories, remoteData.groups);
-            setTransactions(remoteData.transactions);
-            setRecurringTransactions(remoteData.recurring);
-            setAllAvailableTags(remoteData.tags);
-            setUsers(remoteData.users);
-            setUserSettings(remoteData.userSettings);
+            // 3. PUSH the merged data to the server
+            const payload = {
+                groups: mergedGroups,
+                categories: mergedCategories,
+                transactions: mergedTransactions.filter(t => !t.isDemo),
+                recurring: mergedRecurring,
+                tags: mergedTags.filter(t => !t.isDemo),
+                users: mergedUsers,
+                userSettings: mergedUserSettings.filter(s => !(s.userId === 'app_meta' && s.key === 'mode')),
+            };
+
+            const { data: finalData }: { data: ReadApiResponse } = await apiPost('/api/sheets/write', payload);
+            
+            // 4. UPDATE local state with the final, blessed data from the server
+            setCategoriesAndGroups(finalData.categories, finalData.groups);
+            setTransactions(finalData.transactions);
+            setRecurringTransactions(finalData.recurring);
+            setAllAvailableTags(finalData.tags);
+            setUsers(finalData.users);
+            setUserSettings(finalData.userSettings);
 
             setLastSync(new Date().toISOString());
             setSyncStatus('success');
@@ -204,6 +226,7 @@ export const useSync = (props: SyncProps) => {
             if (!isInitialSetupDone) {
                 setIsInitialSetupDone(true);
             }
+
         } catch (e: any) {
             if (e instanceof HttpError && e.status === 409) {
                 if (e.body?.conflicts) {
@@ -221,10 +244,11 @@ export const useSync = (props: SyncProps) => {
             syncInProgressRef.current = false;
         }
     }, [
-        isDemoModeEnabled, isInitialSetupDone, setIsInitialSetupDone,
-        rawCategories, rawGroups, rawTransactions, rawRecurringTransactions, rawAllAvailableTags, rawUsers, rawUserSettings,
-        handleMergeConflicts, setLastSync, setCategoriesAndGroups, setTransactions, setRecurringTransactions, setAllAvailableTags, setUsers, setUserSettings,
-        openUserMergeModal
+        isDemoModeEnabled, isInitialSetupDone, setIsInitialSetupDone, rawUsers, openUserMergeModal,
+        setSyncStatus, setSyncError, rawGroups, rawCategories, rawTransactions, rawRecurringTransactions,
+        rawAllAvailableTags, rawUserSettings, handleMergeConflicts, setLastSync,
+        setCategoriesAndGroups, setTransactions, setRecurringTransactions, setAllAvailableTags,
+        setUsers, setUserSettings
     ]);
 
     const loadFromSheet = useCallback(async (options?: { preserveLocalTransactions?: boolean, preserveNewLocalUsers?: boolean }) => {

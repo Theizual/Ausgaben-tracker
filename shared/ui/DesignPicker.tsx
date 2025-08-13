@@ -1,19 +1,38 @@
-import React, { FC, useState, useMemo, useRef } from 'react';
-import { iconMap, Search, ColorPickerIcon } from '@/shared/ui';
+import React, { FC, useState, useMemo, useRef, useEffect } from 'react';
+import { iconMap, Search, ColorPickerIcon, Button, ChevronLeft, ChevronRight } from '@/shared/ui';
 
 const PRESET_COLORS = [
   '#ef4444', '#f97316', '#eab308', '#84cc16', '#22c55e', '#10b981', 
   '#06b6d4', '#0ea5e9', '#3b82f6', '#6366f1', '#8b5cf6', '#a855f7',
   '#d946ef', '#ec4899', '#f43f5e', '#64748b',
+  '#14b8a6', '#a3e635', '#7e22ce', '#475569', '#a16207'
 ];
+
+const ITEMS_PER_PAGE = 25;
 
 const IconPickerGrid: FC<{ onSelect: (iconName: string) => void; }> = ({ onSelect }) => {
     const [searchTerm, setSearchTerm] = useState('');
+    const [currentPage, setCurrentPage] = useState(0);
     const availableIcons = useMemo(() => Object.keys(iconMap).sort(), []);
+    
     const filteredIcons = useMemo(() => 
         availableIcons.filter(name => name.toLowerCase().includes(searchTerm.toLowerCase())), 
         [availableIcons, searchTerm]
     );
+
+    const totalPages = Math.ceil(filteredIcons.length / ITEMS_PER_PAGE);
+    const paginatedIcons = useMemo(() => 
+        filteredIcons.slice(currentPage * ITEMS_PER_PAGE, (currentPage + 1) * ITEMS_PER_PAGE),
+        [filteredIcons, currentPage]
+    );
+
+    useEffect(() => {
+        setCurrentPage(0); // Reset to first page on search
+    }, [searchTerm]);
+
+    const goToPage = (page: number) => {
+        setCurrentPage(Math.max(0, Math.min(page, totalPages - 1)));
+    };
 
     return (
         <div className="flex flex-col h-full">
@@ -30,8 +49,8 @@ const IconPickerGrid: FC<{ onSelect: (iconName: string) => void; }> = ({ onSelec
                 </div>
             </div>
             <div className="flex-grow overflow-y-auto custom-scrollbar -mr-3 pr-3">
-                <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 gap-1">
-                    {filteredIcons.map(iconName => {
+                <div className="grid grid-cols-5 sm:grid-cols-6 lg:grid-cols-8 gap-1">
+                    {paginatedIcons.map(iconName => {
                         const IconComponent = iconMap[iconName];
                         return (
                             <button 
@@ -46,6 +65,19 @@ const IconPickerGrid: FC<{ onSelect: (iconName: string) => void; }> = ({ onSelec
                     })}
                 </div>
             </div>
+             {totalPages > 1 && (
+                <div className="flex-shrink-0 flex items-center justify-center gap-2 pt-3 text-sm">
+                    <Button variant="ghost" size="icon-xs" onClick={() => goToPage(currentPage - 1)} disabled={currentPage === 0}>
+                        <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <span className="text-slate-400 font-mono text-xs">
+                        {currentPage + 1} / {totalPages}
+                    </span>
+                    <Button variant="ghost" size="icon-xs" onClick={() => goToPage(currentPage + 1)} disabled={currentPage >= totalPages - 1}>
+                        <ChevronRight className="h-4 w-4" />
+                    </Button>
+                </div>
+            )}
         </div>
     );
 };
@@ -73,22 +105,22 @@ export const DesignPicker: FC<DesignPickerProps> = ({ value, onChange }) => {
 
     return (
         <div className="flex flex-col md:flex-row gap-6">
-            <div className="md:w-[240px] flex-shrink-0">
+            <div className="md:w-[220px] flex-shrink-0">
                 <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400 mb-3">Farbe wählen</h3>
-                <div className="p-4 bg-slate-700/30 rounded-lg">
-                    <div className="flex flex-wrap gap-3 justify-center">
+                <div className="p-3 bg-slate-800/50 rounded-lg">
+                    <div className="flex flex-wrap gap-2.5 justify-center">
                         {PRESET_COLORS.map(color => (
                             <button
                                 key={color}
                                 onClick={() => handleColorChange(color)}
-                                className={`w-8 h-8 rounded-full transition-transform hover:scale-110 ${value.color.toLowerCase() === color.toLowerCase() ? 'ring-2 ring-offset-2 ring-offset-slate-800 ring-white' : ''}`}
+                                className={`w-6 h-6 rounded-full transition-transform hover:scale-110 ${value.color.toLowerCase() === color.toLowerCase() ? 'ring-2 ring-offset-2 ring-offset-slate-800 ring-white' : ''}`}
                                 style={{ backgroundColor: color }}
                                 title={color}
                             />
                         ))}
                         <ColorPickerIcon
                             onClick={handleColorPickerClick}
-                            size={32}
+                            size={24}
                         />
                         <input
                             ref={colorInputRef}
@@ -101,9 +133,9 @@ export const DesignPicker: FC<DesignPickerProps> = ({ value, onChange }) => {
                     </div>
                 </div>
             </div>
-            <div className="flex-grow flex flex-col min-h-[50vh] md:min-h-0">
+            <div className="flex-grow flex flex-col min-h-[40vh] md:min-h-0">
                  <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400 mb-2 flex-shrink-0">Icon wählen</h3>
-                <div className="flex-grow min-h-0 p-4 bg-slate-700/30 rounded-lg">
+                <div className="flex-grow min-h-0 p-3 bg-slate-800/50 rounded-lg">
                      <IconPickerGrid onSelect={handleIconChange} />
                 </div>
             </div>

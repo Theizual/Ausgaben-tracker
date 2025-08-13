@@ -5,7 +5,8 @@ import { useApp } from '@/contexts/AppContext';
 import type { Category, Group } from '@/shared/types';
 import { Button, iconMap, Trash2, Plus, DownloadCloud, Star, getIconComponent, Info, GripVertical } from '@/shared/ui';
 import { FIXED_COSTS_GROUP_ID, DEFAULT_GROUP_ID, FIXED_COSTS_GROUP_NAME, DEFAULT_GROUP_NAME } from '@/constants';
-import { CategoryEditModal, CategoryFormData } from './CategoryEditModal';
+import { CategoryEditModal } from './CategoryEditModal';
+import type { CategoryFormData } from './CategoryLibrarySettings';
 import { parseISO } from 'date-fns';
 import { settingsContentAnimation } from '@/shared/lib/animations';
 

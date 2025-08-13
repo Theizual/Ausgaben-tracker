@@ -51,7 +51,7 @@ const categoriesReducer = (state: CategoriesState, action: Action): CategoriesSt
                         color: update.color || '#808080',
                         icon: update.icon || baseCategory?.icon || 'MoreHorizontal',
                         groupId: update.groupId || DEFAULT_GROUP_ID,
-                        sortIndex: update.sortIndex || 0,
+                        sortIndex: update.sortIndex ?? (state.categories.filter(c => c.groupId === (update.groupId || DEFAULT_GROUP_ID)).length),
                         budget: update.budget === undefined ? 0 : update.budget,
                         lastModified: now,
                         version: 1,
@@ -91,43 +91,43 @@ const categoriesReducer = (state: CategoriesState, action: Action): CategoriesSt
         }
         
         case 'REORDER_GROUPS': {
-            const newOrderMap = new Map(action.payload.map((g, index) => [g.id, index]));
-            let hasChanges = false;
-            const updatedGroups = state.groups.map(g => {
-                const newIndex = newOrderMap.get(g.id);
-                if (newIndex !== undefined && g.sortIndex !== newIndex) {
-                    hasChanges = true;
-                    return { ...g, sortIndex: newIndex, lastModified: now, version: (g.version || 0) + 1 };
+            const now = new Date().toISOString();
+            const groupUpdates = new Map<string, Partial<Group>>();
+
+            action.payload.forEach((group, index) => {
+                const currentStateGroup = state.groups.find(g => g.id === group.id);
+                if (currentStateGroup && currentStateGroup.sortIndex !== index) {
+                    groupUpdates.set(group.id, {
+                        sortIndex: index,
+                        lastModified: now,
+                        version: (currentStateGroup.version || 0) + 1,
+                    });
                 }
-                return g;
             });
-            if (!hasChanges) return state;
-            return { ...state, groups: updatedGroups.sort((a,b) => a.sortIndex - b.sortIndex) };
+
+            if (groupUpdates.size === 0) return state;
+
+            const updatedGroups = state.groups.map(g =>
+                groupUpdates.has(g.id) ? { ...g, ...groupUpdates.get(g.id) } : g
+            );
+
+            return { ...state, groups: updatedGroups };
         }
 
         case 'REORDER_CATEGORIES': {
             if (action.payload.length === 0) return state;
 
             const groupId = action.payload[0].groupId;
-
-            // Create a map of the newly ordered categories with updated sortIndex and version
-            const updatedOrderMap = new Map(
-                action.payload.map((cat, index) => {
-                    const existingCat = state.categories.find(c => c.id === cat.id);
-                    return [
-                        cat.id,
-                        { ...cat, sortIndex: index, lastModified: now, version: (existingCat?.version || 0) + 1 }
-                    ];
-                })
-            );
-
-            // Filter out the old versions of categories from the reordered group
-            const otherCategories = state.categories.filter(c => c.groupId !== groupId);
-
-            // Combine with the new, ordered, and version-bumped categories
-            const newCategories = [...otherCategories, ...Array.from(updatedOrderMap.values())];
+            const reorderedIds = new Set(action.payload.map(c => c.id));
             
-            return { ...state, categories: newCategories };
+            const updatedCategoriesInGroup = action.payload.map((cat, index) => {
+                 const existingCat = state.categories.find(c => c.id === cat.id);
+                 return { ...cat, sortIndex: index, lastModified: now, version: (existingCat?.version || 0) + 1 };
+            });
+
+            const otherCategories = state.categories.filter(c => c.groupId !== groupId || !reorderedIds.has(c.id));
+
+            return { ...state, categories: [...otherCategories, ...updatedCategoriesInGroup] };
         }
 
         default:

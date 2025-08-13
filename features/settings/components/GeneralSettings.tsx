@@ -7,9 +7,7 @@ import { settingsContentAnimation } from '@/shared/lib/animations';
 
 const MANAGER_LIST_ITEM_CLASSES = "w-full text-left bg-slate-700/50 hover:bg-slate-700 p-4 rounded-lg transition-colors flex justify-between items-center";
 
-export const GeneralSettings = ({ onOpenTagManager }: {
-    onOpenTagManager: () => void;
-}) => {
+export const GeneralSettings = () => {
     const { 
         isAutoSyncEnabled, setIsAutoSyncEnabled, openChangelog, resetAppData, loadFromSheet,
         quickAddHideGroups, setQuickAddHideGroups,
@@ -58,16 +56,6 @@ export const GeneralSettings = ({ onOpenTagManager }: {
                             <p className="text-xs text-slate-400 mt-1">Zeigt standardmäßig nur Favoriten und zuletzt verwendete Kategorien an.</p>
                         </div>
                         <ToggleSwitch id="hide-groups-toggle" enabled={quickAddHideGroups} setEnabled={setQuickAddHideGroups} />
-                    </div>
-                </div>
-
-                <div>
-                    <h4 className="text-md font-semibold mb-3 text-white flex items-center gap-2"><Wallet className="h-5 w-5 text-purple-400" /> Datenverwaltung</h4>
-                    <div className="pt-4 mt-4 border-t border-slate-700/50 space-y-3">
-                        <button onClick={onOpenTagManager} className={MANAGER_LIST_ITEM_CLASSES}>
-                            <div><span className="font-semibold text-white">Tag-Verwaltung</span><p className="text-xs text-slate-400 mt-1">Bestehende Tags umbenennen oder löschen.</p></div>
-                            <ChevronRight className="h-5 w-5 text-slate-400" />
-                        </button>
                     </div>
                 </div>
 

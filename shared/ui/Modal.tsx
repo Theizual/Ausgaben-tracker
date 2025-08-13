@@ -1,5 +1,3 @@
-
-
 import React, { useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X } from './Icons';
@@ -20,6 +18,8 @@ export const Modal = ({
     title, 
     size = 'lg', 
     footer, 
+    padding,
+    footerClassName,
     children 
 }: { 
     isOpen: boolean, 
@@ -27,6 +27,8 @@ export const Modal = ({
     title: string, 
     size?: keyof typeof modalSizeClasses, 
     footer?: React.ReactNode, 
+    padding?: string,
+    footerClassName?: string,
     children: React.ReactNode 
 }) => {
     useEscapeKey(onClose);
@@ -75,17 +77,19 @@ export const Modal = ({
                     aria-modal="true"
                     aria-labelledby="modal-title"
                 >
-                    <header className="relative p-4 sm:p-6 border-b border-slate-700 flex-shrink-0">
-                        <h2 id="modal-title" className="text-lg font-bold text-white">{title}</h2>
-                        <button onClick={onClose} className="absolute top-3 right-3 p-2 rounded-full hover:bg-slate-700 transition-colors" aria-label="Dialog schließen">
-                            <X className="h-5 w-5" />
-                        </button>
-                    </header>
-                    <main className="p-4 sm:p-6 overflow-y-auto custom-scrollbar flex-grow">
+                    {title ? (
+                        <header className="relative p-4 sm:p-6 border-b border-slate-700 flex-shrink-0">
+                            <h2 id="modal-title" className="text-lg font-bold text-white">{title}</h2>
+                            <button onClick={onClose} className="absolute top-3 right-3 p-2 rounded-full hover:bg-slate-700 transition-colors" aria-label="Dialog schließen">
+                                <X className="h-5 w-5" />
+                            </button>
+                        </header>
+                    ) : null}
+                    <main className={clsx("overflow-y-auto custom-scrollbar flex-grow", padding ?? 'p-4 sm:p-6')}>
                         {children}
                     </main>
                     {footer && (
-                        <footer className="p-4 sm:p-6 border-t border-slate-700 flex-shrink-0">
+                        <footer className={clsx("border-t border-slate-700 flex-shrink-0", footerClassName ?? 'p-3')}>
                             {footer}
                         </footer>
                     )}

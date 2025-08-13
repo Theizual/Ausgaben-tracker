@@ -98,4 +98,4 @@ export type TransactionViewMode = 'list' | 'grid';
 export type PeriodType = 'last3Months' | 'month' | 'year' | 'custom';
 export type QuickFilterId = 'current' | 'month' | 'all';
 export type CategoryId = string;
-export type SettingsTab = 'general' | 'categories' | 'groups' | 'users' | 'budget';
+export type SettingsTab = 'general' | 'categories' | 'users' | 'budget';

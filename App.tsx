@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Toaster } from 'react-hot-toast';
@@ -16,7 +17,7 @@ import { APP_VERSION } from '@/constants';
 import useLocalStorage from '@/shared/hooks/useLocalStorage';
 import { SyncPromptToast } from '@/features/sync-prompt/ui/SyncPromptToast';
 import { DeleteCategoryModal } from '@/features/settings/components/DeleteCategoryModal';
-import type { CategoryFormData } from '@/features/settings/components/CategoryEditModal';
+import type { CategoryFormData } from '@/features/settings/components/CategoryLibrarySettings';
 import { UserMergePromptModal } from '@/features/onboarding';
 import type { Transaction } from '@/shared/types';
 import { pageContentAnimation } from '@/shared/lib/animations';
