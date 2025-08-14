@@ -71,7 +71,6 @@ export const iconMap: { [key: string]: FC<LucideProps> } = {
 };
 
 export {
-  // (Re-export, falls extern verwendet)
   Anchor, Antenna, Apple, Armchair, AtSign, Atom, Award, Axe, Baby,
   Backpack, BaggageClaim, Banana, BarChart2, Bath, Bean, BedDouble, Beef, Beer,
   BicepsFlexed, Bike, Binoculars, Bird, Bitcoin, Bomb, Bone, Book, BookA,

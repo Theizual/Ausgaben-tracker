@@ -133,7 +133,6 @@ export const useUserSettings = ({ isDemoModeEnabled }: { isDemoModeEnabled: bool
         dispatch({ type: 'UPDATE_SETTING', payload: newSetting });
     }, [rawUserSettings]);
 
-    // --- NEW: AI Features ---
     const getIsAiEnabled = useCallback((userId: string): boolean => {
         const setting = liveUserSettings.find(s => s.userId === userId && s.key === 'aiFeaturesEnabled');
         return setting?.value === 'true'; // Default to false
@@ -153,7 +152,6 @@ export const useUserSettings = ({ isDemoModeEnabled }: { isDemoModeEnabled: bool
         dispatch({ type: 'UPDATE_SETTING', payload: newSetting });
     }, [rawUserSettings]);
 
-    // --- NEW: Category Color Overrides ---
     const getCategoryColorOverrides = useCallback((userId: string): Record<string, string> => {
         const setting = liveUserSettings.find(s => s.userId === userId && s.key === 'categoryColorOverrides');
         if (setting && setting.value) {
@@ -172,7 +170,6 @@ export const useUserSettings = ({ isDemoModeEnabled }: { isDemoModeEnabled: bool
         const existingSetting = rawUserSettings.find(s => s.userId === userId && s.key === 'categoryColorOverrides');
         const value = JSON.stringify(overrides);
 
-        // If the map is empty, we can mark the setting as "deleted" to save space
         const isDeleted = Object.keys(overrides).length === 0;
 
         const newSetting: UserSetting = {
