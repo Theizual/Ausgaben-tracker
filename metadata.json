@@ -1,5 +1,5 @@
 {
-  "name": "AusgabenTracker KI 0.876 gemini->gpt",
+  "name": "AusgabenTracker KI 0.877",
   "description": "Eine moderne, interaktive Single-Page-Anwendung zur Verfolgung von Ausgaben mit einem klaren Fokus auf Benutzerfreundlichkeit und Datenvisualisierung.",
   "requestFramePermissions": [
     "camera"
