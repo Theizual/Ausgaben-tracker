@@ -427,6 +427,18 @@ const ReadyAppProvider: React.FC<{
 
     }), [categoryState, userSettingsState, usersState, transactionDataState, debouncedSync]);
 
+    const setQuickAddHideGroupsForCurrentUser = useCallback((hide: boolean) => {
+        if (uiState.currentUserId) {
+            persistentActions.setQuickAddHideGroups(uiState.currentUserId, hide);
+        }
+    }, [uiState.currentUserId, persistentActions]);
+
+    const setIsAiEnabledForCurrentUser = useCallback((enabled: boolean) => {
+        if (uiState.currentUserId) {
+            persistentActions.setIsAiEnabled(uiState.currentUserId, enabled);
+        }
+    }, [uiState.currentUserId, persistentActions]);
+
 
     const isInitialSetupDoneRef = useRef(isInitialSetupDone);
     useEffect(() => {
@@ -564,9 +576,11 @@ const ReadyAppProvider: React.FC<{
         handleReassignAndDeleteCategory,
         reassignUserForTransactions: transactionDataState.reassignUserForTransactions,
         quickAddHideGroups,
+        setQuickAddHideGroups: setQuickAddHideGroupsForCurrentUser,
         showDemoData,
         setShowDemoData,
         isAiEnabled,
+        setIsAiEnabled: setIsAiEnabledForCurrentUser,
         analyzeReceipt,
     };
     
