@@ -281,7 +281,7 @@ export const useTransactionData = ({ showConfirmation, closeTransactionDetail, c
     const deleteMultipleTransactions = useCallback((ids: string[]) => {
         if (ids.length === 0) return;
         const now = new Date().toISOString();
-        const updatedTransactions = rawState.transactions.map(t => ids.includes(t.id) ? { ...t, isDeleted: true, lastModified: now, version: (t.version || 0) + 1 } : t);
+        const updatedTransactions: Transaction[] = rawState.transactions.map(t => ids.includes(t.id) ? { ...t, isDeleted: true, lastModified: now, version: (t.version || 0) + 1 } : t);
         dispatch({ type: 'SET_TRANSACTIONS', payload: updatedTransactions });
         toast.success(`${ids.length} ${ids.length > 1 ? 'Einträge' : 'Eintrag'} gelöscht.`);
     }, [rawState.transactions]);
@@ -289,7 +289,7 @@ export const useTransactionData = ({ showConfirmation, closeTransactionDetail, c
     const reassignCategoryForTransactions = useCallback((sourceId: string, targetId: string) => {
         if (!sourceId || !targetId) return;
         const now = new Date().toISOString();
-        const updatedTransactions = rawState.transactions.map(t => 
+        const updatedTransactions: Transaction[] = rawState.transactions.map(t => 
             t.categoryId === sourceId
             ? { ...t, categoryId: targetId, lastModified: now, version: (t.version || 0) + 1 }
             : t
@@ -300,7 +300,7 @@ export const useTransactionData = ({ showConfirmation, closeTransactionDetail, c
     const reassignUserForTransactions = useCallback((sourceUserId: string, targetUserId: string, onlyNonDemo: boolean = false) => {
         if (!sourceUserId || !targetUserId) return;
         const now = new Date().toISOString();
-        const updatedTransactions = rawState.transactions.map(t => 
+        const updatedTransactions: Transaction[] = rawState.transactions.map(t => 
             (t.createdBy === sourceUserId && (!onlyNonDemo || !t.isDemo))
             ? { ...t, createdBy: targetUserId, lastModified: now, version: (t.version || 0) + 1 }
             : t
@@ -414,7 +414,7 @@ export const useTransactionData = ({ showConfirmation, closeTransactionDetail, c
         if (group) {
             const members = rawState.transactions.filter(t => t.transactionGroupId === group.id && t.id !== transactionId);
             if (members.length < 2) {
-                const updatedMembers = members.map(m => ({ ...m, transactionGroupId: undefined, groupBaseAmount: undefined, isCorrected: undefined, lastModified: now, version: (m.version || 0) + 1 }));
+                const updatedMembers: Transaction[] = members.map(m => ({ ...m, transactionGroupId: undefined, groupBaseAmount: undefined, isCorrected: undefined, lastModified: now, version: (m.version || 0) + 1 }));
                 const updatedGroup = { ...group, isDeleted: true, lastModified: now, version: (group.version || 0) + 1 };
                 dispatch({ type: 'UPDATE_MULTIPLE_TRANSACTIONS', payload: [updatedTransaction, ...updatedMembers] });
                 dispatch({ type: 'UPSERT_TRANSACTION_GROUP', payload: updatedGroup });
@@ -448,9 +448,11 @@ export const useTransactionData = ({ showConfirmation, closeTransactionDetail, c
         const sumCorrected = correctedMembers.reduce((sum, t) => sum + t.amount, 0);
         const remainingTarget = group.targetAmount - sumCorrected;
         const sumUncorrectedBase = uncorrectedMembers.reduce((sum, t) => sum + (t.groupBaseAmount || t.amount), 0);
-        const updatedTransactions = [updatedTransaction];
+        const updatedTransactions: Transaction[] = [updatedTransaction];
+        let amountsRedistributed = false;
 
         if (sumUncorrectedBase > 0) {
+            amountsRedistributed = true;
             let distributedAmount = 0;
             uncorrectedMembers.forEach((t, index) => {
                 const isLast = index === uncorrectedMembers.length - 1;
@@ -459,10 +461,12 @@ export const useTransactionData = ({ showConfirmation, closeTransactionDetail, c
                 updatedTransactions.push({ ...t, amount: newTxAmount, lastModified: now, version: (t.version || 0) + 1 });
             });
         } else if (uncorrectedMembers.length > 0) {
+            amountsRedistributed = true;
             const amountPerTx = remainingTarget / uncorrectedMembers.length;
             uncorrectedMembers.forEach(t => updatedTransactions.push({ ...t, amount: amountPerTx, lastModified: now, version: (t.version || 0) + 1 }));
         }
         dispatch({ type: 'UPDATE_MULTIPLE_TRANSACTIONS', payload: updatedTransactions });
+        toast.success(amountsRedistributed ? "Gruppen-Transaktion aktualisiert und Beträge neu verteilt." : "Gruppen-Transaktion aktualisiert.");
     }, [rawState.transactions, rawState.transactionGroups]);
     
     const resetCorrectionInGroup = useCallback((transactionId: string) => {
@@ -487,9 +491,11 @@ export const useTransactionData = ({ showConfirmation, closeTransactionDetail, c
         const remainingTarget = group.targetAmount - sumCorrected;
         const sumUncorrectedBase = uncorrectedMembers.reduce((sum, t) => sum + (t.groupBaseAmount || t.amount), 0);
         
-        const updatedTransactions = [...correctedMembers];
+        const updatedTransactions: Transaction[] = [...correctedMembers];
+        let amountsRedistributed = false;
 
         if (sumUncorrectedBase > 0) {
+            amountsRedistributed = true;
             let distributedAmount = 0;
             uncorrectedMembers.forEach((t, index) => {
                 const isLast = index === uncorrectedMembers.length - 1;
@@ -500,7 +506,7 @@ export const useTransactionData = ({ showConfirmation, closeTransactionDetail, c
         } // Handle other cases if needed
 
         dispatch({ type: 'UPDATE_MULTIPLE_TRANSACTIONS', payload: updatedTransactions });
-        toast.info("Korrektur zurückgesetzt und Beträge neu verteilt.");
+        toast.success(amountsRedistributed ? "Korrektur zurückgesetzt und Beträge neu verteilt." : "Korrektur zurückgesetzt.");
     }, [rawState.transactions, rawState.transactionGroups]);
     
     return {

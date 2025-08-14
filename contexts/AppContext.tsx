@@ -15,7 +15,7 @@ import type { Locale } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { Loader2 } from '@/shared/ui';
 import { apiGet } from '@/shared/lib/http';
-import { FirstUserSetup } from '@/features/onboarding';
+import { OnboardingWizard } from '@/features/onboarding';
 
 // Combine the return types of all hooks to define the shape of the context
 type AppContextType = 
@@ -500,18 +500,8 @@ const AppStateContainer: React.FC<{
         );
     }
     
-    // Once users are loaded, check if we need to show the initial setup screen.
-    if (!props.isDemoModeEnabled && usersState.users.length === 0) {
-        // We need to provide a limited context for the setup screen to function.
-        const limitedContextValue = {
-            addUser: usersState.addUser,
-            setCurrentUserId: uiState.setCurrentUserId,
-            setIsInitialSetupDone: rest.setIsInitialSetupDone,
-            syncData: () => Promise.resolve(), // No-op sync initially
-        };
-        // This feels a bit like a hack. It's better to provide the full context.
-        // The ReadyAppProvider will initialize everything. 
-        // We can pass a flag to it or just render a different component here.
+    // Once users are loaded, check if we need to show the initial onboarding wizard.
+    if (!props.isInitialSetupDone && !props.isDemoModeEnabled) {
          return (
              <ReadyAppProvider
                 {...rest}
@@ -519,7 +509,7 @@ const AppStateContainer: React.FC<{
                 uiState={uiState}
                 usersState={usersState}
             >
-                <FirstUserSetup />
+                <OnboardingWizard />
             </ReadyAppProvider>
         );
     }
@@ -562,12 +552,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     useEffect(() => {
         const determineInitialMode = async () => {
-            if (!isInitialSetupDone) {
-                setAppMode('demo');
-                setLocalAppMode('demo');
-                return;
-            }
-
             setAppMode(localAppMode); // Optimistic start
 
             try {

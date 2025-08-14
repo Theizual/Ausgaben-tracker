@@ -129,7 +129,6 @@ const TransactionDetailModal = ({
         } else if (newAmount !== formState.amount) {
             if (formState.transactionGroupId) {
                 updateTransactionInGroup(formState.id, newAmount);
-                toast.success('Gruppenbetrag angepasst');
             } else {
                 handleUpdate({ amount: newAmount });
                 toast.success('Betrag aktualisiert');
