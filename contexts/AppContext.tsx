@@ -352,18 +352,19 @@ const ReadyAppProvider: React.FC<{
     const debouncedSync = useMemo(() => debounce((options: { isAuto?: boolean } = {}) => {
         const { isAutoSyncEnabled, syncStatus: currentSyncStatus, syncData } = syncStateRef.current;
         if (options.isAuto) {
+            // Auto-sync from useEffect respects the setting
             if (isAutoSyncEnabled && (currentSyncStatus === 'idle' || currentSyncStatus === 'success' || currentSyncStatus === 'error')) {
                 syncData({ isAuto: true });
             }
         } else {
-            // If not auto, it's a manual trigger, so sync regardless of status (unless already syncing)
+            // Manual trigger or wrapper-triggered syncs ignore the setting
             if (currentSyncStatus !== 'syncing' && currentSyncStatus !== 'loading') {
                 syncData(options);
             }
         }
     }, 2000), []);
     
-    // Auto-sync on data changes
+    // Auto-sync on data changes (respects user setting)
     const isInitialMount = useRef(true);
     useEffect(() => {
         if (isInitialMount.current) { isInitialMount.current = false; return; }
@@ -381,10 +382,15 @@ const ReadyAppProvider: React.FC<{
     ]);
 
     // --- Global Persistence Wrappers ---
-    // These functions wrap state dispatchers and let the useEffect handle the sync.
+    // These functions wrap state dispatchers and trigger a debounced sync.
     const createPersistentWrapper = (action: (...args: any[]) => any) => {
         return (...args: any[]) => {
-            return action(...args);
+            const result = action(...args);
+            // Trigger a debounced sync. This will fall into the "manual"
+            // part of the debouncedSync logic, which syncs regardless of the
+            // auto-sync setting. This ensures user actions are saved.
+            debouncedSync();
+            return result;
         };
     };
 
@@ -420,7 +426,7 @@ const ReadyAppProvider: React.FC<{
         addTransactionsToGroup: createPersistentWrapper(transactionDataState.addTransactionsToGroup),
 
 
-    }), [categoryState, userSettingsState, usersState, transactionDataState, createPersistentWrapper]);
+    }), [categoryState, userSettingsState, usersState, transactionDataState, debouncedSync]);
 
     const setQuickAddHideGroupsForCurrentUser = useCallback((hide: boolean) => {
         if (uiState.currentUserId) {
