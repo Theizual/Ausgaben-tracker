@@ -3,6 +3,7 @@ import type { FC } from 'react';
 import { AnimatePresence, motion, type MotionProps } from 'framer-motion';
 import type { Category, CategoryId, Group } from '@/shared/types';
 import { iconMap, Plus, Star, getIconComponent } from '@/shared/ui';
+import { DEFAULT_GROUP_ID } from '@/constants';
 
 const hexToRgba = (hex: string = '#64748b', alpha: number): string => {
     let r = 0, g = 0, b = 0;
@@ -122,8 +123,8 @@ const CategoryButtons: FC<{
         onToggleFavorite: onToggleFavorite,
     });
 
-    const groupedCategories = useMemo(() => {
-        if (!showGroups) return null;
+    const { mainGroups, sonstigesGroup } = useMemo(() => {
+        if (!showGroups) return { mainGroups: null, sonstigesGroup: null };
         const groupMap = new Map<string, Category[]>();
         categories.forEach(category => {
             const group = category.groupId;
@@ -131,12 +132,18 @@ const CategoryButtons: FC<{
             groupMap.get(group)!.push(category);
         });
 
-        return groups
+        const allGroupData = groups
             .map(group => ({
                 ...group,
                 categories: groupMap.get(group.id) || []
             }))
             .filter(group => group.categories.length > 0);
+
+        const main = allGroupData.filter(g => g.id !== DEFAULT_GROUP_ID);
+        const sonstiges = allGroupData.find(g => g.id === DEFAULT_GROUP_ID);
+
+        return { mainGroups: main, sonstigesGroup: sonstiges };
+
     }, [categories, groups, showGroups]);
 
     if (!showGroups) {
@@ -159,36 +166,51 @@ const CategoryButtons: FC<{
         );
     }
     
-    return (
-        <div className="grid grid-cols-2 gap-3">
-            {groupedCategories?.map(group => {
-                const GroupIcon = getIconComponent(group.icon);
-                const groupColor = group.color || '#64748b';
+    const GroupTile: FC<{ group: Group & { categories: Category[] } }> = ({ group }) => {
+        const GroupIcon = getIconComponent(group.icon);
+        const groupColor = group.color || '#64748b';
 
-                const gradientStyle = {
-                    background: `radial-gradient(ellipse 80% 70% at 50% 20%, ${hexToRgba(groupColor, 0.25)} 0%, transparent 100%), rgb(51 65 85 / 0.3)`
-                };
+        const gradientStyle = {
+            background: `radial-gradient(ellipse 80% 70% at 50% 20%, ${hexToRgba(groupColor, 0.25)} 0%, transparent 100%), rgb(51 65 85 / 0.3)`
+        };
 
-                return (
-                    <div 
-                        key={group.id} 
-                        className="relative p-1.5 rounded-xl overflow-hidden border border-slate-700/50 flex flex-col"
-                        style={gradientStyle}
-                    >
-                        <div className="relative">
-                            <div className="flex items-center gap-2 mb-1.5 px-1 pt-0 pb-1">
-                                <GroupIcon className="h-4 w-4" style={{ color: groupColor }} />
-                                <h4 className="text-sm font-bold text-slate-300">{group.name}</h4>
-                            </div>
-                            <div className="flex flex-wrap gap-2">
-                                {group.categories.map(category => (
-                                    <CategoryTile key={category.id} {...tileProps(category)} />
-                                ))}
-                            </div>
-                        </div>
+        return (
+            <div 
+                className="relative p-1.5 rounded-xl overflow-hidden border border-slate-700/50 flex flex-col h-full"
+                style={gradientStyle}
+            >
+                <div className="relative">
+                    <div className="flex items-center gap-2 mb-1.5 px-1 pt-0 pb-1">
+                        <GroupIcon className="h-4 w-4" style={{ color: groupColor }} />
+                        <h4 className="text-sm font-bold text-slate-300">{group.name}</h4>
                     </div>
-                );
-            })}
+                    <div className="flex flex-wrap gap-2">
+                        {group.categories.map(category => (
+                            <CategoryTile key={category.id} {...tileProps(category)} />
+                        ))}
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
+    return (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+            {mainGroups?.map(group => (
+                <GroupTile key={group.id} group={group} />
+            ))}
+
+            {sonstigesGroup && (
+                <>
+                    <div className="col-span-full my-1 pt-2">
+                        <div className="border-t border-slate-700/50" />
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mt-3 -mb-1">Sonstiges</h4>
+                    </div>
+                    <div className="md:col-span-2">
+                        <GroupTile group={sonstigesGroup} />
+                    </div>
+                </>
+            )}
         </div>
     );
 };

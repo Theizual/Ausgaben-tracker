@@ -15,6 +15,8 @@ import { BudgetProgressBar } from '@/shared/ui/BudgetProgressBar';
 import useLocalStorage from '@/shared/hooks/useLocalStorage';
 import { pageContentAnimation, collapsibleAnimation, transactionDetailsAnimation } from '@/shared/lib/animations';
 
+const MotionDiv = motion.div;
+
 const DashboardPage = () => {
     const {
         transactions,
@@ -166,11 +168,10 @@ const DashboardPage = () => {
                 
                 {/* Right Column */}
                 <div className="space-y-6">
-                    <motion.div
-                        variants={pageContentAnimation}
-                        initial="initial"
-                        animate="animate"
-                        transition={{ delay: 0.1 }}
+                    <MotionDiv
+                        initial={pageContentAnimation.initial}
+                        animate={pageContentAnimation.animate}
+                        transition={{...pageContentAnimation.transition, delay: 0.1 }}
                         className="bg-slate-800/50 p-6 rounded-2xl border border-slate-700/50"
                     >
                         <div className="flex justify-between items-center mb-4">
@@ -204,11 +205,12 @@ const DashboardPage = () => {
                                 </div>
                             </div>
                         </div>
-                    </motion.div>
-                    <motion.div
-                        variants={pageContentAnimation}
-                        initial="initial"
-                        animate="animate"
+                    </MotionDiv>
+                    <MotionDiv
+                        initial={pageContentAnimation.initial}
+                        animate={pageContentAnimation.animate}
+                        exit={pageContentAnimation.exit}
+                        transition={pageContentAnimation.transition}
                         className="bg-slate-800/50 p-6 rounded-2xl border border-slate-700/50 flex flex-col"
                     >
                         <div className="flex justify-between items-center mb-4">
@@ -230,13 +232,14 @@ const DashboardPage = () => {
                                 <BudgetProgressBar percentage={totalBudgetPercentage} color={COLOR_SUCCESS} />
                             </div>
                         )}
-                    </motion.div>
+                    </MotionDiv>
 
                     {hasAnyBudgetedCategories && (
-                        <motion.div
-                            variants={pageContentAnimation}
-                            initial="initial"
-                            animate="animate"
+                        <MotionDiv
+                            initial={pageContentAnimation.initial}
+                            animate={pageContentAnimation.animate}
+                            exit={pageContentAnimation.exit}
+                            transition={pageContentAnimation.transition}
                             className="bg-slate-800/50 p-6 rounded-2xl border border-slate-700/50"
                         >
                             <h4 className="text-sm font-semibold text-slate-300">Kategorienbudgets (Flexibel)</h4>
@@ -265,11 +268,10 @@ const DashboardPage = () => {
                                             </div>
                                             <AnimatePresence>
                                                 {isGroupExpanded && (
-                                                    <motion.div
-                                                        variants={collapsibleAnimation}
-                                                        initial="initial"
-                                                        animate="animate"
-                                                        exit="exit"
+                                                    <MotionDiv
+                                                        initial={collapsibleAnimation.initial}
+                                                        animate={collapsibleAnimation.animate}
+                                                        exit={collapsibleAnimation.exit}
                                                         className="overflow-hidden"
                                                     >
                                                         <div className="relative space-y-4 pt-3 ml-4 pl-4 border-l-2 border-slate-600/50">
@@ -300,11 +302,10 @@ const DashboardPage = () => {
                                                                         </div>
                                                                         <AnimatePresence>
                                                                             {isExpanded && (
-                                                                                <motion.div
-                                                                                    variants={transactionDetailsAnimation}
-                                                                                    initial="initial"
-                                                                                    animate="animate"
-                                                                                    exit="exit"
+                                                                                <MotionDiv
+                                                                                    initial={transactionDetailsAnimation.initial}
+                                                                                    animate={transactionDetailsAnimation.animate}
+                                                                                    exit={transactionDetailsAnimation.exit}
                                                                                     className="overflow-hidden"
                                                                                 >
                                                                                     <div className="ml-4 pl-4 border-l-2 border-slate-600/50 space-y-1">
@@ -323,21 +324,21 @@ const DashboardPage = () => {
                                                                                             <p className="text-slate-500 text-sm p-2">Keine Ausgaben diesen Monat.</p>
                                                                                         )}
                                                                                     </div>
-                                                                                </motion.div>
+                                                                                </MotionDiv>
                                                                             )}
                                                                         </AnimatePresence>
                                                                     </div>
                                                                 );
                                                             })}
                                                         </div>
-                                                    </motion.div>
+                                                    </MotionDiv>
                                                 )}
                                             </AnimatePresence>
                                         </div>
                                     );
                                 })}
                             </div>
-                        </motion.div>
+                        </MotionDiv>
                     )}
                 </div>
             </div>

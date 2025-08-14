@@ -3,6 +3,7 @@
 
 
 
+
 import React, { useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Toaster } from 'react-hot-toast';
@@ -24,6 +25,8 @@ import type { CategoryFormData } from '@/features/settings/components/CategoryLi
 import { UserMergePromptModal } from '@/features/onboarding';
 import type { Transaction } from '@/shared/types';
 import { pageContentAnimation } from '@/shared/lib/animations';
+
+const MotionDiv = motion.div;
 
 // Main App Component (now a clean layout/composition root)
 const App = () => {
@@ -125,15 +128,15 @@ const App = () => {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">
                 <main className="mt-6">
                     <AnimatePresence mode="wait">
-                        <motion.div
+                        <MotionDiv
                             key={activeTab}
-                            variants={pageContentAnimation}
-                            initial="initial"
-                            animate="animate"
-                            exit="exit"
+                            initial={pageContentAnimation.initial}
+                            animate={pageContentAnimation.animate}
+                            exit={pageContentAnimation.exit}
+                            transition={pageContentAnimation.transition}
                         >
                             {renderContent()}
-                        </motion.div>
+                        </MotionDiv>
                     </AnimatePresence>
                 </main>
             </div>

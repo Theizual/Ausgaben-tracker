@@ -20,6 +20,8 @@ export type CategoryFormData = {
     budget?: number;
 };
 
+const MotionDiv = motion.div;
+
 const CategoryReorderItem: FC<{
     category: Category;
     onEdit: (category: Partial<Category> & { groupId?: string }) => void;
@@ -217,7 +219,7 @@ export const CategoryLibrarySettings: FC<{ onEditGroupDesign: (group: Group) => 
 
     return (
         <>
-            <motion.div variants={settingsContentAnimation} initial="initial" animate="animate" exit="exit" key="categories">
+            <MotionDiv initial={settingsContentAnimation.initial} animate={settingsContentAnimation.animate} exit={settingsContentAnimation.exit} key="categories">
                 <h3 className="text-lg font-semibold text-white mb-1">Gruppen & Kategorien</h3>
                 <p className="text-sm text-slate-400 mb-6">Verwalten Sie hier Ihre Ausgabenstruktur. Sortieren Sie Gruppen und Kategorien per Drag & Drop.</p>
                 
@@ -277,7 +279,7 @@ export const CategoryLibrarySettings: FC<{ onEditGroupDesign: (group: Group) => 
                         Standardkonfiguration laden
                     </Button>
                 </div>
-            </motion.div>
+            </MotionDiv>
 
             <AnimatePresence>
                 {editingCategory && (
@@ -326,9 +328,10 @@ const GroupItem: FC<GroupItemProps> = ({ group, dragControls, categories, isExpa
             <div className="relative">
                 <div className="flex items-center gap-2">
                     <div
-                        onPointerDown={(e) => dragControls.start(e)}
-                        className="p-3 -ml-2 text-slate-500 cursor-grab active:cursor-grabbing touch-none"
-                        aria-label={`Gruppe ${group.name} verschieben`}
+                        onPointerDown={(e) => { if (!isProtected) dragControls.start(e); }}
+                        className={`p-3 -ml-2 text-slate-500 touch-none ${isProtected ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'}`}
+                        aria-label={`Gruppe ${group.name} ${isProtected ? 'ist fixiert und kann nicht verschoben werden' : 'verschieben'}`}
+                        title={isProtected ? 'Fixiert' : 'Gruppe verschieben'}
                     >
                         <GripVertical className="h-5 w-5" />
                     </div>
@@ -353,14 +356,19 @@ const GroupItem: FC<GroupItemProps> = ({ group, dragControls, categories, isExpa
 
                 <AnimatePresence>
                     {isExpanded && (
-                        <motion.div variants={collapsibleAnimation} initial="initial" animate="animate" exit="exit" className="overflow-hidden">
+                        <MotionDiv
+                            initial={collapsibleAnimation.initial}
+                            animate={collapsibleAnimation.animate}
+                            exit={collapsibleAnimation.exit}
+                            className="overflow-hidden"
+                        >
                             <div className="pl-10 mt-3 pt-3 border-t border-slate-700/50">
                                 <Reorder.Group axis="y" values={localCategories} onReorder={handleReorderCategories} className="space-y-1">
                                     {localCategories.map(cat => ( <CategoryReorderItem key={cat.id} category={cat} onEdit={onEditCategory} onToggleFavorite={toggleFavorite} isFavorite={favoriteIds.includes(cat.id)} /> ))}
                                 </Reorder.Group>
                                 <button onClick={() => onEditCategory({ groupId: group.id })} className="mt-2 w-full flex items-center justify-center gap-2 text-sm text-slate-400 hover:text-white p-2 rounded-lg hover:bg-slate-700/50 transition-colors"><Plus className="h-4 w-4" /> Neue Kategorie</button>
                             </div>
-                        </motion.div>
+                        </MotionDiv>
                     )}
                 </AnimatePresence>
             </div>

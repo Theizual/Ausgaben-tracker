@@ -26,7 +26,7 @@ export const UserSettings = () => {
     const handleNameUpdate = useCallback((id: string, name: string) => updateUser(id, { name }), [updateUser]);
 
     return (
-        <motion.div variants={settingsContentAnimation} initial="initial" animate="animate" exit="exit" key="users">
+        <motion.div initial={settingsContentAnimation.initial} animate={settingsContentAnimation.animate} exit={settingsContentAnimation.exit} key="users">
             <h3 className="text-lg font-semibold text-white mb-1">Benutzer verwalten</h3>
             <p className="text-sm text-slate-400 mb-6">Legen Sie Benutzer an, um Ausgaben zuzuordnen. Der aktuell ausgewählte Benutzer wird neuen Transaktionen automatisch zugewiesen.</p>
             <form onSubmit={handleAddUser} className="flex gap-3 mb-6">

@@ -13,6 +13,8 @@ interface TransactionGroupPickerModalProps {
     existingGroupId?: string;
 }
 
+const MotionDiv = motion.div;
+
 export const TransactionGroupPickerModal: React.FC<TransactionGroupPickerModalProps> = ({ isOpen, onClose, onConfirm, sourceTransactionId, existingGroupId }) => {
     const { transactions } = useApp();
     const [selectedIds, setSelectedIds] = useState(new Set<string>());
@@ -74,7 +76,7 @@ export const TransactionGroupPickerModal: React.FC<TransactionGroupPickerModalPr
                         {eligibleTransactions.map(t => {
                             const isSelected = selectedIds.has(t.id);
                             return (
-                                <motion.div
+                                <MotionDiv
                                     key={t.id}
                                     layout
                                     initial={{ opacity: 0 }}
@@ -97,7 +99,7 @@ export const TransactionGroupPickerModal: React.FC<TransactionGroupPickerModalPr
                                             />
                                         </div>
                                     </button>
-                                </motion.div>
+                                </MotionDiv>
                             )
                         })}
                     </AnimatePresence>
