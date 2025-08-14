@@ -4,6 +4,21 @@ import { AnimatePresence, motion, type MotionProps } from 'framer-motion';
 import type { Category, CategoryId, Group } from '@/shared/types';
 import { iconMap, Plus, Star, getIconComponent } from '@/shared/ui';
 
+const hexToRgba = (hex: string = '#64748b', alpha: number): string => {
+    let r = 0, g = 0, b = 0;
+    const localHex = hex || '#64748b'; // handle null/undefined just in case
+    if (localHex.length === 4) {
+        r = parseInt(localHex[1] + localHex[1], 16);
+        g = parseInt(localHex[2] + localHex[2], 16);
+        b = parseInt(localHex[3] + localHex[3], 16);
+    } else if (localHex.length === 7) {
+        r = parseInt(localHex.substring(1, 3), 16);
+        g = parseInt(localHex.substring(3, 5), 16);
+        b = parseInt(localHex.substring(5, 7), 16);
+    }
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+};
+
 const CategoryTile: FC<{
     category: Category;
     isSelected: boolean;
@@ -148,12 +163,21 @@ const CategoryButtons: FC<{
         <div className="grid grid-cols-2 gap-3">
             {groupedCategories?.map(group => {
                 const GroupIcon = getIconComponent(group.icon);
+                const groupColor = group.color || '#64748b';
+
+                const gradientStyle = {
+                    background: `radial-gradient(ellipse 80% 70% at 50% 20%, ${hexToRgba(groupColor, 0.25)} 0%, transparent 100%), rgb(51 65 85 / 0.3)`
+                };
+
                 return (
-                    <div key={group.id} className="relative bg-slate-700/30 p-1.5 rounded-xl overflow-hidden border border-slate-700/50 flex flex-col">
-                        <div className="absolute inset-0 pointer-events-none" style={{ backgroundColor: group.color || '#64748b', opacity: 0.08 }}></div>
+                    <div 
+                        key={group.id} 
+                        className="relative p-1.5 rounded-xl overflow-hidden border border-slate-700/50 flex flex-col"
+                        style={gradientStyle}
+                    >
                         <div className="relative">
                             <div className="flex items-center gap-2 mb-1.5 px-1 pt-0 pb-1">
-                                <GroupIcon className="h-4 w-4 text-slate-500" />
+                                <GroupIcon className="h-4 w-4" style={{ color: groupColor }} />
                                 <h4 className="text-sm font-bold text-slate-300">{group.name}</h4>
                             </div>
                             <div className="flex flex-wrap gap-2">

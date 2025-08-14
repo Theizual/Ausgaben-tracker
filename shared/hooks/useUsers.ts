@@ -81,7 +81,18 @@ export const useUsers = ({ isDemoModeEnabled }: { isDemoModeEnabled: boolean }) 
         dispatch({ type: 'SET_USERS', payload: users });
     }, []);
 
-    const users = useMemo(() => state.users.filter(u => !u.isDeleted), [state.users]);
+    const users = useMemo(() => {
+        return state.users.filter(user => {
+            if (user.isDeleted) {
+                return false;
+            }
+            // Im Live-Modus (nicht Demo-Modus) sollen Demo-Benutzer nie angezeigt werden.
+            if (!isDemoModeEnabled && user.isDemo) {
+                return false;
+            }
+            return true;
+        });
+    }, [state.users, isDemoModeEnabled]);
     
     const addUser = useCallback((name: string, color?: string): User => {
         const trimmedName = name.trim();
