@@ -14,10 +14,9 @@ import { isWithinInterval, parseISO, startOfMonth, endOfMonth } from 'date-fns';
 import type { Locale } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { Loader2 } from '@/shared/ui';
-import { apiGet } from '@/shared/lib/http';
+import { apiGet, apiPost } from '@/shared/lib/http';
 import { FirstUserSetup } from '@/features/onboarding';
 import debounce from 'lodash.debounce';
-import { GoogleGenAI, Type } from '@google/genai';
 
 // --- TYPE DEFINITIONS ---
 export interface Gemini_AnalyzeReceiptResult {
@@ -494,59 +493,39 @@ const ReadyAppProvider: React.FC<{
     const analyzeReceipt = useCallback(async (base64Image: string): Promise<Gemini_AnalyzeReceiptResult | null> => {
         const toastId = toast.loading('Beleg wird analysiert...');
         try {
-            if (!process.env.API_KEY) {
-                throw new Error("API-Schlüssel ist nicht konfiguriert.");
+            // Kategorienamen an den Server geben, damit das Modell nur daraus wählt
+            const categories = categoryState.flexibleCategories.map(c => c.name);
+
+            // Serverroute ruft OpenAI auf und gibt { amount, description, category } zurück
+            const res = await apiPost('/api/ai/analyze-receipt', { base64Image, categories });
+            if ((res as any)?.error) {
+                throw new Error((res as any).error);
             }
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-            const receiptSchema = {
-                type: Type.OBJECT,
-                properties: {
-                    amount: { type: Type.NUMBER, description: "Der Gesamtbetrag des Belegs als Zahl." },
-                    description: { type: Type.STRING, description: "Eine kurze Beschreibung, idealerweise der Name des Geschäfts." },
-                    category: { type: Type.STRING, description: "Eine der folgenden Kategorien, die am besten passt: " + categoryState.flexibleCategories.map(c => c.name).join(', ') }
-                },
-                required: ["amount", "description", "category"]
-            };
+            const { amount, description, category } = res as { amount: number; description: string; category: string };
 
-            const response = await ai.models.generateContent({
-                model: 'gemini-2.5-flash',
-                contents: {
-                    parts: [
-                        { text: "Analysiere diesen Kassenbeleg. Extrahiere den Gesamtbetrag, den Namen des Geschäfts als Beschreibung und schlage eine passende Kategorie vor. Gib das Ergebnis als JSON zurück." },
-                        { inlineData: { mimeType: 'image/jpeg', data: base64Image } }
-                    ]
-                },
-                config: {
-                    responseMimeType: "application/json",
-                    responseSchema: receiptSchema,
-                }
-            });
 
-            const jsonString = response.text;
-            const data = JSON.parse(jsonString);
-
-            // Find the best matching category ID
+            // Category-Name -> ID mappen
             let categoryId: string | null = null;
-            if (data.category) {
-                const lowerCaseCategory = data.category.toLowerCase();
-                const foundCategory = categoryState.flexibleCategories.find(c => c.name.toLowerCase() === lowerCaseCategory);
-                categoryId = foundCategory ? foundCategory.id : null;
+            if (category) {
+                const lc = category.toLowerCase();
+                const found = categoryState.flexibleCategories.find(c => c.name.toLowerCase() === lc);
+                categoryId = found ? found.id : null;
             }
 
             toast.success('Analyse erfolgreich!', { id: toastId });
             return {
-                amount: data.amount || 0,
-                description: data.description || 'Unbekannter Beleg',
-                categoryId: categoryId,
+                amount: amount || 0,
+                description: description || 'Unbekannter Beleg',
+                categoryId,
             };
+                } catch (error: any) {
+                    console.error('Fehler bei der Beleg-Analyse (OpenAI):', error);
+                    toast.error(`Analyse fehlgeschlagen. ${error?.message ?? ''}`.trim(), { id: toastId });
+                    return null;
+                }
+            }, [categoryState.flexibleCategories]);
 
-        } catch (error) {
-            console.error("Fehler bei der Beleg-Analyse:", error);
-            toast.error('Analyse fehlgeschlagen.', { id: toastId });
-            return null;
-        }
-    }, [categoryState.flexibleCategories]);
 
     const { openSettings: _, ...restUiState } = uiState;
     const { setQuickAddHideGroups: __, setIsAiEnabled: ___, ...restUserSettingsState } = userSettingsState;
