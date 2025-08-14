@@ -66,6 +66,8 @@ export interface Transaction {
   iconOverride?: string;
   isCorrected?: boolean;
   groupBaseAmount?: number;
+  notes?: string;
+  isVerified?: boolean;
 }
 
 export interface TransactionGroup {

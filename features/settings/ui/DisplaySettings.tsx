@@ -3,8 +3,6 @@
 
 
 
-
-
 import React, { FC } from 'react';
 import { motion } from 'framer-motion';
 import { useApp } from '../../../contexts/AppContext';

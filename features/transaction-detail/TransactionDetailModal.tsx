@@ -5,7 +5,7 @@ import { useApp } from '@/contexts/AppContext';
 import type { Transaction, CategoryId, User } from '@/shared/types';
 import { format, parseISO } from 'date-fns';
 import { formatCurrency } from '@/shared/utils/dateUtils';
-import { iconMap, X, Edit, Trash2, Plus, FlaskConical, Link, getIconComponent, RefreshCcw, Button, PlusCircle } from '@/shared/ui';
+import { iconMap, X, Edit, Trash2, Plus, FlaskConical, Link, getIconComponent, RefreshCcw, Button, PlusCircle, Info, ShieldCheck, ToggleSwitch } from '@/shared/ui';
 import { PickerModals } from './ui/PickerModals';
 import { TagPill } from '@/shared/ui';
 import { modalBackdropAnimation, modalContentAnimation } from '@/shared/lib/animations';
@@ -48,6 +48,8 @@ const TransactionDetailModal = ({
     const [isPickingCategory, setIsPickingCategory] = useState(false);
     const [isEditingDescription, setIsEditingDescription] = useState(false);
     const [descriptionValue, setDescriptionValue] = useState('');
+    const [isEditingNotes, setIsEditingNotes] = useState(false);
+    const [notesValue, setNotesValue] = useState('');
     const [isEditingDate, setIsEditingDate] = useState(false);
     const [dateValue, setDateValue] = useState('');
     const [isPickingUser, setIsPickingUser] = useState(false);
@@ -61,6 +63,8 @@ const TransactionDetailModal = ({
     const Icon = getIconComponent(formState.iconOverride || category?.icon);
     const CategoryIcon = getIconComponent(category?.icon);
     const color = category ? category.color : '#64748b';
+    const isVerified = !!formState.isVerified;
+    const isDemo = !!formState.isDemo;
 
     const createdBy = useMemo(() => {
         if (!formState.createdBy) return null;
@@ -88,6 +92,7 @@ const TransactionDetailModal = ({
             setIsEditingAmount(false);
             setIsPickingCategory(false);
             setIsEditingDescription(false);
+            setIsEditingNotes(false);
             setIsEditingDate(false);
             setIsPickingUser(false);
             setIsEditingTags(false);
@@ -115,6 +120,7 @@ const TransactionDetailModal = ({
                 else if (isEditingDate) setIsEditingDate(false);
                 else if (isEditingAmount) setIsEditingAmount(false);
                 else if (isEditingDescription) setIsEditingDescription(false);
+                else if (isEditingNotes) setIsEditingNotes(false);
                 else onClose();
             }
         };
@@ -124,7 +130,7 @@ const TransactionDetailModal = ({
             document.body.classList.remove('modal-open');
             window.removeEventListener('keydown', handleKeyDown);
         };
-    }, [isOpen, onClose, isEditingAmount, isPickingCategory, isEditingDate, isEditingDescription, isPickingUser, isEditingTags, isPickingIcon, isJoiningGroup, isCreatingGroup, isAddingToGroup]);
+    }, [isOpen, onClose, isEditingAmount, isPickingCategory, isEditingDate, isEditingDescription, isEditingNotes, isPickingUser, isEditingTags, isPickingIcon, isJoiningGroup, isCreatingGroup, isAddingToGroup]);
     
     const handleDelete = useCallback(() => {
         if (window.confirm(`Möchten Sie die Ausgabe "${transaction.description}" wirklich löschen?`)) {
@@ -143,7 +149,10 @@ const TransactionDetailModal = ({
     };
     
     const handleUpdate = useCallback((updates: Partial<Transaction>, newTags?: string[]) => {
-        const updatedTransaction = { ...formState, ...updates };
+        let updatedTransaction = { ...formState, ...updates };
+        if (updates.hasOwnProperty('notes')) {
+            updatedTransaction.notes = updates.notes;
+        }
         updateTransaction(updatedTransaction, newTags ?? getTagNames(formState));
         setFormState(updatedTransaction);
     }, [formState, updateTransaction, getTagNames]);
@@ -169,6 +178,15 @@ const TransactionDetailModal = ({
             toast.success("Beschreibung aktualisiert.");
         }
         setIsEditingDescription(false);
+    };
+    
+    const handleNotesUpdate = () => {
+        const newNotes = notesValue.trim();
+        if(newNotes !== (formState.notes || '')) {
+            handleUpdate({ notes: newNotes });
+            toast.success("Notiz aktualisiert.");
+        }
+        setIsEditingNotes(false);
     };
 
     const handleDateUpdate = () => {
@@ -215,6 +233,15 @@ const TransactionDetailModal = ({
         }
         setIsPickingIcon(false);
     };
+    
+    const handleVerifiedToggle = (verified: boolean) => {
+        if (verified && !isVerified) {
+            if (window.confirm("Möchten Sie diese Transaktion als 'Geprüft' markieren? Danach kann sie nicht mehr bearbeitet oder gelöscht werden.")) {
+                handleUpdate({ isVerified: true });
+                toast.success("Transaktion als geprüft markiert.");
+            }
+        }
+    };
 
     const handleIconReset = () => {
         if (formState.iconOverride) {
@@ -259,7 +286,6 @@ const TransactionDetailModal = ({
     };
 
     const localTags = getTagNames(formState);
-    const isDemo = !!formState.isDemo;
     
     const iconButtonAnimation = {
         whileHover: { scale: 1.1 },
@@ -311,11 +337,11 @@ const TransactionDetailModal = ({
                                                 <div className="relative mb-4 w-16 h-16 mx-auto">
                                                     <motion.button 
                                                         {...iconButtonAnimation}
-                                                        onClick={() => !isDemo && setIsPickingIcon(true)}
-                                                        disabled={isDemo}
+                                                        onClick={() => !isVerified && !isDemo && setIsPickingIcon(true)}
+                                                        disabled={isVerified || isDemo}
                                                         className="w-16 h-16 rounded-full flex items-center justify-center transition-transform disabled:cursor-not-allowed bg-transparent border-4" 
                                                         style={{ borderColor: color }}
-                                                        title={isDemo ? "Demo-Icon kann nicht geändert werden" : "Icon ändern"}
+                                                        title={isVerified ? "Geprüfte Transaktionen können nicht bearbeitet werden" : (isDemo ? "Demo-Icon kann nicht geändert werden" : "Icon ändern")}
                                                     >
                                                         <Icon className="h-8 w-8" style={{ color: color }}/>
                                                     </motion.button>
@@ -323,8 +349,8 @@ const TransactionDetailModal = ({
                                                         <motion.button
                                                             {...iconButtonAnimation}
                                                             onClick={handleIconReset}
-                                                            disabled={isDemo}
-                                                            title={isDemo ? "Demo-Icon kann nicht geändert werden" : "Icon zurücksetzen"}
+                                                            disabled={isVerified || isDemo}
+                                                            title={isVerified ? "Geprüfte Transaktionen können nicht bearbeitet werden" : (isDemo ? "Demo-Icon kann nicht geändert werden" : "Icon zurücksetzen")}
                                                             className="absolute -top-1 -right-1 z-10 p-1 bg-slate-700 rounded-full text-slate-400 hover:text-white disabled:cursor-not-allowed"
                                                             aria-label="Transaktions-Icon auf Kategorie-Standard zurücksetzen"
                                                         >
@@ -347,7 +373,7 @@ const TransactionDetailModal = ({
                                                         />
                                                     </motion.div>
                                                 ) : (
-                                                    <button onClick={() => !isDemo && (setAmountValue(String(formState.amount).replace('.', ',')), setIsEditingAmount(true))} disabled={isDemo} className="rounded-lg p-1 -m-1 disabled:cursor-not-allowed" title={isDemo ? "Demo-Betrag kann nicht geändert werden" : "Betrag ändern"}>
+                                                    <button onClick={() => !isVerified && !isDemo && (setAmountValue(String(formState.amount).replace('.', ',')), setIsEditingAmount(true))} disabled={isVerified || isDemo} className="rounded-lg p-1 -m-1 disabled:cursor-not-allowed" title={isVerified ? "Geprüfte Transaktionen können nicht bearbeitet werden" : (isDemo ? "Demo-Betrag kann nicht geändert werden" : "Betrag ändern")}>
                                                         <p className="text-4xl font-bold text-white">{formatCurrency(formState.amount)}</p>
                                                     </button>
                                                 )}
@@ -365,11 +391,11 @@ const TransactionDetailModal = ({
                                                         />
                                                      </motion.div>
                                                 ) : (
-                                                     <button onClick={() => !isDemo && (setDescriptionValue(formState.description), setIsEditingDescription(true))} disabled={isDemo} className="w-full rounded-lg p-1 -m-1 mt-2 disabled:cursor-not-allowed" title={isDemo ? "Demo-Beschreibung kann nicht geändert werden" : "Beschreibung ändern"}>
+                                                     <button onClick={() => !isVerified && !isDemo && (setDescriptionValue(formState.description), setIsEditingDescription(true))} disabled={isVerified || isDemo} className="w-full rounded-lg p-1 -m-1 mt-2 disabled:cursor-not-allowed" title={isVerified ? "Geprüfte Transaktionen können nicht bearbeitet werden" : (isDemo ? "Demo-Beschreibung kann nicht geändert werden" : "Beschreibung ändern")}>
                                                         <p className="text-lg font-semibold text-white truncate">{formState.description}</p>
                                                     </button>
                                                 )}
-                                                <button onClick={() => !isDemo && setIsPickingCategory(true)} disabled={isDemo} className="mt-1 flex items-center justify-center gap-1.5 text-sm text-slate-400 rounded-lg p-1 -m-1 hover:text-white transition-colors disabled:cursor-not-allowed" title={isDemo ? "Demo-Kategorie kann nicht geändert werden" : "Kategorie ändern"}>
+                                                <button onClick={() => !isVerified && !isDemo && setIsPickingCategory(true)} disabled={isVerified || isDemo} className="mt-1 flex items-center justify-center gap-1.5 text-sm text-slate-400 rounded-lg p-1 -m-1 hover:text-white transition-colors disabled:cursor-not-allowed" title={isVerified ? "Geprüfte Transaktionen können nicht bearbeitet werden" : (isDemo ? "Demo-Kategorie kann nicht geändert werden" : "Kategorie ändern")}>
                                                     <CategoryIcon className="h-4 w-4 flex-shrink-0" style={{ color: category?.color }}/>
                                                     <span>{category?.name}</span>
                                                 </button>
@@ -390,7 +416,7 @@ const TransactionDetailModal = ({
                                                         autoFocus
                                                       />
                                                  ) : (
-                                                    <button onClick={() => !isDemo && (setDateValue(getFormattedDate(formState.date, "yyyy-MM-dd'T'HH:mm")), setIsEditingDate(true))} disabled={isDemo} className="text-slate-200 font-medium rounded p-1 -m-1 disabled:cursor-not-allowed" title={isDemo ? "Demo-Datum kann nicht geändert werden" : "Datum ändern"}>
+                                                    <button onClick={() => !isVerified && !isDemo && (setDateValue(getFormattedDate(formState.date, "yyyy-MM-dd'T'HH:mm")), setIsEditingDate(true))} disabled={isVerified || isDemo} className="text-slate-200 font-medium rounded p-1 -m-1 disabled:cursor-not-allowed" title={isVerified ? "Geprüfte Transaktionen können nicht bearbeitet werden" : (isDemo ? "Demo-Datum kann nicht geändert werden" : "Datum ändern")}>
                                                         {getFormattedDate(formState.date, 'dd. MMM yyyy, HH:mm')} Uhr
                                                     </button>
                                                  )}
@@ -398,28 +424,63 @@ const TransactionDetailModal = ({
                                             <div className="flex justify-between items-center">
                                                 <span className="text-slate-400 font-medium">Erstellt von</span>
                                                 {createdBy ? (
-                                                    <button onClick={() => !isDemo && setIsPickingUser(true)} disabled={isDemo} className="flex items-center gap-2 text-slate-200 font-medium rounded p-1 -m-1 disabled:cursor-not-allowed" title={isDemo ? "Demo-Benutzer kann nicht geändert werden" : "Benutzer ändern"}>
+                                                    <button onClick={() => !isVerified && !isDemo && setIsPickingUser(true)} disabled={isVerified || isDemo} className="flex items-center gap-2 text-slate-200 font-medium rounded p-1 -m-1 disabled:cursor-not-allowed" title={isVerified ? "Geprüfte Transaktionen können nicht bearbeitet werden" : (isDemo ? "Demo-Benutzer kann nicht geändert werden" : "Benutzer ändern")}>
                                                             <div className="w-5 h-5 rounded-full flex items-center justify-center text-white font-bold text-xs" style={{ backgroundColor: createdBy.color }}>
                                                             {createdBy.name.charAt(0).toUpperCase()}
                                                         </div>
                                                         <span>{createdBy.name}</span>
                                                     </button>
                                                 ) : (
-                                                    <button onClick={() => !isDemo && setIsPickingUser(true)} disabled={isDemo} className="flex items-center gap-1 text-rose-400 font-medium rounded p-1 -m-1 hover:text-rose-300 disabled:cursor-not-allowed" title={isDemo ? "Demo-Benutzer kann nicht geändert werden" : "Benutzer zuweisen"}>
+                                                    <button onClick={() => !isVerified && !isDemo && setIsPickingUser(true)} disabled={isVerified || isDemo} className="flex items-center gap-1 text-rose-400 font-medium rounded p-1 -m-1 hover:text-rose-300 disabled:cursor-not-allowed" title={isVerified ? "Geprüfte Transaktionen können nicht bearbeitet werden" : (isDemo ? "Demo-Benutzer kann nicht geändert werden" : "Benutzer zuweisen")}>
                                                         <Plus className="h-4 w-4" />
                                                         <span>Zuweisen</span>
                                                     </button>
                                                 )}
                                             </div>
-                                            {isDemo && (
-                                                 <div className="flex justify-between items-center">
-                                                    <span className="text-slate-400 font-medium">Status</span>
+
+                                            <div className="flex justify-between items-start pt-2">
+                                                <span className="text-slate-400 font-medium pt-1">Notiz</span>
+                                                <div className="w-2/3">
+                                                    {isEditingNotes ? (
+                                                        <motion.div {...inputAnimation}>
+                                                            <textarea
+                                                                value={notesValue}
+                                                                onChange={e => { if (e.target.value.length <= 280) setNotesValue(e.target.value) }}
+                                                                onBlur={handleNotesUpdate}
+                                                                onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleNotesUpdate() }}
+                                                                className="w-full bg-slate-700 border border-slate-600 rounded-md px-2 py-1 text-white text-sm focus:outline-none focus:ring-1 focus:ring-rose-500"
+                                                                rows={4}
+                                                                autoFocus
+                                                            />
+                                                            <p className="text-xs text-slate-500 text-right mt-1">{280 - notesValue.length}</p>
+                                                        </motion.div>
+                                                    ) : (
+                                                        <button onClick={() => !isVerified && !isDemo && (setNotesValue(formState.notes || ''), setIsEditingNotes(true))} disabled={isVerified || isDemo} className="w-full text-slate-200 font-medium rounded p-1 -m-1 disabled:cursor-not-allowed text-right whitespace-pre-wrap break-words min-h-[24px]">
+                                                            {formState.notes || <span className="text-slate-500 italic">Notiz hinzufügen...</span>}
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            <div className="flex justify-between items-center pt-2">
+                                                <span className="text-slate-400 font-medium">Status</span>
+                                                {isDemo ? (
                                                     <span className="flex items-center gap-1.5 bg-purple-500/20 text-purple-300 text-xs font-bold px-2 py-1 rounded-full">
                                                         <FlaskConical className="h-3 w-3" />
                                                         Demo-Eintrag
                                                     </span>
-                                                </div>
-                                            )}
+                                                ) : isVerified ? (
+                                                    <span className="flex items-center gap-1.5 bg-green-500/20 text-green-300 text-xs font-bold px-2 py-1 rounded-full">
+                                                        <ShieldCheck className="h-3 w-3" />
+                                                        Geprüft
+                                                    </span>
+                                                ) : (
+                                                     <div className="flex items-center gap-2" title="Geprüfte Transaktionen können nicht mehr bearbeitet oder gelöscht werden.">
+                                                        <label htmlFor="verify-toggle" className="text-sm text-slate-300 cursor-pointer">Als geprüft markieren</label>
+                                                        <ToggleSwitch id="verify-toggle" enabled={isVerified} setEnabled={handleVerifiedToggle} />
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
 
                                         {/* Grouped Transactions Section */}
@@ -453,7 +514,7 @@ const TransactionDetailModal = ({
                                                                 <div className="flex-shrink-0 flex items-center gap-2">
                                                                     {t.isCorrected && <CorrectedBadge />}
                                                                     <p className="font-semibold text-sm text-white w-20 text-right">{formatCurrency(t.amount)}</p>
-                                                                    {t.isCorrected && !isCurrent && !isDemo && (
+                                                                    {t.isCorrected && !isCurrent && !isDemo && !isVerified && (
                                                                         <Button variant="ghost" size="icon-xs" onClick={() => handleResetCorrection(t.id)} title="Korrektur zurücksetzen"><RefreshCcw className="h-4 w-4"/></Button>
                                                                     )}
                                                                 </div>
@@ -462,17 +523,17 @@ const TransactionDetailModal = ({
                                                     })}
                                                 </div>
                                                  <div className="flex justify-end gap-2 mt-3">
-                                                    <Button variant="secondary" size="sm" onClick={() => setIsAddingToGroup(true)} disabled={isDemo}>
+                                                    <Button variant="secondary" size="sm" onClick={() => setIsAddingToGroup(true)} disabled={isVerified || isDemo}>
                                                         <PlusCircle className="h-4 w-4 mr-2" /> Hinzufügen
                                                     </Button>
-                                                    <Button variant="secondary" size="sm" onClick={() => handleRemoveFromGroup(formState.id)} disabled={isDemo}>Aus Gruppe entfernen</Button>
+                                                    <Button variant="secondary" size="sm" onClick={() => handleRemoveFromGroup(formState.id)} disabled={isVerified || isDemo}>Aus Gruppe entfernen</Button>
                                                 </div>
                                             </div>
                                         )}
                                         
                                         {!formState.transactionGroupId && !isDemo && (
                                             <div className="w-full max-w-sm mt-4 pt-4 border-t border-slate-700/50">
-                                                 <Button variant="secondary" onClick={() => setIsJoiningGroup(true)}>
+                                                 <Button variant="secondary" onClick={() => setIsJoiningGroup(true)} disabled={isVerified || isDemo}>
                                                     <Link className="h-4 w-4 mr-2"/> Transaktionen verknüpfen
                                                 </Button>
                                             </div>
@@ -481,7 +542,7 @@ const TransactionDetailModal = ({
 
                                         {/* Tags Section */}
                                         <div className="w-full max-w-sm mt-4 pt-4 border-t border-slate-700/50">
-                                             <button onClick={() => !isDemo && setIsEditingTags(true)} disabled={isDemo} className="w-full text-left rounded-lg p-1 -m-1 disabled:cursor-not-allowed" title={isDemo ? "Demo-Tags können nicht geändert werden" : "Tags bearbeiten"}>
+                                             <button onClick={() => !isVerified && !isDemo && setIsEditingTags(true)} disabled={isVerified || isDemo} className="w-full text-left rounded-lg p-1 -m-1 disabled:cursor-not-allowed" title={isVerified ? "Geprüfte Transaktionen können nicht bearbeitet werden" : (isDemo ? "Demo-Tags können nicht geändert werden" : "Tags bearbeiten")}>
                                                  <h3 className="text-sm font-semibold text-white mb-2">Tags</h3>
                                                 {localTags.length > 0 ? (
                                                      <div className="flex flex-wrap gap-2 justify-center">
@@ -499,7 +560,9 @@ const TransactionDetailModal = ({
                                             <motion.button
                                                 {...deleteButtonAnimation}
                                                 onClick={handleDelete}
-                                                className="flex items-center gap-2 text-sm font-semibold text-red-400 hover:text-red-300 hover:bg-red-500/10 px-4 py-2 rounded-lg"
+                                                disabled={isVerified || isDemo}
+                                                className="flex items-center gap-2 text-sm font-semibold text-red-400 hover:text-red-300 hover:bg-red-500/10 px-4 py-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-red-400"
+                                                title={isVerified ? "Geprüfte Transaktionen können nicht gelöscht werden" : "Löschen"}
                                             >
                                                 <Trash2 className="h-4 w-4" />
                                                 Löschen

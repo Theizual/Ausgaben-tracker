@@ -11,8 +11,6 @@ import { CategoryLibrarySettings } from './components/CategoryLibrarySettings';
 import { GroupDesignModal } from './components/GroupDesignModal';
 import { modalBackdropAnimation, modalContentAnimation } from '@/shared/lib/animations';
 
-const MotionDiv = motion.div;
-
 const TABS: { id: SettingsTab; label: string; icon: React.FC<any>; }[] = [
     { id: 'general', label: 'Allgemein', icon: SlidersHorizontal }, 
     { id: 'categories', label: 'Gruppen & Kategorien', icon: LayoutGrid },
@@ -113,18 +111,16 @@ const SettingsModal = ({ isOpen, onClose, initialTab }: { isOpen: boolean; onClo
 
     return (
         <>
-            <MotionDiv 
+            <motion.div 
                 className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50 p-4" 
                 onClick={onClose} 
-                initial={modalBackdropAnimation.initial}
-                animate={modalBackdropAnimation.animate}
-                exit={modalBackdropAnimation.exit}
+                variants={modalBackdropAnimation}
+                initial="initial"
+                animate="animate"
+                exit="exit"
             >
-                <MotionDiv 
-                    initial={modalContentAnimation.initial}
-                    animate={modalContentAnimation.animate}
-                    exit={modalContentAnimation.exit}
-                    transition={modalContentAnimation.transition}
+                <motion.div 
+                    variants={modalContentAnimation}
                     className="bg-slate-800/80 backdrop-blur-md rounded-xl w-full max-w-4xl shadow-2xl border border-slate-700 flex flex-col h-[90vh] md:h-[85vh]" 
                     onClick={e => e.stopPropagation()}
                 >
@@ -174,8 +170,8 @@ const SettingsModal = ({ isOpen, onClose, initialTab }: { isOpen: boolean; onClo
                             </AnimatePresence>
                         </main>
                     </div>
-                </MotionDiv>
-            </MotionDiv>
+                </motion.div>
+            </motion.div>
 
             <AnimatePresence>
                 {editingGroupDesign && (

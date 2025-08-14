@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
 import type { Transaction, User } from '@/shared/types';
 import { format, parseISO, formatCurrency } from '@/shared/utils/dateUtils';
-import { iconMap, FlaskConical, Link, getIconComponent } from '@/shared/ui';
+import { iconMap, FlaskConical, Link, getIconComponent, ShieldCheck } from '@/shared/ui';
 import { TagPill } from '@/shared/ui';
 
 export interface StandardTransactionItemProps {
@@ -31,6 +31,7 @@ const StandardTransactionItem: FC<StandardTransactionItemProps> = ({
     const isCompact = density === 'compact';
     const isDemo = transaction.isDemo;
     const isGrouped = !!transaction.transactionGroupId;
+    const isVerified = !!transaction.isVerified;
 
     const userAvatar = createdBy ? (
         <div
@@ -67,6 +68,11 @@ const StandardTransactionItem: FC<StandardTransactionItemProps> = ({
                     {isGrouped && (
                          <span title="Teil einer Transaktionsgruppe">
                              <Link className="h-3 w-3 text-slate-500" />
+                        </span>
+                    )}
+                     {isVerified && (
+                        <span title="Geprüft">
+                            <ShieldCheck className="h-3.5 w-3.5 text-green-400 flex-shrink-0" />
                         </span>
                     )}
                     <p className={`font-semibold text-white truncate ${isCompact ? 'text-sm' : ''}`}>{transaction.description}</p>
