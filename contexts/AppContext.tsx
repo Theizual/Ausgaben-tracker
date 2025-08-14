@@ -381,11 +381,10 @@ const ReadyAppProvider: React.FC<{
     ]);
 
     // --- Global Persistence Wrappers ---
-    // These functions wrap state dispatchers and immediately trigger a sync.
+    // These functions wrap state dispatchers and let the useEffect handle the sync.
     const createPersistentWrapper = (action: (...args: any[]) => any) => {
         return (...args: any[]) => {
-            action(...args);
-            debouncedSync.flush();
+            return action(...args);
         };
     };
 
@@ -409,11 +408,7 @@ const ReadyAppProvider: React.FC<{
         setIsAiEnabled: createPersistentWrapper(userSettingsState.setIsAiEnabled),
 
         // from useUsers
-        addUser: (...args: [string, string?]) => {
-            const newUser = usersState.addUser(...args);
-            debouncedSync.flush();
-            return newUser;
-        },
+        addUser: createPersistentWrapper(usersState.addUser),
         updateUser: createPersistentWrapper(usersState.updateUser),
         deleteUser: createPersistentWrapper(usersState.deleteUser),
         
@@ -425,7 +420,7 @@ const ReadyAppProvider: React.FC<{
         addTransactionsToGroup: createPersistentWrapper(transactionDataState.addTransactionsToGroup),
 
 
-    }), [categoryState, userSettingsState, usersState, transactionDataState, debouncedSync]);
+    }), [categoryState, userSettingsState, usersState, transactionDataState, createPersistentWrapper]);
 
     const setQuickAddHideGroupsForCurrentUser = useCallback((hide: boolean) => {
         if (uiState.currentUserId) {
