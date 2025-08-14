@@ -42,22 +42,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const body = (req.body || {}) as Payload;
 
     const sheetsSpec = [
-      ['Groups',            body.groups]            as const,
-      ['Categories',        body.categories]        as const,
-      ['Transactions',      body.transactions]      as const,
-      ['Recurring',         body.recurring]         as const,
-      ['Tags',              body.tags]              as const,
-      ['Users',             body.users]             as const,
-      ['UserSettings',      body.userSettings]      as const,
+      ['Groups',       body.groups]       as const,
+      ['Categories',   body.categories]   as const,
+      ['Transactions', body.transactions] as const,
+      ['Recurring',    body.recurring]    as const,
+      ['Tags',         body.tags]         as const,
+      ['Users',        body.users]        as const,
+      ['UserSettings', body.userSettings] as const,
       ['TransactionGroups', body.transactionGroups] as const,
     ];
 
     const dataToWrite = sheetsSpec.map(([name, arr]) => {
+      if (!arr) return null;
       const headers = HEADERS[name as keyof typeof HEADERS];
       const rows = objectsToRows(name as any, arr);
       const lastCol = colLetter(headers.length);
       return { range: `${name}!A1:${lastCol}`, values: [[...headers], ...rows], majorDimension: 'ROWS' as const };
-    });
+    }).filter((x): x is NonNullable<typeof x> => x !== null);
 
     await withRetry(() =>
       sheets.spreadsheets.values.batchUpdate({
@@ -73,13 +74,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const valueRanges = (readResp as any).data.valueRanges || [];
     const out = {
-      groups:            rowsToObjects('Groups',            valueRanges[0]?.values || []),
-      categories:        rowsToObjects('Categories',        valueRanges[1]?.values || []),
-      transactions:      rowsToObjects('Transactions',      valueRanges[2]?.values || []),
-      recurring:         rowsToObjects('Recurring',         valueRanges[3]?.values || []),
-      tags:              rowsToObjects('Tags',              valueRanges[4]?.values || []),
-      users:             rowsToObjects('Users',             valueRanges[5]?.values || []),
-      userSettings:      rowsToObjects('UserSettings',      valueRanges[6]?.values || []),
+      groups:        rowsToObjects('Groups',       valueRanges[0]?.values || []),
+      categories:    rowsToObjects('Categories',   valueRanges[1]?.values || []),
+      transactions:  rowsToObjects('Transactions', valueRanges[2]?.values || []),
+      recurring:     rowsToObjects('Recurring',    valueRanges[3]?.values || []),
+      tags:          rowsToObjects('Tags',         valueRanges[4]?.values || []),
+      users:         rowsToObjects('Users',        valueRanges[5]?.values || []),
+      userSettings:  rowsToObjects('UserSettings', valueRanges[6]?.values || []),
       transactionGroups: rowsToObjects('TransactionGroups', valueRanges[7]?.values || []),
     };
 

@@ -1,15 +1,17 @@
 
+
 import React, { FC } from 'react';
 import { motion } from 'framer-motion';
 import { clsx } from 'clsx';
+import { COLOR_DANGER, COLOR_SUCCESS, COLOR_WARNING } from '@/constants';
 
-export const getBudgetBarColor = (percentage: number, defaultColor = '#22c55e'): string => {
-    if (percentage > 100) return '#ef4444'; // red-500
-    if (percentage > 85) return '#f97316'; // orange-500
+export const getBudgetBarColor = (percentage: number, defaultColor = COLOR_SUCCESS): string => {
+    if (percentage > 100) return COLOR_DANGER;
+    if (percentage > 85) return COLOR_WARNING;
     return defaultColor;
 };
 
-export const BudgetProgressBar: FC<{ percentage: number; color?: string; className?: string }> = ({ percentage, color = '#22c55e', className = '' }) => {
+export const BudgetProgressBar: FC<{ percentage: number; color?: string; className?: string }> = ({ percentage, color, className = '' }) => {
     const barColor = getBudgetBarColor(percentage, color);
     const warningText = percentage > 100 ? "Budget aufgebraucht" : percentage > 85 ? `Budget zu ${Math.round(percentage)}% verbraucht` : null;
     const barWidth = Math.min(100, Math.max(0, percentage));

@@ -1,7 +1,3 @@
-
-
-
-
 import { useReducer, useMemo, useCallback, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import type { UserSetting, Category, Group } from '@/shared/types';
@@ -137,8 +133,27 @@ export const useUserSettings = ({ isDemoModeEnabled }: { isDemoModeEnabled: bool
         dispatch({ type: 'UPDATE_SETTING', payload: newSetting });
     }, [rawUserSettings]);
 
-    // --- NEW: Category Color Overrides ---
+    // --- NEW: AI Features ---
+    const getIsAiEnabled = useCallback((userId: string): boolean => {
+        const setting = liveUserSettings.find(s => s.userId === userId && s.key === 'aiFeaturesEnabled');
+        return setting?.value === 'true'; // Default to false
+    }, [liveUserSettings]);
 
+    const setIsAiEnabled = useCallback((userId: string, enabled: boolean) => {
+        const now = new Date().toISOString();
+        const existingSetting = rawUserSettings.find(s => s.userId === userId && s.key === 'aiFeaturesEnabled');
+        const newSetting: UserSetting = {
+            userId,
+            key: 'aiFeaturesEnabled',
+            value: String(enabled),
+            lastModified: now,
+            version: (existingSetting?.version || 0) + 1,
+            isDeleted: false,
+        };
+        dispatch({ type: 'UPDATE_SETTING', payload: newSetting });
+    }, [rawUserSettings]);
+
+    // --- NEW: Category Color Overrides ---
     const getCategoryColorOverrides = useCallback((userId: string): Record<string, string> => {
         const setting = liveUserSettings.find(s => s.userId === userId && s.key === 'categoryColorOverrides');
         if (setting && setting.value) {
@@ -250,5 +265,7 @@ export const useUserSettings = ({ isDemoModeEnabled }: { isDemoModeEnabled: bool
         hideCategory,
         unhideCategory,
         clearHiddenCategories,
+        getIsAiEnabled,
+        setIsAiEnabled,
     };
 };

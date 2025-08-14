@@ -1,6 +1,8 @@
 {
-  "name": "AusgabenTracker 0.858 unstable",
+  "name": "AusgabenTracker 0.867 KI",
   "description": "Eine moderne, interaktive Single-Page-Anwendung zur Verfolgung von Ausgaben mit einem klaren Fokus auf Benutzerfreundlichkeit und Datenvisualisierung.",
-  "requestFramePermissions": [],
+  "requestFramePermissions": [
+    "camera"
+  ],
   "prompt": ""
 }

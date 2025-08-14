@@ -6,7 +6,7 @@ import type { Category, RecurringTransaction, Group } from '@/shared/types';
 import { format, parseISO } from 'date-fns';
 import { formatCurrency } from '@/shared/utils/dateUtils';
 import { getIconComponent, Plus, Trash2, Edit, ChevronDown, ProgressBar, Button, Wallet, Home } from '@/shared/ui';
-import { FIXED_COSTS_GROUP_ID } from '@/constants';
+import { FIXED_COSTS_GROUP_ID, COLOR_FLEX_BUDGET, COLOR_FIXED_BUDGET } from '@/constants';
 import { generateUUID } from '@/shared/utils/uuid';
 import { BudgetGroup } from './BudgetGroup';
 import { settingsContentAnimation } from '@/shared/lib/animations';
@@ -49,8 +49,8 @@ export const BudgetSettings = () => {
     const totalOverallBudget = totalMonthlyBudget + totalMonthlyFixedCosts;
     const flexPercentage = totalOverallBudget > 0 ? (totalMonthlyBudget / totalOverallBudget) * 100 : 0;
     const fixedPercentage = totalOverallBudget > 0 ? (totalMonthlyFixedCosts / totalOverallBudget) * 100 : 0;
-    const flexBarColor = '#38bdf8'; // sky-500 (Vibrant, friendly blue)
-    const fixedBarColor = '#ec626c'; // Friendly Red
+    const flexBarColor = COLOR_FLEX_BUDGET;
+    const fixedBarColor = COLOR_FIXED_BUDGET;
     
     const fixedGroup = useMemo(() => groups.find(g => g.id === FIXED_COSTS_GROUP_ID), [groups]);
     const fixedIconColor = fixedGroup?.color || fixedBarColor; 

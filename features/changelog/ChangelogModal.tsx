@@ -1,5 +1,6 @@
 
 
+
 import React, { useEffect, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { X, Gift, Loader2 } from '@/shared/ui';
@@ -70,15 +71,14 @@ const ChangelogModal = ({
         };
         window.addEventListener('keydown', handleKeyDown);
         fetchChangelog();
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [onClose, fetchChangelog]);
-
-    useEffect(() => {
+        
         document.body.classList.add('modal-open');
+
         return () => {
             document.body.classList.remove('modal-open');
+            window.removeEventListener('keydown', handleKeyDown);
         };
-    }, []);
+    }, [onClose, fetchChangelog]);
 
     const latestChange = changelogData?.[0];
 

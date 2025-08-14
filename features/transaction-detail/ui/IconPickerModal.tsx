@@ -2,16 +2,14 @@ import React from 'react';
 import { Modal, Button } from '@/shared/ui';
 import { IconPicker } from '@/features/settings/components/IconPicker';
 
-export const IconPickerModal = ({ isOpen, onClose, onSelect, onReset } : {
+export const IconPickerModal = ({ isOpen, onClose, onSelect } : {
     isOpen: boolean;
     onClose: () => void;
     onSelect: (iconName: string) => void;
-    onReset: () => void;
 }) => {
     const footer = (
-        <div className="flex justify-between w-full">
-            <Button variant="secondary" onClick={onReset}>Auf Kategorie-Icon zurücksetzen</Button>
-            <Button variant="ghost" onClick={onClose}>Abbrechen</Button>
+        <div className="flex justify-end w-full">
+            <Button variant="secondary" onClick={onClose}>Abbrechen</Button>
         </div>
     );
 

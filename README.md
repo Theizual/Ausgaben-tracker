@@ -30,5 +30,6 @@ Your Google Sheet must have the following tabs with the exact names:
 - `Tags`
 - `Users`
 - `UserSettings`
+- `TransactionGroups`
 
 You also need to share the Google Sheet with your service account's email address and give it "Editor" permissions.

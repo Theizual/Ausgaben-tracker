@@ -6,7 +6,7 @@ import type { Transaction, Category } from '@/shared/types';
 import { eachDayOfInterval, format, parseISO, startOfMonth, endOfMonth, isAfter, getDate, getDaysInMonth, isSameDay } from 'date-fns';
 import { formatCurrency } from '@/shared/utils/dateUtils';
 import { TrendingDown, X } from '@/shared/ui';
-import { FIXED_COSTS_GROUP_ID } from '@/constants';
+import { FIXED_COSTS_GROUP_ID, CHART_COLOR_PALETTE } from '@/constants';
 import { useApp } from '@/contexts/AppContext';
 import { ChartControls, ResizeHandle } from '@/shared/ui';
 
@@ -29,10 +29,6 @@ interface ItemInfoWithTrend extends ItemInfo {
     projectedEndValue: number;
     isTrendNegative: boolean;
 }
-
-const COLOR_PALETTE = [
-  '#3b82f6', '#ec4899', '#10b981', '#f97316', '#8b5cf6', '#06b6d4', '#eab308', '#ef4444',
-];
 
 const CustomTooltip = ({ active, payload, label, deLocale, locked }: any) => {
     if (active && payload && payload.length) {
@@ -179,7 +175,7 @@ export const BudgetBurndownChart: FC<BudgetBurndownChartProps> = ({ transactions
                 return {
                     name: group.name,
                     budget: groupBudget,
-                    color: group.color || COLOR_PALETTE[index % COLOR_PALETTE.length],
+                    color: group.color || CHART_COLOR_PALETTE[index % CHART_COLOR_PALETTE.length],
                     itemIds: groupCategories.map(c => c.id),
                     totalSpent: 0
                 };

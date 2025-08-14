@@ -100,7 +100,7 @@ const SettingsModal = ({ isOpen, onClose, initialTab }: { isOpen: boolean; onClo
     const renderContent = () => {
         switch (activeTab) {
             case 'general': return <GeneralSettings />;
-            case 'categories': return <CategoryLibrarySettings />;
+            case 'categories': return <CategoryLibrarySettings onEditGroupDesign={setEditingGroupDesign} />;
             case 'budget': return <BudgetSettings />;
             case 'users': return <UserSettings />;
             default: return null;

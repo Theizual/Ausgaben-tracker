@@ -156,7 +156,7 @@ export const MonthlyCategoryBreakdown: FC<{ transactions: Transaction[], current
                                                                      return (
                                                                          <div key={category.id}>
                                                                              <StandardTransactionItem
-                                                                                 transaction={{ id: category.id, amount: spent, description: category.name, categoryId: category.id, date: '', iconOverride: category.icon, lastModified: '', version: 0 }}
+                                                                                 transaction={{ id: category.id, amount: spent, description: category.name, categoryId: category.id, date: '', createdAt: '', iconOverride: category.icon, lastModified: '', version: 0 }}
                                                                                  onClick={() => setExpandedCategoryId(isCatExpanded ? null : category.id)}
                                                                                  density="compact"
                                                                              />

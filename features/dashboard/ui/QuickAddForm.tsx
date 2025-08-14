@@ -1,13 +1,14 @@
-import React, { useState, useMemo, FC } from 'react';
+import React, { useState, useMemo, FC, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { useApp } from '@/contexts/AppContext';
 import type { Transaction, Category, ViewMode, CategoryId, Tag, Group } from '@/shared/types';
-import { Plus, Coins, Button } from '@/shared/ui';
+import { Plus, Coins, Button, Camera, Upload } from '@/shared/ui';
 import { CategoryButtons, TagInput, AvailableTags } from '@/shared/ui';
 import { parseISO } from 'date-fns';
 import { FIXED_COSTS_GROUP_ID } from '@/constants';
 import { MoreCategoriesModal } from './MoreCategoriesModal';
+import { Gemini_AnalyzeReceiptResult } from '@/contexts/AppContext';
 
 export const QuickAddForm: FC = () => {
     const { 
@@ -22,6 +23,8 @@ export const QuickAddForm: FC = () => {
         quickAddHideGroups,
         groups,
         openSettings,
+        isAiEnabled,
+        analyzeReceipt,
     } = useApp();
     
     const [amount, setAmount] = useState('');
@@ -30,6 +33,7 @@ export const QuickAddForm: FC = () => {
     const [tags, setTags] = useState<string[]>([]);
     const [tagInputValue, setTagInputValue] = useState('');
     const [isMoreCategoriesOpen, setIsMoreCategoriesOpen] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const flexibleGroups = useMemo(() => groups.filter(g => g.id !== FIXED_COSTS_GROUP_ID), [groups]);
 
@@ -109,7 +113,7 @@ export const QuickAddForm: FC = () => {
                     amount: itemCents / 100,
                 };
             });
-            addMultipleTransactions(transactionsToCreate, { categoryId, tags: finalTags });
+            addMultipleTransactions(transactionsToCreate, numAmount, { categoryId, tags: finalTags });
         } else {
             addTransaction({ 
                 amount: numAmount, 
@@ -130,6 +134,43 @@ export const QuickAddForm: FC = () => {
         setTags(prev => 
             prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
         );
+    };
+
+    const handleImageSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+            const base64String = (reader.result as string).split(',')[1];
+            try {
+                const result = await analyzeReceipt(base64String);
+                if (result) {
+                    setAmount(result.amount.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+                    setDescription(result.description);
+                    if (result.categoryId) {
+                        setCategoryId(result.categoryId);
+                    }
+                }
+            } catch (error) {
+                console.error("AI analysis failed:", error);
+            }
+        };
+        reader.readAsDataURL(file);
+        
+        // Reset file input to allow selecting the same file again
+        event.target.value = '';
+    };
+
+    const triggerFileInput = (useCamera: boolean) => {
+        if (fileInputRef.current) {
+            if (useCamera) {
+                fileInputRef.current.setAttribute('capture', 'environment');
+            } else {
+                fileInputRef.current.removeAttribute('capture');
+            }
+            fileInputRef.current.click();
+        }
     };
 
     const formAnimation = {
@@ -172,6 +213,18 @@ export const QuickAddForm: FC = () => {
                             />
                         </div>
                     </div>
+                    
+                    {isAiEnabled && (
+                        <div className="grid grid-cols-2 gap-3 pt-2">
+                            <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageSelected} className="hidden" />
+                            <Button type="button" variant="secondary" onClick={() => triggerFileInput(true)}>
+                                <Camera className="h-4 w-4" /> Beleg scannen
+                            </Button>
+                            <Button type="button" variant="secondary" onClick={() => triggerFileInput(false)}>
+                                <Upload className="h-4 w-4" /> Bild hochladen
+                            </Button>
+                        </div>
+                    )}
                     
                     <div className="space-y-3">
                         <div className="flex items-center gap-2 mb-1.5 ml-1 pt-1">

@@ -1,5 +1,8 @@
 
 
+
+
+
 import React, { useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
@@ -8,6 +11,7 @@ import { formatCurrency } from '@/shared/utils/dateUtils';
 import { isWithinInterval, parseISO, startOfMonth, endOfMonth } from 'date-fns';
 import { iconMap, CheckCircle2, getIconComponent } from '@/shared/ui';
 import { modalBackdropAnimation, modalSlideDownAnimation, barAnimation } from '@/shared/lib/animations';
+import { COLOR_DANGER, COLOR_SUCCESS, COLOR_WARNING } from '@/constants';
 
 interface ConfirmationModalProps {
     isOpen: boolean;
@@ -30,23 +34,25 @@ const ConfirmationModal = ({
     } = useApp();
 
     useEffect(() => {
-        if (isOpen) {
-            const timer = setTimeout(() => {
+        if (!isOpen) return;
+
+        document.body.classList.add('modal-open');
+        const timer = setTimeout(() => {
+            onClose();
+        }, 8000); // Auto-close after 8 seconds
+
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
                 onClose();
-            }, 8000); // Auto-close after 8 seconds
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
 
-            const handleKeyDown = (event: KeyboardEvent) => {
-                if (event.key === 'Escape') {
-                    onClose();
-                }
-            };
-            window.addEventListener('keydown', handleKeyDown);
-
-            return () => {
-                clearTimeout(timer);
-                window.removeEventListener('keydown', handleKeyDown);
-            };
-        }
+        return () => {
+            document.body.classList.remove('modal-open');
+            clearTimeout(timer);
+            window.removeEventListener('keydown', handleKeyDown);
+        };
     }, [isOpen, onClose]);
 
     const firstTransaction = newTransactions.length > 0 ? newTransactions[0] : null;
@@ -83,9 +89,9 @@ const ConfirmationModal = ({
     const totalPercentageBefore = totalMonthlyBudget > 0 ? (totalSpentBefore / totalMonthlyBudget) * 100 : 0;
     const totalPercentageAfter = totalMonthlyBudget > 0 ? (totalSpentThisMonth / totalMonthlyBudget) * 100 : 0;
 
-    const getBarColor = (percentage: number, defaultColor = '#22c55e') => {
-        if (percentage > 100) return '#ef4444'; // red-500
-        if (percentage > 85) return '#f97316'; // orange-500
+    const getBarColor = (percentage: number, defaultColor = COLOR_SUCCESS) => {
+        if (percentage > 100) return COLOR_DANGER;
+        if (percentage > 85) return COLOR_WARNING;
         return defaultColor;
     };
     

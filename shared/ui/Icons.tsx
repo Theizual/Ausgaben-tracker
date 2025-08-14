@@ -1,4 +1,3 @@
-
 import {
   Anchor, Antenna, Apple, Armchair, AtSign, Atom, Award, Axe, Baby,
   Backpack, BaggageClaim, Banana, BarChart2, Bath, Bean, BedDouble, Beef, Beer,
@@ -19,7 +18,7 @@ import {
   Link, List, Loader2, LogIn, LogOut, Lollipop, Luggage, MicVocal, Milk, Moon,
   MoreHorizontal, Mouse, MousePointerClick, Music, Music4, Navigation, Nut,
   Package, Paintbrush, Palette, Panda, PartyPopper, PawPrint, PiggyBank, Pill,
-  Pizza, Plane, Plus, PocketKnife, Puzzle, Rabbit, RefreshCcw, RefreshCw, Repeat, Ribbon,
+  Pizza, Plane, Plus, PlusCircle, PocketKnife, Puzzle, Rabbit, RefreshCcw, RefreshCw, Repeat, Ribbon,
   Rocket, RollerCoaster, Router, Salad, Sandwich, Save, Scale, Scissors, School,
   Search, Settings, ShieldCheck, Ship, Shirt, ShoppingBag, ShoppingBasket,
   ShoppingCart, Shovel, ShowerHead, Shrimp, Shrink, Signal, Siren, Skull,
@@ -31,7 +30,7 @@ import {
   Truck, Tv, Tv2, TvMinimalPlay, Twitch, Twitter, Umbrella, University, User,
   Users, Utensils, UtensilsCrossed, Vegan, VenetianMask, Video, Videotape,
   Volleyball, Wallet, Watch, Waves, Wifi, Wine, Wrench, X, Youtube, Zap,
-  Minus, ArrowLeftRight, ArrowUpDown,
+  Minus, ArrowLeftRight, ArrowUpDown, Camera, Upload
 } from 'lucide-react';
 import type { LucideProps } from 'lucide-react';
 import type { FC } from 'react';
@@ -56,7 +55,7 @@ export const iconMap: { [key: string]: FC<LucideProps> } = {
   Link, List, Loader2, LogIn, LogOut, Lollipop, Luggage, MicVocal, Milk, Moon,
   MoreHorizontal, Mouse, MousePointerClick, Music, Music4, Navigation, Nut,
   Package, Paintbrush, Palette, Panda, PartyPopper, PawPrint, PiggyBank, Pill,
-  Pizza, Plane, Plus, PocketKnife, Puzzle, Rabbit, RefreshCcw, RefreshCw, Repeat, Ribbon,
+  Pizza, Plane, Plus, PlusCircle, PocketKnife, Puzzle, Rabbit, RefreshCcw, RefreshCw, Repeat, Ribbon,
   Rocket, RollerCoaster, Router, Salad, Sandwich, Save, Scale, Scissors, School,
   Search, Settings, ShieldCheck, Ship, Shirt, ShoppingBag, ShoppingBasket,
   ShoppingCart, Shovel, ShowerHead, Shrimp, Shrink, Signal, Siren, Skull,
@@ -68,7 +67,7 @@ export const iconMap: { [key: string]: FC<LucideProps> } = {
   Truck, Tv, Tv2, TvMinimalPlay, Twitch, Twitter, Umbrella, University, User,
   Users, Utensils, UtensilsCrossed, Vegan, VenetianMask, Video, Videotape,
   Volleyball, Wallet, Watch, Waves, Wifi, Wine, Wrench, X, Youtube, Zap,
-  Minus, ArrowLeftRight, ArrowUpDown,
+  Minus, ArrowLeftRight, ArrowUpDown, Camera, Upload
 };
 
 export {
@@ -92,7 +91,7 @@ export {
   Link, List, Loader2, LogIn, LogOut, Lollipop, Luggage, MicVocal, Milk, Moon,
   MoreHorizontal, Mouse, MousePointerClick, Music, Music4, Navigation, Nut,
   Package, Paintbrush, Palette, Panda, PartyPopper, PawPrint, PiggyBank, Pill,
-  Pizza, Plane, Plus, PocketKnife, Puzzle, Rabbit, RefreshCcw, RefreshCw, Repeat, Ribbon,
+  Pizza, Plane, Plus, PlusCircle, PocketKnife, Puzzle, Rabbit, RefreshCcw, RefreshCw, Repeat, Ribbon,
   Rocket, RollerCoaster, Router, Salad, Sandwich, Save, Scale, Scissors, School,
   Search, Settings, ShieldCheck, Ship, Shirt, ShoppingBag, ShoppingBasket,
   ShoppingCart, Shovel, ShowerHead, Shrimp, Shrink, Signal, Siren, Skull,
@@ -104,7 +103,7 @@ export {
   Twitch, Twitter, Umbrella, University, User, Users, Utensils, UtensilsCrossed,
   Vegan, VenetianMask, Video, Videotape, Volleyball, Wallet, Watch, Waves, Wifi,
   Wine, Wrench, X, Youtube, Zap,
-  Minus, ArrowLeftRight, ArrowUpDown,
+  Minus, ArrowLeftRight, ArrowUpDown, Camera, Upload
 };
 
 /** Fallback liefert ein valides Icon, wenn key unbekannt. */

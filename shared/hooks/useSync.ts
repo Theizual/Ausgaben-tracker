@@ -254,7 +254,7 @@ export const useSync = (props: SyncProps) => {
         setSyncStatus, setSyncError, rawGroups, rawCategories, rawTransactions, rawRecurringTransactions,
         rawAllAvailableTags, rawUserSettings, rawTransactionGroups, handleMergeConflicts, setLastSync,
         setCategoriesAndGroups, setTransactions, setRecurringTransactions, setAllAvailableTags,
-        setUsers, setUserSettings, setTransactionGroups
+        setUsers, setUserSettings, setTransactionGroups,
     ]);
 
     const loadFromSheet = useCallback(async (options?: { preserveLocalTransactions?: boolean, preserveNewLocalUsers?: boolean }) => {
@@ -274,7 +274,6 @@ export const useSync = (props: SyncProps) => {
             
             setRecurringTransactions(data.recurring);
             setAllAvailableTags(data.tags);
-            setTransactionGroups(data.transactionGroups);
     
             if (options?.preserveNewLocalUsers) {
                 // Find local users that are not on the server (i.e., newly created ones)
@@ -286,6 +285,7 @@ export const useSync = (props: SyncProps) => {
             }
     
             setUserSettings(data.userSettings);
+            setTransactionGroups(data.transactionGroups);
             setLastSync(new Date().toISOString());
             setSyncStatus('success');
         } catch (e: any) {

@@ -15,20 +15,54 @@ import type { Locale } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { Loader2 } from '@/shared/ui';
 import { apiGet } from '@/shared/lib/http';
-import { OnboardingWizard } from '@/features/onboarding';
+import { FirstUserSetup } from '@/features/onboarding';
+import debounce from 'lodash.debounce';
+import { GoogleGenAI, Type } from '@google/genai';
+
+// --- TYPE DEFINITIONS ---
+export interface Gemini_AnalyzeReceiptResult {
+    amount: number;
+    description: string;
+    categoryId: string | null;
+}
 
 // Combine the return types of all hooks to define the shape of the context
 type AppContextType = 
-    Omit<ReturnType<typeof useTransactionData>, 'reassignUserForTransactions'> &
-    ReturnType<typeof useUI> &
-    Omit<ReturnType<typeof useUsers>, 'addUser' | 'isLoading'> &
-    Omit<ReturnType<typeof useUserSettings>, 'setQuickAddHideGroups'> &
-    ReturnType<typeof useCategories> &
+    Omit<ReturnType<typeof useTransactionData>, 'reassignUserForTransactions' | 'addMultipleTransactions'> &
+    Omit<ReturnType<typeof useUI>, 'openSettings'> &
+    Omit<ReturnType<typeof useUsers>, 'addUser' | 'isLoading' | 'updateUser' | 'deleteUser'> &
+    Omit<ReturnType<typeof useUserSettings>, 'setQuickAddHideGroups' | 'updateGroupColor' | 'updateCategoryColorOverride' | 'updateVisibleGroups' | 'setIsAiEnabled'> &
+    Omit<ReturnType<typeof useCategories>, 'upsertCategory' | 'upsertMultipleCategories' | 'deleteCategory' | 'addGroup' | 'renameGroup' | 'updateGroup' | 'deleteGroup' | 'reorderGroups' | 'reorderCategories'> &
     ReturnType<typeof useCategoryPreferences> &
     { currentUser: User | null } &
     ReturnType<typeof useSync> &
     { 
+        // Wrapped functions for global persistence
         addUser: (name: string, color?: string) => User;
+        updateUser: (id: string, updates: Partial<Omit<User, 'id' | 'version' | 'lastModified'>>) => void;
+        deleteUser: (id: string, options?: { silent?: boolean }) => void;
+        upsertCategory: (categoryData: Partial<Category> & { id: string; }) => void;
+        upsertMultipleCategories: (categoriesData: (Partial<Category> & { id: string; })[]) => void;
+        deleteCategory: (id: string) => void;
+        addGroup: (groupName: string) => void;
+        renameGroup: (id: string, newName: string) => void;
+        updateGroup: (id: string, updates: Partial<Omit<Group, 'id'>>) => void;
+        deleteGroup: (id: string) => void;
+        reorderGroups: (orderedGroups: Group[]) => void;
+        reorderCategories: (orderedCategories: Category[]) => void;
+        updateGroupColor: (userId: string, groupName: string, color: string) => void;
+        updateCategoryColorOverride: (userId: string, categoryId: string, color: string | null) => void;
+        updateVisibleGroups: (userId: string, groups: string[]) => void;
+        openSettings: (tab?: 'general' | 'categories' | 'users' | 'budget' | undefined) => void;
+        addMultipleTransactions: (transactionsToCreate: Array<{amount: number, description: string}>, totalAmount: number, commonData: { categoryId: string, tags?: string[] }) => void;
+        createTransactionGroup: (transactionIds: string[], sourceTransactionId: string) => void;
+        updateGroupedTransaction: (options: { transactionId: string, newAmount?: number, resetCorrection?: boolean }) => void;
+        removeTransactionFromGroup: (transactionId: string) => void;
+        addTransactionsToGroup: (groupId: string, transactionIds: string[]) => void;
+        setIsAiEnabled: (enabled: boolean) => void;
+        analyzeReceipt: (base64Image: string) => Promise<Gemini_AnalyzeReceiptResult | null>;
+
+
         reassignUserForTransactions: (sourceUserId: string, targetUserId: string, onlyNonDemo?: boolean) => void;
         isDemoModeEnabled: boolean;
         isInitialSetupDone: boolean;
@@ -44,25 +78,10 @@ type AppContextType =
         setQuickAddHideGroups: (hide: boolean) => void;
         showDemoData: boolean;
         setShowDemoData: (value: boolean | ((prev: boolean) => boolean)) => void;
-        transactionGroups: TransactionGroup[];
-        createTransactionGroup: (transactionIds: string[]) => void;
-        addTransactionsToGroup: (groupId: string, transactionIds: string[]) => void;
-        removeTransactionFromGroup: (transactionId: string) => void;
-        updateTransactionInGroup: (transactionId: string, newAmount: number) => void;
-        resetCorrectionInGroup: (transactionId: string) => void;
+        isAiEnabled: boolean;
     };
 
 const AppContext = createContext<AppContextType | null>(null);
-
-// Debounce helper function
-function debounce(func: (...args: any[]) => void, delay: number) {
-    let timeout: ReturnType<typeof setTimeout>;
-    return (...args: any[]) => {
-        clearTimeout(timeout);
-        timeout = setTimeout(() => func(...args), delay);
-    };
-}
-
 
 // This component holds the actual app state, and is only rendered when the core state is stable.
 const ReadyAppProvider: React.FC<{
@@ -276,10 +295,10 @@ const ReadyAppProvider: React.FC<{
         if (!uiState.currentUserId) return false; // Default to showing groups
         return userSettingsState.getQuickAddHideGroups(uiState.currentUserId);
     }, [uiState.currentUserId, userSettingsState]);
-
-    const setQuickAddHideGroups = useCallback((hide: boolean) => {
-        if (!uiState.currentUserId) return;
-        userSettingsState.setQuickAddHideGroups(uiState.currentUserId, hide);
+    
+    const isAiEnabled = useMemo(() => {
+        if (!uiState.currentUserId) return false;
+        return userSettingsState.getIsAiEnabled(uiState.currentUserId);
     }, [uiState.currentUserId, userSettingsState]);
 
     const syncState = useSync({
@@ -329,40 +348,89 @@ const ReadyAppProvider: React.FC<{
 
     const syncStateRef = useRef(syncState);
     useEffect(() => { syncStateRef.current = syncState; });
-    const suppressAutoSyncRef = useRef(false);
-    useEffect(() => {
-      if (syncStatus !== 'syncing' && syncStatus !== 'loading') {
-        suppressAutoSyncRef.current = true;
-        const t = setTimeout(() => { suppressAutoSyncRef.current = false; }, 2500);
-        return () => clearTimeout(t);
-      }
-    }, [syncStatus]);
-    const debouncedSync = useMemo(() => debounce(() => {
-        if (suppressAutoSyncRef.current) return;
-        const { isAutoSyncEnabled, syncStatus, syncData } = syncStateRef.current;
-        if (isAutoSyncEnabled && (syncStatus === 'idle' || syncStatus === 'success' || syncStatus === 'error')) syncData({ isAuto: true });
+    
+    // --- Immediate & Debounced Sync ---
+    const debouncedSync = useMemo(() => debounce((options: { isAuto?: boolean } = {}) => {
+        const { isAutoSyncEnabled, syncStatus: currentSyncStatus, syncData } = syncStateRef.current;
+        if (options.isAuto) {
+            if (isAutoSyncEnabled && (currentSyncStatus === 'idle' || currentSyncStatus === 'success' || currentSyncStatus === 'error')) {
+                syncData({ isAuto: true });
+            }
+        } else {
+            // If not auto, it's a manual trigger, so sync regardless of status (unless already syncing)
+            if (currentSyncStatus !== 'syncing' && currentSyncStatus !== 'loading') {
+                syncData(options);
+            }
+        }
     }, 2000), []);
+    
+    // Auto-sync on data changes
     const isInitialMount = useRef(true);
     useEffect(() => {
         if (isInitialMount.current) { isInitialMount.current = false; return; }
-        debouncedSync();
+        debouncedSync({ isAuto: true });
     }, [
         categoryState.rawCategories,
         categoryState.rawGroups,
         transactionDataState.rawTransactions, 
         transactionDataState.rawRecurringTransactions, 
         transactionDataState.rawAllAvailableTags,
+        transactionDataState.rawTransactionGroups,
         usersState.rawUsers,
         userSettingsState.rawUserSettings,
-        transactionDataState.rawTransactionGroups,
         debouncedSync
     ]);
 
+    // --- Global Persistence Wrappers ---
+    // These functions wrap state dispatchers and immediately trigger a sync.
+    const createPersistentWrapper = (action: (...args: any[]) => any) => {
+        return (...args: any[]) => {
+            action(...args);
+            debouncedSync.flush();
+        };
+    };
+
+    const persistentActions = useMemo(() => ({
+        // from useCategories
+        upsertCategory: createPersistentWrapper(categoryState.upsertCategory),
+        upsertMultipleCategories: createPersistentWrapper(categoryState.upsertMultipleCategories),
+        deleteCategory: createPersistentWrapper(categoryState.deleteCategory),
+        addGroup: createPersistentWrapper(categoryState.addGroup),
+        renameGroup: createPersistentWrapper(categoryState.renameGroup),
+        updateGroup: createPersistentWrapper(categoryState.updateGroup),
+        deleteGroup: createPersistentWrapper(categoryState.deleteGroup),
+        reorderGroups: createPersistentWrapper(categoryState.reorderGroups),
+        reorderCategories: createPersistentWrapper(categoryState.reorderCategories),
+        
+        // from useUserSettings
+        updateGroupColor: createPersistentWrapper(userSettingsState.updateGroupColor),
+        updateCategoryColorOverride: createPersistentWrapper(userSettingsState.updateCategoryColorOverride),
+        updateVisibleGroups: createPersistentWrapper(userSettingsState.updateVisibleGroups),
+        setQuickAddHideGroups: createPersistentWrapper(userSettingsState.setQuickAddHideGroups),
+        setIsAiEnabled: createPersistentWrapper(userSettingsState.setIsAiEnabled),
+
+        // from useUsers
+        addUser: (...args: [string, string?]) => {
+            const newUser = usersState.addUser(...args);
+            debouncedSync.flush();
+            return newUser;
+        },
+        updateUser: createPersistentWrapper(usersState.updateUser),
+        deleteUser: createPersistentWrapper(usersState.deleteUser),
+        
+        // from useTransactionData
+        createTransactionGroup: createPersistentWrapper(transactionDataState.createTransactionGroup),
+        updateGroupedTransaction: createPersistentWrapper(transactionDataState.updateGroupedTransaction),
+        removeTransactionFromGroup: createPersistentWrapper(transactionDataState.removeTransactionFromGroup),
+        addMultipleTransactions: createPersistentWrapper(transactionDataState.addMultipleTransactions),
+        addTransactionsToGroup: createPersistentWrapper(transactionDataState.addTransactionsToGroup),
+
+
+    }), [categoryState, userSettingsState, usersState, transactionDataState, debouncedSync]);
+
+
     const isInitialSetupDoneRef = useRef(isInitialSetupDone);
     useEffect(() => {
-        // This ref keeps track of the previous value of isInitialSetupDone.
-        // The logic for triggering the initial sync has been moved to the UserMergePromptModal
-        // to ensure it happens with the correct context and at the right time.
         isInitialSetupDoneRef.current = isInitialSetupDone;
     }, [isInitialSetupDone]);
 
@@ -372,9 +440,9 @@ const ReadyAppProvider: React.FC<{
         if (window.confirm(`Möchten Sie wirklich alle Daten für den ${mode}-Modus unwiderruflich löschen?`)) {
             const prefix = isDemoModeEnabled ? 'demo_' : '';
             const keysToClear = [
-                'transactions', 'allAvailableTags', 'recurringTransactions',
+                'transactions', 'allAvailableTags', 'recurringTransactions', 'transactionGroups',
                 'users', 'userSettings', 'app-current-user-id', 'transactionViewMode',
-                'lastSyncTimestamp', 'autoSyncEnabled', 'categories', 'groups', 'transactionGroups'
+                'lastSyncTimestamp', 'autoSyncEnabled', 'categories', 'groups'
             ];
             
             // Also clear favorites and recents for all users under the current mode
@@ -403,7 +471,7 @@ const ReadyAppProvider: React.FC<{
         transactionDataState.reassignCategoryForTransactions(sourceCategoryId, targetCategoryId);
     
         // 2. "Delete" the category (soft delete for custom, hide for standard)
-        categoryState.deleteCategory(sourceCategoryId);
+        persistentActions.deleteCategory(sourceCategoryId);
     
         // 3. Clean up preferences
         categoryPreferencesState.removeCategoryFromPreferences(sourceCategoryId);
@@ -412,25 +480,85 @@ const ReadyAppProvider: React.FC<{
             toast.success(`Kategorie "${sourceCategoryName}" gelöscht und Transaktionen neu zugeordnet.`);
         }
     
-        // 4. Close the reassign modal - this is done in the component, but we can ensure it.
         uiState.closeReassignModal();
     
     }, [
         transactionDataState.reassignCategoryForTransactions, 
-        categoryState.deleteCategory, 
+        persistentActions, 
         categoryState.categoryMap,
         categoryPreferencesState.removeCategoryFromPreferences, 
         uiState.closeReassignModal
     ]);
+    
+    // --- AI Functionality ---
+    const analyzeReceipt = useCallback(async (base64Image: string): Promise<Gemini_AnalyzeReceiptResult | null> => {
+        const toastId = toast.loading('Beleg wird analysiert...');
+        try {
+            if (!process.env.API_KEY) {
+                throw new Error("API-Schlüssel ist nicht konfiguriert.");
+            }
+            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-    const { setQuickAddHideGroups: _, ...restUserSettingsState } = userSettingsState;
-    const { addUser: _addUser, ...restUsersState } = usersState;
-    const { reassignUserForTransactions: _reassign, ...restTxState } = transactionDataState;
+            const receiptSchema = {
+                type: Type.OBJECT,
+                properties: {
+                    amount: { type: Type.NUMBER, description: "Der Gesamtbetrag des Belegs als Zahl." },
+                    description: { type: Type.STRING, description: "Eine kurze Beschreibung, idealerweise der Name des Geschäfts." },
+                    category: { type: Type.STRING, description: "Eine der folgenden Kategorien, die am besten passt: " + categoryState.flexibleCategories.map(c => c.name).join(', ') }
+                },
+                required: ["amount", "description", "category"]
+            };
+
+            const response = await ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: {
+                    parts: [
+                        { text: "Analysiere diesen Kassenbeleg. Extrahiere den Gesamtbetrag, den Namen des Geschäfts als Beschreibung und schlage eine passende Kategorie vor. Gib das Ergebnis als JSON zurück." },
+                        { inlineData: { mimeType: 'image/jpeg', data: base64Image } }
+                    ]
+                },
+                config: {
+                    responseMimeType: "application/json",
+                    responseSchema: receiptSchema,
+                }
+            });
+
+            const jsonString = response.text;
+            const data = JSON.parse(jsonString);
+
+            // Find the best matching category ID
+            let categoryId: string | null = null;
+            if (data.category) {
+                const lowerCaseCategory = data.category.toLowerCase();
+                const foundCategory = categoryState.flexibleCategories.find(c => c.name.toLowerCase() === lowerCaseCategory);
+                categoryId = foundCategory ? foundCategory.id : null;
+            }
+
+            toast.success('Analyse erfolgreich!', { id: toastId });
+            return {
+                amount: data.amount || 0,
+                description: data.description || 'Unbekannter Beleg',
+                categoryId: categoryId,
+            };
+
+        } catch (error) {
+            console.error("Fehler bei der Beleg-Analyse:", error);
+            toast.error('Analyse fehlgeschlagen.', { id: toastId });
+            return null;
+        }
+    }, [categoryState.flexibleCategories]);
+
+    const { openSettings: _, ...restUiState } = uiState;
+    const { setQuickAddHideGroups: __, setIsAiEnabled: ___, ...restUserSettingsState } = userSettingsState;
+    const { addUser: ____, updateUser: _____, deleteUser: ______, ...restUsersState } = usersState;
+    const { reassignUserForTransactions: _______, addMultipleTransactions: ________, ...restTxState } = transactionDataState;
+    const { upsertCategory: __1, upsertMultipleCategories: __2, deleteCategory: __3, addGroup: __4, renameGroup: __5, updateGroup: __6, deleteGroup: __7, reorderGroups: __8, reorderCategories: __9, ...restCategoryState} = categoryState;
 
 
     const value: AppContextType = {
-        ...uiState,
-        ...categoryState,
+        ...restUiState,
+        openSettings: uiState.openSettings,
+        ...restCategoryState,
         groups: finalGroups, // Use the color-overridden groups
         groupMap: finalGroupMap,
         groupNames: finalGroupNames,
@@ -442,11 +570,10 @@ const ReadyAppProvider: React.FC<{
         totalSpentThisMonth,
         totalMonthlyFixedCosts,
         ...restUsersState,
-        addUser: usersState.addUser,
         ...restUserSettingsState,
+        ...persistentActions,
         currentUser,
         deleteMultipleTransactions: transactionDataState.deleteMultipleTransactions,
-        addMultipleTransactions: transactionDataState.addMultipleTransactions,
         selectTotalSpentForMonth: transactionDataState.selectTotalSpentForMonth,
         ...syncState,
         isDemoModeEnabled,
@@ -458,15 +585,10 @@ const ReadyAppProvider: React.FC<{
         handleReassignAndDeleteCategory,
         reassignUserForTransactions: transactionDataState.reassignUserForTransactions,
         quickAddHideGroups,
-        setQuickAddHideGroups,
         showDemoData,
         setShowDemoData,
-        transactionGroups: transactionDataState.transactionGroups,
-        createTransactionGroup: transactionDataState.createTransactionGroup,
-        addTransactionsToGroup: transactionDataState.addTransactionsToGroup,
-        removeTransactionFromGroup: transactionDataState.removeTransactionFromGroup,
-        updateTransactionInGroup: transactionDataState.updateTransactionInGroup,
-        resetCorrectionInGroup: transactionDataState.resetCorrectionInGroup,
+        isAiEnabled,
+        analyzeReceipt,
     };
     
     return (
@@ -500,8 +622,18 @@ const AppStateContainer: React.FC<{
         );
     }
     
-    // Once users are loaded, check if we need to show the initial onboarding wizard.
-    if (!props.isInitialSetupDone && !props.isDemoModeEnabled) {
+    // Once users are loaded, check if we need to show the initial setup screen.
+    if (!props.isDemoModeEnabled && usersState.users.length === 0) {
+        // We need to provide a limited context for the setup screen to function.
+        const limitedContextValue = {
+            addUser: usersState.addUser,
+            setCurrentUserId: uiState.setCurrentUserId,
+            setIsInitialSetupDone: rest.setIsInitialSetupDone,
+            syncData: () => Promise.resolve(), // No-op sync initially
+        };
+        // This feels a bit like a hack. It's better to provide the full context.
+        // The ReadyAppProvider will initialize everything. 
+        // We can pass a flag to it or just render a different component here.
          return (
              <ReadyAppProvider
                 {...rest}
@@ -509,7 +641,7 @@ const AppStateContainer: React.FC<{
                 uiState={uiState}
                 usersState={usersState}
             >
-                <OnboardingWizard />
+                <FirstUserSetup />
             </ReadyAppProvider>
         );
     }
@@ -552,6 +684,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     useEffect(() => {
         const determineInitialMode = async () => {
+            if (!isInitialSetupDone) {
+                setAppMode('demo');
+                setLocalAppMode('demo');
+                return;
+            }
+
             setAppMode(localAppMode); // Optimistic start
 
             try {

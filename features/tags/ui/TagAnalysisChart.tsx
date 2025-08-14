@@ -6,6 +6,7 @@ import { formatCurrency, format, parseISO, addMonths, addDays, differenceInDays 
 import type { Transaction, PeriodType } from '@/shared/types';
 import { ChartControls, ResizeHandle } from '@/shared/ui';
 import { LockedTooltip } from './LockedTooltip';
+import { CHART_COLOR_PALETTE } from '@/constants';
 
 export const CustomTooltip = ({ active, payload, label, tagMap, deLocale, groupByMonth }: any) => {
     if (active && payload && payload.length) {
@@ -78,8 +79,7 @@ export const TagAnalysisChart: FC<TagAnalysisChartProps> = ({ transactions, tagI
         if (transactions.length === 0) return { chartData: [], colors: {}, earliestDate: null };
 
         const colors: Record<string, string> = {};
-        const colorPalette = ['#3b82f6', '#ec4899', '#10b981', '#f97316', '#8b5cf6', '#06b6d4', '#eab308', '#ef4444'];
-        tagIds.forEach((id, index) => { colors[id] = colorPalette[index % colorPalette.length]; });
+        tagIds.forEach((id, index) => { colors[id] = CHART_COLOR_PALETTE[index % CHART_COLOR_PALETTE.length]; });
 
         const chartStartDate = interval.start;
         const chartEndDate = interval.end;

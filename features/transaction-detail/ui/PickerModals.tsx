@@ -20,13 +20,12 @@ export const PickerModals: FC<{
     isPickingIcon: boolean;
     setIsPickingIcon: (value: boolean) => void;
     handleIconUpdate: (iconName: string) => void;
-    handleIconReset: () => void;
 }> = ({
     isPickingCategory, setIsPickingCategory, handleCategoryUpdate,
     isPickingUser, setIsPickingUser, handleUserUpdate,
     isEditingTags, setIsEditingTags, handleTagsUpdate,
     currentTransaction,
-    isPickingIcon, setIsPickingIcon, handleIconUpdate, handleIconReset,
+    isPickingIcon, setIsPickingIcon, handleIconUpdate,
 }) => {
     const { categories, groups, users, tagMap, favoriteIds } = useApp();
     const [expandedCategoryId, setExpandedCategoryId] = useState<string | null>(null);
@@ -102,7 +101,6 @@ export const PickerModals: FC<{
                         isOpen={isPickingIcon}
                         onClose={() => setIsPickingIcon(false)}
                         onSelect={handleIconUpdate}
-                        onReset={handleIconReset}
                      />
                 )}
             </AnimatePresence>

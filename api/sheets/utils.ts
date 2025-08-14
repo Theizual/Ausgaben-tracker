@@ -1,7 +1,7 @@
 export const HEADERS = {
   Groups:       ['id','name','sortIndex','lastModified','version','isDeleted', 'color', 'isDefault', 'icon'],
   Categories:   ['id','name','color','budget','icon','lastModified','version','isDeleted', 'groupId', 'sortIndex'],
-  Transactions: ['id','amount','description','categoryId','date','tagIds','lastModified','isDeleted','recurringId','version','userId','transactionGroupId','isCorrected','groupBaseAmount','iconOverride'],
+  Transactions: ['id','amount','description','categoryId','date','tagIds','lastModified','isDeleted','recurringId','version','userId','transactionGroupId','iconOverride','isCorrected','groupBaseAmount','createdAt'],
   Recurring:    ['id','amount','description','categoryId','frequency','dayOfMonth','startDate','endDate','lastProcessedDate','active','lastModified','version','isDeleted'],
   Tags:         ['id','name','color','lastModified','version','isDeleted'],
   Users:        ['id','name','color','lastModified','version','isDeleted'],
@@ -50,8 +50,9 @@ export function rowsToObjects(sheet: SheetName, rows: any[][] = []): any[] {
       headers.forEach((h, i) => { obj[h] = r[i] ?? ''; });
 
       // Robust number parsing
-      if (sheet === 'Transactions' || sheet === 'Recurring') {
+      if (sheet === 'Transactions' || sheet === 'Recurring' || sheet === 'TransactionGroups') {
         obj.amount = parseGermanNumber(obj.amount);
+        obj.targetAmount = parseGermanNumber(obj.targetAmount);
       }
       if (sheet === 'Categories') {
         obj.budget = parseGermanNumber(obj.budget);
@@ -60,18 +61,27 @@ export function rowsToObjects(sheet: SheetName, rows: any[][] = []): any[] {
       if (sheet === 'Groups') {
           obj.sortIndex = Number(obj.sortIndex) || 0;
       }
+      if(sheet === 'Transactions'){
+          obj.groupBaseAmount = parseGermanNumber(obj.groupBaseAmount);
+          if (!obj.groupBaseAmount) {
+            obj.groupBaseAmount = obj.amount;
+          }
+      }
+
 
       // Robust date parsing
       if ('lastModified' in obj && obj.lastModified) {
         obj.lastModified = parseGermanDateToISO(obj.lastModified);
       }
+      if ('createdAt' in obj && obj.createdAt) {
+          obj.createdAt = parseGermanDateToISO(obj.createdAt);
+      }
       if (sheet === 'Transactions') {
         if (obj.date) obj.date = parseGermanDateToISO(obj.date);
-        obj.groupBaseAmount = parseGermanNumber(obj.groupBaseAmount);
-      }
-       if (sheet === 'TransactionGroups') {
-        obj.targetAmount = parseGermanNumber(obj.targetAmount);
-        if (obj.createdAt) obj.createdAt = parseGermanDateToISO(obj.createdAt);
+        // Fallback for createdAt for older records
+        if (!obj.createdAt) {
+          obj.createdAt = obj.date || new Date().toISOString();
+        }
       }
       if (sheet === 'Recurring') {
         if (obj.startDate) obj.startDate = parseGermanDateToISO(obj.startDate);
@@ -99,9 +109,9 @@ export function rowsToObjects(sheet: SheetName, rows: any[][] = []): any[] {
       } else {
         (obj as any).isDeleted = false;
       }
-       if (sheet === 'Transactions' && 'isCorrected' in obj) {
+      if(sheet === 'Transactions'){
           obj.isCorrected = String(obj.isCorrected).toUpperCase() === 'TRUE';
-       }
+      }
       
       if (sheet === 'Groups') {
         obj.isDefault = String(obj.isDefault).toUpperCase() === 'TRUE';
@@ -142,7 +152,10 @@ export function objectsToRows(sheet: SheetName, items: any[] = []): any[][] {
           const dd = d.getDate().toString().padStart(2, '0');
           const mm = (d.getMonth() + 1).toString().padStart(2, '0');
           const yyyy = d.getFullYear();
-          return `${dd}.${mm}.${yyyy}`;
+          const HH = d.getHours().toString().padStart(2, '0');
+          const MM = d.getMinutes().toString().padStart(2, '0');
+          const SS = d.getSeconds().toString().padStart(2, '0');
+          return `${dd}.${mm}.${yyyy} ${HH}:${MM}:${SS}`;
         }
       } catch {}
     }

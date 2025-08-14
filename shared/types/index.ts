@@ -1,5 +1,3 @@
-
-
 export interface User {
   id: string;
   name: string;
@@ -55,6 +53,7 @@ export interface Transaction {
   description: string;
   categoryId: string;
   date: string; // ISO string format
+  createdAt: string; // ISO string
   tagIds?: string[];
   recurringId?: string;
   lastModified: string; // ISO string
@@ -64,19 +63,19 @@ export interface Transaction {
   createdBy?: string;
   isDemo?: boolean;
   transactionGroupId?: string;
+  iconOverride?: string;
   isCorrected?: boolean;
   groupBaseAmount?: number;
-  iconOverride?: string;
 }
 
 export interface TransactionGroup {
-    id: string;
-    targetAmount: number;
-    createdAt: string; // ISO string
-    lastModified: string; // ISO string
-    isDeleted?: boolean;
-    version: number;
-    conflicted?: boolean;
+  id: string;
+  targetAmount: number;
+  createdAt: string; // ISO string
+  lastModified: string; // ISO string
+  isDeleted?: boolean;
+  version: number;
+  conflicted?: boolean;
 }
 
 export interface RecurringTransaction {
@@ -98,7 +97,7 @@ export interface RecurringTransaction {
 
 export interface UserSetting {
   userId: string | 'app_meta';
-  key: 'groupColors' | 'visibleGroups' | 'mode' | 'quickAddHideGroups' | 'categoryColorOverrides' | 'hiddenCategories';
+  key: 'groupColors' | 'visibleGroups' | 'mode' | 'quickAddHideGroups' | 'categoryColorOverrides' | 'hiddenCategories' | 'aiFeaturesEnabled';
   value: string; // Comma-separated list for visibleGroups, JSON string for groupColors/categoryColorOverrides/hiddenCategories
   lastModified: string;
   version: number;

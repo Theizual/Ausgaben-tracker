@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
-import { FileText, Wallet, Info, ChevronRight, ToggleSwitch, Trash2, Button, DownloadCloud, Eye } from '@/shared/ui';
+import { FileText, Wallet, Info, ChevronRight, ToggleSwitch, Trash2, Button, DownloadCloud, Eye, Sparkles } from '@/shared/ui';
 import { APP_VERSION } from '@/constants';
 import { settingsContentAnimation } from '@/shared/lib/animations';
 
@@ -11,6 +11,7 @@ export const GeneralSettings = () => {
     const { 
         isAutoSyncEnabled, setIsAutoSyncEnabled, openChangelog, resetAppData, loadFromSheet,
         quickAddHideGroups, setQuickAddHideGroups,
+        isAiEnabled, setIsAiEnabled,
     } = useApp();
 
     return (
@@ -56,6 +57,17 @@ export const GeneralSettings = () => {
                             <p className="text-xs text-slate-400 mt-1">Zeigt standardmäßig nur Favoriten und zuletzt verwendete Kategorien an.</p>
                         </div>
                         <ToggleSwitch id="hide-groups-toggle" enabled={quickAddHideGroups} setEnabled={setQuickAddHideGroups} />
+                    </div>
+                </div>
+
+                <div>
+                    <h4 className="text-md font-semibold mb-3 text-white flex items-center gap-2"><Sparkles className="h-5 w-5 text-purple-400" /> KI-Funktionen</h4>
+                    <div className="flex items-center justify-between pt-4 mt-4 border-t border-slate-700/50">
+                        <div>
+                            <label htmlFor="ai-features-toggle" className="block text-sm font-medium text-slate-300">KI-Belegscanner aktivieren</label>
+                            <p className="text-xs text-slate-400 mt-1">Ermöglicht das Scannen von Belegen per Kamera oder Bildupload.</p>
+                        </div>
+                        <ToggleSwitch id="ai-features-toggle" enabled={isAiEnabled} setEnabled={setIsAiEnabled} />
                     </div>
                 </div>
 

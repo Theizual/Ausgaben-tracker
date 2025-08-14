@@ -1,5 +1,51 @@
 [
     {
+        "version": "0.865",
+        "date": "19.08.2024, 10:00 Uhr",
+        "title": "Erweiterte Transaktionsgruppen & UI-Verbesserungen",
+        "changes": [
+            "**Bestehende Gruppen erweitern:** Fügen Sie jetzt direkt aus der Detailansicht weitere Transaktionen zu einer bestehenden Gruppe hinzu.",
+            "**Gruppen beitreten:** Einzelne Transaktionen können nun entweder eine neue Gruppe bilden oder einer bestehenden Gruppe beitreten.",
+            "**Dynamische Neuberechnung:** Beim Hinzufügen oder Entfernen von Einträgen wird die Gruppensumme automatisch angepasst und die Beträge der nicht-korrigierten Posten neu verteilt.",
+            "**Sanfte UI-Animation:** Beim Navigieren zwischen Transaktionen innerhalb einer Gruppe wird der Hauptbereich des Modals mit einer weichen Fade-Animation aktualisiert.",
+            "**Optimierte Auswahl:** Die Transaktionsauswahl ist nun nach dem Erstellungsdatum sortiert, um die neuesten Einträge zuerst anzuzeigen."
+        ]
+    },
+    {
+        "version": "0.864",
+        "date": "18.08.2024, 12:00 Uhr",
+        "title": "Interaktive Transaktionsgruppen & Korrekturlogik",
+        "changes": [
+            "**Transaktionen direkt verknüpfen:** Im Detail-Modal einer Transaktion gibt es jetzt eine Funktion, um diese mit anderen Ausgaben zu einer Gruppe zu verbinden. Perfekt für Sammelbestellungen oder geteilte Rechnungen!",
+            "**Automatische Umverteilung:** Ändern Sie den Betrag eines Postens in einer Gruppe. Die Differenz wird intelligent und proportional auf die restlichen, nicht-korrigierten Einträge verteilt, während die Gesamtsumme der Gruppe unverändert bleibt.",
+            "**Korrektur-Modus:** Manuell angepasste Beträge werden als 'korrigiert' markiert und von der automatischen Verteilung ausgenommen. Eine Korrektur kann jederzeit zurückgesetzt werden.",
+            "**Gruppenübersicht:** Das Detail-Modal zeigt alle Transaktionen einer Gruppe, den Soll- und den Ist-Betrag an. So behalten Sie immer den Überblick.",
+            "**Gruppen bei Schnelleingabe:** Werden mehrere Posten per Komma eingegeben (z.B. 'Pizza, Salat'), werden diese automatisch zu einer Gruppe zusammengefasst."
+        ]
+    },
+    {
+        "version": "0.863",
+        "date": "17.08.2024, 10:00 Uhr",
+        "title": "Transaktionsgruppen & Intelligente Korrekturlogik",
+        "changes": [
+            "**Transaktionen gruppieren:** Fassen Sie zusammengehörige Ausgaben in einer Gruppe zusammen. Ideal für Sammelbestellungen oder Einkäufe, die aufgeteilt werden. Die Funktion finden Sie in der Detailansicht einer Transaktion.",
+            "**Fixe Gruppensumme:** Der Gesamtbetrag einer Gruppe bleibt konstant. Ändern Sie den Betrag eines Eintrags, wird die Differenz automatisch auf die anderen, nicht-korrigierten Einträge verteilt.",
+            "**Korrektur-Modus:** Geänderte Beträge werden als 'korrigiert' markiert. Die automatische Verteilung erfolgt nur auf die nicht-korrigierten Einträge, um manuelle Anpassungen zu schützen.",
+            "**Flexible Verwaltung:** Fügen Sie Transaktionen zu bestehenden Gruppen hinzu, entfernen Sie sie oder setzen Sie Korrekturen zurück – alles direkt in der Detailansicht."
+        ]
+    },
+    {
+        "version": "0.862",
+        "date": "16.08.2024, 11:00 Uhr",
+        "title": "Transaktionsgruppen & Intelligente Korrekturlogik",
+        "changes": [
+            "**Transaktionen gruppieren:** Fassen Sie zusammengehörige Ausgaben in einer Gruppe zusammen. Ideal für Sammelbestellungen oder Einkäufe, die aufgeteilt werden. Die Funktion finden Sie in der Detailansicht einer Transaktion.",
+            "**Fixe Gruppensumme:** Der Gesamtbetrag einer Gruppe bleibt konstant. Ändern Sie den Betrag eines Eintrags, wird die Differenz automatisch auf die anderen, nicht-korrigierten Einträge verteilt.",
+            "**Korrektur-Modus:** Geänderte Beträge werden als 'korrigiert' markiert. Die automatische Verteilung erfolgt nur auf die nicht-korrigierten Einträge, um manuelle Anpassungen zu schützen.",
+            "**Flexible Verwaltung:** Fügen Sie Transaktionen zu bestehenden Gruppen hinzu, entfernen Sie sie oder setzen Sie Korrekturen zurück – alles direkt in der Detailansicht."
+        ]
+    },
+    {
         "version": "0.801",
         "date": "15.08.2024, 09:00 Uhr",
         "title": "Intelligente Synchronisierung & Multi-Geräte-Setup",

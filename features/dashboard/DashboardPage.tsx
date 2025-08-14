@@ -3,6 +3,7 @@
 
 
 
+
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { AnimatePresence, motion, Variants } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
@@ -10,7 +11,7 @@ import type { Transaction, ViewMode, Category } from '@/shared/types';
 import { format, parseISO, isWithinInterval, startOfMonth, endOfMonth, startOfWeek, endOfWeek, isSameDay } from 'date-fns';
 import { formatCurrency } from '@/shared/utils/dateUtils';
 import { Wallet, getIconComponent, Calendar, CalendarDays, ChevronDown } from '@/shared/ui';
-import { FIXED_COSTS_GROUP_ID } from '@/constants';
+import { FIXED_COSTS_GROUP_ID, COLOR_SUCCESS } from '@/constants';
 import { StandardTransactionItem } from '@/shared/ui';
 import { CategoryPieChart } from './ui/CategoryPieChart';
 import { QuickAddForm } from './ui/QuickAddForm';
@@ -232,7 +233,7 @@ const DashboardPage = () => {
                                     </p>
                                     <p className="font-semibold">{totalBudgetPercentage.toFixed(0)}%</p>
                                 </div>
-                                <BudgetProgressBar percentage={totalBudgetPercentage} color="#22c55e" />
+                                <BudgetProgressBar percentage={totalBudgetPercentage} color={COLOR_SUCCESS} />
                             </div>
                         )}
                     </motion.div>

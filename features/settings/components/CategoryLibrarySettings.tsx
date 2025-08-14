@@ -97,16 +97,15 @@ const CategoryReorderItem: FC<{
     );
 };
 
-export const CategoryLibrarySettings: FC<{}> = () => {
+export const CategoryLibrarySettings: FC<{ onEditGroupDesign: (group: Group) => void }> = ({ onEditGroupDesign }) => {
     const { 
         categories, groups, upsertCategory, addGroup, deleteGroup, renameGroup, reorderGroups, reorderCategories,
         loadStandardConfiguration, unassignedCategories, transactions, openReassignModal,
-        currentUserId, updateCategoryColorOverride, updateGroup, updateGroupColor, favoriteIds, toggleFavorite,
+        currentUserId, updateCategoryColorOverride, favoriteIds, toggleFavorite,
     } = useApp();
     
     const [orderedGroups, setOrderedGroups] = useState(groups);
     const [editingCategory, setEditingCategory] = useState<CategoryFormData | null>(null);
-    const [editingGroupDesign, setEditingGroupDesign] = useState<Group | null>(null);
     const [newGroupName, setNewGroupName] = useState('');
     const [expandedGroupIds, setExpandedGroupIds] = useLocalStorage<string[]>('settings-expanded-groups', []);
     const expandedStateBeforeDrag = useRef<string[]>([]);
@@ -172,28 +171,6 @@ export const CategoryLibrarySettings: FC<{}> = () => {
         setEditingCategory(null);
     };
     
-    const handleSaveGroup = (design: { name:string; color: string; icon: string }, changeColorForAll: boolean) => {
-        if (!editingGroupDesign) return;
-        const { id, name: originalName } = editingGroupDesign;
-
-        // Handle rename if name changed
-        if (design.name !== originalName) {
-            renameGroup(id, design.name);
-        }
-
-        // Handle design changes
-        if (changeColorForAll) {
-            updateGroup(id, { color: design.color, icon: design.icon });
-        } else {
-            if (currentUserId) {
-                updateGroupColor(currentUserId, design.name, design.color);
-            }
-            updateGroup(id, { icon: design.icon });
-        }
-        setEditingGroupDesign(null);
-        toast.success("Gruppen-Design aktualisiert.");
-    };
-
     const handleDeleteCategoryRequest = (category: CategoryFormData) => {
         const associatedTransactions = transactions.filter(t => t.categoryId === category.id && !t.isDeleted).sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime());
         const txCount = associatedTransactions.length;
@@ -268,9 +245,8 @@ export const CategoryLibrarySettings: FC<{}> = () => {
                             categories={groupedCategories.get(group.id) || []}
                             isExpanded={expandedGroupIds.includes(group.id)}
                             onToggleExpand={() => toggleGroupExpand(group.id)}
-                            onEditGroupDesign={() => setEditingGroupDesign(group)}
+                            onEditGroupDesign={onEditGroupDesign}
                             onDeleteGroup={handleDeleteGroup}
-                            onRenameGroup={renameGroup}
                             onEditCategory={handleOpenEditor}
                         />
                     ))}
@@ -314,15 +290,6 @@ export const CategoryLibrarySettings: FC<{}> = () => {
                     />
                 )}
             </AnimatePresence>
-            <AnimatePresence>
-                {editingGroupDesign && (
-                    <GroupDesignModal
-                        group={editingGroupDesign}
-                        onClose={() => setEditingGroupDesign(null)}
-                        onSave={handleSaveGroup}
-                    />
-                )}
-            </AnimatePresence>
         </>
     );
 };
@@ -336,31 +303,18 @@ interface GroupItemProps {
     onToggleExpand: () => void;
     onEditGroupDesign: (group: Group) => void;
     onDeleteGroup: (group: Group) => void;
-    onRenameGroup: (id: string, newName: string) => void;
     onEditCategory: (category: Partial<Category> & { groupId: string }) => void;
 }
 
-const GroupItem: FC<GroupItemProps> = ({ group, dragControls, categories, isExpanded, onToggleExpand, onEditGroupDesign, onDeleteGroup, onRenameGroup, onEditCategory }) => {
+const GroupItem: FC<GroupItemProps> = ({ group, dragControls, categories, isExpanded, onToggleExpand, onEditGroupDesign, onDeleteGroup, onEditCategory }) => {
     const { reorderCategories, favoriteIds, toggleFavorite } = useApp();
     const [localCategories, setLocalCategories] = useState(categories);
-    const [isEditing, setIsEditing] = useState(false);
-    const [nameValue, setNameValue] = useState(group.name);
     
     useEffect(() => { setLocalCategories(categories); }, [categories]);
-    useEffect(() => { setNameValue(group.name); }, [group.name]);
 
     const handleReorderCategories = (newOrder: Category[]) => {
         setLocalCategories(newOrder);
         reorderCategories(newOrder);
-    };
-
-    const handleRename = () => {
-        if (nameValue.trim() && nameValue.trim() !== group.name) {
-            onRenameGroup(group.id, nameValue.trim());
-        } else {
-             setNameValue(group.name);
-        }
-        setIsEditing(false);
     };
 
     const GroupIcon = getIconComponent(group.icon);
@@ -385,13 +339,9 @@ const GroupItem: FC<GroupItemProps> = ({ group, dragControls, categories, isExpa
                         <div className="w-8 h-8 rounded-md flex items-center justify-center flex-shrink-0 border-2" style={{ borderColor: group.color }}>
                             <GroupIcon className="h-4 w-4" style={{ color: group.color }} />
                         </div>
-                        {isEditing ? (
-                            <input type="text" value={nameValue} onChange={(e) => setNameValue(e.target.value)} onBlur={handleRename} onKeyDown={(e) => { if (e.key === 'Enter') handleRename(); if (e.key === 'Escape') { setIsEditing(false); setNameValue(group.name); }}} className="font-semibold text-white bg-slate-600/50 rounded px-2 py-1 w-full focus:ring-2 focus:ring-rose-500 focus:outline-none" autoFocus />
-                        ) : (
-                            <button onClick={() => !isProtected && setIsEditing(true)} className="w-full text-left p-1 -m-1 group/name" disabled={isProtected} title={isProtected ? "Diese Gruppe kann nicht umbenannt werden" : "Gruppenname bearbeiten"}>
-                                <h4 className="font-semibold text-white truncate flex items-center gap-2">{group.name} {!isProtected && <Edit className="h-3 w-3 text-slate-400 opacity-0 group-hover/name:opacity-100 transition-opacity" />}</h4>
-                            </button>
-                        )}
+                         <div className="w-full text-left p-1 -m-1">
+                            <h4 className="font-semibold text-white truncate">{group.name}</h4>
+                        </div>
                     </div>
                      <div className="flex items-center gap-1 flex-shrink-0">
                         <Button variant="ghost" size="icon-auto" onClick={() => onEditGroupDesign(group)} title="Design und Name bearbeiten">
