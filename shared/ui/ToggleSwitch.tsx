@@ -1,20 +1,23 @@
 import React, { FC } from 'react';
 import { clsx } from 'clsx';
 
-export const ToggleSwitch: FC<{ enabled: boolean; setEnabled: (enabled: boolean) => void | Promise<void>; id?: string }> = ({ enabled, setEnabled, id }) => (
+export const ToggleSwitch: FC<{ enabled: boolean; setEnabled: (enabled: boolean) => void | Promise<void>; id?: string; disabled?: boolean; }> = ({ enabled, setEnabled, id, disabled = false }) => (
     <button
         id={id}
         type="button"
         className={clsx(
             'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-theme-ring focus:ring-offset-2 focus:ring-offset-slate-800',
-            enabled ? 'bg-theme-primary' : 'bg-slate-600'
+            enabled ? 'bg-theme-primary' : 'bg-slate-600',
+            disabled && 'opacity-50 cursor-not-allowed'
         )}
         role="switch"
         aria-checked={enabled}
         onClick={(e) => {
+            if (disabled) return;
             e.preventDefault();
             setEnabled(!enabled);
         }}
+        disabled={disabled}
     >
         <span className="sr-only">Toggle</span>
         <span

@@ -144,7 +144,7 @@ const ReadyAppProvider: React.FC<{
     }, [usersState.users, isInitialSetupDone, setIsInitialSetupDone]);
 
     // Now that uiState and usersState are stable, initialize the rest of the app's state.
-    const userSettingsState = useUserSettings({ isDemoModeEnabled });
+    const userSettingsState = useUserSettings();
     
     const hiddenCategoryIds = useMemo(() => 
         uiState.currentUserId ? userSettingsState.getHiddenCategoryIds(uiState.currentUserId) : [],

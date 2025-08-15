@@ -27,23 +27,37 @@ const settingsReducer = (state: UserSettingsState, action: Action): UserSettings
     }
 };
 
-const makeInitializer = (isDemoMode: boolean): (() => UserSettingsState) => () => {
-    const prefix = isDemoMode ? 'demo_' : '';
-    const SETTINGS_KEY = `${prefix}userSettings`;
+const makeInitializer = (): (() => UserSettingsState) => () => {
+    const SETTINGS_KEY = 'userSettings';
+    const DEMO_SETTINGS_KEY = 'demo_userSettings';
     try {
-        const stored = JSON.parse(window.localStorage.getItem(SETTINGS_KEY) || '[]');
-        if (Array.isArray(stored)) {
-            return { settings: stored };
+        let storedSettings: UserSetting[] = [];
+        const mainStore = window.localStorage.getItem(SETTINGS_KEY);
+        if (mainStore) {
+            const parsed = JSON.parse(mainStore);
+            if(Array.isArray(parsed)) storedSettings = parsed;
         }
+
+        const demoStore = window.localStorage.getItem(DEMO_SETTINGS_KEY);
+        if (demoStore) {
+            const demoSettings = JSON.parse(demoStore);
+            if (Array.isArray(demoSettings)) {
+                // Merge and deduplicate
+                const mergedMap = new Map();
+                [...storedSettings, ...demoSettings].forEach(s => mergedMap.set(`${s.userId}-${s.key}`, s));
+                storedSettings = Array.from(mergedMap.values());
+                window.localStorage.removeItem(DEMO_SETTINGS_KEY); // remove after successful migration
+            }
+        }
+        return { settings: storedSettings };
     } catch { /* ignore */ }
     return { settings: [] };
 };
 
-export const useUserSettings = ({ isDemoModeEnabled }: { isDemoModeEnabled: boolean }) => {
-    const prefix = isDemoModeEnabled ? 'demo_' : '';
-    const SETTINGS_KEY = `${prefix}userSettings`;
+export const useUserSettings = () => {
+    const SETTINGS_KEY = 'userSettings';
     
-    const initializer = useMemo(() => makeInitializer(isDemoModeEnabled), [isDemoModeEnabled]);
+    const initializer = useMemo(() => makeInitializer(), []);
     const [state, dispatch] = useReducer(settingsReducer, undefined, initializer);
 
     useEffect(() => {

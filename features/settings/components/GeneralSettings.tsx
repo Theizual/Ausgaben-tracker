@@ -4,6 +4,7 @@ import { useApp } from '@/contexts/AppContext';
 import { FileText, Wallet, Info, ChevronRight, ToggleSwitch, Trash2, Button, DownloadCloud, Eye, Sparkles, FlaskConical } from '@/shared/ui';
 import { APP_VERSION } from '@/constants';
 import { settingsContentAnimation } from '@/shared/lib/animations';
+import { clsx } from 'clsx';
 
 const MANAGER_LIST_ITEM_CLASSES = "w-full text-left bg-slate-700/50 hover:bg-slate-700 p-4 rounded-lg transition-colors flex justify-between items-center";
 
@@ -13,6 +14,7 @@ export const GeneralSettings = () => {
         quickAddHideGroups, setQuickAddHideGroups,
         isAiEnabled, setIsAiEnabled,
         showDemoData, setShowDemoData,
+        currentUserId,
     } = useApp();
 
     return (
@@ -74,12 +76,12 @@ export const GeneralSettings = () => {
 
                  <div>
                     <h4 className="text-md font-semibold mb-3 text-white flex items-center gap-2"><FlaskConical className="h-5 w-5 text-purple-400" /> Demo-Modus</h4>
-                    <div className="flex items-center justify-between pt-4 mt-4 border-t border-slate-700/50">
+                    <div className="flex items-center justify-between pt-4 mt-4 border-t border-slate-700/50" title={!currentUserId ? "Bitte zuerst einen Benutzer auswählen" : undefined}>
                         <div>
-                            <label htmlFor="show-demo-toggle" className="block text-sm font-medium text-slate-300">Demodaten anzeigen</label>
+                            <label htmlFor="show-demo-toggle" className={clsx("block text-sm font-medium", currentUserId ? "text-slate-300" : "text-slate-500")}>Demodaten anzeigen</label>
                             <p className="text-xs text-slate-400 mt-1">Blendet Beispiel-Transaktionen der letzten 3 Monate ein.</p>
                         </div>
-                        <ToggleSwitch id="show-demo-toggle" enabled={showDemoData} setEnabled={setShowDemoData} />
+                        <ToggleSwitch id="show-demo-toggle" enabled={showDemoData} setEnabled={setShowDemoData} disabled={!currentUserId} />
                     </div>
                 </div>
 
