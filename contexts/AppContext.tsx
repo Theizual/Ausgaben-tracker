@@ -19,7 +19,7 @@ import { FirstUserSetup } from '@/features/onboarding';
 import debounce from 'lodash.debounce';
 
 // --- TYPE DEFINITIONS ---
-export interface Gemini_AnalyzeReceiptResult {
+export interface AnalyzeReceiptResult {
     amount: number;
     description: string;
     categoryId: string | null;
@@ -59,7 +59,7 @@ type AppContextType =
         removeTransactionFromGroup: (transactionId: string) => void;
         addTransactionsToGroup: (groupId: string, transactionIds: string[]) => void;
         setIsAiEnabled: (enabled: boolean) => void;
-        analyzeReceipt: (base64Image: string) => Promise<Gemini_AnalyzeReceiptResult | null>;
+        analyzeReceipt: (base64Image: string) => Promise<AnalyzeReceiptResult | null>;
 
 
         reassignUserForTransactions: (sourceUserId: string, targetUserId: string, onlyNonDemo?: boolean) => void;
@@ -216,6 +216,7 @@ const ReadyAppProvider: React.FC<{
         isDemoModeEnabled: isDemoModeEnabled,
         addRecentCategory: categoryPreferencesState.addRecent,
         showDemoData: showDemoData,
+        flexibleCategories: categoryState.flexibleCategories,
     });
     
     // --- Orphaned Transaction Cleanup ---
@@ -435,8 +436,29 @@ const ReadyAppProvider: React.FC<{
     }, [uiState.currentUserId, persistentActions]);
 
     const setIsAiEnabledForCurrentUser = useCallback((enabled: boolean) => {
-        if (uiState.currentUserId) {
-            persistentActions.setIsAiEnabled(uiState.currentUserId, enabled);
+        if (!uiState.currentUserId) return;
+    
+        // Immediately update the state for a responsive UI
+        persistentActions.setIsAiEnabled(uiState.currentUserId, enabled);
+    
+        if (enabled) {
+            // Asynchronously request camera permission without blocking the UI update
+            const requestPermission = async () => {
+                if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                    try {
+                        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                        // Immediately stop the stream once permission is granted to turn off camera light
+                        stream.getTracks().forEach(track => track.stop());
+                    } catch (err) {
+                        console.error("Camera permission request failed:", err);
+                        toast.error("Kamerazugriff wurde nicht erteilt. Scannen ist nicht möglich.");
+                        // The feature remains enabled as file upload is still possible.
+                    }
+                } else {
+                    toast.error("Dein Browser unterstützt den Kamerazugriff nicht.");
+                }
+            };
+            requestPermission(); // Fire-and-forget
         }
     }, [uiState.currentUserId, persistentActions]);
 
@@ -503,13 +525,13 @@ const ReadyAppProvider: React.FC<{
     ]);
     
     // --- AI Functionality ---
-    const analyzeReceipt = useCallback(async (base64Image: string): Promise<Gemini_AnalyzeReceiptResult | null> => {
+    const analyzeReceipt = useCallback(async (base64Image: string): Promise<AnalyzeReceiptResult | null> => {
         const toastId = toast.loading('Beleg wird analysiert...');
         try {
             // Kategorienamen an den Server geben, damit das Modell nur daraus wählt
             const categories = categoryState.flexibleCategories.map(c => c.name);
 
-            // Serverroute ruft OpenAI auf und gibt { amount, description, category } zurück
+            // Serverroute ruft Gemini auf und gibt { amount, description, category } zurück
             const res = await apiPost('/api/ai/analyze-receipt', { base64Image, categories });
             if ((res as any)?.error) {
                 throw new Error((res as any).error);
@@ -533,7 +555,7 @@ const ReadyAppProvider: React.FC<{
                 categoryId,
             };
                 } catch (error: any) {
-                    console.error('Fehler bei der Beleg-Analyse (OpenAI):', error);
+                    console.error('Fehler bei der Beleg-Analyse (Gemini):', error);
                     toast.error(`Analyse fehlgeschlagen. ${error?.message ?? ''}`.trim(), { id: toastId });
                     return null;
                 }

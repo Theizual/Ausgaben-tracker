@@ -8,7 +8,7 @@ import { CategoryButtons, TagInput, AvailableTags } from '@/shared/ui';
 import { parseISO } from 'date-fns';
 import { FIXED_COSTS_GROUP_ID } from '@/constants';
 import { MoreCategoriesModal } from './MoreCategoriesModal';
-import { Gemini_AnalyzeReceiptResult } from '@/contexts/AppContext';
+import { AnalyzeReceiptResult } from '@/contexts/AppContext';
 
 export const QuickAddForm: FC = () => {
     const { 

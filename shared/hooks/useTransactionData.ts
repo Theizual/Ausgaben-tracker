@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { toast } from 'react-hot-toast';
-import type { Transaction, RecurringTransaction, Tag, CategoryId, TransactionGroup } from '@/shared/types';
+import type { Transaction, RecurringTransaction, Tag, CategoryId, TransactionGroup, Category } from '@/shared/types';
 import { addMonths, addYears, isSameDay, parseISO, isWithinInterval, isValid, format, subDays, startOfMonth, endOfMonth } from 'date-fns';
 import { generateUUID } from '@/shared/utils/uuid';
 import { FIXED_COSTS_GROUP_ID } from '@/constants';
 import { getCategories } from '@/shared/config/taxonomy';
-import type { DemoData } from '@/processes/onboarding/model/demo.seed';
+import { generateRichDemoData, RichDemoData } from '@/processes/onboarding/model/demo.seed';
 
 // --- CONSTANTS & HELPERS ---
 const TAG_MIN_LENGTH = 1;
@@ -146,9 +146,10 @@ interface useTransactionDataProps {
     isDemoModeEnabled: boolean; 
     addRecentCategory: (categoryId: CategoryId) => void; 
     showDemoData: boolean;
+    flexibleCategories: Category[];
 }
 
-export const useTransactionData = ({ showConfirmation, closeTransactionDetail, currentUserId, isDemoModeEnabled, addRecentCategory, showDemoData }: useTransactionDataProps) => {
+export const useTransactionData = ({ showConfirmation, closeTransactionDetail, currentUserId, isDemoModeEnabled, addRecentCategory, showDemoData, flexibleCategories }: useTransactionDataProps) => {
     const prefix = isDemoModeEnabled ? 'demo_' : '';
     const T_KEY = `${prefix}transactions`;
     const TAGS_KEY = `${prefix}allAvailableTags`;
@@ -157,21 +158,25 @@ export const useTransactionData = ({ showConfirmation, closeTransactionDetail, c
 
     const initializer = useMemo(() => makeInitializer(isDemoModeEnabled), [isDemoModeEnabled]);
     const [rawState, dispatch] = useReducer(dataReducer, undefined, initializer);
-    const [demoData, setDemoData] = useState<DemoData | null>(null);
+    const [demoData, setDemoData] = useState<RichDemoData | null>(null);
+    const demoDataShownRef = useRef(false);
 
-    // Lazy-load demo data
     useEffect(() => {
-        if (isDemoModeEnabled) {
-            import('@/processes/onboarding/model/demo.seed')
-                .then(module => {
-                    setDemoData(module.getDemoData());
-                })
-                .catch(err => console.error("Failed to load demo data:", err));
+        if (showDemoData) {
+            const newDemoData = generateRichDemoData(flexibleCategories);
+            setDemoData(newDemoData);
+            if (!demoDataShownRef.current) {
+                toast.success("Demodaten aktiviert.");
+                demoDataShownRef.current = true;
+            }
         } else {
-            // Clear demo data if mode is disabled
             setDemoData(null);
+            if (demoDataShownRef.current) {
+                toast.success("Demodaten deaktiviert.");
+                demoDataShownRef.current = false;
+            }
         }
-    }, [isDemoModeEnabled]);
+    }, [showDemoData, flexibleCategories]);
 
     useEffect(() => { window.localStorage.setItem(T_KEY, JSON.stringify(rawState.transactions)); }, [rawState.transactions, T_KEY]);
     useEffect(() => { window.localStorage.setItem(TAGS_KEY, JSON.stringify(rawState.tags)); }, [rawState.tags, TAGS_KEY]);
@@ -189,10 +194,22 @@ export const useTransactionData = ({ showConfirmation, closeTransactionDetail, c
     }, [liveTransactions, showDemoData, demoData]);
     
     const allAvailableTags = useMemo(() => {
-        return showDemoData && demoData
-            ? [...demoData.tags, ...liveTags]
-            : liveTags;
+        const base = liveTags;
+        if (showDemoData && demoData) {
+            const liveTagNames = new Set(base.map(t => t.name.toLowerCase()));
+            const uniqueDemoTags = demoData.tags.filter(dt => !liveTagNames.has(dt.name.toLowerCase()));
+            return [...uniqueDemoTags, ...base];
+        }
+        return base;
     }, [liveTags, showDemoData, demoData]);
+
+    const transactionGroups = useMemo(() => {
+        const base = liveTransactionGroups;
+        if (showDemoData && demoData) {
+            return [...demoData.transactionGroups, ...base];
+        }
+        return base;
+    }, [liveTransactionGroups, showDemoData, demoData]);
 
     const recurringTransactions = useMemo(() => rawState.recurring.filter(r => !r.isDeleted), [rawState.recurring]);
     const tagMap = useMemo(() => new Map(allAvailableTags.map(t => [t.id, t.name])), [allAvailableTags]);
@@ -604,7 +621,7 @@ export const useTransactionData = ({ showConfirmation, closeTransactionDetail, c
     }, [rawState.transactions, rawState.transactionGroups]);
 
     return {
-        transactions, recurringTransactions, allAvailableTags, tagMap, selectTotalSpentForMonth, totalSpentThisMonth, transactionGroups: liveTransactionGroups,
+        transactions, recurringTransactions, allAvailableTags, tagMap, selectTotalSpentForMonth, totalSpentThisMonth, transactionGroups,
         rawTransactions: rawState.transactions, rawRecurringTransactions: rawState.recurring, rawAllAvailableTags: rawState.tags, rawTransactionGroups: rawState.transactionGroups,
         setTransactions: (data: Transaction[]) => dispatch({type: 'SET_TRANSACTIONS', payload: data}),
         setAllAvailableTags: (data: Tag[]) => dispatch({type: 'SET_TAGS', payload: data}),

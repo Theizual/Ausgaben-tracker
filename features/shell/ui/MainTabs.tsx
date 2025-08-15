@@ -1,17 +1,18 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { LayoutGrid, Repeat, BarChart2, Tags } from '@/shared/ui';
+import { LayoutGrid, Repeat, BarChart2, Tags, ChefHat } from '@/shared/ui';
 
 // Responsive MainTabs Component
 export const MainTabs: React.FC<{ 
     activeTab: string; 
-    setActiveTab: (tab: 'dashboard' | 'transactions' | 'statistics' | 'tags') => void;
+    setActiveTab: (tab: 'dashboard' | 'transactions' | 'statistics' | 'tags' | 'meal-plan') => void;
 }> = ({ activeTab, setActiveTab }) => {
     const tabs = [
         { id: 'dashboard', label: 'Übersicht', icon: LayoutGrid },
         { id: 'transactions', label: 'Transaktionen', icon: Repeat },
         { id: 'statistics', label: 'Statistiken', icon: BarChart2 },
         { id: 'tags', label: 'Tags', icon: Tags },
+        { id: 'meal-plan', label: 'Essensplanung', icon: ChefHat },
     ];
     
     return (

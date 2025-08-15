@@ -1,8 +1,6 @@
 {
-  "name": "AusgabenTracker KI 0.877",
+  "name": "AusgabenTracker KI 0.883 - Essensplan",
   "description": "Eine moderne, interaktive Single-Page-Anwendung zur Verfolgung von Ausgaben mit einem klaren Fokus auf Benutzerfreundlichkeit und Datenvisualisierung.",
-  "requestFramePermissions": [
-    "camera"
-  ],
+  "requestFramePermissions": [],
   "prompt": ""
 }

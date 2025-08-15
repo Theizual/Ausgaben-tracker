@@ -1,5 +1,16 @@
 [
     {
+        "version": "0.878",
+        "date": "20.08.2024, 09:00 Uhr",
+        "title": "KI-gestützter Belegscanner & Gemini-Integration",
+        "changes": [
+            "**Belege intelligent scannen:** Fügen Sie Ausgaben jetzt noch schneller hinzu, indem Sie Belege mit Ihrer Kamera scannen oder als Bild hochladen. Die KI erkennt automatisch Betrag, Beschreibung und schlägt eine passende Kategorie vor.",
+            "**Umstellung auf Gemini:** Die KI-Analyse wird nun durch das leistungsstarke Gemini-Modell von Google angetrieben, was für präzisere Ergebnisse sorgt.",
+            "**Aktivierung in den Einstellungen:** Die neuen KI-Funktionen können in den allgemeinen Einstellungen aktiviert oder deaktiviert werden.",
+            "**Verbesserte Schnelleingabe:** Die Schnelleingabe auf dem Dashboard wurde um die neuen KI-Buttons erweitert."
+        ]
+    },
+    {
         "version": "0.865",
         "date": "19.08.2024, 10:00 Uhr",
         "title": "Erweiterte Transaktionsgruppen & UI-Verbesserungen",

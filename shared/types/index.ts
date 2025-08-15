@@ -107,6 +107,42 @@ export interface UserSetting {
   conflicted?: boolean;
 }
 
+export interface MealPrefs {
+  base: 'nudeln' | 'reis' | 'kartoffeln' | 'mix';
+  sides: string[];
+  meatRate: 'none' | '1-2' | '3-5' | 'daily';
+  diet: {
+    vegetarian?: boolean;
+    glutenFree?: boolean;
+    lactoseFree?: boolean;
+  };
+  people: {
+    adults: number;
+    kids: number;
+  };
+  tipsEnabled: boolean;
+}
+
+export interface MealDay {
+  day: string;
+  recipeId: string;
+  title: string;
+  link: string;
+  side?: string;
+  servings: {
+    adults: number;
+    kids: number;
+  };
+  gramsPerServing: number;
+  priceEstimate: number;
+}
+
+export interface WeeklyPlan {
+  weekKey: string; // e.g., "2024-W34"
+  days: MealDay[];
+  totalEstimate: number;
+}
+
 export type ViewMode = 'woche' | 'monat';
 export type TransactionViewMode = 'list' | 'grid';
 export type PeriodType = 'last3Months' | 'month' | 'year' | 'custom';

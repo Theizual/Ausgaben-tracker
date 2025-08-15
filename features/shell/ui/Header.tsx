@@ -1,9 +1,10 @@
 
+
 import React from 'react';
 import type { User as UserType } from '@/shared/types';
 import Logo from '@/shared/ui/Logo';
 import { formatGermanDate } from '@/shared/utils/dateUtils';
-import { Loader2, RefreshCw, Settings } from '@/shared/ui';
+import { Loader2, RefreshCw, Settings, FlaskConical } from '@/shared/ui';
 import { UserSelector } from './UserSelector';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -15,7 +16,8 @@ export const Header: React.FC<{
     syncOperation: 'sync' | null;
     lastSync: string | null;
     deLocale: any;
-}> = ({ users, onSettingsClick, onSyncClick, syncOperation, lastSync, deLocale }) => {
+    showDemoData: boolean;
+}> = ({ users, onSettingsClick, onSyncClick, syncOperation, lastSync, deLocale, showDemoData }) => {
     const isSyncing = syncOperation !== null;
 
     const renderLastSyncText = () => {
@@ -32,6 +34,11 @@ export const Header: React.FC<{
         <div className="flex justify-between items-center py-2 sm:py-3">
             <Logo />
             <div className="flex items-center gap-1 sm:gap-2">
+                 {showDemoData && (
+                    <div className="hidden sm:flex items-center gap-1.5 bg-rose-900/70 text-rose-300 text-xs font-bold px-2 py-1 rounded-full" aria-label="Demodaten aktiv">
+                        Demo aktiv
+                    </div>
+                )}
                 <div className="text-right hidden sm:block">
                     <p className="text-slate-400 text-sm">{formatGermanDate(new Date(), deLocale)}</p>
                      <p className="text-xs text-slate-500">{renderLastSyncText()}</p>

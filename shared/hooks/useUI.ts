@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { format, subDays } from '@/shared/utils/dateUtils';
-import type { Transaction, ViewMode, PeriodType, QuickFilterId, SettingsTab, Category, User } from '@/shared/types';
+import type { Transaction, ViewMode, PeriodType, QuickFilterId, SettingsTab, Category, User, MealPrefs, WeeklyPlan } from '@/shared/types';
 import useLocalStorage from '@/shared/hooks/useLocalStorage';
 import type { CategoryFormData } from '@/features/settings/components/CategoryLibrarySettings';
 
@@ -10,7 +10,7 @@ export const useUI = (props?: { isDemoModeEnabled: boolean }) => {
     const prefix = isDemoModeEnabled ? 'demo_' : '';
     
     // General App Navigation
-    const [activeTab, setActiveTab] = useState<'dashboard' | 'transactions' | 'statistics' | 'tags'>('dashboard');
+    const [activeTab, setActiveTab] = useState<'dashboard' | 'transactions' | 'statistics' | 'tags' | 'meal-plan'>('dashboard');
 
     // Modals and Global UI Elements
     const [isSettingsOpen, setSettingsOpen] = useState(false);
@@ -59,6 +59,11 @@ export const useUI = (props?: { isDemoModeEnabled: boolean }) => {
         };
     });
     const [transactionActiveQuickFilter, setTransactionActiveQuickFilter] = useState<QuickFilterId | null>('current');
+
+    // MealPlanPage
+    const [mealPlanPrefs, setMealPlanPrefs] = useLocalStorage<MealPrefs | null>(`${prefix}mealPlanPrefs`, null);
+    const [weeklyMealPlans, setWeeklyMealPlans] = useLocalStorage<Record<string, WeeklyPlan>>(`${prefix}weeklyMealPlans`, {});
+    const [currentMealPlanWeek, setCurrentMealPlanWeek] = useState(new Date());
     
 
     // Callbacks for Modals
@@ -156,5 +161,13 @@ export const useUI = (props?: { isDemoModeEnabled: boolean }) => {
         userMergeModalInfo,
         openUserMergeModal,
         closeUserMergeModal,
+
+        // Meal Plan state
+        mealPlanPrefs,
+        setMealPlanPrefs,
+        weeklyMealPlans,
+        setWeeklyMealPlans,
+        currentMealPlanWeek,
+        setCurrentMealPlanWeek,
     };
 };

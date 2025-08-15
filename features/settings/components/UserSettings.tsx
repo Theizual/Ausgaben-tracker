@@ -1,18 +1,17 @@
 import React, { useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
-import { Button, Plus, Trash2, UserAvatar, ToggleSwitch, Info } from '@/shared/ui';
+import { Button, Plus, Trash2, UserAvatar } from '@/shared/ui';
 import { settingsContentAnimation } from '@/shared/lib/animations';
 
 const BASE_INPUT_CLASSES = "w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-rose-500";
 const TRANSPARENT_INPUT_CLASSES = "bg-transparent font-medium text-white w-full focus:outline-none focus:bg-slate-600/50 rounded px-2 py-1";
 
 export const UserSettings = () => {
-    const { users, addUser, updateUser, deleteUser, showDemoData, setShowDemoData } = useApp();
+    const { users, addUser, updateUser, deleteUser } = useApp();
     const [newUserName, setNewUserName] = useState('');
 
     const realUsers = users.filter(u => !u.isDemo);
-    const hasRealUsers = realUsers.length > 0;
 
     const handleAddUser = useCallback((e: React.FormEvent) => {
         e.preventDefault();
@@ -59,19 +58,6 @@ export const UserSettings = () => {
                     </div>
                 ))}
             </div>
-
-            {hasRealUsers && (
-                <div className="pt-6 mt-6 border-t border-slate-700/50">
-                    <h4 className="text-md font-semibold mb-3 text-white flex items-center gap-2"><Info className="h-5 w-5 text-sky-400" /> Demo-Modus</h4>
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <label htmlFor="show-demo-toggle" className="block text-sm font-medium text-slate-300">Demodaten anzeigen</label>
-                            <p className="text-xs text-slate-400 mt-1">Blendet Beispiel-Transaktionen in der gesamten App ein.</p>
-                        </div>
-                        <ToggleSwitch id="show-demo-toggle" enabled={showDemoData} setEnabled={setShowDemoData} />
-                    </div>
-                </div>
-            )}
         </motion.div>
     );
 };

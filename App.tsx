@@ -1,8 +1,3 @@
-
-
-
-
-
 import React, { useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Toaster } from 'react-hot-toast';
@@ -11,6 +6,7 @@ import { DashboardPage } from '@/features/dashboard';
 import { StatisticsPage } from '@/features/statistics';
 import { TransactionsPage } from '@/features/transactions';
 import { TagsPage } from '@/features/tags';
+import { MealPlanPage } from '@/features/meal-plan';
 import { SettingsModal } from '@/features/settings';
 import { ConfirmationModal } from '@/features/confirmation';
 import { TransactionDetailModal } from '@/features/transaction-detail';
@@ -55,6 +51,7 @@ const App = () => {
         // User State
         users,
         deLocale,
+        showDemoData,
     } = useApp();
 
     const [lastSeenVersion, setLastSeenVersion] = useLocalStorage('lastSeenVersion', '0.0.0');
@@ -83,6 +80,7 @@ const App = () => {
             case 'transactions': return <TransactionsPage />;
             case 'statistics': return <StatisticsPage />;
             case 'tags': return <TagsPage />;
+            case 'meal-plan': return <MealPlanPage />;
             default: return null;
         }
     };
@@ -114,6 +112,7 @@ const App = () => {
                         syncOperation={syncOperation}
                         lastSync={lastSync}
                         deLocale={deLocale}
+                        showDemoData={showDemoData}
                     />
                     {/* Responsive Tabs are now part of the sticky header */}
                     <MainTabs activeTab={activeTab} setActiveTab={setActiveTab} />

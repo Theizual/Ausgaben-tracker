@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
-import { FileText, Wallet, Info, ChevronRight, ToggleSwitch, Trash2, Button, DownloadCloud, Eye, Sparkles } from '@/shared/ui';
+import { FileText, Wallet, Info, ChevronRight, ToggleSwitch, Trash2, Button, DownloadCloud, Eye, Sparkles, FlaskConical } from '@/shared/ui';
 import { APP_VERSION } from '@/constants';
 import { settingsContentAnimation } from '@/shared/lib/animations';
 
@@ -12,6 +12,7 @@ export const GeneralSettings = () => {
         isAutoSyncEnabled, setIsAutoSyncEnabled, openChangelog, resetAppData, loadFromSheet,
         quickAddHideGroups, setQuickAddHideGroups,
         isAiEnabled, setIsAiEnabled,
+        showDemoData, setShowDemoData,
     } = useApp();
 
     return (
@@ -68,6 +69,17 @@ export const GeneralSettings = () => {
                             <p className="text-xs text-slate-400 mt-1">Ermöglicht das Scannen von Belegen per Kamera oder Bildupload.</p>
                         </div>
                         <ToggleSwitch id="ai-features-toggle" enabled={isAiEnabled} setEnabled={setIsAiEnabled} />
+                    </div>
+                </div>
+
+                 <div>
+                    <h4 className="text-md font-semibold mb-3 text-white flex items-center gap-2"><FlaskConical className="h-5 w-5 text-purple-400" /> Demo-Modus</h4>
+                    <div className="flex items-center justify-between pt-4 mt-4 border-t border-slate-700/50">
+                        <div>
+                            <label htmlFor="show-demo-toggle" className="block text-sm font-medium text-slate-300">Demodaten anzeigen</label>
+                            <p className="text-xs text-slate-400 mt-1">Blendet Beispiel-Transaktionen der letzten 3 Monate ein.</p>
+                        </div>
+                        <ToggleSwitch id="show-demo-toggle" enabled={showDemoData} setEnabled={setShowDemoData} />
                     </div>
                 </div>
 

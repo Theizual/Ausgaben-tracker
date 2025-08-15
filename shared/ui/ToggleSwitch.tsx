@@ -1,7 +1,7 @@
 import React, { FC } from 'react';
 import { clsx } from 'clsx';
 
-export const ToggleSwitch: FC<{ enabled: boolean; setEnabled: (enabled: boolean) => void; id?: string }> = ({ enabled, setEnabled, id }) => (
+export const ToggleSwitch: FC<{ enabled: boolean; setEnabled: (enabled: boolean) => void | Promise<void>; id?: string }> = ({ enabled, setEnabled, id }) => (
     <button
         id={id}
         type="button"
@@ -11,7 +11,10 @@ export const ToggleSwitch: FC<{ enabled: boolean; setEnabled: (enabled: boolean)
         )}
         role="switch"
         aria-checked={enabled}
-        onClick={() => setEnabled(!enabled)}
+        onClick={(e) => {
+            e.preventDefault();
+            setEnabled(!enabled);
+        }}
     >
         <span className="sr-only">Toggle</span>
         <span
