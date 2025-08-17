@@ -14,6 +14,8 @@ import { toast } from 'react-hot-toast';
 import { AddRecipeModal } from './components/AddRecipeModal';
 import { ShoppingListModal } from './components/ShoppingListModal';
 import { MealDetailModal } from './components/MealDetailModal';
+import { RecipePickerModal } from './components/RecipePickerModal';
+import type { Recipe } from './data/recipes';
 
 const MealPlanPage = () => {
     const { 
@@ -44,6 +46,7 @@ const MealPlanPage = () => {
     
     const currentPlan = useMemo(() => weeklyMealPlans[weekKey], [weeklyMealPlans, weekKey]);
     const allRecipes = useMemo(() => [...baseRecipes, ...customRecipes], [customRecipes]);
+    const recipeMap = useMemo(() => new Map(allRecipes.map(r => [r.id, r])), [allRecipes]);
 
     const createAndSavePlan = useCallback((forceCheap: boolean, forDate: Date) => {
         if (!mealPlanPrefs) return;
@@ -101,6 +104,41 @@ const MealPlanPage = () => {
         const newRecentIds = [...newPlan.days.map(d => d.recipeId), ...recentRecipeIds];
         setRecentRecipeIds(Array.from(new Set(newRecentIds)).slice(0, 50));
     };
+    
+    const handleSelectRecipe = (recipeId: string) => {
+        if (pickerDayIndex === null || !currentPlan) return;
+
+        const recipe = recipeMap.get(recipeId);
+        if (!recipe) {
+            toast.error("Rezept nicht gefunden.");
+            return;
+        }
+
+        const originalDay = currentPlan.days[pickerDayIndex];
+        const totalServings = originalDay.servings.adults + originalDay.servings.kids * 0.7;
+
+        const newMealDay: MealDay = {
+            ...originalDay,
+            recipeId: recipe.id,
+            title: recipe.title,
+            side: recipe.sideSuggestion,
+            estimatedPrice: recipe.estimatedPricePerServing * totalServings,
+            link: recipe.link,
+            priceOverride: undefined,
+            note: undefined,
+        };
+
+        const updatedDays = [...currentPlan.days];
+        updatedDays[pickerDayIndex] = newMealDay;
+
+        const updatedPlan: WeeklyPlan = { ...currentPlan, days: updatedDays };
+        updatedPlan.totalEstimate = updatedPlan.days.reduce((sum, day) => sum + (day.priceOverride ?? day.estimatedPrice), 0);
+        updatedPlan.totalOverride = updatedPlan.totalEstimate;
+
+
+        setWeeklyMealPlans(prev => ({ ...prev, [currentPlan.weekKey]: updatedPlan }));
+        setPickerDayIndex(null);
+    };
 
     const handleUndoReroll = () => {
         if (!undoState || !currentPlan) return;
@@ -112,11 +150,23 @@ const MealPlanPage = () => {
             days: updatedDays,
         };
         // Recalculate total
-        updatedPlan.totalEstimate = updatedPlan.days.reduce((sum, day) => sum + (day.priceOverride ?? day.estimatedPrice), 0);
+        updatedPlan.totalEstimate = updatedPlan.days.reduce((sum, day) => sum + day.estimatedPrice, 0);
+        updatedPlan.totalOverride = updatedPlan.days.reduce((sum, day) => sum + (day.priceOverride ?? day.estimatedPrice), 0);
         
         setWeeklyMealPlans(prev => ({...prev, [weekKey]: updatedPlan}));
         setUndoState(null);
     };
+
+    const handleToggleConfirm = useCallback((dayIndex: number) => {
+        if (!currentPlan) return;
+        
+        const updatedDays = currentPlan.days.map((d, i) => 
+            i === dayIndex ? { ...d, isConfirmed: !d.isConfirmed } : d
+        );
+        
+        const updatedPlan = { ...currentPlan, days: updatedDays };
+        setWeeklyMealPlans(prev => ({ ...prev, [weekKey]: updatedPlan }));
+    }, [currentPlan, setWeeklyMealPlans, weekKey]);
     
     if (!mealPlanPrefs) {
         return <MealSetup onSave={setMealPlanPrefs} />;
@@ -162,9 +212,11 @@ const MealPlanPage = () => {
                             >
                                 <MealCalendar 
                                     plan={currentPlan} 
+                                    allRecipes={allRecipes}
                                     onShoppingListClick={() => setIsShoppingListOpen(true)}
                                     onOpenDetail={setDetailDayIndex}
                                     onOpenPicker={setPickerDayIndex}
+                                    onToggleConfirm={handleToggleConfirm}
                                 />
                             </motion.div>
                         </AnimatePresence>
@@ -197,6 +249,16 @@ const MealPlanPage = () => {
                         mealDay={currentPlan.days[detailDayIndex]}
                         dayIndex={detailDayIndex}
                         onReroll={handleReroll}
+                    />
+                )}
+            </AnimatePresence>
+            <AnimatePresence>
+                {pickerDayIndex !== null && currentPlan && (
+                    <RecipePickerModal
+                        isOpen={pickerDayIndex !== null}
+                        onClose={() => setPickerDayIndex(null)}
+                        onSelectRecipe={handleSelectRecipe}
+                        currentRecipeId={currentPlan.days[pickerDayIndex].recipeId}
                     />
                 )}
             </AnimatePresence>

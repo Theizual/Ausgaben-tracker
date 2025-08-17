@@ -369,8 +369,17 @@ const ReadyAppProvider: React.FC<{
     
     // Auto-sync on data changes (respects user setting)
     const isInitialMount = useRef(true);
+    const isSyncingData = useRef(false);
+
+    useEffect(() => {
+        isSyncingData.current = syncStatus === 'syncing' || syncStatus === 'loading';
+    }, [syncStatus]);
+    
     useEffect(() => {
         if (isInitialMount.current) { isInitialMount.current = false; return; }
+        // Prevent sync from re-triggering itself after updating state
+        if (isSyncingData.current) return;
+        
         debouncedSync({ isAuto: true });
     }, [
         categoryState.rawCategories,
@@ -381,7 +390,6 @@ const ReadyAppProvider: React.FC<{
         transactionDataState.rawTransactionGroups,
         usersState.rawUsers,
         userSettingsState.rawUserSettings,
-        debouncedSync
     ]);
 
     // --- Global Persistence Wrappers ---

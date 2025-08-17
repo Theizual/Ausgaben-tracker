@@ -64,7 +64,8 @@ export const MealDetailModal: FC<MealDetailModalProps> = ({ isOpen, onClose, mea
             ...plan,
             days: updatedDays,
         };
-        updatedPlan.totalEstimate = updatedPlan.days.reduce((sum, day) => sum + (day.priceOverride ?? day.estimatedPrice), 0);
+        updatedPlan.totalEstimate = updatedPlan.days.reduce((sum, day) => sum + day.estimatedPrice, 0);
+        updatedPlan.totalOverride = updatedPlan.days.reduce((sum, day) => sum + (day.priceOverride ?? day.estimatedPrice), 0);
 
         setWeeklyMealPlans(prev => ({ ...prev, [planKey]: updatedPlan }));
 

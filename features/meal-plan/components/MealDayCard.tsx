@@ -2,15 +2,16 @@ import React, { FC, useMemo } from 'react';
 import { MealDay } from '@/shared/types';
 import { formatCurrency } from '@/shared/utils/dateUtils';
 import { ShieldCheck, RefreshCw, Beef, Fish, Soup, Salad, Pizza, Award, Zap, HandCoins, Flame, UtensilsCrossed, Carrot, Sprout, Utensils } from '@/shared/ui';
-import { useApp } from '@/contexts/AppContext';
 import { format, parseISO } from 'date-fns';
-import { recipes as baseRecipes } from '../data/recipes';
 import { clsx } from 'clsx';
+import type { Recipe } from '../data/recipes';
 
 interface MealDayCardProps {
     mealDay: MealDay;
+    recipe: Recipe | undefined;
     onOpenPicker: () => void;
     onOpenDetail: () => void;
+    onToggleConfirm: () => void;
 }
 
 const tagToIconMap: { [key: string]: FC<any> } = {
@@ -25,22 +26,11 @@ const baseToColorClass: Record<string, string> = {
     mix: 'border-slate-500',
 };
 
-export const MealDayCard: FC<MealDayCardProps> = ({ mealDay, onOpenPicker, onOpenDetail }) => {
-    const { weeklyMealPlans, setWeeklyMealPlans, customRecipes } = useApp();
-
-    const allRecipes = useMemo(() => [...baseRecipes, ...customRecipes], [customRecipes]);
-    const recipe = useMemo(() => allRecipes.find(r => r.id === mealDay.recipeId), [allRecipes, mealDay.recipeId]);
+export const MealDayCard: FC<MealDayCardProps> = ({ mealDay, recipe, onOpenPicker, onOpenDetail, onToggleConfirm }) => {
 
     const toggleConfirm = (e: React.MouseEvent) => {
         e.stopPropagation();
-        const plan = weeklyMealPlans[Object.keys(weeklyMealPlans).find(k => weeklyMealPlans[k].days.some(d => d.dateISO === mealDay.dateISO))!];
-        if (!plan) return;
-
-        const updatedDays = plan.days.map(d => 
-            d.dateISO === mealDay.dateISO ? { ...d, isConfirmed: !d.isConfirmed } : d
-        );
-        
-        setWeeklyMealPlans({ ...weeklyMealPlans, [plan.weekKey]: { ...plan, days: updatedDays }});
+        onToggleConfirm();
     };
     
     const handleOpenPicker = (e: React.MouseEvent) => {
