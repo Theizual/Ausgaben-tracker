@@ -9,9 +9,8 @@ import { iconMap, X, Edit, Trash2, Plus, FlaskConical, Link, getIconComponent, R
 import { PickerModals } from './ui/PickerModals';
 import { TagPill } from '@/shared/ui';
 import { modalBackdropAnimation, modalContentAnimation } from '@/shared/lib/animations';
-import { TransactionGroupPickerModal } from './ui/TransactionGroupPickerModal';
+import { MergePickerModal } from './ui/MergePickerModal';
 import { CorrectedBadge } from './ui/CorrectedBadge';
-import { JoinGroupModal } from './ui/JoinGroupModal';
 
 interface TransactionDetailModalProps {
     isOpen: boolean;
@@ -35,9 +34,9 @@ const TransactionDetailModal = ({
         transactionGroups,
         handleTransactionClick: showTransactionDetail,
         updateGroupedTransaction,
-        createTransactionGroup,
         removeTransactionFromGroup,
-        addTransactionsToGroup,
+        mergeTransactionWithTarget,
+        updateGroupVerifiedStatus
     } = useApp();
 
     const [formState, setFormState] = useState(transaction);
@@ -55,9 +54,7 @@ const TransactionDetailModal = ({
     const [isPickingUser, setIsPickingUser] = useState(false);
     const [isEditingTags, setIsEditingTags] = useState(false);
     const [isPickingIcon, setIsPickingIcon] = useState(false);
-    const [isJoiningGroup, setIsJoiningGroup] = useState(false);
-    const [isCreatingGroup, setIsCreatingGroup] = useState(false);
-    const [isAddingToGroup, setIsAddingToGroup] = useState(false);
+    const [isMerging, setIsMerging] = useState(false);
     
     const category = categoryMap.get(formState.categoryId);
     const Icon = getIconComponent(formState.iconOverride || category?.icon);
@@ -73,15 +70,16 @@ const TransactionDetailModal = ({
 
     const getTagNames = useCallback((t: Transaction) => (t.tagIds || []).map(id => tagMap.get(id)).filter((name): name is string => !!name), [tagMap]);
 
-    const { group, groupedTransactions, currentGroupTotal } = useMemo(() => {
-        if (!formState.transactionGroupId) return { group: null, groupedTransactions: [], currentGroupTotal: 0 };
+    const { group, groupedTransactions, currentGroupTotal, allInGroupVerified } = useMemo(() => {
+        if (!formState.transactionGroupId) return { group: null, groupedTransactions: [], currentGroupTotal: 0, allInGroupVerified: false };
         const groupData = transactionGroups.find(g => g.id === formState.transactionGroupId);
-        if (!groupData) return { group: null, groupedTransactions: [], currentGroupTotal: 0 };
+        if (!groupData) return { group: null, groupedTransactions: [], currentGroupTotal: 0, allInGroupVerified: false };
         const txsInGroup = allTransactions
-            .filter(t => t.transactionGroupId === formState.transactionGroupId)
+            .filter(t => t.transactionGroupId === formState.transactionGroupId && !t.isDeleted)
             .sort((a, b) => parseISO(b.createdAt).getTime() - parseISO(a.createdAt).getTime());
         const total = txsInGroup.reduce((sum, t) => sum + t.amount, 0);
-        return { group: groupData, groupedTransactions: txsInGroup, currentGroupTotal: total };
+        const allVerified = txsInGroup.length > 0 && txsInGroup.every(t => t.isVerified);
+        return { group: groupData, groupedTransactions: txsInGroup, currentGroupTotal: total, allInGroupVerified: allVerified };
     }, [formState.transactionGroupId, allTransactions, transactionGroups]);
 
     useEffect(() => {
@@ -97,9 +95,7 @@ const TransactionDetailModal = ({
             setIsPickingUser(false);
             setIsEditingTags(false);
             setIsPickingIcon(false);
-            setIsJoiningGroup(false);
-            setIsCreatingGroup(false);
-            setIsAddingToGroup(false);
+            setIsMerging(false);
         }
     }, [isOpen, transaction]);
 
@@ -110,9 +106,7 @@ const TransactionDetailModal = ({
         
         const handleKeyDown = (event: KeyboardEvent) => {
             if (event.key === 'Escape') {
-                if (isJoiningGroup) setIsJoiningGroup(false);
-                else if (isCreatingGroup) setIsCreatingGroup(false);
-                else if (isAddingToGroup) setIsAddingToGroup(false);
+                if (isMerging) setIsMerging(false);
                 else if (isPickingIcon) setIsPickingIcon(false);
                 else if (isEditingTags) setIsEditingTags(false);
                 else if (isPickingUser) setIsPickingUser(false);
@@ -130,13 +124,14 @@ const TransactionDetailModal = ({
             document.body.classList.remove('modal-open');
             window.removeEventListener('keydown', handleKeyDown);
         };
-    }, [isOpen, onClose, isEditingAmount, isPickingCategory, isEditingDate, isEditingDescription, isEditingNotes, isPickingUser, isEditingTags, isPickingIcon, isJoiningGroup, isCreatingGroup, isAddingToGroup]);
+    }, [isOpen, onClose, isEditingAmount, isPickingCategory, isEditingDate, isEditingDescription, isEditingNotes, isPickingUser, isEditingTags, isPickingIcon, isMerging]);
     
     const handleDelete = useCallback(() => {
         if (window.confirm(`Möchten Sie die Ausgabe "${transaction.description}" wirklich löschen?`)) {
             deleteTransaction(transaction.id);
+            onClose(); // Close modal after deletion
         }
-    }, [transaction, deleteTransaction]);
+    }, [transaction, deleteTransaction, onClose]);
 
     const getFormattedDate = (dateString: string, formatString: string) => {
         try {
@@ -235,12 +230,8 @@ const TransactionDetailModal = ({
     };
     
     const handleVerifiedToggle = (verified: boolean) => {
-        if (verified && !isVerified) {
-            if (window.confirm("Möchten Sie diese Transaktion als 'Geprüft' markieren? Danach kann sie nicht mehr bearbeitet oder gelöscht werden.")) {
-                handleUpdate({ isVerified: true });
-                toast.success("Transaktion als geprüft markiert.");
-            }
-        }
+        handleUpdate({ isVerified: verified });
+        toast.success(verified ? "Transaktion als geprüft markiert." : "Prüfstatus entfernt.");
     };
 
     const handleIconReset = () => {
@@ -253,23 +244,10 @@ const TransactionDetailModal = ({
         setIsPickingIcon(false);
     };
 
-    const handleCreateGroup = (selectedIds: string[]) => {
-        createTransactionGroup(selectedIds, formState.id);
-        setIsCreatingGroup(false);
+    const handleMergeConfirm = (targetTxId: string) => {
+        mergeTransactionWithTarget(formState.id, targetTxId);
+        setIsMerging(false);
     };
-
-    const handleAddTransactionsToGroup = (selectedIds: string[]) => {
-        if (formState.transactionGroupId) {
-            addTransactionsToGroup(formState.transactionGroupId, selectedIds);
-        }
-        setIsAddingToGroup(false);
-    };
-
-    const handleJoinExistingGroup = (groupId: string) => {
-        addTransactionsToGroup(groupId, [formState.id]);
-        setIsJoiningGroup(false);
-    };
-
 
     const handleResetCorrection = (txId: string) => {
         updateGroupedTransaction({ transactionId: txId, resetCorrection: true });
@@ -279,9 +257,6 @@ const TransactionDetailModal = ({
     const handleRemoveFromGroup = (txId: string) => {
         if(window.confirm("Möchten Sie diese Transaktion wirklich aus der Gruppe entfernen? Die Beträge der verbleibenden Einträge werden angepasst.")) {
             removeTransactionFromGroup(txId);
-            // After removing, this specific modal might need to close or refresh, 
-            // because the transaction is no longer part of the group.
-            // For now, it will just re-render without the group section.
         }
     };
 
@@ -296,11 +271,6 @@ const TransactionDetailModal = ({
         initial: { opacity: 0, y: -5 },
         animate: { opacity: 1, y: 0 },
     };
-    
-    const deleteButtonAnimation = {
-        whileHover: { scale: 1.05 },
-        whileTap: { scale: 0.98 },
-    };
 
     return (
         <>
@@ -309,15 +279,12 @@ const TransactionDetailModal = ({
                     <motion.div
                         className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50 p-4"
                         onClick={onClose}
-                        variants={modalBackdropAnimation}
-                        initial="initial"
-                        animate="animate"
-                        exit="exit"
+                        {...modalBackdropAnimation}
                     >
                         <motion.div
                             className="bg-slate-800 rounded-2xl w-full max-w-lg shadow-2xl border border-slate-700 flex flex-col overflow-hidden max-h-[90vh]"
                             onClick={e => e.stopPropagation()}
-                            variants={modalContentAnimation}
+                            {...modalContentAnimation}
                         >
                             <div className="overflow-y-auto custom-scrollbar">
                                 <>
@@ -328,11 +295,13 @@ const TransactionDetailModal = ({
                                         <AnimatePresence mode="wait">
                                             <motion.div
                                                 key={formState.id}
-                                                initial={{ opacity: 0 }}
-                                                animate={{ opacity: 1 }}
-                                                exit={{ opacity: 0 }}
-                                                transition={{ duration: 0.2 }}
                                                 className="w-full"
+                                                {...{
+                                                    initial: { opacity: 0 },
+                                                    animate: { opacity: 1 },
+                                                    exit: { opacity: 0 },
+                                                    transition: { duration: 0.2 },
+                                                }}
                                             >
                                                 <div className="relative mb-4 w-16 h-16 mx-auto">
                                                     <motion.button 
@@ -438,30 +407,6 @@ const TransactionDetailModal = ({
                                                 )}
                                             </div>
 
-                                            <div className="flex justify-between items-start pt-2">
-                                                <span className="text-slate-400 font-medium pt-1">Notiz</span>
-                                                <div className="w-2/3">
-                                                    {isEditingNotes ? (
-                                                        <motion.div {...inputAnimation}>
-                                                            <textarea
-                                                                value={notesValue}
-                                                                onChange={e => { if (e.target.value.length <= 280) setNotesValue(e.target.value) }}
-                                                                onBlur={handleNotesUpdate}
-                                                                onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleNotesUpdate() }}
-                                                                className="w-full bg-slate-700 border border-slate-600 rounded-md px-2 py-1 text-white text-sm focus:outline-none focus:ring-1 focus:ring-rose-500"
-                                                                rows={4}
-                                                                autoFocus
-                                                            />
-                                                            <p className="text-xs text-slate-500 text-right mt-1">{280 - notesValue.length}</p>
-                                                        </motion.div>
-                                                    ) : (
-                                                        <button onClick={() => !isVerified && !isDemo && (setNotesValue(formState.notes || ''), setIsEditingNotes(true))} disabled={isVerified || isDemo} className="w-full text-slate-200 font-medium rounded p-1 -m-1 disabled:cursor-not-allowed text-right whitespace-pre-wrap break-words min-h-[24px]">
-                                                            {formState.notes || <span className="text-slate-500 italic">Notiz hinzufügen...</span>}
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            </div>
-
                                             <div className="flex justify-between items-center pt-2">
                                                 <span className="text-slate-400 font-medium">Status</span>
                                                 {isDemo ? (
@@ -469,14 +414,9 @@ const TransactionDetailModal = ({
                                                         <FlaskConical className="h-3 w-3" />
                                                         Demo-Eintrag
                                                     </span>
-                                                ) : isVerified ? (
-                                                    <span className="flex items-center gap-1.5 bg-green-500/20 text-green-300 text-xs font-bold px-2 py-1 rounded-full">
-                                                        <ShieldCheck className="h-3 w-3" />
-                                                        Geprüft
-                                                    </span>
                                                 ) : (
-                                                     <div className="flex items-center gap-2" title="Geprüfte Transaktionen können nicht mehr bearbeitet oder gelöscht werden.">
-                                                        <label htmlFor="verify-toggle" className="text-sm text-slate-300 cursor-pointer">Als geprüft markieren</label>
+                                                     <div className="flex items-center gap-2" title="Geprüfte Transaktionen können nicht mehr bearbeitet werden.">
+                                                        <label htmlFor="verify-toggle" className="text-sm text-slate-300 cursor-pointer">Geprüft</label>
                                                         <ToggleSwitch id="verify-toggle" enabled={isVerified} setEnabled={handleVerifiedToggle} />
                                                     </div>
                                                 )}
@@ -486,11 +426,16 @@ const TransactionDetailModal = ({
                                         {/* Grouped Transactions Section */}
                                         {group && groupedTransactions.length > 0 && (
                                             <div className="w-full max-w-sm mt-4 pt-4 border-t border-slate-700/50">
-                                                <div className="flex justify-between items-baseline mb-3">
+                                                <div className="flex justify-between items-center mb-3">
                                                     <h3 className="text-sm font-semibold text-white flex items-center gap-2"><Link className="h-4 w-4 text-slate-400"/>Transaktionsgruppe</h3>
-                                                    <div className="text-xs text-right">
-                                                        <p className="text-slate-400">Soll: <span className="font-bold text-white">{formatCurrency(group.targetAmount)}</span></p>
-                                                        <p className={currentGroupTotal.toFixed(2) !== group.targetAmount.toFixed(2) ? 'text-red-400' : 'text-slate-400'}>Ist: <span className="font-bold text-white">{formatCurrency(currentGroupTotal)}</span></p>
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="text-xs text-right">
+                                                            <p className="text-slate-400">Soll: <span className="font-bold text-white">{formatCurrency(group.targetAmount)}</span></p>
+                                                            <p className={currentGroupTotal.toFixed(2) !== group.targetAmount.toFixed(2) ? 'text-red-400' : 'text-slate-400'}>Ist: <span className="font-bold text-white">{formatCurrency(currentGroupTotal)}</span></p>
+                                                        </div>
+                                                        <div title="Gruppe als geprüft markieren">
+                                                            <ToggleSwitch id="group-verify-toggle" enabled={allInGroupVerified} setEnabled={(v) => updateGroupVerifiedStatus(group.id, v)} />
+                                                        </div>
                                                     </div>
                                                 </div>
                                                 <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
@@ -523,8 +468,8 @@ const TransactionDetailModal = ({
                                                     })}
                                                 </div>
                                                  <div className="flex justify-end gap-2 mt-3">
-                                                    <Button variant="secondary" size="sm" onClick={() => setIsAddingToGroup(true)} disabled={isVerified || isDemo}>
-                                                        <PlusCircle className="h-4 w-4 mr-2" /> Hinzufügen
+                                                    <Button variant="secondary" size="sm" onClick={() => setIsMerging(true)} disabled={isVerified || isDemo}>
+                                                        <Link className="h-4 w-4 mr-2" /> Verknüpfen...
                                                     </Button>
                                                     <Button variant="secondary" size="sm" onClick={() => handleRemoveFromGroup(formState.id)} disabled={isVerified || isDemo}>Aus Gruppe entfernen</Button>
                                                 </div>
@@ -533,15 +478,14 @@ const TransactionDetailModal = ({
                                         
                                         {!formState.transactionGroupId && !isDemo && (
                                             <div className="w-full max-w-sm mt-4 pt-4 border-t border-slate-700/50">
-                                                 <Button variant="secondary" onClick={() => setIsJoiningGroup(true)} disabled={isVerified || isDemo}>
-                                                    <Link className="h-4 w-4 mr-2"/> Transaktionen verknüpfen
+                                                 <Button variant="secondary" onClick={() => setIsMerging(true)} disabled={isVerified || isDemo}>
+                                                    <Link className="h-4 w-4 mr-2"/> Mit Transaktion/Gruppe verknüpfen...
                                                 </Button>
                                             </div>
                                         )}
 
-
-                                        {/* Tags Section */}
-                                        <div className="w-full max-w-sm mt-4 pt-4 border-t border-slate-700/50">
+                                        {/* Tags & Notes Section */}
+                                        <div className="w-full max-w-sm mt-4 pt-4 border-t border-slate-700/50 space-y-3">
                                              <button onClick={() => !isVerified && !isDemo && setIsEditingTags(true)} disabled={isVerified || isDemo} className="w-full text-left rounded-lg p-1 -m-1 disabled:cursor-not-allowed" title={isVerified ? "Geprüfte Transaktionen können nicht bearbeitet werden" : (isDemo ? "Demo-Tags können nicht geändert werden" : "Tags bearbeiten")}>
                                                  <h3 className="text-sm font-semibold text-white mb-2">Tags</h3>
                                                 {localTags.length > 0 ? (
@@ -552,24 +496,46 @@ const TransactionDetailModal = ({
                                                     <p className="text-slate-500 text-center">Keine Tags hinzugefügt</p>
                                                 )}
                                              </button>
+                                             
+                                              <div className="w-full pt-2">
+                                                <h3 className="text-sm font-semibold text-white text-center mb-2">Notiz</h3>
+                                                {isEditingNotes ? (
+                                                    <motion.div {...inputAnimation}>
+                                                        <textarea
+                                                            value={notesValue}
+                                                            onChange={e => { if (e.target.value.length <= 280) setNotesValue(e.target.value) }}
+                                                            onBlur={handleNotesUpdate}
+                                                            onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleNotesUpdate() }}
+                                                            className="w-full bg-slate-700 border border-slate-600 rounded-md px-2 py-1 text-white text-sm focus:outline-none focus:ring-1 focus:ring-rose-500"
+                                                            rows={3}
+                                                            autoFocus
+                                                        />
+                                                        <p className="text-xs text-slate-500 text-right mt-1">{280 - notesValue.length}</p>
+                                                    </motion.div>
+                                                ) : (
+                                                    <button onClick={() => !isVerified && !isDemo && (setNotesValue(formState.notes || ''), setIsEditingNotes(true))} disabled={isVerified || isDemo} className="w-full text-slate-300 rounded p-1 -m-1 disabled:cursor-not-allowed text-center min-h-[24px]">
+                                                        <p className="italic whitespace-pre-wrap break-words">
+                                                            {formState.notes || <span className="text-slate-500 not-italic">Notiz hinzufügen...</span>}
+                                                        </p>
+                                                    </button>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
-                                    
-                                    {!isDemo && (
-                                        <div className="p-4 bg-slate-900/50 flex justify-end">
-                                            <motion.button
-                                                {...deleteButtonAnimation}
-                                                onClick={handleDelete}
-                                                disabled={isVerified || isDemo}
-                                                className="flex items-center gap-2 text-sm font-semibold text-red-400 hover:text-red-300 hover:bg-red-500/10 px-4 py-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-red-400"
-                                                title={isVerified ? "Geprüfte Transaktionen können nicht gelöscht werden" : "Löschen"}
-                                            >
-                                                <Trash2 className="h-4 w-4" />
-                                                Löschen
-                                            </motion.button>
-                                        </div>
-                                    )}
                                 </>
+                            </div>
+                            <div className="flex-shrink-0 p-4 bg-slate-900/50 flex justify-between items-center border-t border-slate-700">
+                                {!isDemo ? (
+                                    <Button variant="destructive" onClick={handleDelete} disabled={isVerified}>
+                                        <Trash2 className="h-4 w-4 mr-2" />
+                                        Löschen
+                                    </Button>
+                                ) : (
+                                    <div /> // Placeholder to keep layout consistent
+                                )}
+                                <Button variant="primary" onClick={onClose}>
+                                    OK
+                                </Button>
                             </div>
                         </motion.div>
                     </motion.div>
@@ -590,28 +556,13 @@ const TransactionDetailModal = ({
                 setIsPickingIcon={setIsPickingIcon}
                 handleIconUpdate={handleIconUpdate}
             />
-            <AnimatePresence>
-                {isJoiningGroup && (
-                    <JoinGroupModal
-                        isOpen={isJoiningGroup}
-                        onClose={() => setIsJoiningGroup(false)}
-                        onJoinGroup={handleJoinExistingGroup}
-                        onCreateGroup={() => setIsCreatingGroup(true)}
-                        sourceTransactionId={formState.id}
-                    />
-                )}
-            </AnimatePresence>
              <AnimatePresence>
-                {(isCreatingGroup || isAddingToGroup) && (
-                    <TransactionGroupPickerModal
-                        isOpen={isCreatingGroup || isAddingToGroup}
-                        onClose={() => {
-                            setIsCreatingGroup(false);
-                            setIsAddingToGroup(false);
-                        }}
-                        onConfirm={isAddingToGroup ? handleAddTransactionsToGroup : handleCreateGroup}
+                {isMerging && (
+                    <MergePickerModal
+                        isOpen={isMerging}
+                        onClose={() => setIsMerging(false)}
+                        onConfirm={handleMergeConfirm}
                         sourceTransactionId={formState.id}
-                        existingGroupId={isAddingToGroup ? formState.transactionGroupId : undefined}
                     />
                 )}
             </AnimatePresence>

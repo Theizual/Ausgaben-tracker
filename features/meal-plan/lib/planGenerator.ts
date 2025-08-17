@@ -1,6 +1,6 @@
 import type { MealPrefs, WeeklyPlan, MealDay } from '@/shared/types';
 import type { Recipe } from '../data/recipes';
-import { getWeek, startOfWeek, format, addDays } from 'date-fns';
+import { getWeek, startOfWeek, format, addDays, getDay } from 'date-fns';
 import { de } from 'date-fns/locale';
 
 const shuffleArray = <T,>(array: T[]): T[] => {
@@ -22,71 +22,111 @@ const getMeatCount = (rate: MealPrefs['meatRate'], totalDays: number = 7): numbe
     }
 };
 
-export const generatePlan = (prefs: MealPrefs, allRecipes: readonly Recipe[], forceCheap: boolean): WeeklyPlan => {
-    const weekKey = `${new Date().getFullYear()}-W${getWeek(new Date(), { weekStartsOn: 1 })}`;
+interface GeneratePlanArgs {
+    prefs: MealPrefs;
+    allRecipes: readonly Recipe[];
+    recentRecipeIds: string[];
+    forceCheap: boolean;
+    targetDate: Date;
+    existingPlan?: WeeklyPlan;
+    dayToReroll?: number;
+}
+
+export const generatePlan = ({ prefs, allRecipes, recentRecipeIds, forceCheap, targetDate, existingPlan, dayToReroll }: GeneratePlanArgs): WeeklyPlan => {
+    const weekStart = startOfWeek(targetDate, { weekStartsOn: 1 });
+    const weekKey = `${weekStart.getFullYear()}-W${getWeek(weekStart, { weekStartsOn: 1 })}`;
     
-    // 1. Filter recipes based on preferences
+    // 1. Initial Filter Pipeline
     let filtered = allRecipes.filter(r => {
-        if (prefs.diet.vegetarian && r.tags.includes('meat')) return false;
-        if (prefs.diet.glutenFree && r.tags.includes('glutenFree') === false) return false;
-        if (prefs.diet.lactoseFree && r.tags.includes('lactoseFree') === false) return false;
+        if (prefs.excludeTags.some(tag => r.tags.includes(tag))) return false;
+        if (prefs.diet.vegetarian && r.tags.includes('Fleisch')) return false;
         if (prefs.base !== 'mix' && r.base !== prefs.base) return false;
         return true;
     });
 
     if (forceCheap) {
-        filtered = filtered.filter(r => r.tags.includes('cheap'));
+        filtered = filtered.filter(r => r.tags.includes('Günstig'));
     }
 
-    // 2. Separate meat/fish and vegetarian recipes
-    const meatRecipes = shuffleArray(filtered.filter(r => r.tags.includes('meat') || r.tags.includes('fish')));
-    const vegRecipes = shuffleArray(filtered.filter(r => !r.tags.includes('meat') && !r.tags.includes('fish')));
-
-    // 3. Select recipes for the week
-    const meatCount = getMeatCount(prefs.meatRate);
-    const vegCount = 7 - meatCount;
-    
-    let weeklyRecipes = [
-        ...meatRecipes.slice(0, meatCount),
-        ...vegRecipes.slice(0, vegCount),
-    ];
-    
-    // Fill up if not enough recipes were found
-    while (weeklyRecipes.length < 7 && filtered.length > 0) {
-        weeklyRecipes.push(filtered[Math.floor(Math.random() * filtered.length)]);
-    }
-    weeklyRecipes = shuffleArray(weeklyRecipes);
-    
-    // 4. Create day-by-day plan
-    const totalServings = prefs.people.adults + prefs.people.kids * 0.6;
-    const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
+    // 2. Prepare for selection
+    const favoriteIds = new Set(prefs.favoriteRecipeIds);
+    const recentIds = new Set(recentRecipeIds);
+    const planRecipeIds = new Set(existingPlan?.days.map(d => d.recipeId));
 
     const days: MealDay[] = [];
-    let totalEstimate = 0;
+    
+    const totalServings = prefs.people.adults + prefs.people.kids * 0.7;
 
     for (let i = 0; i < 7; i++) {
-        const recipe = weeklyRecipes[i] || weeklyRecipes[0]; // Fallback to first recipe
         const dayDate = addDays(weekStart, i);
-        const dayName = format(dayDate, 'EEEE', { locale: de });
+        const dayOfWeek = getDay(dayDate); // Sunday is 0, Saturday is 6
+        const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+        
+        const existingDay = existingPlan?.days[i];
 
-        const priceEstimate = (recipe.gramsPerServing / 100) * recipe.pricePer100g * totalServings;
-        totalEstimate += priceEstimate;
+        // Keep day if it's confirmed, unless we are explicitly rerolling this specific day
+        if (existingDay?.isConfirmed && dayToReroll !== i) {
+            days.push(existingDay);
+            continue;
+        }
+
+        // Keep day if we are rerolling a *different* single day
+        if (dayToReroll !== undefined && dayToReroll !== i) {
+            days.push(existingDay!); // We know existingDay is defined here
+            continue;
+        }
+        
+        // De-duping logic
+        let candidatePool = filtered.filter(r => 
+            !planRecipeIds.has(r.id) || r.id === existingDay?.recipeId
+        );
+        candidatePool = candidatePool.filter(r => 
+            favoriteIds.has(r.id) || !recentIds.has(r.id)
+        );
+
+        // Premium logic for weekends
+        const premiumPool = candidatePool.filter(r => r.isPremium);
+        const regularPool = candidatePool.filter(r => !r.isPremium);
+
+        let selectedRecipe: Recipe | undefined;
+        if (isWeekend && premiumPool.length > 0 && Math.random() > 0.3) { // 70% chance for premium on weekend
+            selectedRecipe = shuffleArray(premiumPool)[0];
+        } else if (regularPool.length > 0) {
+            selectedRecipe = shuffleArray(regularPool)[0];
+        } else if (candidatePool.length > 0) { // Fallback to any candidate
+            selectedRecipe = shuffleArray(candidatePool)[0];
+        } else { // Ultimate fallback
+            selectedRecipe = shuffleArray([...allRecipes])[0];
+        }
+        
+        planRecipeIds.add(selectedRecipe.id);
+        if (existingDay?.recipeId) {
+            planRecipeIds.delete(existingDay.recipeId);
+        }
+
+        const price = selectedRecipe.estimatedPricePerServing * totalServings;
         
         days.push({
-            day: dayName,
-            recipeId: recipe.id,
-            title: recipe.title,
-            link: recipe.link,
-            side: recipe.sideSuggestion,
+            day: format(dayDate, 'EEEE', { locale: de }),
+            dateISO: dayDate.toISOString(),
+            recipeId: selectedRecipe.id,
+            title: selectedRecipe.title,
+            side: selectedRecipe.sideSuggestion,
             servings: prefs.people,
-            gramsPerServing: recipe.gramsPerServing,
-            priceEstimate: priceEstimate
+            estimatedPrice: price,
+            link: selectedRecipe.link,
+            isConfirmed: existingDay?.isConfirmed || false,
         });
     }
+
+    const finalTotal = days.reduce((sum, day) => sum + (day.priceOverride ?? day.estimatedPrice), 0);
+    const finalTotalWithOverrides = days.reduce((sum, day) => sum + (day.priceOverride ?? day.estimatedPrice), 0);
+
 
     return {
         weekKey,
         days,
-        totalEstimate,
+        totalEstimate: finalTotal,
+        totalOverride: finalTotalWithOverrides,
     };
 };

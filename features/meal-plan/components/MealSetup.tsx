@@ -14,7 +14,12 @@ const defaultPrefs: MealPrefs = {
     meatRate: '1-2',
     sides: [],
     tipsEnabled: true,
+    excludeTags: [],
+    favoriteRecipeIds: [],
 };
+
+const EXCLUDABLE_TAGS = ['Schwein', 'Fisch', 'Meeresfrüchte', 'Pilze', 'Scharf', 'Koriander', 'Lamm', 'Innereien', 'Käse'];
+
 
 export const MealSetup: FC<MealSetupProps> = ({ onSave }) => {
     const [prefs, setPrefs] = useState<MealPrefs>(defaultPrefs);
@@ -36,6 +41,15 @@ export const MealSetup: FC<MealSetupProps> = ({ onSave }) => {
     
     const setDiet = (type: 'vegetarian' | 'glutenFree' | 'lactoseFree', checked: boolean) => {
         setPrefs(p => ({ ...p, diet: { ...p.diet, [type]: checked } }));
+    };
+
+    const toggleExcludeTag = (tag: string) => {
+        setPrefs(p => {
+            const newExcludes = p.excludeTags.includes(tag)
+                ? p.excludeTags.filter(t => t !== tag)
+                : [...p.excludeTags, tag];
+            return { ...p, excludeTags: newExcludes };
+        });
     };
 
     return (
@@ -79,6 +93,23 @@ export const MealSetup: FC<MealSetupProps> = ({ onSave }) => {
                         {(['mix', 'nudeln', 'reis', 'kartoffeln'] as const).map(base => <button key={base} onClick={() => setPrefs(p => ({ ...p, base }))} className={`px-3 py-1.5 text-sm font-semibold rounded-full ${prefs.base === base ? 'bg-rose-600 text-white' : 'text-slate-300 hover:bg-slate-700'}`}>{{mix: 'Mix', nudeln: 'Nudeln', reis: 'Reis', kartoffeln: 'Kartoffeln'}[base]}</button>)}
                     </div>
                 </div>
+                
+                {/* Excludes */}
+                <div>
+                    <h3 className="font-semibold text-white mb-2">Was isst du nicht gerne?</h3>
+                    <div className="flex flex-wrap gap-2">
+                        {EXCLUDABLE_TAGS.map(tag => (
+                            <button
+                                key={tag}
+                                onClick={() => toggleExcludeTag(tag)}
+                                className={`px-3 py-1 text-sm font-semibold rounded-full border-2 transition-colors ${prefs.excludeTags.includes(tag) ? 'bg-red-500/20 border-red-500 text-white' : 'border-slate-600 text-slate-300 hover:border-slate-500'}`}
+                            >
+                                {tag}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
 
                 <div className="pt-4">
                     <Button onClick={handleSave} className="w-full">Plan erstellen & Speichern</Button>

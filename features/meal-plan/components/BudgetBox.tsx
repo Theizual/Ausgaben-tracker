@@ -39,12 +39,16 @@ export const BudgetBox: FC<BudgetBoxProps> = ({ plan, onBudgetStatusChange }) =>
 
         return { foodBudget: budget, foodSpending: spending };
     }, [categoryMap, groupMap, flexibleCategories, transactions]);
+    
+    const totalWithOverrides = useMemo(() => {
+        if (!plan) return 0;
+        return plan.days.reduce((sum, day) => sum + (day.priceOverride ?? day.estimatedPrice), 0);
+    }, [plan]);
 
-    const totalEstimate = plan?.totalEstimate || 0;
     const remainingBudget = foodBudget - foodSpending;
-    const budgetAfterPlan = remainingBudget - totalEstimate;
+    const budgetAfterPlan = remainingBudget - totalWithOverrides;
     const percentageUsed = foodBudget > 0 ? (foodSpending / foodBudget) * 100 : 0;
-    const percentageAfterPlan = foodBudget > 0 ? ((foodSpending + totalEstimate) / foodBudget) * 100 : (totalEstimate > 0 ? 101 : 0);
+    const percentageAfterPlan = foodBudget > 0 ? ((foodSpending + totalWithOverrides) / foodBudget) * 100 : (totalWithOverrides > 0 ? 101 : 0);
 
     const getStatus = (percentage: number): { color: string; text: string; isTight: boolean } => {
         if (percentage > 100) return { color: 'bg-red-500', text: 'Budget überschritten', isTight: true };
@@ -67,7 +71,7 @@ export const BudgetBox: FC<BudgetBoxProps> = ({ plan, onBudgetStatusChange }) =>
 
             <div className="flex justify-between items-baseline">
                 <span className="text-slate-400">Prognose für diese Woche:</span>
-                <span className="text-xl font-bold text-white">{formatCurrency(totalEstimate)}</span>
+                <span className="text-xl font-bold text-white">{formatCurrency(totalWithOverrides)}</span>
             </div>
 
             <div className="pt-4 border-t border-slate-700/50 space-y-3">

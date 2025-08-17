@@ -30,7 +30,7 @@ import {
   Truck, Tv, Tv2, TvMinimalPlay, Twitch, Twitter, Umbrella, University, User,
   Users, Utensils, UtensilsCrossed, Vegan, VenetianMask, Video, Videotape,
   Volleyball, Wallet, Watch, Waves, Wifi, Wine, Wrench, X, Youtube, Zap,
-  Minus, ArrowLeftRight, ArrowUpDown, Camera, Upload
+  Minus, ArrowLeftRight, ArrowUpDown, Camera, Upload, Lock, LockOpen, Undo2, Wheat
 } from 'lucide-react';
 import type { LucideProps } from 'lucide-react';
 import type { FC } from 'react';
@@ -67,7 +67,7 @@ export const iconMap: { [key: string]: FC<LucideProps> } = {
   Truck, Tv, Tv2, TvMinimalPlay, Twitch, Twitter, Umbrella, University, User,
   Users, Utensils, UtensilsCrossed, Vegan, VenetianMask, Video, Videotape,
   Volleyball, Wallet, Watch, Waves, Wifi, Wine, Wrench, X, Youtube, Zap,
-  Minus, ArrowLeftRight, ArrowUpDown, Camera, Upload
+  Minus, ArrowLeftRight, ArrowUpDown, Camera, Upload, Lock, LockOpen, Undo2, Wheat
 };
 
 export {
@@ -102,7 +102,7 @@ export {
   Twitch, Twitter, Umbrella, University, User, Users, Utensils, UtensilsCrossed,
   Vegan, VenetianMask, Video, Videotape, Volleyball, Wallet, Watch, Waves, Wifi,
   Wine, Wrench, X, Youtube, Zap,
-  Minus, ArrowLeftRight, ArrowUpDown, Camera, Upload
+  Minus, ArrowLeftRight, ArrowUpDown, Camera, Upload, Lock, LockOpen, Undo2, Wheat
 };
 
 /** Fallback liefert ein valides Icon, wenn key unbekannt. */

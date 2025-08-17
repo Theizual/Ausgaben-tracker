@@ -620,6 +620,42 @@ export const useTransactionData = ({ showConfirmation, closeTransactionDetail, c
         toast.success(`${transactionIdsToAdd.length} Transaktion(en) zur Gruppe hinzugefügt.`);
     }, [rawState.transactions, rawState.transactionGroups]);
 
+    const mergeTransactionWithTarget = useCallback((sourceId: string, targetId: string) => {
+        const sourceTx = rawState.transactions.find(t => t.id === sourceId);
+        const targetTx = rawState.transactions.find(t => t.id === targetId);
+
+        if (!sourceTx || !targetTx) {
+            toast.error("Transaktionen nicht gefunden.");
+            return;
+        }
+
+        if (targetTx.transactionGroupId) {
+            // Target is in a group, add source to it
+            addTransactionsToGroup(targetTx.transactionGroupId, [sourceId]);
+        } else {
+            // Neither is in a group, create a new one
+            createTransactionGroup([targetId], sourceId);
+        }
+        closeTransactionDetail();
+    }, [rawState.transactions, addTransactionsToGroup, createTransactionGroup, closeTransactionDetail]);
+
+    const updateGroupVerifiedStatus = useCallback((groupId: string, verified: boolean) => {
+        const now = new Date().toISOString();
+        const transactionsToUpdate = rawState.transactions
+            .filter(t => t.transactionGroupId === groupId && !t.isDeleted)
+            .map(t => ({
+                ...t,
+                isVerified: verified,
+                lastModified: now,
+                version: (t.version || 0) + 1,
+            }));
+        
+        if (transactionsToUpdate.length > 0) {
+            dispatch({ type: 'UPDATE_MULTIPLE_TRANSACTIONS', payload: transactionsToUpdate });
+            toast.success(`Gruppe als ${verified ? 'geprüft' : 'ungeprüft'} markiert.`);
+        }
+    }, [rawState.transactions]);
+
     return {
         transactions, recurringTransactions, allAvailableTags, tagMap, selectTotalSpentForMonth, totalSpentThisMonth, transactionGroups,
         rawTransactions: rawState.transactions, rawRecurringTransactions: rawState.recurring, rawAllAvailableTags: rawState.tags, rawTransactionGroups: rawState.transactionGroups,
@@ -635,5 +671,7 @@ export const useTransactionData = ({ showConfirmation, closeTransactionDetail, c
         updateGroupedTransaction,
         removeTransactionFromGroup,
         addTransactionsToGroup,
+        mergeTransactionWithTarget,
+        updateGroupVerifiedStatus,
     };
 };

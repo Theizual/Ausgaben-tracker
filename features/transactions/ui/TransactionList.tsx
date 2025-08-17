@@ -1,16 +1,10 @@
-
-
-
-
-
-
 import React, { FC, useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
 import type { Transaction } from '@/shared/types';
 import { format, parseISO, isToday, isYesterday, startOfWeek, endOfWeek, getWeek, isValid, startOfDay, endOfDay } from 'date-fns';
 import { formatCurrency } from '@/shared/utils/dateUtils';
-import { Search } from '@/shared/ui';
+import { Search, Link } from '@/shared/ui';
 import { StandardTransactionItem } from '@/shared/ui';
 
 type GroupedTransactions = {
@@ -18,6 +12,41 @@ type GroupedTransactions = {
     total: number;
     transactions: Transaction[];
 }[];
+
+const TransactionGroupVisual: FC<{ transactions: Transaction[], onClick: (t: Transaction) => void }> = ({ transactions, onClick }) => {
+    const { transactionGroups } = useApp();
+    const groupId = transactions[0]?.transactionGroupId;
+    const groupInfo = transactionGroups.find(g => g.id === groupId);
+    const groupTotal = groupInfo?.targetAmount ?? transactions.reduce((sum, t) => sum + t.amount, 0);
+
+    return (
+        <div className="relative pl-4 my-2">
+            {/* Connecting line */}
+            <div className="absolute top-2 bottom-2 left-0 w-0.5 bg-slate-700 rounded-full" />
+
+            {/* Group Header */}
+            <div className="flex items-center gap-2 mb-1 text-xs text-slate-400">
+                <Link className="h-3 w-3" />
+                <span>Gruppe ({transactions.length} Einträge)</span>
+                <span className="font-bold text-slate-300">{formatCurrency(groupTotal)}</span>
+            </div>
+
+            {/* Transactions */}
+            <div className="space-y-1">
+                {transactions.map(t => (
+                    <StandardTransactionItem
+                        key={t.id}
+                        transaction={t}
+                        onClick={() => onClick(t)}
+                        showSublineInList='category'
+                        density='normal'
+                    />
+                ))}
+            </div>
+        </div>
+    );
+};
+
 
 export const TransactionList: FC = () => {
     const { 
@@ -124,6 +153,36 @@ export const TransactionList: FC = () => {
         }).sort((a, b) => parseISO(b.transactions[0].date).getTime() - parseISO(a.transactions[0].date).getTime());
     }, [filteredTransactions, transactionActiveQuickFilter, deLocale]);
 
+    const renderGroupedTransactions = (transactions: Transaction[]) => {
+        const elements = [];
+        let i = 0;
+        while (i < transactions.length) {
+            const currentTx = transactions[i];
+            if (currentTx.transactionGroupId) {
+                const groupChunk = [currentTx];
+                let j = i + 1;
+                while (j < transactions.length && transactions[j].transactionGroupId === currentTx.transactionGroupId) {
+                    groupChunk.push(transactions[j]);
+                    j++;
+                }
+                elements.push(<TransactionGroupVisual key={`group-${currentTx.transactionGroupId}-${i}`} transactions={groupChunk} onClick={handleTransactionClick} />);
+                i = j;
+            } else {
+                elements.push(
+                     <StandardTransactionItem
+                        key={currentTx.id}
+                        transaction={currentTx}
+                        onClick={handleTransactionClick}
+                        showSublineInList='category'
+                        density='normal'
+                    />
+                );
+                i++;
+            }
+        }
+        return elements;
+    };
+
     if (groupedTransactions.length === 0) {
         return (
             <div className="flex flex-col items-center justify-center h-full text-slate-500 text-center p-4 min-h-[200px]">
@@ -158,15 +217,7 @@ export const TransactionList: FC = () => {
                                 </div>
                             </header>
                             <div className="p-2 space-y-1">
-                                {group.transactions.map(t => (
-                                    <StandardTransactionItem
-                                        key={t.id}
-                                        transaction={t}
-                                        onClick={handleTransactionClick}
-                                        showSublineInList='category'
-                                        density='normal'
-                                    />
-                                ))}
+                                {renderGroupedTransactions(group.transactions)}
                             </div>
                         </motion.div>
                     );

@@ -114,13 +114,10 @@ const SettingsModal = ({ isOpen, onClose, initialTab }: { isOpen: boolean; onClo
             <motion.div 
                 className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50 p-4" 
                 onClick={onClose} 
-                variants={modalBackdropAnimation}
-                initial="initial"
-                animate="animate"
-                exit="exit"
+                {...modalBackdropAnimation}
             >
                 <motion.div 
-                    variants={modalContentAnimation}
+                    {...modalContentAnimation}
                     className="bg-slate-800/80 backdrop-blur-md rounded-xl w-full max-w-4xl shadow-2xl border border-slate-700 flex flex-col h-[90vh] md:h-[85vh]" 
                     onClick={e => e.stopPropagation()}
                 >

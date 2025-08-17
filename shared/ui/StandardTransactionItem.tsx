@@ -50,10 +50,10 @@ const StandardTransactionItem: FC<StandardTransactionItemProps> = ({
     const listLayout = (
         <motion.button
             onClick={() => onClick(transaction)}
-            className={`w-full flex items-center rounded-lg transition-colors duration-150 hover:bg-slate-700/50 text-left ${isCompact ? 'gap-2 px-2 py-1' : 'gap-3 p-2'}`}
+            className={`w-full flex items-start rounded-lg transition-colors duration-150 hover:bg-slate-700/50 text-left ${isCompact ? 'gap-2 px-2 py-1' : 'gap-3 p-2'}`}
         >
             {/* Icon */}
-            <div className={`rounded-full flex items-center justify-center flex-shrink-0 bg-transparent border-2 ${isCompact ? 'w-8 h-8' : 'w-10 h-10'}`} style={{ borderColor: color }}>
+            <div className={`rounded-full flex items-center justify-center flex-shrink-0 bg-transparent border-2 mt-1 ${isCompact ? 'w-8 h-8' : 'w-10 h-10'}`} style={{ borderColor: color }}>
                 <Icon className={`${isCompact ? 'h-4 w-4' : 'h-5 w-5'}`} style={{ color }} />
             </div>
 
@@ -93,14 +93,19 @@ const StandardTransactionItem: FC<StandardTransactionItemProps> = ({
                         })}
                     </div>
                 </div>
+                 {transaction.notes && (
+                    <p className="text-xs text-slate-400 italic truncate mt-1">
+                        {transaction.notes}
+                    </p>
+                )}
             </div>
 
             {/* Amount */}
-            <p className={`font-bold text-white text-right w-24 flex-shrink-0 ml-4 ${isCompact ? 'text-base' : 'text-md'}`}>{formatCurrency(transaction.amount)}</p>
-
-            {/* User Avatar */}
-            <div className="ml-2 flex-shrink-0 w-6 flex items-center justify-center">
-                {userAvatar}
+            <div className="text-right flex-shrink-0 ml-4 mt-1">
+                <p className={`font-bold text-white ${isCompact ? 'text-base' : 'text-md'}`}>{formatCurrency(transaction.amount)}</p>
+                <div className="h-5 flex items-center justify-end">
+                     {userAvatar}
+                </div>
             </div>
         </motion.button>
     );

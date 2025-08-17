@@ -126,10 +126,8 @@ const App = () => {
                     <AnimatePresence mode="wait">
                         <motion.div
                             key={activeTab}
-                            variants={pageContentAnimation}
-                            initial="initial"
-                            animate="animate"
-                            exit="exit"
+                            {...pageContentAnimation}
+                            transition={{ duration: 0.3 }}
                         >
                             {renderContent()}
                         </motion.div>

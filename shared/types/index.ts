@@ -1,3 +1,4 @@
+
 export interface User {
   id: string;
   name: string;
@@ -121,26 +122,32 @@ export interface MealPrefs {
     kids: number;
   };
   tipsEnabled: boolean;
+  excludeTags: string[];
+  favoriteRecipeIds: string[];
 }
 
 export interface MealDay {
   day: string;
+  dateISO: string;
   recipeId: string;
   title: string;
-  link: string;
   side?: string;
   servings: {
     adults: number;
     kids: number;
   };
-  gramsPerServing: number;
-  priceEstimate: number;
+  estimatedPrice: number;
+  isConfirmed?: boolean;
+  priceOverride?: number;
+  note?: string;
+  link?: string;
 }
 
 export interface WeeklyPlan {
   weekKey: string; // e.g., "2024-W34"
   days: MealDay[];
   totalEstimate: number;
+  totalOverride: number;
 }
 
 export type ViewMode = 'woche' | 'monat';

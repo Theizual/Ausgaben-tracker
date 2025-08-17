@@ -1,8 +1,3 @@
-
-
-
-
-
 import React, { useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
@@ -105,15 +100,12 @@ const ConfirmationModal = ({
         <motion.div
             className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-end md:items-center z-50 p-4"
             onClick={onClose}
-            variants={modalBackdropAnimation}
-            initial="initial"
-            animate="animate"
-            exit="exit"
+            {...modalBackdropAnimation}
         >
             <motion.div
                 className="bg-slate-800 rounded-t-2xl md:rounded-2xl w-full max-w-md shadow-2xl border-t md:border border-slate-700 flex flex-col items-center text-center p-8"
                 onClick={e => e.stopPropagation()}
-                variants={modalSlideDownAnimation}
+                {...modalSlideDownAnimation}
             >
                 <motion.div
                     {...checkAnimation}
@@ -166,9 +158,7 @@ const ConfirmationModal = ({
                                 <motion.div
                                     className="h-2.5 rounded-full"
                                     style={{ backgroundColor: getBarColor(categoryBudgetStats.percentageAfter, categoryBudgetStats.color) }}
-                                    variants={barAnimation(categoryBudgetStats.percentageBefore, categoryBudgetStats.percentageAfter)}
-                                    initial="initial"
-                                    animate="animate"
+                                    {...barAnimation(categoryBudgetStats.percentageBefore, categoryBudgetStats.percentageAfter)}
                                 />
                             </div>
                         </div>
@@ -189,9 +179,7 @@ const ConfirmationModal = ({
                                 <motion.div
                                     className="h-2.5 rounded-full"
                                     style={{ backgroundColor: getBarColor(totalPercentageAfter) }}
-                                    variants={barAnimation(totalPercentageBefore, totalPercentageAfter)}
-                                    initial="initial"
-                                    animate="animate"
+                                    {...barAnimation(totalPercentageBefore, totalPercentageAfter)}
                                 />
                             </div>
                         </div>

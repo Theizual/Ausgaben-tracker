@@ -60,6 +60,8 @@ type AppContextType =
         addTransactionsToGroup: (groupId: string, transactionIds: string[]) => void;
         setIsAiEnabled: (enabled: boolean) => void;
         analyzeReceipt: (base64Image: string) => Promise<AnalyzeReceiptResult | null>;
+        mergeTransactionWithTarget: (sourceTxId: string, targetTxId: string) => void;
+        updateGroupVerifiedStatus: (groupId: string, verified: boolean) => void;
 
 
         reassignUserForTransactions: (sourceUserId: string, targetUserId: string, onlyNonDemo?: boolean) => void;
@@ -425,6 +427,8 @@ const ReadyAppProvider: React.FC<{
         removeTransactionFromGroup: createPersistentWrapper(transactionDataState.removeTransactionFromGroup),
         addMultipleTransactions: createPersistentWrapper(transactionDataState.addMultipleTransactions),
         addTransactionsToGroup: createPersistentWrapper(transactionDataState.addTransactionsToGroup),
+        mergeTransactionWithTarget: createPersistentWrapper(transactionDataState.mergeTransactionWithTarget),
+        updateGroupVerifiedStatus: createPersistentWrapper(transactionDataState.updateGroupVerifiedStatus),
 
 
     }), [categoryState, userSettingsState, usersState, transactionDataState, debouncedSync]);
@@ -565,7 +569,7 @@ const ReadyAppProvider: React.FC<{
     const { openSettings: _, ...restUiState } = uiState;
     const { setQuickAddHideGroups: __, setIsAiEnabled: ___, ...restUserSettingsState } = userSettingsState;
     const { addUser: ____, updateUser: _____, deleteUser: ______, ...restUsersState } = usersState;
-    const { reassignUserForTransactions: _______, addMultipleTransactions: ________, ...restTxState } = transactionDataState;
+    const { reassignUserForTransactions: _______, addMultipleTransactions: ________, mergeTransactionWithTarget: _________, updateGroupVerifiedStatus: __________, ...restTxState } = transactionDataState;
     const { upsertCategory: __1, upsertMultipleCategories: __2, deleteCategory: __3, addGroup: __4, renameGroup: __5, updateGroup: __6, deleteGroup: __7, reorderGroups: __8, reorderCategories: __9, ...restCategoryState} = categoryState;
 
 

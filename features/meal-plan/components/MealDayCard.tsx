@@ -1,42 +1,102 @@
-import React, { FC } from 'react';
+import React, { FC, useMemo } from 'react';
 import { MealDay } from '@/shared/types';
 import { formatCurrency } from '@/shared/utils/dateUtils';
-import { Button } from '@/shared/ui';
+import { ShieldCheck, RefreshCw, Beef, Fish, Soup, Salad, Pizza, Award, Zap, HandCoins, Flame, UtensilsCrossed, Carrot, Sprout, Utensils } from '@/shared/ui';
+import { useApp } from '@/contexts/AppContext';
+import { format, parseISO } from 'date-fns';
+import { recipes as baseRecipes } from '../data/recipes';
+import { clsx } from 'clsx';
 
 interface MealDayCardProps {
     mealDay: MealDay;
+    onOpenPicker: () => void;
+    onOpenDetail: () => void;
 }
 
-const getServingsText = (servings: { adults: number; kids: number }) => {
-    const parts = [];
-    if (servings.adults > 0) parts.push(`${servings.adults} Erw.`);
-    if (servings.kids > 0) parts.push(`${servings.kids} Kind(er)`);
-    return parts.join(', ');
+const tagToIconMap: { [key: string]: FC<any> } = {
+    'Fleisch': Beef, 'Fisch': Fish, 'Suppe': Soup, 'Eintopf': Soup, 'Salat': Salad, 'Pizza': Pizza, 'Italienisch': Pizza, 'Asiatisch': Utensils, 'Vegetarisch': Carrot, 'Vegan': Sprout, 'Ofengericht': Flame, 'Schnell': Zap, 'Klassiker': Award, 'Günstig': HandCoins,
+};
+const iconPriority = ['Fleisch', 'Fisch', 'Suppe', 'Eintopf', 'Salat', 'Pizza', 'Italienisch', 'Asiatisch', 'Vegetarisch', 'Vegan', 'Ofengericht', 'Schnell', 'Klassiker', 'Günstig'];
+
+const baseToColorClass: Record<string, string> = {
+    nudeln: 'border-yellow-400',
+    reis: 'border-slate-300',
+    kartoffeln: 'border-orange-500',
+    mix: 'border-slate-500',
 };
 
-export const MealDayCard: FC<MealDayCardProps> = ({ mealDay }) => {
+export const MealDayCard: FC<MealDayCardProps> = ({ mealDay, onOpenPicker, onOpenDetail }) => {
+    const { weeklyMealPlans, setWeeklyMealPlans, customRecipes } = useApp();
+
+    const allRecipes = useMemo(() => [...baseRecipes, ...customRecipes], [customRecipes]);
+    const recipe = useMemo(() => allRecipes.find(r => r.id === mealDay.recipeId), [allRecipes, mealDay.recipeId]);
+
+    const toggleConfirm = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        const plan = weeklyMealPlans[Object.keys(weeklyMealPlans).find(k => weeklyMealPlans[k].days.some(d => d.dateISO === mealDay.dateISO))!];
+        if (!plan) return;
+
+        const updatedDays = plan.days.map(d => 
+            d.dateISO === mealDay.dateISO ? { ...d, isConfirmed: !d.isConfirmed } : d
+        );
+        
+        setWeeklyMealPlans({ ...weeklyMealPlans, [plan.weekKey]: { ...plan, days: updatedDays }});
+    };
+    
+    const handleOpenPicker = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        onOpenPicker();
+    }
+    
+    const displayPrice = mealDay.priceOverride ?? mealDay.estimatedPrice;
+
+    const MainIcon = useMemo(() => {
+        if (!recipe) return UtensilsCrossed;
+        for (const tag of iconPriority) {
+            if (recipe.tags.includes(tag)) {
+                return tagToIconMap[tag];
+            }
+        }
+        return UtensilsCrossed;
+    }, [recipe]);
+
+    const borderColorClass = mealDay.isConfirmed ? 'border-green-500' : (recipe ? baseToColorClass[recipe.base] : 'border-slate-700');
+
     return (
-        <div className="bg-slate-800/50 p-4 rounded-2xl border border-slate-700/50 flex flex-col h-full">
-            <h4 className="font-bold text-white">{mealDay.day}</h4>
-            <div className="mt-2 flex-grow">
-                <p className="text-lg font-semibold text-rose-300">{mealDay.title}</p>
-                {mealDay.side && <p className="text-sm text-slate-400">+ {mealDay.side}</p>}
+        <button 
+            onClick={onOpenDetail} 
+            className={clsx(
+                "relative aspect-square p-2 rounded-2xl border-2 flex flex-col justify-between items-center text-center",
+                "bg-slate-800/50 hover:bg-slate-700/50 transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-rose-500 group",
+                borderColorClass
+            )}
+        >
+            {/* Header: Day, Icon, Confirm */}
+            <div className="w-full flex justify-between items-start">
+                <div className="text-left">
+                    <h4 className="font-bold text-white text-sm">{mealDay.day.substring(0,2)}</h4>
+                    <p className="text-xs text-slate-400">{format(parseISO(mealDay.dateISO), 'dd.MM.')}</p>
+                </div>
+                <div className="flex flex-col items-center gap-1">
+                    <MainIcon className="h-5 w-5 text-slate-300" />
+                    <button onClick={toggleConfirm} className="p-1 rounded-full hover:bg-slate-600/50 transition-colors z-10" title={mealDay.isConfirmed ? 'Bestätigung aufheben' : 'Gericht bestätigen'}>
+                        {mealDay.isConfirmed ? <ShieldCheck className="h-4 w-4 text-green-400" /> : <ShieldCheck className="h-4 w-4 text-slate-500 opacity-50 group-hover:opacity-100" />}
+                    </button>
+                </div>
             </div>
-            <div className="mt-4 pt-3 border-t border-slate-700/50 space-y-2 text-sm">
-                <div className="flex justify-between">
-                    <span className="text-slate-400">Personen:</span>
-                    <span className="font-medium text-white">{getServingsText(mealDay.servings)}</span>
-                </div>
-                <div className="flex justify-between">
-                    <span className="text-slate-400">Geschätzter Preis:</span>
-                    <span className="font-bold text-white">{formatCurrency(mealDay.priceEstimate)}</span>
-                </div>
-                <div className="pt-2">
-                    <a href={mealDay.link} target="_blank" rel="noopener noreferrer" className="w-full">
-                        <Button variant="secondary" size="sm" className="w-full">Zum Rezept</Button>
-                    </a>
-                </div>
+            
+            {/* Content: Title */}
+            <div className="flex-grow flex items-center justify-center w-full px-1">
+                 <p className="text-sm font-bold text-rose-300 leading-tight line-clamp-3">{mealDay.title}</p>
             </div>
-        </div>
+
+            {/* Footer: Price & Reroll */}
+            <div className="w-full flex justify-between items-center h-7">
+                <button onClick={handleOpenPicker} className="p-1.5 rounded-full hover:bg-slate-600/50 transition-colors z-10 opacity-0 group-hover:opacity-100 disabled:opacity-0" title="Anderes Gericht auswählen" disabled={mealDay.isConfirmed}>
+                    <RefreshCw className="h-3.5 w-3.5 text-slate-400" />
+                </button>
+                <span className="font-bold text-white text-sm">{formatCurrency(displayPrice)}</span>
+            </div>
+        </button>
     );
 };
