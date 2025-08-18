@@ -518,5 +518,51 @@ export const recipes: readonly Recipe[] = [
         "Teig in eine gebutterte Pfanne geben, optional Rosinen darauf streuen.",
         "Von einer Seite goldbraun backen, dann wenden und mit zwei Gabeln in Stücke reißen.",
         "Mit Butter und Zucker karamellisieren und mit Puderzucker bestäubt servieren."
+    ]},
+    { id: 'r061', title: 'Kartoffel-Kohlrabi-Gemüse', base: 'kartoffeln', tags: ['Vegetarisch', 'Günstig', 'Schnell', 'Pfannengericht'], estimatedPricePerServing: 1.8, sideSuggestion: 'Spiegelei oder Frikadelle', ingredients: [
+        { category: 'Obst & Gemüse', name: '800g Kartoffeln' }, { category: 'Obst & Gemüse', name: '2 Kohlrabi' }, { category: 'Obst & Gemüse', name: '1 Zwiebel' }, { category: 'Gewürze & Öle', name: '200ml Gemüsebrühe' }, { category: 'Milchprodukte & Eier', name: '200ml Sahne' }, { category: 'Obst & Gemüse', name: '1 Bund Petersilie' }, { category: 'Gewürze & Öle', name: 'Muskatnuss' }
+    ], instructions: [
+        "Kartoffeln und Kohlrabi schälen und in mundgerechte Würfel schneiden.",
+        "Zwiebel würfeln und in einem Topf mit etwas Öl glasig dünsten.",
+        "Kartoffel- und Kohlrabiwürfel dazugeben und kurz mitbraten.",
+        "Mit Gemüsebrühe ablöschen und zugedeckt ca. 15-20 Minuten köcheln lassen, bis das Gemüse gar ist.",
+        "Sahne unterrühren, mit Salz, Pfeffer und Muskatnuss abschmecken und gehackte Petersilie darüber streuen."
+    ]},
+    { id: 'r062', title: 'Blumenkohlauflauf mit Kartoffeln', base: 'kartoffeln', tags: ['Vegetarisch', 'Ofengericht', 'Käse', 'Günstig'], estimatedPricePerServing: 2.2, sideSuggestion: 'Grüner Salat', ingredients: [
+        { category: 'Obst & Gemüse', name: '1 großer Blumenkohl' }, { category: 'Obst & Gemüse', name: '800g festkochende Kartoffeln' }, { category: 'Milchprodukte & Eier', name: '200ml Sahne' }, { category: 'Milchprodukte & Eier', name: '100ml Milch' }, { category: 'Milchprodukte & Eier', name: '150g geriebener Käse (z.B. Gouda)' }, { category: 'Obst & Gemüse', name: '1 Zwiebel' }, { category: 'Milchprodukte & Eier', name: '2 EL Butter' }, { category: 'Backwaren', name: '2 EL Mehl' }, { category: 'Gewürze & Öle', name: 'Muskatnuss' }
+    ], instructions: [
+        "Kartoffeln schälen und in dünne Scheiben schneiden. Blumenkohl in Röschen teilen. Beides in Salzwasser ca. 10 Minuten vorkochen.",
+        "Für die Béchamelsauce Zwiebel fein würfeln, in Butter andünsten. Mehl dazugeben und anschwitzen.",
+        "Mit Milch und Sahne ablöschen, unter Rühren aufkochen lassen und mit Salz, Pfeffer und Muskatnuss würzen.",
+        "Kartoffeln und Blumenkohl in eine Auflaufform geben, die Sauce darüber verteilen.",
+        "Mit Käse bestreuen und im vorgeheizten Ofen bei 200°C ca. 20-25 Minuten goldbraun backen."
+    ]},
+    { id: 'r063', title: 'Himbeerkuchen mit Biskuit und Pudding', base: 'mix', tags: ['Vegetarisch', 'Süßspeise', 'Kuchen'], estimatedPricePerServing: 1.5, ingredients: [
+        { category: 'Milchprodukte & Eier', name: '4 Eier' }, { category: 'Backwaren', name: '200g Zucker' }, { category: 'Backwaren', name: '1 Pck. Vanillezucker' }, { category: 'Backwaren', name: '100g Mehl' }, { category: 'Backwaren', name: '50g Speisestärke' }, { category: 'Backwaren', name: '1 TL Backpulver' }, { category: 'Backwaren', name: '1 Pck. Vanillepuddingpulver' }, { category: 'Milchprodukte & Eier', name: '500ml Milch' }, { category: 'Obst & Gemüse', name: '500g Himbeeren (TK oder frisch)' }, { category: 'Backwaren', name: '1 Pck. Tortenguss, rot' }
+    ], instructions: [
+        "Für den Biskuit Eier mit Zucker und Vanillezucker schaumig schlagen. Mehl, Stärke und Backpulver mischen und unterheben.",
+        "Teig in eine Springform (26cm) füllen und bei 180°C ca. 20-25 Minuten backen. Auskühlen lassen.",
+        "Puddingpulver mit Zucker und etwas Milch anrühren. Restliche Milch aufkochen, Puddingpulver einrühren und kurz kochen lassen. Etwas abkühlen lassen und auf dem Biskuitboden verteilen.",
+        "Himbeeren auf dem Pudding verteilen.",
+        "Tortenguss nach Packungsanweisung zubereiten und über die Himbeeren geben. Kuchen kalt stellen bis der Guss fest ist."
+    ]},
+    { id: 'r064', title: 'Hähnchenbrust im Backofen mit Zitrone & Kräutern', base: 'mix', tags: ['Fleisch', 'Ofengericht', 'Schnell', 'Gesund'], estimatedPricePerServing: 3.2, sideSuggestion: 'Baguette oder Reis', ingredients: [
+        { category: 'Fleisch & Fisch', name: '4 Hähnchenbrustfilets' }, { category: 'Obst & Gemüse', name: '1 Zitrone' }, { category: 'Obst & Gemüse', name: '4 Zehen Knoblauch' }, { category: 'Obst & Gemüse', name: '2 Zweige Rosmarin' }, { category: 'Gewürze & Öle', name: '4 EL Olivenöl' }, { category: 'Obst & Gemüse', name: '200g Cherrytomaten' }, { category: 'Gewürze & Öle', name: 'Salz und Pfeffer' }
+    ], instructions: [
+        "Ofen auf 200°C vorheizen.",
+        "Hähnchenbrustfilets in eine Auflaufform legen. Mit Salz und Pfeffer würzen.",
+        "Zitrone in Scheiben schneiden, Knoblauch andrücken.",
+        "Olivenöl über das Hähnchen träufeln. Zitronenscheiben, Knoblauch, Rosmarin und Cherrytomaten um das Hähnchen herum verteilen.",
+        "Im Ofen für ca. 25-30 Minuten backen, bis das Hähnchen gar ist."
+    ]},
+    { id: 'r065', title: 'Flaumiger Kaiserschmarrn', base: 'mix', tags: ['Vegetarisch', 'Süßspeise', 'Klassiker'], estimatedPricePerServing: 2.3, sideSuggestion: 'Apfelmus oder Zwetschgenröster', ingredients: [
+        { category: 'Milchprodukte & Eier', name: '4 Eier' }, { category: 'Milchprodukte & Eier', name: '250ml Milch' }, { category: 'Backwaren', name: '150g Mehl' }, { category: 'Gewürze & Öle', name: '1 Prise Salz' }, { category: 'Backwaren', name: '30g Zucker' }, { category: 'Sonstiges', name: '50g Rosinen in Rum (optional)' }, { category: 'Milchprodukte & Eier', name: 'Butter zum Backen' }, { category: 'Backwaren', name: 'Puderzucker zum Bestäuben' }
+    ], instructions: [
+        "Eier trennen. Eigelb mit Milch, Mehl, Zucker und Salz zu einem glatten Teig verrühren. Rosinen unterrühren.",
+        "Eiweiß zu steifem Schnee schlagen und vorsichtig unter den Teig heben.",
+        "Butter in einer großen Pfanne erhitzen, den Teig hineingießen und bei mittlerer Hitze goldbraun anbacken.",
+        "Den Teig vierteln, wenden und ebenfalls goldbraun backen.",
+        "Mit zwei Gabeln in mundgerechte Stücke reißen.",
+        "Mit Puderzucker bestäuben und kurz karamellisieren lassen. Mit Apfelmus oder Zwetschgenröster servieren."
     ]}
 ] as const;

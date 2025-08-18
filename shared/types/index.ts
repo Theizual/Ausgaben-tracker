@@ -107,6 +107,23 @@ export interface UserSetting {
   conflicted?: boolean;
 }
 
+export interface Recipe {
+  id: string;
+  name: string;
+  ingredients: string[];
+  instructions: string;
+  price?: number;
+  link?: string;
+  tags: string[];
+  base: 'nudeln' | 'reis' | 'kartoffeln' | 'mix';
+  sideSuggestion?: string;
+  isPremium?: boolean;
+  lastModified: string;
+  isDeleted?: boolean;
+  userId?: string;
+  version: number;
+}
+
 export interface MealPrefs {
   base: 'nudeln' | 'reis' | 'kartoffeln' | 'mix';
   sides: string[];
@@ -129,17 +146,17 @@ export interface MealDay {
   day: string;
   dateISO: string;
   recipeId: string;
-  title: string;
-  side?: string;
   servings: {
     adults: number;
     kids: number;
   };
   estimatedPrice: number;
   isConfirmed?: boolean;
+  title: string;
+  side?: string;
+  link?: string;
   priceOverride?: number;
   note?: string;
-  link?: string;
   ingredients?: string[];
   instructions?: string;
 }

@@ -7,6 +7,7 @@ export const HEADERS = {
   Users:        ['id','name','color','lastModified','version','isDeleted'],
   UserSettings: ['userId','key','value','lastModified','version'],
   TransactionGroups: ['id','targetAmount','createdAt','lastModified','version','isDeleted'],
+  Recipes: ['id','name','ingredients','instructions','price','link','lastModified','isDeleted','userId','tags','base','sideSuggestion','isPremium','version'],
 } as const;
 
 export type SheetName = keyof typeof HEADERS;
@@ -61,13 +62,15 @@ export function rowsToObjects(sheet: SheetName, rows: any[][] = []): any[] {
       if (sheet === 'Groups') {
           obj.sortIndex = Number(obj.sortIndex) || 0;
       }
+      if (sheet === 'Recipes') {
+        obj.price = parseGermanNumber(obj.price);
+      }
       if(sheet === 'Transactions'){
           obj.groupBaseAmount = parseGermanNumber(obj.groupBaseAmount);
           if (!obj.groupBaseAmount) {
             obj.groupBaseAmount = obj.amount;
           }
       }
-
 
       // Robust date parsing
       if ('lastModified' in obj && obj.lastModified) {
@@ -89,7 +92,7 @@ export function rowsToObjects(sheet: SheetName, rows: any[][] = []): any[] {
         if (obj.lastProcessedDate) obj.lastProcessedDate = parseGermanDateToISO(obj.lastProcessedDate);
       }
 
-      // Transaction-specific transformations
+      // Sheet-specific transformations
       if (sheet === 'Transactions') {
         if (obj.tagIds && typeof obj.tagIds === 'string') {
           obj.tagIds = String(obj.tagIds).split(',').map(t => t.trim()).filter(Boolean);
@@ -102,12 +105,27 @@ export function rowsToObjects(sheet: SheetName, rows: any[][] = []): any[] {
           delete obj.userId;
         }
       }
+      if (sheet === 'Recipes') {
+        if (obj.ingredients && typeof obj.ingredients === 'string') {
+          obj.ingredients = String(obj.ingredients).split('\n').map(t => t.trim()).filter(Boolean);
+        } else {
+          obj.ingredients = [];
+        }
+        if (obj.tags && typeof obj.tags === 'string') {
+          obj.tags = String(obj.tags).split(',').map(t => t.trim()).filter(Boolean);
+        } else {
+          obj.tags = [];
+        }
+      }
 
       // Booleans & Version normalisieren
       if ('isDeleted' in obj) {
         obj.isDeleted = String(obj.isDeleted).toUpperCase() === 'TRUE';
       } else {
         (obj as any).isDeleted = false;
+      }
+      if ('isPremium' in obj) {
+        obj.isPremium = String(obj.isPremium).toUpperCase() === 'TRUE';
       }
       if(sheet === 'Transactions'){
           obj.isCorrected = String(obj.isCorrected).toUpperCase() === 'TRUE';
@@ -138,7 +156,11 @@ export function objectsToRows(sheet: SheetName, items: any[] = []): any[][] {
   const headers = HEADERS[sheet];
   return items.map(it => headers.map(h => {
     // Map createdBy (App) -> userId (Sheet) für Transactions
-    const val = h === 'userId' && sheet === 'Transactions' ? it.createdBy : it[h];
+    let val = h === 'userId' && sheet === 'Transactions' ? it.createdBy : it[h];
+
+    if (sheet === 'Recipes') {
+      if (h === 'ingredients') val = Array.isArray(it.ingredients) ? it.ingredients.join('\n') : '';
+    }
 
     if (Array.isArray(val)) return val.join(',');
     if (typeof val === 'number') {
