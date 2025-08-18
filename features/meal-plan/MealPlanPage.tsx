@@ -44,8 +44,8 @@ const MealPlanPage = () => {
         return `${year}-W${String(week).padStart(2, '0')}`;
     }, [currentMealPlanWeek]);
     
-    const currentPlan = useMemo(() => weeklyMealPlans[weekKey], [weeklyMealPlans, weekKey]);
-    const allRecipes = useMemo(() => [...baseRecipes, ...customRecipes], [customRecipes]);
+    const currentPlan = useMemo(() => (weeklyMealPlans || {})[weekKey], [weeklyMealPlans, weekKey]);
+    const allRecipes = useMemo(() => [...baseRecipes, ...(customRecipes || [])], [customRecipes]);
     const recipeMap = useMemo(() => new Map(allRecipes.map(r => [r.id, r])), [allRecipes]);
 
     useEffect(() => {
@@ -70,14 +70,14 @@ const MealPlanPage = () => {
         const newPlan = generatePlan({
             prefs: mealPlanPrefs, 
             allRecipes,
-            recentRecipeIds,
+            recentRecipeIds: recentRecipeIds || [],
             forceCheap,
             targetDate: forDate
         });
-        const newPlans = { ...weeklyMealPlans, [newPlan.weekKey]: newPlan };
+        const newPlans = { ...(weeklyMealPlans || {}), [newPlan.weekKey]: newPlan };
         setWeeklyMealPlans(newPlans);
         
-        const newRecentIds = [...newPlan.days.map(d => d.recipeId), ...recentRecipeIds];
+        const newRecentIds = [...newPlan.days.map(d => d.recipeId), ...(recentRecipeIds || [])];
         setRecentRecipeIds(Array.from(new Set(newRecentIds)).slice(0, 50));
 
     }, [mealPlanPrefs, allRecipes, weeklyMealPlans, recentRecipeIds, setWeeklyMealPlans, setRecentRecipeIds]);
@@ -108,17 +108,17 @@ const MealPlanPage = () => {
         const newPlan = generatePlan({
             prefs: mealPlanPrefs, 
             allRecipes, 
-            recentRecipeIds,
+            recentRecipeIds: recentRecipeIds || [],
             forceCheap: isBudgetTight, 
             targetDate: currentMealPlanWeek,
             existingPlan: planToUpdate,
             dayToReroll: dayIndex
         });
 
-        const newPlans = { ...weeklyMealPlans, [weekKey]: newPlan };
+        const newPlans = { ...(weeklyMealPlans || {}), [weekKey]: newPlan };
         setWeeklyMealPlans(newPlans);
 
-        const newRecentIds = [...newPlan.days.map(d => d.recipeId), ...recentRecipeIds];
+        const newRecentIds = [...newPlan.days.map(d => d.recipeId), ...(recentRecipeIds || [])];
         setRecentRecipeIds(Array.from(new Set(newRecentIds)).slice(0, 50));
     };
     
@@ -153,7 +153,7 @@ const MealPlanPage = () => {
         updatedPlan.totalOverride = updatedPlan.totalEstimate;
 
 
-        setWeeklyMealPlans(prev => ({ ...prev, [currentPlan.weekKey]: updatedPlan }));
+        setWeeklyMealPlans(prev => ({ ...(prev || {}), [currentPlan.weekKey]: updatedPlan }));
         setPickerDayIndex(null);
     };
 
@@ -170,7 +170,7 @@ const MealPlanPage = () => {
         updatedPlan.totalEstimate = updatedPlan.days.reduce((sum, day) => sum + day.estimatedPrice, 0);
         updatedPlan.totalOverride = updatedPlan.days.reduce((sum, day) => sum + (day.priceOverride ?? day.estimatedPrice), 0);
         
-        setWeeklyMealPlans(prev => ({...prev, [weekKey]: updatedPlan}));
+        setWeeklyMealPlans(prev => ({...(prev || {}), [weekKey]: updatedPlan}));
         setUndoState(null);
     };
 
@@ -182,7 +182,7 @@ const MealPlanPage = () => {
         );
         
         const updatedPlan = { ...currentPlan, days: updatedDays };
-        setWeeklyMealPlans(prev => ({ ...prev, [weekKey]: updatedPlan }));
+        setWeeklyMealPlans(prev => ({ ...(prev || {}), [weekKey]: updatedPlan }));
     }, [currentPlan, setWeeklyMealPlans, weekKey]);
     
     // More robust guard against corrupted data (e.g. `prefs` being `{}`)
