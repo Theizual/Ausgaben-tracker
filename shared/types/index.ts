@@ -1,6 +1,3 @@
-
-
-
 export interface User {
   id: string;
   name: string;
@@ -143,6 +140,8 @@ export interface MealDay {
   priceOverride?: number;
   note?: string;
   link?: string;
+  ingredients?: string[];
+  instructions?: string;
 }
 
 export interface WeeklyPlan {
