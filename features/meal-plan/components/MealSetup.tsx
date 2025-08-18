@@ -18,7 +18,6 @@ const defaultPrefs: MealPrefs = {
     favoriteRecipeIds: [],
 };
 
-
 export const MealSetup: FC<MealSetupProps> = ({ onSave }) => {
     const [prefs, setPrefs] = useState<MealPrefs>(defaultPrefs);
 
@@ -36,7 +35,7 @@ export const MealSetup: FC<MealSetupProps> = ({ onSave }) => {
             setPrefs(p => ({ ...p, people: { ...p.people, [type]: num } }));
         }
     };
-
+    
     return (
         <div className="max-w-2xl mx-auto text-center">
             <Logo />

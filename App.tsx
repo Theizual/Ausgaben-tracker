@@ -20,6 +20,7 @@ import type { CategoryFormData } from '@/features/settings/components/CategoryLi
 import { UserMergePromptModal } from '@/features/onboarding';
 import type { Transaction } from '@/shared/types';
 import { pageContentAnimation } from '@/shared/lib/animations';
+import { ErrorBoundary } from '@/shared/ui';
 
 // Main App Component (now a clean layout/composition root)
 const App = () => {
@@ -86,112 +87,114 @@ const App = () => {
     };
 
     return (
-        <div className="min-h-screen bg-slate-900 text-slate-200">
-            <Toaster
-                position="top-center"
-                toastOptions={{
-                    className: 'bg-slate-700 text-white border border-slate-600',
-                    success: {
-                        className: 'bg-green-800/80 text-white border border-green-600/50',
-                        iconTheme: { primary: '#10B981', secondary: 'white' },
-                    },
-                    error: {
-                        className: 'bg-red-800/80 text-white border border-red-600/50',
-                         iconTheme: { primary: '#F87171', secondary: 'white' },
-                    },
-                }}
-            />
+        <ErrorBoundary>
+            <div className="min-h-screen bg-slate-900 text-slate-200">
+                <Toaster
+                    position="top-center"
+                    toastOptions={{
+                        className: 'bg-slate-700 text-white border border-slate-600',
+                        success: {
+                            className: 'bg-green-800/80 text-white border border-green-600/50',
+                            iconTheme: { primary: '#10B981', secondary: 'white' },
+                        },
+                        error: {
+                            className: 'bg-red-800/80 text-white border border-red-600/50',
+                             iconTheme: { primary: '#F87171', secondary: 'white' },
+                        },
+                    }}
+                />
 
-            {/* Sticky Header & Navigation */}
-            <header className="sticky top-0 z-30 bg-slate-900/95 backdrop-blur-sm">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <Header 
-                        users={users}
-                        onSettingsClick={() => openSettings('general')} 
-                        onSyncClick={() => syncData()}
-                        syncOperation={syncOperation}
-                        lastSync={lastSync}
-                        deLocale={deLocale}
-                        showDemoData={showDemoData}
-                    />
-                    {/* Responsive Tabs are now part of the sticky header */}
-                    <MainTabs activeTab={activeTab} setActiveTab={setActiveTab} />
+                {/* Sticky Header & Navigation */}
+                <header className="sticky top-0 z-30 bg-slate-900/95 backdrop-blur-sm">
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                        <Header 
+                            users={users}
+                            onSettingsClick={() => openSettings('general')} 
+                            onSyncClick={() => syncData()}
+                            syncOperation={syncOperation}
+                            lastSync={lastSync}
+                            deLocale={deLocale}
+                            showDemoData={showDemoData}
+                        />
+                        {/* Responsive Tabs are now part of the sticky header */}
+                        <MainTabs activeTab={activeTab} setActiveTab={setActiveTab} />
+                    </div>
+                     {/* The bottom border now lives outside the padded container to be full-width */}
+                    <div className="border-b border-slate-700"></div>
+                </header>
+                
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">
+                    <main className="mt-6">
+                        <AnimatePresence mode="wait">
+                            <motion.div
+                                key={activeTab}
+                                {...pageContentAnimation}
+                                transition={{ duration: 0.3 }}
+                            >
+                                {renderContent()}
+                            </motion.div>
+                        </AnimatePresence>
+                    </main>
                 </div>
-                 {/* The bottom border now lives outside the padded container to be full-width */}
-                <div className="border-b border-slate-700"></div>
-            </header>
-            
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">
-                <main className="mt-6">
-                    <AnimatePresence mode="wait">
-                        <motion.div
-                            key={activeTab}
-                            {...pageContentAnimation}
-                            transition={{ duration: 0.3 }}
-                        >
-                            {renderContent()}
-                        </motion.div>
-                    </AnimatePresence>
-                </main>
+
+                <SettingsModal isOpen={isSettingsOpen} onClose={closeSettings} initialTab={initialSettingsTab} />
+                
+                <AnimatePresence>
+                    {confirmationData && (
+                        <ConfirmationModal
+                            isOpen={!!confirmationData}
+                            onClose={closeConfirmation}
+                            transactions={confirmationData.transactions}
+                            totalSpentBefore={confirmationData.totalSpentBefore}
+                        />
+                    )}
+                </AnimatePresence>
+
+                <AnimatePresence>
+                    {transactionForDetail && (
+                         <TransactionDetailModal
+                            isOpen={!!transactionForDetail}
+                            onClose={closeTransactionDetail}
+                            transaction={transactionForDetail.transaction}
+                         />
+                    )}
+                </AnimatePresence>
+
+                <AnimatePresence>
+                    {isChangelogOpen && (
+                        <ChangelogModal 
+                            onClose={handleCloseChangelog}
+                            isAutoShowEnabled={isChangelogAutoShowEnabled}
+                            onToggleAutoShow={() => setIsChangelogAutoShowEnabled(prev => !prev)}
+                        />
+                    )}
+                </AnimatePresence>
+                
+                <AnimatePresence>
+                    {reassignModalInfo && (
+                        <DeleteCategoryModal
+                            isOpen={!!reassignModalInfo}
+                            onClose={closeReassignModal}
+                            category={reassignModalInfo.category as CategoryFormData}
+                            transactionCount={reassignModalInfo.txCount}
+                            transactions={reassignModalInfo.transactions as Transaction[]}
+                        />
+                    )}
+                </AnimatePresence>
+
+                <AnimatePresence>
+                    {userMergeModalInfo && (
+                        <UserMergePromptModal
+                            isOpen={!!userMergeModalInfo}
+                            remoteUsers={userMergeModalInfo.remoteUsers}
+                            onClose={closeUserMergeModal}
+                        />
+                    )}
+                </AnimatePresence>
+
+                <SyncPromptToast />
             </div>
-
-            <SettingsModal isOpen={isSettingsOpen} onClose={closeSettings} initialTab={initialSettingsTab} />
-            
-            <AnimatePresence>
-                {confirmationData && (
-                    <ConfirmationModal
-                        isOpen={!!confirmationData}
-                        onClose={closeConfirmation}
-                        transactions={confirmationData.transactions}
-                        totalSpentBefore={confirmationData.totalSpentBefore}
-                    />
-                )}
-            </AnimatePresence>
-
-            <AnimatePresence>
-                {transactionForDetail && (
-                     <TransactionDetailModal
-                        isOpen={!!transactionForDetail}
-                        onClose={closeTransactionDetail}
-                        transaction={transactionForDetail.transaction}
-                     />
-                )}
-            </AnimatePresence>
-
-            <AnimatePresence>
-                {isChangelogOpen && (
-                    <ChangelogModal 
-                        onClose={handleCloseChangelog}
-                        isAutoShowEnabled={isChangelogAutoShowEnabled}
-                        onToggleAutoShow={() => setIsChangelogAutoShowEnabled(prev => !prev)}
-                    />
-                )}
-            </AnimatePresence>
-            
-            <AnimatePresence>
-                {reassignModalInfo && (
-                    <DeleteCategoryModal
-                        isOpen={!!reassignModalInfo}
-                        onClose={closeReassignModal}
-                        category={reassignModalInfo.category as CategoryFormData}
-                        transactionCount={reassignModalInfo.txCount}
-                        transactions={reassignModalInfo.transactions as Transaction[]}
-                    />
-                )}
-            </AnimatePresence>
-
-            <AnimatePresence>
-                {userMergeModalInfo && (
-                    <UserMergePromptModal
-                        isOpen={!!userMergeModalInfo}
-                        remoteUsers={userMergeModalInfo.remoteUsers}
-                        onClose={closeUserMergeModal}
-                    />
-                )}
-            </AnimatePresence>
-
-            <SyncPromptToast />
-        </div>
+        </ErrorBoundary>
     );
 };
 

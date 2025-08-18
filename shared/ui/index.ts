@@ -16,3 +16,4 @@ export { default as UserAvatar } from './UserAvatar';
 export { default as DesignPicker } from './DesignPicker';
 export { ChartControls } from './ChartControls';
 export { ResizeHandle } from './ResizeHandle';
+export { default as ErrorBoundary } from './ErrorBoundary';
