@@ -49,7 +49,8 @@ const MealPlanPage = () => {
     const recipeMap = useMemo(() => new Map(allRecipes.map(r => [r.id, r])), [allRecipes]);
 
     useEffect(() => {
-        if (!mealPlanPrefs) {
+        // More robust check to handle corrupted/incomplete data
+        if (!mealPlanPrefs || !mealPlanPrefs.people) {
             const defaultPrefs: MealPrefs = {
                 people: { adults: 2, kids: 1 },
                 diet: {},
@@ -184,7 +185,8 @@ const MealPlanPage = () => {
         setWeeklyMealPlans(prev => ({ ...prev, [weekKey]: updatedPlan }));
     }, [currentPlan, setWeeklyMealPlans, weekKey]);
     
-    if (!mealPlanPrefs) {
+    // More robust guard against corrupted data (e.g. `prefs` being `{}`)
+    if (!mealPlanPrefs || !mealPlanPrefs.people) {
         return (
             <div className="flex items-center justify-center h-full">
                 <Loader2 className="h-8 w-8 animate-spin text-slate-500" />
