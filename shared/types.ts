@@ -140,6 +140,8 @@ export interface MealDay {
   priceOverride?: number;
   note?: string;
   link?: string;
+  ingredients?: string[];
+  instructions?: string;
 }
 
 export interface WeeklyPlan {

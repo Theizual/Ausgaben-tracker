@@ -186,6 +186,14 @@ const MealPlanPage = () => {
         const updatedPlan = { ...currentPlan, days: updatedDays };
         setWeeklyMealPlans(prev => ({ ...(prev || {}), [weekKey]: updatedPlan }));
     }, [currentPlan, setWeeklyMealPlans, weekKey]);
+
+    const handleOpenPickerFromDetail = (dayIndex: number) => {
+        setDetailDayIndex(null);
+        // Use a short timeout to allow the detail modal to close before the picker opens, preventing modal-on-modal animation glitches.
+        setTimeout(() => {
+            setPickerDayIndex(dayIndex);
+        }, 100);
+    };
     
     if (!mealPlanPrefs || !mealPlanPrefs.people) {
         return (
@@ -269,7 +277,7 @@ const MealPlanPage = () => {
                         onClose={() => setDetailDayIndex(null)}
                         mealDay={currentPlan.days[detailDayIndex]}
                         dayIndex={detailDayIndex}
-                        onReroll={handleReroll}
+                        onOpenPicker={handleOpenPickerFromDetail}
                     />
                 )}
             </AnimatePresence>

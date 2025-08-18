@@ -1,7 +1,7 @@
 import React, { FC, useMemo } from 'react';
 import { MealDay } from '@/shared/types';
 import { formatCurrency } from '@/shared/utils/dateUtils';
-import { ShieldCheck, RefreshCw, Beef, Fish, Carrot, Sprout, Salad, UtensilsCrossed } from '@/shared/ui';
+import { ShieldCheck, RefreshCw, Beef, Fish, Carrot, Sprout, Salad, Button } from '@/shared/ui';
 import { format, parseISO } from 'date-fns';
 import { clsx } from 'clsx';
 import type { Recipe } from '../data/recipes';
@@ -28,7 +28,7 @@ const StatusIcon: FC<{ recipe: Recipe }> = ({ recipe }) => {
     if (!iconTag) return null;
 
     const { icon: Icon, color, title } = tagToIconMap[iconTag];
-    return <Icon className={`h-4 w-4 ${color}`} title={title} />;
+    return <span title={title}><Icon className={`h-4 w-4 ${color}`} /></span>;
 };
 
 const BaseBadge: FC<{ base: Recipe['base'] }> = ({ base }) => {
@@ -56,9 +56,13 @@ export const MealDayCard: FC<MealDayCardProps> = ({ mealDay, recipe, onOpenPicke
         onToggleConfirm();
     };
     
-    const handleOpenPicker = (e: React.MouseEvent) => {
+    const handlePickerClick = (e: React.MouseEvent) => {
         e.stopPropagation();
-        onOpenPicker();
+        if (mealDay.isConfirmed) {
+            onToggleConfirm();
+        } else {
+            onOpenPicker();
+        }
     }
     
     const displayPrice = mealDay.priceOverride ?? mealDay.estimatedPrice;
@@ -69,34 +73,43 @@ export const MealDayCard: FC<MealDayCardProps> = ({ mealDay, recipe, onOpenPicke
         <button 
             onClick={onOpenDetail} 
             className={clsx(
-                "relative aspect-square p-2 rounded-2xl border-2 flex flex-col justify-between items-center text-center",
+                "relative p-2 rounded-2xl border-2 flex flex-col justify-between items-center text-center",
                 "bg-slate-800/50 hover:bg-slate-700/50 transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-rose-500 group",
                 borderColorClass
             )}
         >
-            {/* Header: Day, Confirm */}
+            {/* Header: Day, Icon Cluster */}
             <div className="w-full flex justify-between items-start">
                 <div className="text-left">
                     <h4 className="font-bold text-white text-sm">{mealDay.day.substring(0,2)}</h4>
                     <p className="text-xs text-slate-400">{format(parseISO(mealDay.dateISO), 'dd.MM.')}</p>
                 </div>
-                <button onClick={toggleConfirm} className="p-1 rounded-full hover:bg-slate-600/50 transition-colors z-10" title={mealDay.isConfirmed ? 'Bestätigung aufheben' : 'Gericht bestätigen'}>
-                    {mealDay.isConfirmed ? <ShieldCheck className="h-4 w-4 text-green-400" /> : <ShieldCheck className="h-4 w-4 text-slate-500 opacity-50 group-hover:opacity-100" />}
-                </button>
-            </div>
-            
-            {/* Content: Title & Badges */}
-            <div className="flex-grow flex flex-col items-center justify-center w-full px-1 py-1">
-                 <p className="text-sm font-bold text-rose-300 leading-tight line-clamp-3 text-center">{mealDay.title}</p>
-                 <div className="flex items-center gap-1.5 mt-2">
+                <div className="flex items-center gap-1.5">
                     {recipe && <BaseBadge base={recipe.base} />}
                     {recipe && <StatusIcon recipe={recipe} />}
                 </div>
             </div>
+            
+            {/* Content: Title & Confirm Action */}
+            <div className="flex-grow flex flex-col items-center justify-center w-full px-1 py-1">
+                 <div className="flex items-center gap-2">
+                     <p className="text-sm font-bold text-rose-300 leading-tight line-clamp-3 text-center">{mealDay.title}</p>
+                     {mealDay.isConfirmed && <span title="Bestätigt"><ShieldCheck className="h-4 w-4 text-green-400 flex-shrink-0" /></span>}
+                 </div>
+                 {!mealDay.isConfirmed && (
+                    <button onClick={toggleConfirm} className="mt-2 text-xs bg-slate-700/80 text-slate-300 px-2 py-1 rounded-full hover:bg-green-500/40 hover:text-white transition-colors">
+                        Bestätigen
+                    </button>
+                 )}
+            </div>
 
             {/* Footer: Price & Reroll */}
             <div className="w-full flex justify-between items-center h-7">
-                <button onClick={handleOpenPicker} className="p-1.5 rounded-full hover:bg-slate-600/50 transition-colors z-10 disabled:opacity-30" title="Anderes Gericht auswählen" disabled={mealDay.isConfirmed}>
+                <button 
+                    onClick={handlePickerClick} 
+                    className="p-1.5 rounded-full hover:bg-slate-600/50 transition-colors z-10" 
+                    title={mealDay.isConfirmed ? "Bestätigung aufheben" : "Anderes Gericht auswählen"}
+                >
                     <RefreshCw className="h-3.5 w-3.5 text-slate-400" />
                 </button>
                 <span className="font-bold text-white text-sm">{formatCurrency(displayPrice)}</span>

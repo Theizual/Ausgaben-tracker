@@ -1,6 +1,6 @@
-import React, { FC } from 'react';
+import React, { FC, useState } from 'react';
 import { useApp } from '@/contexts/AppContext';
-import { Lightbulb } from '@/shared/ui';
+import { Lightbulb, Button } from '@/shared/ui';
 import { AnimatePresence, motion } from 'framer-motion';
 
 interface TipsCardProps {
@@ -17,6 +17,7 @@ const tips = [
 
 export const TipsCard: FC<TipsCardProps> = ({ isVisible }) => {
     const { mealPlanPrefs, setMealPlanPrefs } = useApp();
+    const [tipIndex, setTipIndex] = useState(() => Math.floor(Math.random() * tips.length));
 
     const handleDisable = () => {
         if (mealPlanPrefs) {
@@ -24,7 +25,17 @@ export const TipsCard: FC<TipsCardProps> = ({ isVisible }) => {
         }
     };
     
-    const randomTip = React.useMemo(() => tips[Math.floor(Math.random() * tips.length)], [isVisible]);
+    const handleNextTip = () => {
+        setTipIndex(prev => (prev + 1) % tips.length);
+    };
+
+    const tipAnimation = {
+        key: tipIndex,
+        initial: { opacity: 0 },
+        animate: { opacity: 1 },
+        exit: { opacity: 0 },
+        transition: { duration: 0.2 },
+    };
     
     return (
         <AnimatePresence>
@@ -39,11 +50,18 @@ export const TipsCard: FC<TipsCardProps> = ({ isVisible }) => {
                         <Lightbulb className="h-6 w-6 text-sky-400" />
                         <h3 className="text-lg font-bold text-white">Spar-Tipp</h3>
                     </div>
-                    <p className="text-sky-200 text-sm">{randomTip}</p>
-                    <div className="text-right">
+                    <AnimatePresence mode="wait">
+                        <motion.p {...tipAnimation} className="text-sky-200 text-sm min-h-[4.5em]">
+                            {tips[tipIndex]}
+                        </motion.p>
+                    </AnimatePresence>
+                    <div className="flex justify-between items-center pt-2">
                         <button onClick={handleDisable} className="text-xs text-sky-400 hover:underline">
-                            Tipps für diese Woche ausblenden
+                            Tipps ausblenden
                         </button>
+                        <Button onClick={handleNextTip} variant="secondary" size="sm">
+                            Nächster Tipp
+                        </Button>
                     </div>
                 </motion.div>
             )}

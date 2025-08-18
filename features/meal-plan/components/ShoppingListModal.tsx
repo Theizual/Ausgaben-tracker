@@ -51,7 +51,7 @@ export const ShoppingListModal: FC<ShoppingListModalProps> = ({ plan, allRecipes
             cat.items.forEach(item => {
                 if (item.isCustom && item.id) {
                     customItems.push({ id: item.id, name: item.name, category: cat.category, checked: item.checked });
-                } else if (item.checked) {
+                } else if (!item.isCustom && item.checked) {
                     checkedItems.push(item.name);
                 }
             });
@@ -64,12 +64,10 @@ export const ShoppingListModal: FC<ShoppingListModalProps> = ({ plan, allRecipes
     };
 
     useEffect(() => {
-        const confirmedMeals = plan.days.filter(d => d.isConfirmed);
-        
         const recipeMap = new Map(allRecipes.map(r => [r.id, r]));
         
         const allIngredients: Ingredient[] = [];
-        confirmedMeals.forEach(meal => {
+        plan.days.forEach(meal => {
             const recipe = recipeMap.get(meal.recipeId);
             if (recipe?.ingredients) {
                 allIngredients.push(...recipe.ingredients);
@@ -156,40 +154,39 @@ export const ShoppingListModal: FC<ShoppingListModalProps> = ({ plan, allRecipes
 
     return (
         <Modal isOpen={true} onClose={onClose} title="Wocheneinkauf" footer={footer} size="md">
-            {plan.days.filter(d => d.isConfirmed).length === 0 ? (
-                <div className="h-64 flex flex-col items-center justify-center text-center">
-                    <p className="text-slate-400">Bestätige zuerst Gerichte im Plan, um eine Einkaufsliste zu erstellen.</p>
-                </div>
-            ) : (
-                <div className="space-y-4 max-h-[60vh] overflow-y-auto custom-scrollbar pr-2 -mr-4">
-                    {list.map((categoryItem, catIndex) => (
-                        <div key={catIndex}>
-                            <h3 className="font-bold text-rose-300 mb-2">{categoryItem.category}</h3>
-                            <ul className="space-y-1.5">
-                                {categoryItem.items.map((item, itemIndex) => (
-                                    <li key={item.id || item.name} className="flex items-center gap-3 group">
-                                        <input id={`item-${catIndex}-${itemIndex}`} type="checkbox" checked={item.checked} onChange={() => handleToggleItem(catIndex, itemIndex)} className="h-4 w-4 rounded text-rose-500 bg-slate-700 border-slate-600 focus:ring-rose-500 cursor-pointer" />
-                                        <label htmlFor={`item-${catIndex}-${itemIndex}`} className={`flex-1 text-slate-200 cursor-pointer transition-colors ${item.checked ? 'line-through text-slate-500' : ''}`}>{item.name}</label>
-                                        <button onClick={() => handleDeleteItem(catIndex, itemIndex)} className="opacity-0 group-hover:opacity-100 text-slate-500 hover:text-red-400 transition-all">
-                                            <Trash2 className="h-4 w-4" />
-                                        </button>
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-                    ))}
-                     <form onSubmit={handleAddItem} className="pt-4 mt-4 border-t border-slate-700/50 space-y-2">
-                        <h4 className="text-sm font-semibold text-white">Artikel hinzufügen</h4>
-                        <div className="flex gap-2">
-                            <input value={newItemName} onChange={e => setNewItemName(e.target.value)} placeholder="z.B. Milch" className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-1.5 text-white" />
-                            <select value={newItemCategory} onChange={e => setNewItemCategory(e.target.value)} className="bg-slate-700 border border-slate-600 rounded-lg px-2 py-1.5 text-white">
-                                {CATEGORY_ORDER.map(c => <option key={c} value={c}>{c}</option>)}
-                            </select>
-                            <Button type="submit" variant="secondary" size="icon-sm"><Plus className="h-4 w-4"/></Button>
-                        </div>
-                    </form>
-                </div>
-            )}
+            <div className="space-y-4 max-h-[60vh] overflow-y-auto custom-scrollbar pr-2 -mr-4">
+                {list.length === 0 ? (
+                     <div className="h-40 flex flex-col items-center justify-center text-center">
+                        <p className="text-slate-400">Deine Einkaufsliste ist leer.</p>
+                        <p className="text-sm text-slate-500">Füge Artikel manuell hinzu oder wähle Gerichte für die Woche aus.</p>
+                    </div>
+                ) : list.map((categoryItem, catIndex) => (
+                    <div key={catIndex}>
+                        <h3 className="font-bold text-rose-300 mb-2">{categoryItem.category}</h3>
+                        <ul className="space-y-1.5">
+                            {categoryItem.items.map((item, itemIndex) => (
+                                <li key={item.id || item.name} className="flex items-center gap-3 group">
+                                    <input id={`item-${catIndex}-${itemIndex}`} type="checkbox" checked={item.checked} onChange={() => handleToggleItem(catIndex, itemIndex)} className="h-4 w-4 rounded text-rose-500 bg-slate-700 border-slate-600 focus:ring-rose-500 cursor-pointer" />
+                                    <label htmlFor={`item-${catIndex}-${itemIndex}`} className={`flex-1 text-slate-200 cursor-pointer transition-colors ${item.checked ? 'line-through text-slate-500' : ''}`}>{item.name}</label>
+                                    <button onClick={() => handleDeleteItem(catIndex, itemIndex)} className="opacity-0 group-hover:opacity-100 text-slate-500 hover:text-red-400 transition-all">
+                                        <Trash2 className="h-4 w-4" />
+                                    </button>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                ))}
+                 <form onSubmit={handleAddItem} className="pt-4 mt-4 border-t border-slate-700/50 space-y-2">
+                    <h4 className="text-sm font-semibold text-white">Artikel hinzufügen</h4>
+                    <div className="flex gap-2">
+                        <input value={newItemName} onChange={e => setNewItemName(e.target.value)} placeholder="z.B. Milch" className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-1.5 text-white" />
+                        <select value={newItemCategory} onChange={e => setNewItemCategory(e.target.value)} className="bg-slate-700 border border-slate-600 rounded-lg px-2 py-1.5 text-white">
+                            {CATEGORY_ORDER.map(c => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                        <Button type="submit" variant="secondary" size="icon-sm"><Plus className="h-4 w-4"/></Button>
+                    </div>
+                </form>
+            </div>
         </Modal>
     );
 };
