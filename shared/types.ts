@@ -149,6 +149,17 @@ export interface WeeklyPlan {
   totalOverride: number;
 }
 
+export interface CustomShoppingListItem {
+    id: string;
+    name: string;
+    category: string;
+    checked: boolean;
+}
+export interface ShoppingListState {
+    checkedItems: string[]; // names of items from recipes
+    customItems: CustomShoppingListItem[];
+}
+
 export type ViewMode = 'woche' | 'monat';
 export type TransactionViewMode = 'list' | 'grid';
 export type PeriodType = 'last3Months' | 'month' | 'year' | 'custom';

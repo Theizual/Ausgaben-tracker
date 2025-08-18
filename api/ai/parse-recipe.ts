@@ -48,6 +48,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       2.  **tags**: Eine Liste von bis zu 5 relevanten Stichwörtern (z.B. "Vegetarisch", "Schnell", "Ofengericht", "Italienisch").
       3.  **base**: Die Haupt-Sättigungsbeilage. Muss einer der folgenden Werte sein: 'nudeln', 'reis', 'kartoffeln', 'mix'. Wähle 'mix' wenn es keine eindeutige Beilage ist oder etwas anderes (z.B. Brot, Salat).
       4.  **estimatedPricePerServing**: Eine realistische Schätzung der Kosten pro Portion in Euro, basierend auf deutschen Supermarktpreisen. Dies ist eine Schätzung, gib einfach eine plausible Zahl an.
+      5.  **ingredients**: Eine Liste der Zutaten als Strings, inklusive Mengenangaben.
+      6.  **instructions**: Eine Liste der Zubereitungsschritte als Strings.
 
       HTML-Inhalt:
       ${truncatedHtml}
@@ -65,9 +67,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 type: Type.STRING,
                 description: "Muss einer der folgenden Werte sein: 'nudeln', 'reis', 'kartoffeln', 'mix'"
             },
-            estimatedPricePerServing: { type: Type.NUMBER }
+            estimatedPricePerServing: { type: Type.NUMBER },
+            ingredients: { type: Type.ARRAY, items: { type: Type.STRING } },
+            instructions: { type: Type.ARRAY, items: { type: Type.STRING } }
         },
-        required: ["title", "tags", "base", "estimatedPricePerServing"]
+        required: ["title", "tags", "base", "estimatedPricePerServing", "ingredients", "instructions"]
     };
 
     const response: GenerateContentResponse = await ai.models.generateContent({
@@ -89,7 +93,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         title: parsed.title || 'Unbekanntes Rezept',
         tags: Array.isArray(parsed.tags) ? parsed.tags : [],
         base: validatedBase,
-        estimatedPricePerServing: parsed.estimatedPricePerServing || 2.5
+        estimatedPricePerServing: parsed.estimatedPricePerServing || 2.5,
+        ingredients: Array.isArray(parsed.ingredients) ? parsed.ingredients : [],
+        instructions: Array.isArray(parsed.instructions) ? parsed.instructions : [],
     };
 
     return res.status(200).json(out);

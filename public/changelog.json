@@ -1,5 +1,17 @@
 [
     {
+        "version": "0.892",
+        "date": "21.08.2024, 11:00 Uhr",
+        "title": "Intelligente Essensplanung & Einkaufslisten",
+        "changes": [
+            "**Vereinfachter Start:** Der Essensplaner startet jetzt mit einer Standard-Konfiguration (2 Erwachsene, 1 Kind), der Konfigurationsbildschirm wurde entfernt.",
+            "**Persistente Einkaufslisten:** Ihre Einkaufsliste wird jetzt gespeichert! Abgehakte oder manuell hinzugefügte Artikel bleiben pro Woche erhalten.",
+            "**Verbesserte Rezept-Erstellung:** Beim manuellen Hinzufügen von Rezepten können Sie jetzt direkt die Zutaten und die Anleitung detailliert eingeben.",
+            "**Detaillierte Zutaten & 10 neue Rezepte:** Alle Rezepte enthalten nun Mengenangaben und die Datenbank wurde um 10 neue Gerichte erweitert, um das Kochen und Einkaufen zu erleichtern.",
+            "**Optimierte Einkaufsliste:** Die Einkaufsliste zeigt nun direkt die benötigten Mengen an und fasst Zutaten für die Woche zusammen."
+        ]
+    },
+    {
         "version": "0.878",
         "date": "20.08.2024, 09:00 Uhr",
         "title": "KI-gestützter Belegscanner & Gemini-Integration",

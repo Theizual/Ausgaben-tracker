@@ -19,7 +19,7 @@ export interface Recipe {
 export const recipes: readonly Recipe[] = [
     // Pasta
     { id: 'r001', title: 'Spaghetti Bolognese', base: 'nudeln', tags: ['Fleisch', 'Klassiker', 'Italienisch'], estimatedPricePerServing: 2.8, sideSuggestion: 'Salat', ingredients: [
-        { category: 'Fleisch & Fisch', name: 'Hackfleisch (Rind)' }, { category: 'Obst & Gemüse', name: 'Zwiebeln' }, { category: 'Obst & Gemüse', name: 'Karotten' }, { category: 'Obst & Gemüse', name: 'Sellerie' }, { category: 'Obst & Gemüse', name: 'Knoblauch' }, { category: 'Trockenwaren & Konserven', name: 'Passierte Tomaten' }, { category: 'Trockenwaren & Konserven', name: 'Tomatenmark' }, { category: 'Trockenwaren & Konserven', name: 'Spaghetti' }, { category: 'Gewürze & Öle', name: 'Olivenöl' }, { category: 'Gewürze & Öle', name: 'Rotwein (optional)' }, { category: 'Gewürze & Öle', name: 'Italienische Kräuter' }
+        { category: 'Fleisch & Fisch', name: '500g Hackfleisch (Rind)' }, { category: 'Obst & Gemüse', name: '2 Zwiebeln' }, { category: 'Obst & Gemüse', name: '2 Karotten' }, { category: 'Obst & Gemüse', name: '1 Stange Sellerie' }, { category: 'Obst & Gemüse', name: '2 Zehen Knoblauch' }, { category: 'Trockenwaren & Konserven', name: '800g Passierte Tomaten' }, { category: 'Trockenwaren & Konserven', name: '2 EL Tomatenmark' }, { category: 'Trockenwaren & Konserven', name: '500g Spaghetti' }, { category: 'Gewürze & Öle', name: 'Olivenöl' }, { category: 'Gewürze & Öle', name: '100ml Rotwein (optional)' }, { category: 'Gewürze & Öle', name: 'Italienische Kräuter' }
     ], instructions: [
         "Gemüse klein schneiden und in Olivenöl andünsten.",
         "Hackfleisch zugeben und krümelig anbraten.",
@@ -28,7 +28,7 @@ export const recipes: readonly Recipe[] = [
         "Spaghetti nach Packungsanweisung kochen und mit der Sauce servieren."
     ]},
     { id: 'r002', title: 'Pesto-Nudeln mit Tomaten', base: 'nudeln', tags: ['Vegetarisch', 'Schnell', 'Günstig', 'Italienisch'], estimatedPricePerServing: 1.9, ingredients: [
-        { category: 'Trockenwaren & Konserven', name: 'Nudeln (Penne o.ä.)' }, { category: 'Trockenwaren & Konserven', name: 'Grünes Pesto' }, { category: 'Obst & Gemüse', name: 'Cherrytomaten' }, { category: 'Milchprodukte & Eier', name: 'Parmesan' }, { category: 'Trockenwaren & Konserven', name: 'Pinienkerne' }
+        { category: 'Trockenwaren & Konserven', name: '500g Nudeln (Penne o.ä.)' }, { category: 'Trockenwaren & Konserven', name: '1 Glas Grünes Pesto' }, { category: 'Obst & Gemüse', name: '250g Cherrytomaten' }, { category: 'Milchprodukte & Eier', name: '50g Parmesan' }, { category: 'Trockenwaren & Konserven', name: '50g Pinienkerne' }
     ], instructions: [
         "Nudeln nach Packungsanweisung kochen.",
         "Pinienkerne in einer Pfanne ohne Fett goldbraun rösten.",
@@ -37,7 +37,7 @@ export const recipes: readonly Recipe[] = [
         "Nudeln mit Pesto, Tomaten und etwas Nudelwasser vermengen, mit Parmesan und Pinienkernen servieren."
     ]},
     { id: 'r003', title: 'Linsen-Bolognese', base: 'nudeln', tags: ['Vegetarisch', 'Günstig', 'Vegan'], estimatedPricePerServing: 1.5, sideSuggestion: 'Salat', ingredients: [
-        { category: 'Trockenwaren & Konserven', name: 'Rote Linsen' }, { category: 'Obst & Gemüse', name: 'Zwiebeln' }, { category: 'Obst & Gemüse', name: 'Karotten' }, { category: 'Trockenwaren & Konserven', name: 'Gehackte Tomaten (Dose)' }, { category: 'Trockenwaren & Konserven', name: 'Spaghetti' }, { category: 'Gewürze & Öle', name: 'Gemüsebrühe' }
+        { category: 'Trockenwaren & Konserven', name: '250g Rote Linsen' }, { category: 'Obst & Gemüse', name: '2 Zwiebeln' }, { category: 'Obst & Gemüse', name: '2 Karotten' }, { category: 'Trockenwaren & Konserven', name: '800g Gehackte Tomaten (Dose)' }, { category: 'Trockenwaren & Konserven', name: '500g Spaghetti' }, { category: 'Gewürze & Öle', name: '500ml Gemüsebrühe' }
     ], instructions: [
         "Zwiebeln und Karotten fein würfeln und in Öl anbraten.",
         "Linsen hinzufügen und kurz mitbraten.",
@@ -46,7 +46,7 @@ export const recipes: readonly Recipe[] = [
         "Mit Salz, Pfeffer und Kräutern abschmecken und zu Nudeln servieren."
     ]},
     { id: 'r004', title: 'Lachs-Sahne-Gratin', base: 'nudeln', tags: ['Fisch', 'Ofengericht'], estimatedPricePerServing: 3.5, isPremium: true, ingredients: [
-        { category: 'Fleisch & Fisch', name: 'Lachsfilet' }, { category: 'Trockenwaren & Konserven', name: 'Bandnudeln' }, { category: 'Milchprodukte & Eier', name: 'Sahne' }, { category: 'Obst & Gemüse', name: 'Lauch' }, { category: 'Milchprodukte & Eier', name: 'Geriebener Käse' }, { category: 'Obst & Gemüse', name: 'Dill' }
+        { category: 'Fleisch & Fisch', name: '500g Lachsfilet' }, { category: 'Trockenwaren & Konserven', name: '250g Bandnudeln' }, { category: 'Milchprodukte & Eier', name: '200ml Sahne' }, { category: 'Obst & Gemüse', name: '1 Stange Lauch' }, { category: 'Milchprodukte & Eier', name: '100g Geriebener Käse' }, { category: 'Obst & Gemüse', name: 'Dill' }
     ], instructions: [
         "Nudeln vorkochen. Lachs würfeln, Lauch in Ringe schneiden.",
         "Nudeln, Lachs und Lauch in eine Auflaufform geben.",
@@ -54,7 +54,7 @@ export const recipes: readonly Recipe[] = [
         "Mit Käse bestreuen und bei 180°C ca. 20-25 Minuten goldbraun backen."
     ]},
     { id: 'r017', title: 'Lasagne al Forno', base: 'nudeln', tags: ['Fleisch', 'Ofengericht', 'Klassiker'], estimatedPricePerServing: 3.2, sideSuggestion: 'Grüner Salat', ingredients: [
-        { category: 'Trockenwaren & Konserven', name: 'Lasagneplatten' }, { category: 'Fleisch & Fisch', name: 'Hackfleisch' }, { category: 'Milchprodukte & Eier', name: 'Milch' }, { category: 'Milchprodukte & Eier', name: 'Butter' }, { category: 'Backwaren', name: 'Mehl' }, { category: 'Milchprodukte & Eier', name: 'Geriebener Käse (z.B. Gouda)' }, { category: 'Milchprodukte & Eier', name: 'Parmesan' }
+        { category: 'Trockenwaren & Konserven', name: '12 Lasagneplatten' }, { category: 'Fleisch & Fisch', name: '500g Hackfleisch' }, { category: 'Milchprodukte & Eier', name: '1L Milch' }, { category: 'Milchprodukte & Eier', name: '50g Butter' }, { category: 'Backwaren', name: '50g Mehl' }, { category: 'Milchprodukte & Eier', name: '150g Geriebener Käse (z.B. Gouda)' }, { category: 'Milchprodukte & Eier', name: '50g Parmesan' }
     ], instructions: [
         "Bolognese-Sauce zubereiten (siehe Rezept r001).",
         "Für die Béchamelsauce Butter schmelzen, Mehl einrühren und mit Milch ablöschen. Unter Rühren aufkochen lassen, bis sie andickt.",
@@ -62,7 +62,7 @@ export const recipes: readonly Recipe[] = [
         "Mit Käse bestreuen und bei 180°C ca. 30-40 Minuten backen."
     ]},
     { id: 'r018', title: 'Käsespätzle mit Röstzwiebeln', base: 'nudeln', tags: ['Vegetarisch', 'Günstig', 'Käse'], estimatedPricePerServing: 2.1, sideSuggestion: 'Gurkensalat', ingredients: [
-        { category: 'Milchprodukte & Eier', name: 'Spätzle (Kühlregal)' }, { category: 'Milchprodukte & Eier', name: 'Bergkäse' }, { category: 'Milchprodukte & Eier', name: 'Emmentaler' }, { category: 'Obst & Gemüse', name: 'Zwiebeln' }, { category: 'Sonstiges', name: 'Röstzwiebeln' }
+        { category: 'Milchprodukte & Eier', name: '1kg Spätzle (Kühlregal)' }, { category: 'Milchprodukte & Eier', name: '200g Bergkäse' }, { category: 'Milchprodukte & Eier', name: '150g Emmentaler' }, { category: 'Obst & Gemüse', name: '2 große Zwiebeln' }, { category: 'Sonstiges', name: 'Röstzwiebeln' }
     ], instructions: [
         "Zwiebeln in Ringe schneiden und in Butter goldbraun braten.",
         "Spätzle in einer Pfanne anbraten.",
@@ -70,7 +70,7 @@ export const recipes: readonly Recipe[] = [
         "Mit den gebratenen Zwiebeln und Röstzwiebeln garnieren."
     ]},
     { id: 'r025', title: 'Pasta aglio e olio', base: 'nudeln', tags: ['Vegetarisch', 'Schnell', 'Günstig', 'Vegan'], estimatedPricePerServing: 1.2, ingredients: [
-        { category: 'Trockenwaren & Konserven', name: 'Spaghetti' }, { category: 'Obst & Gemüse', name: 'Knoblauch' }, { category: 'Gewürze & Öle', name: 'Olivenöl' }, { category: 'Gewürze & Öle', name: 'Chiliflocken' }, { category: 'Obst & Gemüse', name: 'Petersilie' }
+        { category: 'Trockenwaren & Konserven', name: '500g Spaghetti' }, { category: 'Obst & Gemüse', name: '4-6 Zehen Knoblauch' }, { category: 'Gewürze & Öle', name: '100ml Olivenöl' }, { category: 'Gewürze & Öle', name: '1 TL Chiliflocken' }, { category: 'Obst & Gemüse', name: '1 Bund Petersilie' }
     ], instructions: [
         "Spaghetti kochen.",
         "Knoblauch in feine Scheiben schneiden.",
@@ -78,7 +78,7 @@ export const recipes: readonly Recipe[] = [
         "Nudeln abtropfen lassen, in die Pfanne geben, durchschwenken und mit gehackter Petersilie servieren."
     ]},
     { id: 'r026', title: 'Carbonara (Original)', base: 'nudeln', tags: ['Fleisch', 'Schwein', 'Klassiker'], estimatedPricePerServing: 2.9, ingredients: [
-        { category: 'Trockenwaren & Konserven', name: 'Spaghetti' }, { category: 'Fleisch & Fisch', name: 'Guanciale (oder Pancetta)' }, { category: 'Milchprodukte & Eier', name: 'Eigelb' }, { category: 'Milchprodukte & Eier', name: 'Pecorino Romano' }, { category: 'Gewürze & Öle', name: 'Schwarzer Pfeffer' }
+        { category: 'Trockenwaren & Konserven', name: '400g Spaghetti' }, { category: 'Fleisch & Fisch', name: '150g Guanciale (oder Pancetta)' }, { category: 'Milchprodukte & Eier', name: '4 Eigelb' }, { category: 'Milchprodukte & Eier', name: '100g Pecorino Romano' }, { category: 'Gewürze & Öle', name: 'Schwarzer Pfeffer' }
     ], instructions: [
         "Guanciale in Würfel schneiden und in einer Pfanne knusprig auslassen.",
         "Eigelb mit geriebenem Pecorino und viel schwarzem Pfeffer verquirlen.",
@@ -86,7 +86,7 @@ export const recipes: readonly Recipe[] = [
         "Pfanne vom Herd nehmen, die Ei-Käse-Mischung unterrühren. Bei Bedarf etwas Nudelwasser zugeben, um eine cremige Sauce zu erhalten."
     ]},
     { id: 'r027', title: 'Gnocchi in Salbeibutter', base: 'kartoffeln', tags: ['Vegetarisch', 'Schnell'], estimatedPricePerServing: 2.4, sideSuggestion: 'Parmesan', ingredients: [
-        { category: 'Trockenwaren & Konserven', name: 'Gnocchi' }, { category: 'Milchprodukte & Eier', name: 'Butter' }, { category: 'Obst & Gemüse', name: 'Salbei (frisch)' }, { category: 'Milchprodukte & Eier', name: 'Parmesan' }
+        { category: 'Trockenwaren & Konserven', name: '1kg Gnocchi' }, { category: 'Milchprodukte & Eier', name: '100g Butter' }, { category: 'Obst & Gemüse', name: '1 Bund Salbei (frisch)' }, { category: 'Milchprodukte & Eier', name: 'Parmesan' }
     ], instructions: [
         "Gnocchi nach Packungsanweisung kochen.",
         "Butter in einer Pfanne schmelzen, Salbeiblätter hinzufügen und knusprig braten.",
@@ -95,7 +95,7 @@ export const recipes: readonly Recipe[] = [
     ]},
     // Rice
     { id: 'r005', title: 'Hähnchen-Curry', base: 'reis', tags: ['Fleisch', 'Asiatisch', 'Scharf'], estimatedPricePerServing: 2.9, sideSuggestion: 'Naan-Brot', ingredients: [
-        { category: 'Fleisch & Fisch', name: 'Hähnchenbrust' }, { category: 'Trockenwaren & Konserven', name: 'Kokosmilch' }, { category: 'Trockenwaren & Konserven', name: 'Rote Currypaste' }, { category: 'Obst & Gemüse', name: 'Paprika' }, { category: 'Obst & Gemüse', name: 'Zucchini' }, { category: 'Trockenwaren & Konserven', name: 'Basmatireis' }
+        { category: 'Fleisch & Fisch', name: '500g Hähnchenbrust' }, { category: 'Trockenwaren & Konserven', name: '400ml Kokosmilch' }, { category: 'Trockenwaren & Konserven', name: '2-3 EL Rote Currypaste' }, { category: 'Obst & Gemüse', name: '1 rote Paprika' }, { category: 'Obst & Gemüse', name: '1 Zucchini' }, { category: 'Trockenwaren & Konserven', name: '300g Basmatireis' }
     ], instructions: [
         "Reis kochen.",
         "Hähnchen in Würfel und Gemüse in Stücke schneiden.",
@@ -104,7 +104,7 @@ export const recipes: readonly Recipe[] = [
         "Alles zusammen ca. 10 Minuten köcheln lassen und mit Reis servieren."
     ]},
     { id: 'r006', title: 'Chili con Carne', base: 'reis', tags: ['Fleisch', 'Günstig', 'Eintopf'], estimatedPricePerServing: 2.0, sideSuggestion: 'Brot', ingredients: [
-        { category: 'Fleisch & Fisch', name: 'Hackfleisch' }, { category: 'Trockenwaren & Konserven', name: 'Kidneybohnen (Dose)' }, { category: 'Trockenwaren & Konserven', name: 'Gehackte Tomaten (Dose)' }, { category: 'Trockenwaren & Konserven', name: 'Mais (Dose)' }, { category: 'Obst & Gemüse', name: 'Zwiebeln' }, { category: 'Obst & Gemüse', name: 'Knoblauch' }
+        { category: 'Fleisch & Fisch', name: '500g Hackfleisch' }, { category: 'Trockenwaren & Konserven', name: '1 Dose Kidneybohnen' }, { category: 'Trockenwaren & Konserven', name: '800g Gehackte Tomaten (Dose)' }, { category: 'Trockenwaren & Konserven', name: '1 Dose Mais' }, { category: 'Obst & Gemüse', name: '2 Zwiebeln' }, { category: 'Obst & Gemüse', name: '2 Zehen Knoblauch' }
     ], instructions: [
         "Zwiebeln und Knoblauch anbraten, Hackfleisch zugeben und anbraten.",
         "Tomaten, Bohnen und Mais hinzufügen.",
@@ -113,7 +113,7 @@ export const recipes: readonly Recipe[] = [
         "Mit Reis oder Brot servieren."
     ]},
     { id: 'r007', title: 'Gemüse-Reispfanne', base: 'reis', tags: ['Vegetarisch', 'Schnell', 'Günstig', 'Vegan'], estimatedPricePerServing: 1.8, ingredients: [
-        { category: 'Trockenwaren & Konserven', name: 'Reis' }, { category: 'Obst & Gemüse', name: 'Paprika' }, { category: 'Obst & Gemüse', name: 'Zucchini' }, { category: 'Obst & Gemüse', name: 'Brokkoli' }, { category: 'Trockenwaren & Konserven', name: 'Sojasauce' }
+        { category: 'Trockenwaren & Konserven', name: '300g Reis' }, { category: 'Obst & Gemüse', name: '1 Paprika' }, { category: 'Obst & Gemüse', name: '1 Zucchini' }, { category: 'Obst & Gemüse', name: '1 kleiner Brokkoli' }, { category: 'Trockenwaren & Konserven', name: 'Sojasauce' }
     ], instructions: [
         "Reis kochen.",
         "Gemüse klein schneiden.",
@@ -122,7 +122,7 @@ export const recipes: readonly Recipe[] = [
         "Mit Sojasauce und Gewürzen abschmecken."
     ]},
     { id: 'r008', title: 'Risotto mit Pilzen', base: 'reis', tags: ['Vegetarisch', 'Pilze', 'Italienisch'], estimatedPricePerServing: 2.6, ingredients: [
-        { category: 'Trockenwaren & Konserven', name: 'Risottoreis' }, { category: 'Obst & Gemüse', name: 'Champignons' }, { category: 'Obst & Gemüse', name: 'Zwiebeln' }, { category: 'Gewürze & Öle', name: 'Weißwein' }, { category: 'Gewürze & Öle', name: 'Gemüsebrühe' }, { category: 'Milchprodukte & Eier', name: 'Parmesan' }
+        { category: 'Trockenwaren & Konserven', name: '300g Risottoreis' }, { category: 'Obst & Gemüse', name: '400g Champignons' }, { category: 'Obst & Gemüse', name: '1 Zwiebel' }, { category: 'Gewürze & Öle', name: '150ml Weißwein' }, { category: 'Gewürze & Öle', name: '1L Gemüsebrühe' }, { category: 'Milchprodukte & Eier', name: '100g Parmesan' }
     ], instructions: [
         "Zwiebeln und Pilze anbraten.",
         "Risottoreis hinzufügen und glasig dünsten.",
@@ -131,7 +131,7 @@ export const recipes: readonly Recipe[] = [
         "Parmesan und Butter unterrühren."
     ]},
     { id: 'r019', title: 'Chicken Teriyaki Bowl', base: 'reis', tags: ['Fleisch', 'Schnell', 'Asiatisch'], estimatedPricePerServing: 3.4, sideSuggestion: 'Edamame', ingredients: [
-        { category: 'Fleisch & Fisch', name: 'Hähnchenbrust' }, { category: 'Trockenwaren & Konserven', name: 'Teriyakisauce' }, { category: 'Trockenwaren & Konserven', name: 'Reis' }, { category: 'Obst & Gemüse', name: 'Brokkoli' }, { category: 'Obst & Gemüse', name: 'Karotten' }, { category: 'Trockenwaren & Konserven', name: 'Sesam' }
+        { category: 'Fleisch & Fisch', name: '500g Hähnchenbrust' }, { category: 'Trockenwaren & Konserven', name: '150ml Teriyakisauce' }, { category: 'Trockenwaren & Konserven', name: '300g Reis' }, { category: 'Obst & Gemüse', name: '1 Brokkoli' }, { category: 'Obst & Gemüse', name: '2 Karotten' }, { category: 'Trockenwaren & Konserven', name: 'Sesam' }
     ], instructions: [
         "Reis kochen, Brokkoli und Karotten dämpfen oder kochen.",
         "Hähnchen in Streifen schneiden und in einer Pfanne anbraten.",
@@ -139,7 +139,7 @@ export const recipes: readonly Recipe[] = [
         "Alles in einer Schüssel anrichten und mit Sesam bestreuen."
     ]},
     { id: 'r023', title: 'Meeresfrüchte-Paella', base: 'reis', tags: ['Fisch', 'Meeresfrüchte'], estimatedPricePerServing: 4.5, isPremium: true, ingredients: [
-        { category: 'Trockenwaren & Konserven', name: 'Paella-Reis' }, { category: 'Fleisch & Fisch', name: 'Meeresfrüchte-Mix (TK)' }, { category: 'Obst & Gemüse', name: 'Paprika' }, { category: 'Trockenwaren & Konserven', name: 'Erbsen (TK)' }, { category: 'Gewürze & Öle', name: 'Safranfäden' }
+        { category: 'Trockenwaren & Konserven', name: '300g Paella-Reis' }, { category: 'Fleisch & Fisch', name: '500g Meeresfrüchte-Mix (TK)' }, { category: 'Obst & Gemüse', name: '1 rote Paprika' }, { category: 'Trockenwaren & Konserven', name: '150g Erbsen (TK)' }, { category: 'Gewürze & Öle', name: '1 Prise Safranfäden' }
     ], instructions: [
         "Zwiebeln und Paprika in einer großen Paella-Pfanne anbraten.",
         "Reis hinzufügen und kurz mitbraten.",
@@ -148,7 +148,7 @@ export const recipes: readonly Recipe[] = [
         "Weitergaren, bis die Flüssigkeit absorbiert ist."
     ]},
     { id: 'r028', title: 'Gebratener Reis mit Ei', base: 'reis', tags: ['Vegetarisch', 'Schnell', 'Günstig'], estimatedPricePerServing: 1.7, ingredients: [
-        { category: 'Trockenwaren & Konserven', name: 'Reis (vom Vortag)' }, { category: 'Milchprodukte & Eier', name: 'Eier' }, { category: 'Trockenwaren & Konserven', name: 'Erbsen (TK)' }, { category: 'Obst & Gemüse', name: 'Frühlingszwiebeln' }, { category: 'Trockenwaren & Konserven', name: 'Sojasauce' }
+        { category: 'Trockenwaren & Konserven', name: '300g Reis (vom Vortag)' }, { category: 'Milchprodukte & Eier', name: '3 Eier' }, { category: 'Trockenwaren & Konserven', name: '150g Erbsen (TK)' }, { category: 'Obst & Gemüse', name: '2 Frühlingszwiebeln' }, { category: 'Trockenwaren & Konserven', name: '4 EL Sojasauce' }
     ], instructions: [
         "Eier verquirlen und in einem Wok zu Rührei braten, dann herausnehmen.",
         "Erbsen und Frühlingszwiebeln kurz anbraten.",
@@ -156,7 +156,7 @@ export const recipes: readonly Recipe[] = [
         "Ei wieder zugeben, mit Sojasauce abschmecken."
     ]},
     { id: 'r029', title: 'Kichererbsen-Curry', base: 'reis', tags: ['Vegetarisch', 'Vegan', 'Günstig', 'Asiatisch'], estimatedPricePerServing: 1.9, ingredients: [
-        { category: 'Trockenwaren & Konserven', name: 'Kichererbsen (Dose)' }, { category: 'Trockenwaren & Konserven', name: 'Kokosmilch' }, { category: 'Obst & Gemüse', name: 'Spinat' }, { category: 'Gewürze & Öle', name: 'Currypulver' }, { category: 'Trockenwaren & Konserven', name: 'Reis' }
+        { category: 'Trockenwaren & Konserven', name: '2 Dosen Kichererbsen' }, { category: 'Trockenwaren & Konserven', name: '400ml Kokosmilch' }, { category: 'Obst & Gemüse', name: '200g Spinat' }, { category: 'Gewürze & Öle', name: '2 EL Currypulver' }, { category: 'Trockenwaren & Konserven', name: '300g Reis' }
     ], instructions: [
         "Zwiebeln und Knoblauch anbraten, Currypulver hinzufügen und kurz mitrösten.",
         "Mit Kokosmilch und gehackten Tomaten (optional) ablöschen.",
@@ -166,7 +166,7 @@ export const recipes: readonly Recipe[] = [
     ]},
     // Potatoes
     { id: 'r009', title: 'Kartoffel-Gratin', base: 'kartoffeln', tags: ['Vegetarisch', 'Günstig', 'Ofengericht', 'Käse'], estimatedPricePerServing: 1.6, sideSuggestion: 'Salat', ingredients: [
-        { category: 'Obst & Gemüse', name: 'Kartoffeln' }, { category: 'Milchprodukte & Eier', name: 'Sahne' }, { category: 'Milchprodukte & Eier', name: 'Geriebener Käse' }, { category: 'Obst & Gemüse', name: 'Knoblauch' }, { category: 'Gewürze & Öle', name: 'Muskatnuss' }
+        { category: 'Obst & Gemüse', name: '1.5kg Kartoffeln' }, { category: 'Milchprodukte & Eier', name: '400ml Sahne' }, { category: 'Milchprodukte & Eier', name: '150g Geriebener Käse' }, { category: 'Obst & Gemüse', name: '1 Zehe Knoblauch' }, { category: 'Gewürze & Öle', name: 'Muskatnuss' }
     ], instructions: [
         "Kartoffeln in dünne Scheiben schneiden.",
         "Eine Auflaufform mit Knoblauch ausreiben.",
@@ -175,7 +175,7 @@ export const recipes: readonly Recipe[] = [
         "Mit Käse bestreuen und bei 180°C ca. 45-60 Minuten backen."
     ]},
     { id: 'r010', title: 'Bratkartoffeln mit Spiegelei', base: 'kartoffeln', tags: ['Vegetarisch', 'Schnell', 'Günstig'], estimatedPricePerServing: 1.4, ingredients: [
-        { category: 'Obst & Gemüse', name: 'Kartoffeln (gekocht)' }, { category: 'Milchprodukte & Eier', name: 'Eier' }, { category: 'Obst & Gemüse', name: 'Zwiebeln' }, { category: 'Fleisch & Fisch', name: 'Speck (optional)' }
+        { category: 'Obst & Gemüse', name: '1kg Kartoffeln (gekocht)' }, { category: 'Milchprodukte & Eier', name: '4 Eier' }, { category: 'Obst & Gemüse', name: '2 Zwiebeln' }, { category: 'Fleisch & Fisch', name: '100g Speck (optional)' }
     ], instructions: [
         "Gekochte Kartoffeln in Scheiben schneiden.",
         "Speck und Zwiebeln in einer Pfanne anbraten.",
@@ -183,14 +183,14 @@ export const recipes: readonly Recipe[] = [
         "In einer zweiten Pfanne Spiegeleier braten und auf den Bratkartoffeln servieren."
     ]},
     { id: 'r011', title: 'Ofenkartoffeln mit Quark', base: 'kartoffeln', tags: ['Vegetarisch', 'Schnell', 'Günstig'], estimatedPricePerServing: 1.2, sideSuggestion: 'Leinöl', ingredients: [
-        { category: 'Obst & Gemüse', name: 'Große Kartoffeln' }, { category: 'Milchprodukte & Eier', name: 'Quark' }, { category: 'Obst & Gemüse', name: 'Schnittlauch' }, { category: 'Gewürze & Öle', name: 'Leinöl' }
+        { category: 'Obst & Gemüse', name: '4 große Kartoffeln' }, { category: 'Milchprodukte & Eier', name: '500g Quark' }, { category: 'Obst & Gemüse', name: '1 Bund Schnittlauch' }, { category: 'Gewürze & Öle', name: 'Leinöl' }
     ], instructions: [
         "Kartoffeln waschen, mit einer Gabel mehrmals einstechen und im Ofen bei 200°C ca. 1 Stunde backen, bis sie weich sind.",
         "Quark mit Salz, Pfeffer und Schnittlauch verrühren.",
         "Gebackene Kartoffeln aufschneiden und mit dem Quark füllen."
     ]},
     { id: 'r012', title: 'Kartoffelsuppe mit Würstchen', base: 'kartoffeln', tags: ['Fleisch', 'Günstig', 'Eintopf', 'Schwein'], estimatedPricePerServing: 1.8, sideSuggestion: 'Brot', ingredients: [
-        { category: 'Obst & Gemüse', name: 'Kartoffeln' }, { category: 'Obst & Gemüse', name: 'Karotten' }, { category: 'Obst & Gemüse', name: 'Sellerie' }, { category: 'Obst & Gemüse', name: 'Lauch' }, { category: 'Fleisch & Fisch', name: 'Wiener Würstchen' }, { category: 'Gewürze & Öle', name: 'Gemüsebrühe' }
+        { category: 'Obst & Gemüse', name: '1kg Kartoffeln' }, { category: 'Obst & Gemüse', name: '2 Karotten' }, { category: 'Obst & Gemüse', name: '1 Stück Sellerie' }, { category: 'Obst & Gemüse', name: '1 Stange Lauch' }, { category: 'Fleisch & Fisch', name: '4 Wiener Würstchen' }, { category: 'Gewürze & Öle', name: '1.5L Gemüsebrühe' }
     ], instructions: [
         "Gemüse und Kartoffeln schälen, würfeln und in einem Topf anbraten.",
         "Mit Gemüsebrühe auffüllen und ca. 20 Minuten kochen lassen, bis das Gemüse weich ist.",
@@ -198,7 +198,7 @@ export const recipes: readonly Recipe[] = [
         "Würstchen in Scheiben schneiden und in der Suppe erhitzen."
     ]},
     { id: 'r020', title: 'Shepherd\'s Pie', base: 'kartoffeln', tags: ['Fleisch', 'Ofengericht', 'Lamm'], estimatedPricePerServing: 3.1, sideSuggestion: 'Grüne Bohnen', ingredients: [
-        { category: 'Fleisch & Fisch', name: 'Lammhackfleisch' }, { category: 'Obst & Gemüse', name: 'Kartoffeln' }, { category: 'Trockenwaren & Konserven', name: 'Erbsen (TK)' }, { category: 'Milchprodukte & Eier', name: 'Butter' }, { category: 'Milchprodukte & Eier', name: 'Milch' }
+        { category: 'Fleisch & Fisch', name: '500g Lammhackfleisch' }, { category: 'Obst & Gemüse', name: '1kg Kartoffeln' }, { category: 'Trockenwaren & Konserven', name: '200g Erbsen (TK)' }, { category: 'Milchprodukte & Eier', name: '50g Butter' }, { category: 'Milchprodukte & Eier', name: '100ml Milch' }
     ], instructions: [
         "Eine Hackfleischsauce mit Zwiebeln, Karotten und Erbsen kochen.",
         "Kartoffeln kochen und zu Püree verarbeiten.",
@@ -207,7 +207,7 @@ export const recipes: readonly Recipe[] = [
         "Bei 200°C ca. 20-25 Minuten backen, bis die Oberfläche goldbraun ist."
     ]},
     { id: 'r022', title: 'Rindergulasch', base: 'kartoffeln', tags: ['Fleisch', 'Eintopf'], estimatedPricePerServing: 3.8, isPremium: true, ingredients: [
-        { category: 'Fleisch & Fisch', name: 'Rindfleisch (Gulasch)' }, { category: 'Obst & Gemüse', name: 'Zwiebeln' }, { category: 'Obst & Gemüse', name: 'Paprika' }, { category: 'Trockenwaren & Konserven', name: 'Tomatenmark' }, { category: 'Gewürze & Öle', name: 'Paprikapulver' }
+        { category: 'Fleisch & Fisch', name: '1kg Rindfleisch (Gulasch)' }, { category: 'Obst & Gemüse', name: '500g Zwiebeln' }, { category: 'Obst & Gemüse', name: '2 Paprika' }, { category: 'Trockenwaren & Konserven', name: '3 EL Tomatenmark' }, { category: 'Gewürze & Öle', name: '3 EL Paprikapulver edelsüß' }
     ], instructions: [
         "Rindfleisch portionsweise scharf anbraten.",
         "Zwiebeln hinzufügen und anbraten.",
@@ -215,7 +215,7 @@ export const recipes: readonly Recipe[] = [
         "Mit Brühe oder Rotwein ablöschen und zugedeckt mindestens 1,5 Stunden schmoren lassen, bis das Fleisch zart ist."
     ]},
     { id: 'r030', title: 'Kartoffelpuffer mit Apfelmus', base: 'kartoffeln', tags: ['Vegetarisch', 'Günstig'], estimatedPricePerServing: 1.3, ingredients: [
-        { category: 'Obst & Gemüse', name: 'Kartoffeln' }, { category: 'Milchprodukte & Eier', name: 'Eier' }, { category: 'Obst & Gemüse', name: 'Zwiebeln' }, { category: 'Trockenwaren & Konserven', name: 'Apfelmus' }
+        { category: 'Obst & Gemüse', name: '1kg Kartoffeln' }, { category: 'Milchprodukte & Eier', name: '2 Eier' }, { category: 'Obst & Gemüse', name: '1 Zwiebel' }, { category: 'Trockenwaren & Konserven', name: '1 Glas Apfelmus' }
     ], instructions: [
         "Kartoffeln und Zwiebeln fein reiben.",
         "Die geriebene Masse gut ausdrücken, um überschüssige Flüssigkeit zu entfernen.",
@@ -224,7 +224,7 @@ export const recipes: readonly Recipe[] = [
         "Mit Apfelmus servieren."
     ]},
     { id: 'r031', title: 'Hähnchenschenkel vom Blech', base: 'kartoffeln', tags: ['Fleisch', 'Ofengericht'], estimatedPricePerServing: 2.5, sideSuggestion: 'Gemüse', ingredients: [
-        { category: 'Fleisch & Fisch', name: 'Hähnchenschenkel' }, { category: 'Obst & Gemüse', name: 'Kartoffeln' }, { category: 'Obst & Gemüse', name: 'Rosmarin' }, { category: 'Obst & Gemüse', name: 'Paprika' }
+        { category: 'Fleisch & Fisch', name: '4 Hähnchenschenkel' }, { category: 'Obst & Gemüse', name: '800g Kartoffeln' }, { category: 'Obst & Gemüse', name: '2 Zweige Rosmarin' }, { category: 'Obst & Gemüse', name: '1 Paprika' }
     ], instructions: [
         "Kartoffeln und Gemüse in mundgerechte Stücke schneiden und auf einem Backblech verteilen.",
         "Hähnchenschenkel würzen.",
@@ -233,7 +233,7 @@ export const recipes: readonly Recipe[] = [
     ]},
     // Mix / Other
     { id: 'r013', title: 'Flammkuchen', base: 'mix', tags: ['Fleisch', 'Schnell', 'Schwein'], estimatedPricePerServing: 2.2, ingredients: [
-        { category: 'Backwaren', name: 'Flammkuchenteig' }, { category: 'Milchprodukte & Eier', name: 'Schmand' }, { category: 'Fleisch & Fisch', name: 'Speckwürfel' }, { category: 'Obst & Gemüse', name: 'Zwiebeln' }
+        { category: 'Backwaren', name: '1 Rolle Flammkuchenteig' }, { category: 'Milchprodukte & Eier', name: '200g Schmand' }, { category: 'Fleisch & Fisch', name: '150g Speckwürfel' }, { category: 'Obst & Gemüse', name: '2 Zwiebeln' }
     ], instructions: [
         "Flammkuchenteig auf einem Backblech ausrollen.",
         "Mit Schmand bestreichen, dabei einen kleinen Rand lassen.",
@@ -241,7 +241,7 @@ export const recipes: readonly Recipe[] = [
         "Mit Speck und Zwiebeln belegen und bei hoher Hitze (ca. 220°C) 10-15 Minuten knusprig backen."
     ]},
     { id: 'r014', title: 'Gefüllte Paprika', base: 'mix', tags: ['Fleisch', 'Ofengericht'], estimatedPricePerServing: 2.7, sideSuggestion: 'Reis', ingredients: [
-        { category: 'Obst & Gemüse', name: 'Paprika' }, { category: 'Fleisch & Fisch', name: 'Hackfleisch' }, { category: 'Trockenwaren & Konserven', name: 'Reis' }, { category: 'Gewürze & Öle', name: 'Tomatensauce' }
+        { category: 'Obst & Gemüse', name: '4 große Paprika' }, { category: 'Fleisch & Fisch', name: '500g Hackfleisch' }, { category: 'Trockenwaren & Konserven', name: '100g Reis' }, { category: 'Gewürze & Öle', name: '400ml Tomatensauce' }
     ], instructions: [
         "Reis vorkochen.",
         "Hackfleisch mit Zwiebeln anbraten, mit dem Reis vermengen und würzen.",
@@ -249,7 +249,7 @@ export const recipes: readonly Recipe[] = [
         "In eine Auflaufform setzen, etwas Tomatensauce angießen und bei 180°C ca. 30 Minuten backen."
     ]},
     { id: 'r015', title: 'Kürbissuppe mit Ingwer', base: 'mix', tags: ['Vegetarisch', 'Günstig', 'Suppe', 'Vegan'], estimatedPricePerServing: 1.5, sideSuggestion: 'Brot', ingredients: [
-        { category: 'Obst & Gemüse', name: 'Hokkaido-Kürbis' }, { category: 'Obst & Gemüse', name: 'Ingwer' }, { category: 'Trockenwaren & Konserven', name: 'Kokosmilch' }, { category: 'Gewürze & Öle', name: 'Gemüsebrühe' }
+        { category: 'Obst & Gemüse', name: '1 Hokkaido-Kürbis' }, { category: 'Obst & Gemüse', name: '1 Stück Ingwer (ca. 2cm)' }, { category: 'Trockenwaren & Konserven', name: '400ml Kokosmilch' }, { category: 'Gewürze & Öle', name: '800ml Gemüsebrühe' }
     ], instructions: [
         "Kürbis entkernen und in Stücke schneiden (Hokkaido muss nicht geschält werden).",
         "Kürbis mit Zwiebeln und geriebenem Ingwer in einem Topf andünsten.",
@@ -257,7 +257,7 @@ export const recipes: readonly Recipe[] = [
         "Suppe fein pürieren, Kokosmilch unterrühren und mit Salz, Pfeffer und Curry abschmecken."
     ]},
     { id: 'r016', title: 'Wraps mit Hähnchen', base: 'mix', tags: ['Fleisch', 'Schnell'], estimatedPricePerServing: 3.0, ingredients: [
-        { category: 'Backwaren', name: 'Weizen-Tortillas' }, { category: 'Fleisch & Fisch', name: 'Hähnchenbruststreifen' }, { category: 'Obst & Gemüse', name: 'Salat' }, { category: 'Obst & Gemüse', name: 'Tomaten' }, { category: 'Sonstiges', name: 'Salsa-Sauce' }
+        { category: 'Backwaren', name: '8 Weizen-Tortillas' }, { category: 'Fleisch & Fisch', name: '500g Hähnchenbruststreifen' }, { category: 'Obst & Gemüse', name: '1 Kopf Eisbergsalat' }, { category: 'Obst & Gemüse', name: '2 Tomaten' }, { category: 'Sonstiges', name: '1 Glas Salsa-Sauce' }
     ], instructions: [
         "Hähnchenstreifen anbraten.",
         "Salat und Tomaten waschen und schneiden.",
@@ -265,7 +265,7 @@ export const recipes: readonly Recipe[] = [
         "Tortillas mit Salsa, Salat, Tomaten und Hähnchen füllen und aufrollen."
     ]},
     { id: 'r021', title: 'Shakshuka', base: 'mix', tags: ['Vegetarisch', 'Günstig', 'Schnell', 'Pfannengericht'], estimatedPricePerServing: 2.3, sideSuggestion: 'Fladenbrot', ingredients: [
-        { category: 'Milchprodukte & Eier', name: 'Eier' }, { category: 'Trockenwaren & Konserven', name: 'Gehackte Tomaten (Dose)' }, { category: 'Obst & Gemüse', name: 'Zwiebeln' }, { category: 'Obst & Gemüse', name: 'Paprika' }, { category: 'Milchprodukte & Eier', name: 'Feta' }
+        { category: 'Milchprodukte & Eier', name: '4-6 Eier' }, { category: 'Trockenwaren & Konserven', name: '800g Gehackte Tomaten (Dose)' }, { category: 'Obst & Gemüse', name: '1 Zwiebel' }, { category: 'Obst & Gemüse', name: '1 rote Paprika' }, { category: 'Milchprodukte & Eier', name: '150g Feta' }
     ], instructions: [
         "Zwiebeln und Paprika in einer Pfanne anbraten.",
         "Gehackte Tomaten hinzufügen und mit Kreuzkümmel, Paprikapulver, Salz und Pfeffer würzen. Ca. 10 Minuten köcheln lassen.",
@@ -274,7 +274,7 @@ export const recipes: readonly Recipe[] = [
         "Mit zerbröseltem Feta und frischen Kräutern servieren."
     ]},
     { id: 'r024', title: 'Pizza Margherita', base: 'mix', tags: ['Vegetarisch', 'Schnell', 'Günstig', 'Käse'], estimatedPricePerServing: 2.0, ingredients: [
-        { category: 'Backwaren', name: 'Pizzateig' }, { category: 'Trockenwaren & Konserven', name: 'Passierte Tomaten' }, { category: 'Milchprodukte & Eier', name: 'Mozzarella' }, { category: 'Obst & Gemüse', name: 'Basilikum' }
+        { category: 'Backwaren', name: '1 Rolle Pizzateig' }, { category: 'Trockenwaren & Konserven', name: '200g Passierte Tomaten' }, { category: 'Milchprodukte & Eier', name: '250g Mozzarella' }, { category: 'Obst & Gemüse', name: 'Frischer Basilikum' }
     ], instructions: [
         "Pizzateig auf einem Backblech ausrollen.",
         "Passierte Tomaten mit Salz, Pfeffer und Oregano würzen und auf dem Teig verteilen.",
@@ -283,7 +283,7 @@ export const recipes: readonly Recipe[] = [
         "Vor dem Servieren mit frischem Basilikum belegen."
     ]},
     { id: 'r032', title: 'Linsensalat mit Feta', base: 'mix', tags: ['Vegetarisch', 'Salat', 'Kalt', 'Käse'], estimatedPricePerServing: 2.4, ingredients: [
-        { category: 'Trockenwaren & Konserven', name: 'Berglinsen' }, { category: 'Milchprodukte & Eier', name: 'Feta' }, { category: 'Obst & Gemüse', name: 'Paprika' }, { category: 'Obst & Gemüse', name: 'Frühlingszwiebeln' }
+        { category: 'Trockenwaren & Konserven', name: '250g Berglinsen' }, { category: 'Milchprodukte & Eier', name: '200g Feta' }, { category: 'Obst & Gemüse', name: '1 rote Paprika' }, { category: 'Obst & Gemüse', name: '3 Frühlingszwiebeln' }
     ], instructions: [
         "Linsen nach Packungsanweisung kochen und abkühlen lassen.",
         "Paprika und Frühlingszwiebeln klein schneiden.",
@@ -291,7 +291,7 @@ export const recipes: readonly Recipe[] = [
         "Alle Zutaten mit einem Dressing aus Olivenöl, Essig, Salz und Pfeffer vermengen."
     ]},
     { id: 'r033', title: 'Quesadillas mit Bohnen', base: 'mix', tags: ['Vegetarisch', 'Schnell', 'Käse'], estimatedPricePerServing: 2.1, sideSuggestion: 'Salsa', ingredients: [
-        { category: 'Backwaren', name: 'Weizen-Tortillas' }, { category: 'Trockenwaren & Konserven', name: 'Schwarze Bohnen (Dose)' }, { category: 'Milchprodukte & Eier', name: 'Geriebener Käse' }, { category: 'Trockenwaren & Konserven', name: 'Mais (Dose)' }
+        { category: 'Backwaren', name: '8 Weizen-Tortillas' }, { category: 'Trockenwaren & Konserven', name: '1 Dose Schwarze Bohnen' }, { category: 'Milchprodukte & Eier', name: '200g Geriebener Käse' }, { category: 'Trockenwaren & Konserven', name: '1 Dose Mais' }
     ], instructions: [
         "Eine Tortilla in eine Pfanne legen.",
         "Eine Hälfte mit Bohnen, Mais und Käse belegen.",
@@ -299,7 +299,7 @@ export const recipes: readonly Recipe[] = [
         "In Stücke schneiden und mit Salsa oder Guacamole servieren."
     ]},
     { id: 'r034', title: 'Rinder-Steak mit Ofengemüse', base: 'mix', tags: ['Fleisch', 'Ofengericht'], estimatedPricePerServing: 5.5, isPremium: true, ingredients: [
-        { category: 'Fleisch & Fisch', name: 'Rindersteak' }, { category: 'Obst & Gemüse', name: 'Kartoffeln' }, { category: 'Obst & Gemüse', name: 'Zucchini' }, { category: 'Obst & Gemüse', name: 'Rosmarin' }
+        { category: 'Fleisch & Fisch', name: '2 Rindersteaks (à 250g)' }, { category: 'Obst & Gemüse', name: '800g Kartoffeln' }, { category: 'Obst & Gemüse', name: '1 Zucchini' }, { category: 'Obst & Gemüse', name: '2 Zweige Rosmarin' }
     ], instructions: [
         "Gemüse und Kartoffeln schneiden, mit Öl und Kräutern mischen und auf einem Blech verteilen. Bei 200°C ca. 30 Min. backen.",
         "Steak von beiden Seiten scharf anbraten.",
@@ -307,7 +307,7 @@ export const recipes: readonly Recipe[] = [
         "Steak vor dem Anschneiden kurz ruhen lassen."
     ]},
     { id: 'r035', title: 'Dorade aus dem Ofen', base: 'mix', tags: ['Fisch', 'Ofengericht'], estimatedPricePerServing: 4.8, isPremium: true, sideSuggestion: 'Kartoffeln', ingredients: [
-        { category: 'Fleisch & Fisch', name: 'Dorade (ganz)' }, { category: 'Obst & Gemüse', name: 'Zitrone' }, { category: 'Obst & Gemüse', name: 'Knoblauch' }, { category: 'Obst & Gemüse', name: 'Thymian' }
+        { category: 'Fleisch & Fisch', name: '2 Doraden (ganz)' }, { category: 'Obst & Gemüse', name: '1 Zitrone' }, { category: 'Obst & Gemüse', name: '4 Zehen Knoblauch' }, { category: 'Obst & Gemüse', name: '4 Zweige Thymian' }
     ], instructions: [
         "Ofen auf 180°C vorheizen.",
         "Dorade waschen und trockentupfen. Haut mehrmals einschneiden.",
@@ -316,7 +316,7 @@ export const recipes: readonly Recipe[] = [
         "In einer Auflaufform ca. 20-25 Minuten backen, bis das Fleisch weiß ist."
     ]},
     { id: 'r036', title: 'Linseneintopf', base: 'mix', tags: ['Vegetarisch', 'Eintopf', 'Günstig', 'Vegan'], estimatedPricePerServing: 1.2, sideSuggestion: 'Brot', ingredients: [
-        { category: 'Trockenwaren & Konserven', name: 'Tellerlinsen' }, { category: 'Obst & Gemüse', name: 'Suppengrün' }, { category: 'Obst & Gemüse', name: 'Kartoffeln' }, { category: 'Gewürze & Öle', name: 'Essig' }
+        { category: 'Trockenwaren & Konserven', name: '500g Tellerlinsen' }, { category: 'Obst & Gemüse', name: '1 Bund Suppengrün' }, { category: 'Obst & Gemüse', name: '2 Kartoffeln' }, { category: 'Gewürze & Öle', name: '2 EL Essig' }
     ], instructions: [
         "Suppengrün und Kartoffeln würfeln und in einem Topf anbraten.",
         "Linsen hinzufügen und mit Wasser oder Brühe bedecken.",
@@ -324,7 +324,7 @@ export const recipes: readonly Recipe[] = [
         "Mit Salz, Pfeffer und einem Schuss Essig abschmecken."
     ]},
     { id: 'r037', title: 'Zucchini-Puffer', base: 'mix', tags: ['Vegetarisch', 'Günstig'], estimatedPricePerServing: 1.6, sideSuggestion: 'Quark-Dip', ingredients: [
-        { category: 'Obst & Gemüse', name: 'Zucchini' }, { category: 'Milchprodukte & Eier', name: 'Eier' }, { category: 'Backwaren', name: 'Mehl' }, { category: 'Milchprodukte & Eier', name: 'Quark' }
+        { category: 'Obst & Gemüse', name: '2 große Zucchini' }, { category: 'Milchprodukte & Eier', name: '2 Eier' }, { category: 'Backwaren', name: '4 EL Mehl' }, { category: 'Milchprodukte & Eier', name: '250g Quark' }
     ], instructions: [
         "Zucchini grob reiben, salzen und 10 Minuten Wasser ziehen lassen. Gut ausdrücken.",
         "Mit Ei, Mehl, Salz und Pfeffer vermengen.",
@@ -332,7 +332,7 @@ export const recipes: readonly Recipe[] = [
         "Mit einem Kräuterquark-Dip servieren."
     ]},
     { id: 'r038', title: 'Thai-Basilikum-Hähnchen', base: 'reis', tags: ['Fleisch', 'Asiatisch', 'Scharf', 'Schnell'], estimatedPricePerServing: 3.3, ingredients: [
-        { category: 'Fleisch & Fisch', name: 'Hähnchenhackfleisch' }, { category: 'Obst & Gemüse', name: 'Thai-Basilikum' }, { category: 'Obst & Gemüse', name: 'Chilischoten' }, { category: 'Trockenwaren & Konserven', name: 'Fischsauce' }
+        { category: 'Fleisch & Fisch', name: '500g Hähnchenhackfleisch' }, { category: 'Obst & Gemüse', name: '1 Bund Thai-Basilikum' }, { category: 'Obst & Gemüse', name: '2-3 Chilischoten' }, { category: 'Trockenwaren & Konserven', name: '3 EL Fischsauce' }
     ], instructions: [
         "Knoblauch und Chili in einem Wok anbraten.",
         "Hackfleisch hinzufügen und krümelig braten.",
@@ -340,7 +340,7 @@ export const recipes: readonly Recipe[] = [
         "Ganz zum Schluss eine große Handvoll Thai-Basilikum unterheben und sofort mit Reis servieren."
     ]},
     { id: 'r039', title: 'Spinat-Ricotta-Cannelloni', base: 'nudeln', tags: ['Vegetarisch', 'Ofengericht', 'Käse'], estimatedPricePerServing: 2.9, ingredients: [
-        { category: 'Trockenwaren & Konserven', name: 'Cannelloni' }, { category: 'Milchprodukte & Eier', name: 'Ricotta' }, { category: 'Obst & Gemüse', name: 'Spinat (TK)' }, { category: 'Trockenwaren & Konserven', name: 'Passierte Tomaten' }
+        { category: 'Trockenwaren & Konserven', name: '250g Cannelloni' }, { category: 'Milchprodukte & Eier', name: '500g Ricotta' }, { category: 'Obst & Gemüse', name: '450g Spinat (TK)' }, { category: 'Trockenwaren & Konserven', name: '500g Passierte Tomaten' }
     ], instructions: [
         "Aufgetauten Spinat gut ausdrücken und mit Ricotta, Salz, Pfeffer und Muskat vermischen.",
         "Die Cannelloni-Röhren mit der Masse füllen.",
@@ -348,7 +348,7 @@ export const recipes: readonly Recipe[] = [
         "Mit restlicher Tomatensauce bedecken, mit Käse bestreuen und bei 180°C ca. 30 Min. backen."
     ]},
     { id: 'r040', title: 'Couscous-Salat', base: 'mix', tags: ['Vegetarisch', 'Salat', 'Kalt', 'Schnell', 'Vegan'], estimatedPricePerServing: 2.0, ingredients: [
-        { category: 'Trockenwaren & Konserven', name: 'Couscous' }, { category: 'Obst & Gemüse', name: 'Gurke' }, { category: 'Obst & Gemüse', name: 'Tomaten' }, { category: 'Obst & Gemüse', name: 'Minze' }
+        { category: 'Trockenwaren & Konserven', name: '250g Couscous' }, { category: 'Obst & Gemüse', name: '1 Gurke' }, { category: 'Obst & Gemüse', name: '2 Tomaten' }, { category: 'Obst & Gemüse', name: '1 Bund Minze' }
     ], instructions: [
         "Couscous mit heißer Gemüsebrühe übergießen und quellen lassen.",
         "Gurke und Tomaten fein würfeln.",
@@ -356,7 +356,7 @@ export const recipes: readonly Recipe[] = [
         "Alles mit dem aufgelockerten Couscous vermengen und mit Zitronensaft, Olivenöl, Salz und Pfeffer abschmecken."
     ]},
     { id: 'r041', title: 'Hähnchen-Pfanne süß-sauer', base: 'reis', tags: ['Fleisch', 'Asiatisch', 'Schnell'], estimatedPricePerServing: 3.1, ingredients: [
-        { category: 'Fleisch & Fisch', name: 'Hähnchenbrust' }, { category: 'Obst & Gemüse', name: 'Ananas (frisch oder Dose)' }, { category: 'Obst & Gemüse', name: 'Paprika' }, { category: 'Sonstiges', name: 'Süß-Sauer-Sauce' }
+        { category: 'Fleisch & Fisch', name: '500g Hähnchenbrust' }, { category: 'Obst & Gemüse', name: '1 Dose Ananas' }, { category: 'Obst & Gemüse', name: '1 rote Paprika' }, { category: 'Sonstiges', name: '1 Glas Süß-Sauer-Sauce' }
     ], instructions: [
         "Hähnchen würfeln und anbraten.",
         "Paprika und Ananasstücke hinzufügen und kurz mitbraten.",
@@ -364,7 +364,7 @@ export const recipes: readonly Recipe[] = [
         "Mit Reis servieren."
     ]},
     { id: 'r042', title: 'Tacos mit Hackfleisch', base: 'mix', tags: ['Fleisch', 'Schnell', 'Mexikanisch'], estimatedPricePerServing: 2.8, ingredients: [
-        { category: 'Backwaren', name: 'Taco-Schalen' }, { category: 'Fleisch & Fisch', name: 'Hackfleisch' }, { category: 'Sonstiges', name: 'Taco-Gewürz' }, { category: 'Obst & Gemüse', name: 'Salat' }, { category: 'Milchprodukte & Eier', name: 'Sauerrahm' }
+        { category: 'Backwaren', name: '12 Taco-Schalen' }, { category: 'Fleisch & Fisch', name: '500g Hackfleisch' }, { category: 'Sonstiges', name: '1 Pck. Taco-Gewürz' }, { category: 'Obst & Gemüse', name: '1 Eisbergsalat' }, { category: 'Milchprodukte & Eier', name: '200g Sauerrahm' }
     ], instructions: [
         "Hackfleisch anbraten, mit Taco-Gewürz und etwas Wasser würzen und köcheln lassen.",
         "Taco-Schalen im Ofen erwärmen.",
@@ -372,7 +372,7 @@ export const recipes: readonly Recipe[] = [
         "Jeder füllt seine Tacos selbst am Tisch."
     ]},
     { id: 'r043', title: 'Gefüllte Zucchini mit Feta', base: 'mix', tags: ['Vegetarisch', 'Ofengericht', 'Käse'], estimatedPricePerServing: 2.4, sideSuggestion: 'Baguette', ingredients: [
-        { category: 'Obst & Gemüse', name: 'Zucchini' }, { category: 'Milchprodukte & Eier', name: 'Feta' }, { category: 'Obst & Gemüse', name: 'Tomaten' }, { category: 'Obst & Gemüse', name: 'Zwiebeln' }
+        { category: 'Obst & Gemüse', name: '2 große Zucchini' }, { category: 'Milchprodukte & Eier', name: '200g Feta' }, { category: 'Obst & Gemüse', name: '2 Tomaten' }, { category: 'Obst & Gemüse', name: '1 Zwiebel' }
     ], instructions: [
         "Zucchini längs halbieren und aushöhlen.",
         "Das Fruchtfleisch klein schneiden und mit gewürfelten Tomaten, Zwiebeln und Feta vermischen.",
@@ -380,7 +380,7 @@ export const recipes: readonly Recipe[] = [
         "Bei 180°C ca. 20-25 Minuten im Ofen backen."
     ]},
     { id: 'r044', title: 'Kartoffel-Lauch-Suppe', base: 'kartoffeln', tags: ['Vegetarisch', 'Suppe', 'Günstig'], estimatedPricePerServing: 1.4, ingredients: [
-        { category: 'Obst & Gemüse', name: 'Kartoffeln' }, { category: 'Obst & Gemüse', name: 'Lauch' }, { category: 'Milchprodukte & Eier', name: 'Sahne' }, { category: 'Gewürze & Öle', name: 'Gemüsebrühe' }
+        { category: 'Obst & Gemüse', name: '800g Kartoffeln' }, { category: 'Obst & Gemüse', name: '2 Stangen Lauch' }, { category: 'Milchprodukte & Eier', name: '200ml Sahne' }, { category: 'Gewürze & Öle', name: '1L Gemüsebrühe' }
     ], instructions: [
         "Kartoffeln würfeln, Lauch in Ringe schneiden.",
         "Beides in einem Topf andünsten.",
@@ -388,7 +388,7 @@ export const recipes: readonly Recipe[] = [
         "Suppe pürieren, Sahne unterrühren und abschmecken."
     ]},
     { id: 'r045', title: 'Bratwurst mit Kartoffelpüree', base: 'kartoffeln', tags: ['Fleisch', 'Schwein', 'Klassiker'], estimatedPricePerServing: 2.2, sideSuggestion: 'Sauerkraut', ingredients: [
-        { category: 'Fleisch & Fisch', name: 'Bratwürste' }, { category: 'Obst & Gemüse', name: 'Kartoffeln' }, { category: 'Milchprodukte & Eier', name: 'Milch' }, { category: 'Milchprodukte & Eier', name: 'Butter' }
+        { category: 'Fleisch & Fisch', name: '4 Bratwürste' }, { category: 'Obst & Gemüse', name: '1kg Kartoffeln' }, { category: 'Milchprodukte & Eier', name: '150ml Milch' }, { category: 'Milchprodukte & Eier', name: '1 EL Butter' }
     ], instructions: [
         "Kartoffeln kochen und zu Püree verarbeiten.",
         "Bratwürste in einer Pfanne goldbraun braten.",
@@ -396,7 +396,7 @@ export const recipes: readonly Recipe[] = [
         "Alles zusammen servieren."
     ]},
     { id: 'r046', title: 'Quiche Lorraine', base: 'mix', tags: ['Fleisch', 'Schwein', 'Ofengericht', 'Käse'], estimatedPricePerServing: 2.6, sideSuggestion: 'Salat', ingredients: [
-        { category: 'Backwaren', name: 'Mürbeteig' }, { category: 'Fleisch & Fisch', name: 'Speck' }, { category: 'Milchprodukte & Eier', name: 'Eier' }, { category: 'Milchprodukte & Eier', name: 'Sahne' }
+        { category: 'Backwaren', name: '1 Rolle Mürbeteig' }, { category: 'Fleisch & Fisch', name: '150g Speck' }, { category: 'Milchprodukte & Eier', name: '3 Eier' }, { category: 'Milchprodukte & Eier', name: '200ml Sahne' }
     ], instructions: [
         "Eine Quicheform mit dem Teig auslegen.",
         "Speck anbraten und auf dem Teig verteilen.",
@@ -405,7 +405,7 @@ export const recipes: readonly Recipe[] = [
         "Bei 180°C ca. 30-40 Minuten backen."
     ]},
     { id: 'r047', title: 'Fish and Chips', base: 'kartoffeln', tags: ['Fisch', 'Klassiker'], estimatedPricePerServing: 3.5, ingredients: [
-        { category: 'Fleisch & Fisch', name: 'Kabeljaufilet' }, { category: 'Obst & Gemüse', name: 'Kartoffeln' }, { category: 'Backwaren', name: 'Mehl' }, { category: 'Sonstiges', name: 'Bier' }
+        { category: 'Fleisch & Fisch', name: '600g Kabeljaufilet' }, { category: 'Obst & Gemüse', name: '1kg Kartoffeln' }, { category: 'Backwaren', name: '150g Mehl' }, { category: 'Sonstiges', name: '150ml Bier' }
     ], instructions: [
         "Kartoffeln in dicke Stifte schneiden und frittieren.",
         "Für den Bierteig Mehl, Bier, Salz und Backpulver vermischen.",
@@ -413,14 +413,14 @@ export const recipes: readonly Recipe[] = [
         "Mit Remoulade und Essig servieren."
     ]},
     { id: 'r048', title: 'Falafel-Wraps mit Hummus', base: 'mix', tags: ['Vegetarisch', 'Vegan', 'Schnell'], estimatedPricePerServing: 2.3, ingredients: [
-        { category: 'Backwaren', name: 'Fladenbrot' }, { category: 'Trockenwaren & Konserven', name: 'Falafel (Fertigmischung)' }, { category: 'Sonstiges', name: 'Hummus' }, { category: 'Obst & Gemüse', name: 'Salat' }
+        { category: 'Backwaren', name: '4 große Fladenbrote' }, { category: 'Trockenwaren & Konserven', name: '1 Pck. Falafel (Fertigmischung)' }, { category: 'Sonstiges', name: '200g Hummus' }, { category: 'Obst & Gemüse', name: '1/2 Kopf Salat' }
     ], instructions: [
         "Falafel nach Packungsanweisung zubereiten (meist frittieren oder im Ofen backen).",
         "Fladenbrot erwärmen.",
         "Mit Hummus bestreichen und mit Falafel und Salat füllen."
     ]},
     { id: 'r049', title: 'Buddha Bowl mit Erdnusssauce', base: 'reis', tags: ['Vegetarisch', 'Vegan', 'Gesund'], estimatedPricePerServing: 3.0, ingredients: [
-        { category: 'Trockenwaren & Konserven', name: 'Quinoa' }, { category: 'Obst & Gemüse', name: 'Süßkartoffel' }, { category: 'Trockenwaren & Konserven', name: 'Kichererbsen' }, { category: 'Sonstiges', name: 'Erdnussbutter' }
+        { category: 'Trockenwaren & Konserven', name: '150g Quinoa' }, { category: 'Obst & Gemüse', name: '1 Süßkartoffel' }, { category: 'Trockenwaren & Konserven', name: '1 Dose Kichererbsen' }, { category: 'Sonstiges', name: '3 EL Erdnussbutter' }
     ], instructions: [
         "Quinoa kochen. Süßkartoffel würfeln und im Ofen rösten.",
         "Für die Sauce Erdnussbutter mit Sojasauce, Limettensaft, etwas Wasser und Ingwer glatt rühren.",
@@ -428,11 +428,95 @@ export const recipes: readonly Recipe[] = [
         "Mit der Erdnusssauce beträufeln."
     ]},
     { id: 'r050', title: 'Amerikanische Pancakes', base: 'mix', tags: ['Vegetarisch', 'Süßspeise', 'Schnell'], estimatedPricePerServing: 1.5, sideSuggestion: 'Ahornsirup', ingredients: [
-        { category: 'Backwaren', name: 'Mehl' }, { category: 'Milchprodukte & Eier', name: 'Eier' }, { category: 'Milchprodukte & Eier', name: 'Milch' }, { category: 'Backwaren', name: 'Backpulver' }, { category: 'Sonstiges', name: 'Ahornsirup' }
+        { category: 'Backwaren', name: '250g Mehl' }, { category: 'Milchprodukte & Eier', name: '2 Eier' }, { category: 'Milchprodukte & Eier', name: '250ml Milch' }, { category: 'Backwaren', name: '2 TL Backpulver' }, { category: 'Sonstiges', name: 'Ahornsirup' }
     ], instructions: [
         "Trockene Zutaten (Mehl, Zucker, Backpulver, Salz) vermischen.",
         "Flüssige Zutaten (Milch, Ei, geschmolzene Butter) verquirlen und unter die trockenen Zutaten heben.",
         "Kleine, dicke Pfannkuchen in einer Pfanne ausbacken.",
         "Mit Ahornsirup und Früchten servieren."
+    ]},
+    // 10 new recipes
+    { id: 'r051', title: 'Gemüse-Lasagne', base: 'nudeln', tags: ['Vegetarisch', 'Ofengericht', 'Käse'], estimatedPricePerServing: 2.7, sideSuggestion: 'Salat', ingredients: [
+        { category: 'Trockenwaren & Konserven', name: '12 Lasagneplatten' }, { category: 'Obst & Gemüse', name: '1 Zucchini' }, { category: 'Obst & Gemüse', name: '1 Aubergine' }, { category: 'Obst & Gemüse', name: '2 Paprika' }, { category: 'Trockenwaren & Konserven', name: '800g gehackte Tomaten' }, { category: 'Milchprodukte & Eier', name: '250g Ricotta' }, { category: 'Milchprodukte & Eier', name: '150g geriebener Käse' }
+    ], instructions: [
+        "Gemüse klein schneiden und in Olivenöl anbraten.",
+        "Gehackte Tomaten hinzufügen und zu einer Sauce einkochen, würzen.",
+        "Béchamelsauce zubereiten oder Ricotta als Alternative verwenden.",
+        "Gemüsesauce, Lasagneplatten und Ricotta/Béchamel schichten.",
+        "Mit Käse bestreuen und bei 180°C ca. 30-40 Minuten backen."
+    ]},
+    { id: 'r052', title: 'Königsberger Klopse', base: 'kartoffeln', tags: ['Fleisch', 'Klassiker'], estimatedPricePerServing: 3.0, sideSuggestion: 'Salzkartoffeln', ingredients: [
+        { category: 'Fleisch & Fisch', name: '500g gemischtes Hackfleisch' }, { category: 'Backwaren', name: '1 altes Brötchen' }, { category: 'Milchprodukte & Eier', name: '1 Ei' }, { category: 'Trockenwaren & Konserven', name: '50g Kapern' }, { category: 'Milchprodukte & Eier', name: '200ml Sahne' }, { category: 'Gewürze & Öle', name: '1.5L Brühe' }
+    ], instructions: [
+        "Brötchen einweichen, ausdrücken und mit Hack, Ei und Zwiebeln zu einem Teig verarbeiten. Klopse formen.",
+        "Klopse in der siedenden Brühe ca. 15 Minuten gar ziehen lassen.",
+        "Für die Sauce eine Mehlschwitze herstellen, mit der Kochbrühe und Sahne ablöschen.",
+        "Kapern hinzufügen und die Klopse in der Sauce servieren."
+    ]},
+    { id: 'r053', title: 'Zürcher Geschnetzeltes', base: 'reis', tags: ['Fleisch', 'Schnell', 'Pilze'], estimatedPricePerServing: 4.2, sideSuggestion: 'Rösti oder Reis', isPremium: true, ingredients: [
+        { category: 'Fleisch & Fisch', name: '600g Kalbfleisch' }, { category: 'Obst & Gemüse', name: '250g Champignons' }, { category: 'Obst & Gemüse', name: '1 Zwiebel' }, { category: 'Milchprodukte & Eier', name: '200ml Sahne' }, { category: 'Gewürze & Öle', name: '100ml Weißwein' }
+    ], instructions: [
+        "Fleisch in Streifen schneiden und portionsweise scharf anbraten, dann beiseite stellen.",
+        "Zwiebeln und Champignons in der gleichen Pfanne anbraten.",
+        "Mit Weißwein ablöschen und etwas einkochen lassen.",
+        "Sahne hinzufügen, aufkochen und das Fleisch wieder in die Sauce geben. Nicht mehr kochen lassen.",
+        "Mit Salz und Pfeffer abschmecken."
+    ]},
+    { id: 'r054', title: 'Hähnchenfrikassee', base: 'reis', tags: ['Fleisch', 'Klassiker'], estimatedPricePerServing: 2.8, ingredients: [
+        { category: 'Fleisch & Fisch', name: '500g Hähnchenbrust' }, { category: 'Trockenwaren & Konserven', name: '200g Spargel (Glas)' }, { category: 'Obst & Gemüse', name: '150g Champignons' }, { category: 'Trockenwaren & Konserven', name: '150g Erbsen (TK)' }, { category: 'Milchprodukte & Eier', name: '100ml Sahne' }
+    ], instructions: [
+        "Hähnchenbrust in Brühe garen, dann herausnehmen und in Stücke schneiden. Brühe aufbewahren.",
+        "Eine helle Mehlschwitze zubereiten und mit der Hühnerbrühe und Sahne ablöschen.",
+        "Hähnchen, Spargel, Erbsen und gebratene Champignons in die Sauce geben.",
+        "Mit Zitronensaft, Salz und Pfeffer abschmecken."
+    ]},
+    { id: 'r055', title: 'Maultaschen in der Brühe', base: 'mix', tags: ['Fleisch', 'Schwein', 'Schnell', 'Suppe'], estimatedPricePerServing: 1.9, ingredients: [
+        { category: 'Fleisch & Fisch', name: '1 Pck. Maultaschen' }, { category: 'Gewürze & Öle', name: '1L kräftige Rinderbrühe' }, { category: 'Obst & Gemüse', name: 'Schnittlauch' }
+    ], instructions: [
+        "Rinderbrühe zum Kochen bringen.",
+        "Maultaschen in der Brühe ca. 10-15 Minuten gar ziehen lassen (nicht kochen).",
+        "In tiefen Tellern anrichten und mit frisch geschnittenem Schnittlauch bestreuen."
+    ]},
+    { id: 'r056', title: 'Griechischer Bauernsalat', base: 'mix', tags: ['Vegetarisch', 'Salat', 'Kalt', 'Schnell', 'Käse'], estimatedPricePerServing: 2.5, ingredients: [
+        { category: 'Obst & Gemüse', name: '1 Gurke' }, { category: 'Obst & Gemüse', name: '4 Tomaten' }, { category: 'Obst & Gemüse', name: '1 rote Zwiebel' }, { category: 'Obst & Gemüse', name: '1 grüne Paprika' }, { category: 'Trockenwaren & Konserven', name: '1 Glas Kalamata-Oliven' }, { category: 'Milchprodukte & Eier', name: '200g Feta' }
+    ], instructions: [
+        "Gemüse in grobe Stücke schneiden, Zwiebel in Ringe.",
+        "Alles in einer Schüssel mischen.",
+        "Ein Dressing aus Olivenöl, Zitronensaft, Oregano, Salz und Pfeffer anrühren.",
+        "Den Feta im Ganzen auf den Salat legen, mit dem Dressing beträufeln und mit Oliven garnieren."
+    ]},
+    { id: 'r057', title: 'Currywurst mit Pommes', base: 'kartoffeln', tags: ['Fleisch', 'Schwein', 'Schnell'], estimatedPricePerServing: 2.2, ingredients: [
+        { category: 'Fleisch & Fisch', name: '4 Bratwürste' }, { category: 'Trockenwaren & Konserven', name: '750g Pommes Frites (TK)' }, { category: 'Trockenwaren & Konserven', name: '200ml Ketchup' }, { category: 'Gewürze & Öle', name: '2 EL Currypulver' }
+    ], instructions: [
+        "Pommes im Ofen oder in der Fritteuse zubereiten.",
+        "Bratwürste braten oder grillen und in Scheiben schneiden.",
+        "Ketchup mit Currypulver und evtl. etwas Cola oder Apfelsaft zu einer Sauce verrühren.",
+        "Wurst mit Sauce übergießen und mit Pommes servieren."
+    ]},
+    { id: 'r058', title: 'Tom Kha Gai Suppe', base: 'reis', tags: ['Fleisch', 'Asiatisch', 'Suppe', 'Scharf'], estimatedPricePerServing: 3.3, ingredients: [
+        { category: 'Fleisch & Fisch', name: '400g Hähnchenbrust' }, { category: 'Trockenwaren & Konserven', name: '800ml Kokosmilch' }, { category: 'Obst & Gemüse', name: '200g Champignons' }, { category: 'Obst & Gemüse', name: '1 Stange Zitronengras' }, { category: 'Obst & Gemüse', name: '1 Stück Galgant' }, { category: 'Trockenwaren & Konserven', name: '2 EL Fischsauce' }
+    ], instructions: [
+        "Zitronengras und Galgant andrücken. Mit Kokosmilch und Hühnerbrühe aufkochen.",
+        "Hähnchen in mundgerechte Stücke schneiden und in der Suppe garen.",
+        "Champignons hinzufügen und einige Minuten mitkochen.",
+        "Mit Fischsauce, Limettensaft und Chili abschmecken."
+    ]},
+    { id: 'r059', title: 'Rinderrouladen', base: 'kartoffeln', tags: ['Fleisch', 'Klassiker'], estimatedPricePerServing: 4.0, isPremium: true, sideSuggestion: 'Rotkohl', ingredients: [
+        { category: 'Fleisch & Fisch', name: '4 Rinderrouladen' }, { category: 'Fleisch & Fisch', name: '8 Scheiben Speck' }, { category: 'Trockenwaren & Konserven', name: '4 Gewürzgurken' }, { category: 'Obst & Gemüse', name: '2 Zwiebeln' }, { category: 'Gewürze & Öle', name: 'Senf' }
+    ], instructions: [
+        "Rouladen mit Senf bestreichen, salzen und pfeffern.",
+        "Mit Speck, Zwiebelscheiben und einer Gurke belegen, aufrollen und feststecken.",
+        "Rouladen von allen Seiten scharf anbraten.",
+        "Mit Wasser oder Brühe ablöschen und zugedeckt ca. 1,5 Stunden schmoren.",
+        "Sauce andicken und mit Salzkartoffeln und Rotkohl servieren."
+    ]},
+    { id: 'r060', title: 'Kaiserschmarrn', base: 'mix', tags: ['Vegetarisch', 'Süßspeise', 'Schnell'], estimatedPricePerServing: 2.1, sideSuggestion: 'Apfelmus', ingredients: [
+        { category: 'Milchprodukte & Eier', name: '4 Eier' }, { category: 'Backwaren', name: '150g Mehl' }, { category: 'Milchprodukte & Eier', name: '250ml Milch' }, { category: 'Trockenwaren & Konserven', name: '50g Rosinen (optional)' }, { category: 'Sonstiges', name: 'Puderzucker' }
+    ], instructions: [
+        "Eier trennen. Eigelb mit Mehl, Milch und Zucker zu einem glatten Teig verrühren.",
+        "Eiweiß steif schlagen und unter den Teig heben.",
+        "Teig in eine gebutterte Pfanne geben, optional Rosinen darauf streuen.",
+        "Von einer Seite goldbraun backen, dann wenden und mit zwei Gabeln in Stücke reißen.",
+        "Mit Butter und Zucker karamellisieren und mit Puderzucker bestäubt servieren."
     ]}
 ] as const;

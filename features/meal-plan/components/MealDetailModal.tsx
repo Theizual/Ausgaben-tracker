@@ -16,7 +16,7 @@ interface MealDetailModalProps {
 }
 
 const BASE_INPUT_CLASSES = "w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-1.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-rose-500";
-const TEXTAREA_CLASSES = `${BASE_INPUT_CLASSES} min-h-[100px]`;
+const TEXTAREA_CLASSES = `${BASE_INPUT_CLASSES} min-h-[100px] text-sm`;
 
 export const MealDetailModal: FC<MealDetailModalProps> = ({ isOpen, onClose, mealDay, dayIndex, onReroll }) => {
     const { customRecipes, setCustomRecipes, weeklyMealPlans, setWeeklyMealPlans } = useApp();

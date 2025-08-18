@@ -1,5 +1,6 @@
 
 
+
 export interface User {
   id: string;
   name: string;
@@ -149,6 +150,17 @@ export interface WeeklyPlan {
   days: MealDay[];
   totalEstimate: number;
   totalOverride: number;
+}
+
+export interface CustomShoppingListItem {
+    id: string;
+    name: string;
+    category: string;
+    checked: boolean;
+}
+export interface ShoppingListState {
+    checkedItems: string[]; // names of items from recipes
+    customItems: CustomShoppingListItem[];
 }
 
 export type ViewMode = 'woche' | 'monat';

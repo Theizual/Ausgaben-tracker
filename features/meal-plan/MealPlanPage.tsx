@@ -1,14 +1,13 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useApp } from '@/contexts/AppContext';
 import { getWeek, startOfWeek } from 'date-fns';
-import { MealSetup } from './components/MealSetup';
 import { MealCalendar } from './components/MealCalendar';
 import { BudgetBox } from './components/BudgetBox';
 import { TipsCard } from './components/TipsCard';
 import { Toolbar } from './components/Toolbar';
 import { generatePlan } from './lib/planGenerator';
 import { recipes as baseRecipes } from './data/recipes';
-import type { WeeklyPlan, MealDay } from '@/shared/types';
+import type { WeeklyPlan, MealDay, MealPrefs } from '@/shared/types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { AddRecipeModal } from './components/AddRecipeModal';
@@ -16,6 +15,7 @@ import { ShoppingListModal } from './components/ShoppingListModal';
 import { MealDetailModal } from './components/MealDetailModal';
 import { RecipePickerModal } from './components/RecipePickerModal';
 import type { Recipe } from './data/recipes';
+import { Loader2 } from '@/shared/ui';
 
 const MealPlanPage = () => {
     const { 
@@ -47,6 +47,22 @@ const MealPlanPage = () => {
     const currentPlan = useMemo(() => weeklyMealPlans[weekKey], [weeklyMealPlans, weekKey]);
     const allRecipes = useMemo(() => [...baseRecipes, ...customRecipes], [customRecipes]);
     const recipeMap = useMemo(() => new Map(allRecipes.map(r => [r.id, r])), [allRecipes]);
+
+    useEffect(() => {
+        if (!mealPlanPrefs) {
+            const defaultPrefs: MealPrefs = {
+                people: { adults: 2, kids: 1 },
+                diet: {},
+                base: 'mix',
+                meatRate: '1-2',
+                sides: [],
+                tipsEnabled: true,
+                excludeTags: [],
+                favoriteRecipeIds: [],
+            };
+            setMealPlanPrefs(defaultPrefs);
+        }
+    }, [mealPlanPrefs, setMealPlanPrefs]);
 
     const createAndSavePlan = useCallback((forceCheap: boolean, forDate: Date) => {
         if (!mealPlanPrefs) return;
@@ -169,7 +185,11 @@ const MealPlanPage = () => {
     }, [currentPlan, setWeeklyMealPlans, weekKey]);
     
     if (!mealPlanPrefs) {
-        return <MealSetup onSave={setMealPlanPrefs} />;
+        return (
+            <div className="flex items-center justify-center h-full">
+                <Loader2 className="h-8 w-8 animate-spin text-slate-500" />
+            </div>
+        );
     }
 
     const pageAnimation = {
