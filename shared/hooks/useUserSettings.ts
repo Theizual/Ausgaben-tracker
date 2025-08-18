@@ -1,7 +1,6 @@
 import { useReducer, useMemo, useCallback, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
-import type { UserSetting, MealPrefs, WeeklyPlan, ShoppingListState } from '@/shared/types';
-import type { Recipe } from '@/features/meal-plan/data/recipes';
+import type { UserSetting, Category, Group } from '@/shared/types';
 
 type UserSettingsState = {
     settings: UserSetting[];
@@ -260,24 +259,6 @@ export const useUserSettings = () => {
         setHiddenCategoryIds(userId, []);
     }, [setHiddenCategoryIds]);
 
-    // --- Meal Plan Settings ---
-    const createGetter = <T,>(key: UserSetting['key'], defaultValue: T) => useCallback((userId: string): T => {
-        const setting = liveUserSettings.find(s => s.userId === userId && s.key === key);
-        if (setting && setting.value) {
-            try { return JSON.parse(setting.value) as T; } catch { return defaultValue; }
-        }
-        return defaultValue;
-    }, [liveUserSettings]);
-    
-    const createSetter = <T,>(key: UserSetting['key']) => useCallback((userId: string, value: T) => {
-        const now = new Date().toISOString();
-        const existingSetting = rawUserSettings.find(s => s.userId === userId && s.key === key);
-        const jsonValue = JSON.stringify(value);
-        const newSetting: UserSetting = {
-            userId, key, value: jsonValue, lastModified: now, version: (existingSetting?.version || 0) + 1
-        };
-        dispatch({ type: 'UPDATE_SETTING', payload: newSetting });
-    }, [rawUserSettings]);
 
     return {
         rawUserSettings,
@@ -297,19 +278,5 @@ export const useUserSettings = () => {
         clearHiddenCategories,
         getIsAiEnabled,
         setIsAiEnabled,
-
-        // Meal Plan Getters
-        getMealPlanPrefs: createGetter<MealPrefs | null>('mealPlanPrefs', null),
-        getWeeklyMealPlans: createGetter<Record<string, WeeklyPlan>>('mealPlans', {}),
-        getMealPlanCustomRecipes: createGetter<Recipe[]>('mealPlanCustomRecipes', []),
-        getMealPlanShoppingLists: createGetter<Record<string, ShoppingListState>>('mealPlanShoppingLists', {}),
-        getMealPlanRecentRecipeIds: createGetter<string[]>('mealPlanRecentRecipeIds', []),
-        
-        // Meal Plan Setters
-        setMealPlanPrefs: createSetter<MealPrefs | null>('mealPlanPrefs'),
-        setWeeklyMealPlans: createSetter<Record<string, WeeklyPlan>>('mealPlans'),
-        setMealPlanCustomRecipes: createSetter<Recipe[]>('mealPlanCustomRecipes'),
-        setMealPlanShoppingLists: createSetter<Record<string, ShoppingListState>>('mealPlanShoppingLists'),
-        setMealPlanRecentRecipeIds: createSetter<string[]>('mealPlanRecentRecipeIds'),
     };
 };

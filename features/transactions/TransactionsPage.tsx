@@ -1,9 +1,3 @@
-
-
-
-
-
-
 import React, { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
@@ -88,23 +82,19 @@ const TransactionsPage = () => {
                transactionFilters.maxAmount);
     }, [transactionFilters]);
     
-    const motionContainerProps = { layout: true };
-    const motionButtonProps = { layout: true };
-    const motionDotProps = { layoutId: "filter-dot" };
-
     return (
         <div className="space-y-4">
             <h1 className="text-3xl font-bold text-white">Transaktionen</h1>
             
             <motion.div
-                {...motionContainerProps}
+                layout
                 className="bg-slate-800/50 p-4 rounded-2xl border border-slate-700/50"
             >
                 <div className="flex justify-between items-center flex-wrap gap-2">
                     <QuickFilters activeQuickFilter={transactionActiveQuickFilter} onQuickFilter={handleQuickFilter} />
                     <div className="flex items-center gap-2">
                         <motion.button
-                            {...motionButtonProps}
+                            layout
                             onClick={() => setFilterModalOpen(true)}
                             className={`relative p-2 rounded-full transition-colors ${
                                 isFilterActive
@@ -115,7 +105,7 @@ const TransactionsPage = () => {
                         >
                             <SlidersHorizontal className="h-5 w-5" />
                             {isFilterActive && (
-                                <motion.div {...motionDotProps} className="absolute top-1 right-1 h-2 w-2 bg-rose-400 rounded-full" />
+                                <motion.div layoutId="filter-dot" className="absolute top-1 right-1 h-2 w-2 bg-rose-400 rounded-full" />
                             )}
                         </motion.button>
                     </div>
@@ -123,7 +113,7 @@ const TransactionsPage = () => {
             </motion.div>
 
             <motion.div
-                {...motionContainerProps}
+                layout
                 className="bg-slate-800/50 p-4 rounded-2xl border border-slate-700/50"
             >
                 <TransactionList />

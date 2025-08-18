@@ -167,7 +167,9 @@ const DashboardPage = () => {
                 {/* Right Column */}
                 <div className="space-y-6">
                     <motion.div
-                        {...pageContentAnimation}
+                        initial={pageContentAnimation.initial}
+                        animate={pageContentAnimation.animate}
+                        exit={pageContentAnimation.exit}
                         transition={{ delay: 0.1, duration: 0.3 }}
                         className="bg-slate-800/50 p-6 rounded-2xl border border-slate-700/50"
                     >
@@ -205,7 +207,9 @@ const DashboardPage = () => {
                     </motion.div>
                     <motion.div
                         className="bg-slate-800/50 p-6 rounded-2xl border border-slate-700/50 flex flex-col"
-                        {...pageContentAnimation}
+                        initial={pageContentAnimation.initial}
+                        animate={pageContentAnimation.animate}
+                        exit={pageContentAnimation.exit}
                         transition={{ delay: 0.2, duration: 0.3 }}
                     >
                         <div className="flex justify-between items-center mb-4">
@@ -232,7 +236,9 @@ const DashboardPage = () => {
                     {hasAnyBudgetedCategories && (
                         <motion.div
                             className="bg-slate-800/50 p-6 rounded-2xl border border-slate-700/50"
-                            {...pageContentAnimation}
+                            initial={pageContentAnimation.initial}
+                            animate={pageContentAnimation.animate}
+                            exit={pageContentAnimation.exit}
                             transition={{ delay: 0.3, duration: 0.3 }}
                         >
                             <h4 className="text-sm font-semibold text-slate-300">Kategorienbudgets (Flexibel)</h4>
@@ -262,7 +268,10 @@ const DashboardPage = () => {
                                             <AnimatePresence>
                                                 {isGroupExpanded && (
                                                     <motion.div
-                                                        {...collapsibleAnimation}
+                                                        variants={collapsibleAnimation}
+                                                        initial="initial"
+                                                        animate="animate"
+                                                        exit="exit"
                                                         className="overflow-hidden"
                                                     >
                                                         <div className="relative space-y-4 pt-3 ml-4 pl-4 border-l-2 border-slate-600/50">
@@ -294,7 +303,10 @@ const DashboardPage = () => {
                                                                         <AnimatePresence>
                                                                             {isExpanded && (
                                                                                 <motion.div
-                                                                                    {...transactionDetailsAnimation}
+                                                                                    variants={transactionDetailsAnimation}
+                                                                                    initial="initial"
+                                                                                    animate="animate"
+                                                                                    exit="exit"
                                                                                     className="overflow-hidden"
                                                                                 >
                                                                                     <div className="ml-4 pl-4 border-l-2 border-slate-600/50 space-y-1">

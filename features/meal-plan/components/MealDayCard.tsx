@@ -34,8 +34,15 @@ const StatusIcon: FC<{ recipe: Recipe }> = ({ recipe }) => {
 const BaseBadge: FC<{ base: Recipe['base'] }> = ({ base }) => {
     const baseText = { nudeln: 'N', reis: 'R', kartoffeln: 'K', mix: 'M' }[base];
     const baseTitle = { nudeln: 'Nudeln', reis: 'Reis', kartoffeln: 'Kartoffeln', mix: 'Mix' }[base];
+    const baseColorClass = {
+        nudeln: 'bg-amber-500/50 text-amber-100',
+        reis: 'bg-slate-500/50 text-slate-100',
+        kartoffeln: 'bg-yellow-800/50 text-yellow-200',
+        mix: 'bg-indigo-500/50 text-indigo-100'
+    }[base];
+
     return (
-        <div title={baseTitle} className="text-[10px] font-bold bg-slate-600/50 text-slate-300 rounded-full w-4 h-4 flex items-center justify-center">
+        <div title={baseTitle} className={clsx("text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center", baseColorClass)}>
             {baseText}
         </div>
     )
@@ -67,24 +74,24 @@ export const MealDayCard: FC<MealDayCardProps> = ({ mealDay, recipe, onOpenPicke
                 borderColorClass
             )}
         >
-            {/* Header: Day, Icons, Confirm */}
+            {/* Header: Day, Confirm */}
             <div className="w-full flex justify-between items-start">
                 <div className="text-left">
                     <h4 className="font-bold text-white text-sm">{mealDay.day.substring(0,2)}</h4>
                     <p className="text-xs text-slate-400">{format(parseISO(mealDay.dateISO), 'dd.MM.')}</p>
                 </div>
-                <div className="flex items-center gap-1.5">
-                    {recipe && <BaseBadge base={recipe.base} />}
-                    {recipe && <StatusIcon recipe={recipe} />}
-                    <button onClick={toggleConfirm} className="p-1 rounded-full hover:bg-slate-600/50 transition-colors z-10" title={mealDay.isConfirmed ? 'Bestätigung aufheben' : 'Gericht bestätigen'}>
-                        {mealDay.isConfirmed ? <ShieldCheck className="h-4 w-4 text-green-400" /> : <ShieldCheck className="h-4 w-4 text-slate-500 opacity-50 group-hover:opacity-100" />}
-                    </button>
-                </div>
+                <button onClick={toggleConfirm} className="p-1 rounded-full hover:bg-slate-600/50 transition-colors z-10" title={mealDay.isConfirmed ? 'Bestätigung aufheben' : 'Gericht bestätigen'}>
+                    {mealDay.isConfirmed ? <ShieldCheck className="h-4 w-4 text-green-400" /> : <ShieldCheck className="h-4 w-4 text-slate-500 opacity-50 group-hover:opacity-100" />}
+                </button>
             </div>
             
-            {/* Content: Title */}
-            <div className="flex-grow flex items-center justify-center w-full px-1">
-                 <p className="text-sm font-bold text-rose-300 leading-tight line-clamp-3">{mealDay.title}</p>
+            {/* Content: Title & Badges */}
+            <div className="flex-grow flex flex-col items-center justify-center w-full px-1 py-1">
+                 <p className="text-sm font-bold text-rose-300 leading-tight line-clamp-3 text-center">{mealDay.title}</p>
+                 <div className="flex items-center gap-1.5 mt-2">
+                    {recipe && <BaseBadge base={recipe.base} />}
+                    {recipe && <StatusIcon recipe={recipe} />}
+                </div>
             </div>
 
             {/* Footer: Price & Reroll */}

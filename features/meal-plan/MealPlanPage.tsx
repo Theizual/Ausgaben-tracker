@@ -49,7 +49,7 @@ const MealPlanPage = () => {
     const recipeMap = useMemo(() => new Map(allRecipes.map(r => [r.id, r])), [allRecipes]);
 
     useEffect(() => {
-        // More robust check to handle corrupted/incomplete data
+        // Automatically set default preferences if they don't exist
         if (!mealPlanPrefs || !mealPlanPrefs.people) {
             const defaultPrefs: MealPrefs = {
                 people: { adults: 2, kids: 1 },
@@ -143,6 +143,8 @@ const MealPlanPage = () => {
             link: recipe.link,
             priceOverride: undefined,
             note: undefined,
+            ingredients: recipe.ingredients.map(i => i.name),
+            instructions: recipe.instructions?.join('\n'),
         };
 
         const updatedDays = [...currentPlan.days];
@@ -185,7 +187,6 @@ const MealPlanPage = () => {
         setWeeklyMealPlans(prev => ({ ...(prev || {}), [weekKey]: updatedPlan }));
     }, [currentPlan, setWeeklyMealPlans, weekKey]);
     
-    // More robust guard against corrupted data (e.g. `prefs` being `{}`)
     if (!mealPlanPrefs || !mealPlanPrefs.people) {
         return (
             <div className="flex items-center justify-center h-full">
@@ -214,9 +215,7 @@ const MealPlanPage = () => {
                         currentWeek={currentMealPlanWeek}
                         setCurrentWeek={setCurrentMealPlanWeek}
                         onReroll={() => handleReroll()}
-                        onEditPrefs={() => setMealPlanPrefs(null)}
                         onAddRecipe={() => setIsAddRecipeModalOpen(true)}
-                        people={mealPlanPrefs.people}
                         hasUndo={!!undoState}
                         onUndo={handleUndoReroll}
                     />

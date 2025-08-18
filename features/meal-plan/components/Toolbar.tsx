@@ -1,22 +1,92 @@
-
-import React, { FC } from 'react';
-import { Button, ChevronLeft, ChevronRight, RefreshCw, Settings, Plus, Undo2, User, Users } from '@/shared/ui';
+import React, { FC, useState, useRef, useEffect } from 'react';
+import { Button, ChevronLeft, ChevronRight, RefreshCw, Plus, Undo2, Users, Edit, Minus } from '@/shared/ui';
 import { format, addDays, getWeek, startOfWeek } from 'date-fns';
 import { useApp } from '@/contexts/AppContext';
+import { motion, AnimatePresence } from 'framer-motion';
+import { MealPrefs } from '@/shared/types';
+import { toast } from 'react-hot-toast';
+
+// New Popover Component for editing people count
+const PeopleEditorPopover: FC<{
+    prefs: MealPrefs;
+    onSave: (newPrefs: MealPrefs) => void;
+    onClose: () => void;
+}> = ({ prefs, onSave, onClose }) => {
+    const [adults, setAdults] = useState(prefs.people.adults);
+    const [kids, setKids] = useState(prefs.people.kids);
+    const popoverRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (popoverRef.current && !popoverRef.current.contains(event.target as Node)) {
+                handleSave();
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, [onClose]);
+
+    const handleSave = () => {
+        if (adults + kids <= 0) {
+            toast.error("Mindestens eine Person muss angegeben werden.");
+            return;
+        }
+        onSave({ ...prefs, people: { adults, kids } });
+        onClose();
+    };
+
+    const changeCount = (type: 'adults' | 'kids', amount: number) => {
+        if (type === 'adults') {
+            setAdults(prev => Math.max(0, prev + amount));
+        } else {
+            setKids(prev => Math.max(0, prev + amount));
+        }
+    };
+    
+    return (
+        <motion.div
+            ref={popoverRef}
+            initial={{ opacity: 0, y: 5 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 5 }}
+            className="absolute z-20 top-full right-0 mt-2 w-64 bg-slate-900 border border-slate-700 rounded-lg shadow-xl p-4"
+        >
+            <div className="space-y-3">
+                <div>
+                    <label className="text-sm font-medium text-slate-300">Erwachsene</label>
+                    <div className="flex items-center gap-2 mt-1">
+                        <Button variant="secondary" size="icon-xs" onClick={() => changeCount('adults', -1)}><Minus className="h-4 w-4" /></Button>
+                        <input type="number" value={adults} onChange={e => setAdults(parseInt(e.target.value, 10) || 0)} className="w-full text-center bg-slate-800 border border-slate-600 rounded-md p-1" />
+                        <Button variant="secondary" size="icon-xs" onClick={() => changeCount('adults', 1)}><Plus className="h-4 w-4" /></Button>
+                    </div>
+                </div>
+                 <div>
+                    <label className="text-sm font-medium text-slate-300">Kinder</label>
+                    <div className="flex items-center gap-2 mt-1">
+                         <Button variant="secondary" size="icon-xs" onClick={() => changeCount('kids', -1)}><Minus className="h-4 w-4" /></Button>
+                        <input type="number" value={kids} onChange={e => setKids(parseInt(e.target.value, 10) || 0)} className="w-full text-center bg-slate-800 border border-slate-600 rounded-md p-1" />
+                        <Button variant="secondary" size="icon-xs" onClick={() => changeCount('kids', 1)}><Plus className="h-4 w-4" /></Button>
+                    </div>
+                </div>
+            </div>
+            <Button onClick={handleSave} size="sm" className="w-full mt-4">Anwenden</Button>
+        </motion.div>
+    );
+};
+
 
 interface ToolbarProps {
     currentWeek: Date;
     setCurrentWeek: (date: Date) => void;
     onReroll: () => void;
-    onEditPrefs: () => void;
     onAddRecipe: () => void;
-    people: { adults: number; kids: number };
     hasUndo: boolean;
     onUndo: () => void;
 }
 
-export const Toolbar: FC<ToolbarProps> = ({ currentWeek, setCurrentWeek, onReroll, onEditPrefs, onAddRecipe, people, hasUndo, onUndo }) => {
-    const { deLocale } = useApp();
+export const Toolbar: FC<ToolbarProps> = ({ currentWeek, setCurrentWeek, onReroll, onAddRecipe, hasUndo, onUndo }) => {
+    const { deLocale, mealPlanPrefs, setMealPlanPrefs } = useApp();
+    const [isPeopleEditorOpen, setIsPeopleEditorOpen] = useState(false);
 
     const start = startOfWeek(currentWeek, { weekStartsOn: 1 });
     const end = addDays(start, 6);
@@ -39,11 +109,24 @@ export const Toolbar: FC<ToolbarProps> = ({ currentWeek, setCurrentWeek, onRerol
                 </Button>
             </div>
             
-             <div className="flex items-center gap-2 text-sm text-slate-300">
-                <Users className="h-4 w-4" />
-                <span>{people.adults} Erw.</span>
-                <span>&bull;</span>
-                <span>{people.kids} Kind(er)</span>
+             <div className="relative">
+                <button 
+                    onClick={() => setIsPeopleEditorOpen(p => !p)} 
+                    className="flex items-center gap-2 text-sm text-slate-300 hover:bg-slate-700/50 p-2 rounded-lg"
+                >
+                    <Users className="h-5 w-5" />
+                    <span>{mealPlanPrefs?.people.adults} Erw. · {mealPlanPrefs?.people.kids} Kind(er)</span>
+                    <Edit className="h-3 w-3 text-slate-500" />
+                </button>
+                 <AnimatePresence>
+                    {isPeopleEditorOpen && mealPlanPrefs && (
+                        <PeopleEditorPopover 
+                            prefs={mealPlanPrefs}
+                            onSave={setMealPlanPrefs}
+                            onClose={() => setIsPeopleEditorOpen(false)}
+                        />
+                    )}
+                </AnimatePresence>
             </div>
 
             <div className="flex items-center gap-2 flex-wrap justify-center">
@@ -57,9 +140,6 @@ export const Toolbar: FC<ToolbarProps> = ({ currentWeek, setCurrentWeek, onRerol
                 </Button>
                  <Button variant="secondary" size="sm" onClick={onAddRecipe}>
                     <Plus className="h-4 w-4" /> Rezept
-                </Button>
-                 <Button variant="secondary" size="sm" onClick={onEditPrefs}>
-                    <Settings className="h-4 w-4" /> Präferenzen
                 </Button>
             </div>
         </div>
