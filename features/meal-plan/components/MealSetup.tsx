@@ -18,8 +18,6 @@ const defaultPrefs: MealPrefs = {
     favoriteRecipeIds: [],
 };
 
-const EXCLUDABLE_TAGS = ['Schwein', 'Fisch', 'Meeresfrüchte', 'Pilze', 'Scharf', 'Koriander', 'Lamm', 'Innereien', 'Käse'];
-
 
 export const MealSetup: FC<MealSetupProps> = ({ onSave }) => {
     const [prefs, setPrefs] = useState<MealPrefs>(defaultPrefs);
@@ -38,19 +36,6 @@ export const MealSetup: FC<MealSetupProps> = ({ onSave }) => {
             setPrefs(p => ({ ...p, people: { ...p.people, [type]: num } }));
         }
     };
-    
-    const setDiet = (type: 'vegetarian' | 'glutenFree' | 'lactoseFree', checked: boolean) => {
-        setPrefs(p => ({ ...p, diet: { ...p.diet, [type]: checked } }));
-    };
-
-    const toggleExcludeTag = (tag: string) => {
-        setPrefs(p => {
-            const newExcludes = p.excludeTags.includes(tag)
-                ? p.excludeTags.filter(t => t !== tag)
-                : [...p.excludeTags, tag];
-            return { ...p, excludeTags: newExcludes };
-        });
-    };
 
     return (
         <div className="max-w-2xl mx-auto text-center">
@@ -68,16 +53,6 @@ export const MealSetup: FC<MealSetupProps> = ({ onSave }) => {
                     </div>
                 </div>
 
-                {/* Diet */}
-                <div>
-                    <h3 className="font-semibold text-white mb-2">Gibt es spezielle Ernährungsweisen?</h3>
-                    <div className="flex flex-col sm:flex-row gap-4">
-                        <label className="flex items-center gap-2"><input type="checkbox" checked={!!prefs.diet.vegetarian} onChange={e => setDiet('vegetarian', e.target.checked)} className="w-4 h-4 rounded text-rose-500 bg-slate-600 border-slate-500" /> Vegetarisch</label>
-                        <label className="flex items-center gap-2"><input type="checkbox" checked={!!prefs.diet.glutenFree} onChange={e => setDiet('glutenFree', e.target.checked)} className="w-4 h-4 rounded text-rose-500 bg-slate-600 border-slate-500" /> Glutenfrei</label>
-                        <label className="flex items-center gap-2"><input type="checkbox" checked={!!prefs.diet.lactoseFree} onChange={e => setDiet('lactoseFree', e.target.checked)} className="w-4 h-4 rounded text-rose-500 bg-slate-600 border-slate-500" /> Laktosefrei</label>
-                    </div>
-                </div>
-                
                 {/* Meat Rate */}
                  <div>
                     <h3 className="font-semibold text-white mb-2">Wie oft möchtest du Fleisch/Fisch essen?</h3>
@@ -93,23 +68,6 @@ export const MealSetup: FC<MealSetupProps> = ({ onSave }) => {
                         {(['mix', 'nudeln', 'reis', 'kartoffeln'] as const).map(base => <button key={base} onClick={() => setPrefs(p => ({ ...p, base }))} className={`px-3 py-1.5 text-sm font-semibold rounded-full ${prefs.base === base ? 'bg-rose-600 text-white' : 'text-slate-300 hover:bg-slate-700'}`}>{{mix: 'Mix', nudeln: 'Nudeln', reis: 'Reis', kartoffeln: 'Kartoffeln'}[base]}</button>)}
                     </div>
                 </div>
-                
-                {/* Excludes */}
-                <div>
-                    <h3 className="font-semibold text-white mb-2">Was isst du nicht gerne?</h3>
-                    <div className="flex flex-wrap gap-2">
-                        {EXCLUDABLE_TAGS.map(tag => (
-                            <button
-                                key={tag}
-                                onClick={() => toggleExcludeTag(tag)}
-                                className={`px-3 py-1 text-sm font-semibold rounded-full border-2 transition-colors ${prefs.excludeTags.includes(tag) ? 'bg-red-500/20 border-red-500 text-white' : 'border-slate-600 text-slate-300 hover:border-slate-500'}`}
-                            >
-                                {tag}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-
 
                 <div className="pt-4">
                     <Button onClick={handleSave} className="w-full">Plan erstellen & Speichern</Button>
