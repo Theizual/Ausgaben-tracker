@@ -168,13 +168,6 @@ export interface MealDay {
   instructions?: string;
 }
 
-export interface WeeklyPlan {
-  weekKey: string; // e.g., "2024-W34"
-  days: MealDay[];
-  totalEstimate: number;
-  totalOverride: number;
-}
-
 export interface CustomShoppingListItem {
     id: string;
     name: string;

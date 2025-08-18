@@ -8,6 +8,8 @@ export const HEADERS = {
   UserSettings: ['userId','key','value','lastModified','version'],
   TransactionGroups: ['id','targetAmount','createdAt','lastModified','version','isDeleted'],
   Recipes: ['id','name','ingredients','instructions','price','link','lastModified','isDeleted','userId','tags','base','sideSuggestion','isPremium','version'],
+  Items: ['id','name','unit','pricePerUnit','brand','notes','lastModified','isDeleted','userId'],
+  IngredientItems: ['id','ingredientName','itemId','defaultQty','defaultUnit','lastModified','isDeleted'],
 } as const;
 
 export type SheetName = keyof typeof HEADERS;
@@ -65,6 +67,12 @@ export function rowsToObjects(sheet: SheetName, rows: any[][] = []): any[] {
       if (sheet === 'Recipes') {
         obj.price = parseGermanNumber(obj.price);
       }
+       if (sheet === 'Items') {
+        obj.pricePerUnit = parseGermanNumber(obj.pricePerUnit);
+      }
+      if (sheet === 'IngredientItems') {
+        obj.defaultQty = Number(obj.defaultQty) || 0;
+      }
       if(sheet === 'Transactions'){
           obj.groupBaseAmount = parseGermanNumber(obj.groupBaseAmount);
           if (!obj.groupBaseAmount) {
@@ -107,14 +115,7 @@ export function rowsToObjects(sheet: SheetName, rows: any[][] = []): any[] {
       }
       if (sheet === 'Recipes') {
         if (obj.ingredients && typeof obj.ingredients === 'string') {
-            obj.ingredients = String(obj.ingredients).split('\n').map(t => t.trim()).filter(Boolean).map(line => {
-                const parts = line.split('::');
-                if (parts.length === 2) {
-                    return { name: parts[0], category: parts[1] };
-                }
-                // Fallback for old format (just strings)
-                return { name: line, category: 'Sonstiges' };
-            });
+            obj.ingredients = String(obj.ingredients).split('\n').map(t => t.trim()).filter(Boolean).map(name => ({ name, category: 'Sonstiges' }));
         } else {
             obj.ingredients = [];
         }
@@ -167,13 +168,13 @@ export function objectsToRows(sheet: SheetName, items: any[] = []): any[][] {
 
     if (sheet === 'Recipes') {
       if (h === 'ingredients') {
-        val = Array.isArray(it.ingredients) ? it.ingredients.map((ing: any) => `${ing.name}::${ing.category}`).join('\n') : '';
+        val = Array.isArray(it.ingredients) ? it.ingredients.map(i => i.name).join('\n') : '';
       }
     }
 
     if (Array.isArray(val)) return val.join(',');
     if (typeof val === 'number') {
-        if (h === 'version' || h === 'sortIndex') return val;
+        if (h === 'version' || h === 'sortIndex' || (h === 'defaultQty' && sheet === 'IngredientItems')) return val;
         return val.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
 

@@ -29,7 +29,7 @@ function getAuth() {
 type Payload = {
   groups?: any[]; categories?: any[]; transactions?: any[]; recurring?: any[];
   tags?: any[]; users?: any[]; userSettings?: any[]; transactionGroups?: any[];
-  recipes?: any[];
+  recipes?: any[]; items?: any[]; ingredientItems?: any[];
 };
 
 
@@ -52,6 +52,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ['UserSettings', body.userSettings] as const,
       ['TransactionGroups', body.transactionGroups] as const,
       ['Recipes',      body.recipes] as const,
+      ['Items',        body.items] as const,
+      ['IngredientItems', body.ingredientItems] as const,
     ];
 
     const dataToWrite = sheetsSpec.map(([name, arr]) => {
@@ -85,6 +87,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       userSettings:  rowsToObjects('UserSettings', valueRanges[6]?.values || []),
       transactionGroups: rowsToObjects('TransactionGroups', valueRanges[7]?.values || []),
       recipes:       rowsToObjects('Recipes',      valueRanges[8]?.values || []),
+      items:         rowsToObjects('Items',        valueRanges[9]?.values || []),
+      ingredientItems: rowsToObjects('IngredientItems', valueRanges[10]?.values || []),
     };
 
     return res.status(200).json({ data: out, migrationMap: {} });

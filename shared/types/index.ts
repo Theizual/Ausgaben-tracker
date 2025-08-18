@@ -129,6 +129,32 @@ export interface Recipe {
   version: number;
 }
 
+export interface Item {
+  id: string;
+  name: string;
+  unit: 'stk' | 'g' | 'kg' | 'ml' | 'l' | 'pack' | string;
+  pricePerUnit: number;
+  brand?: string;
+  notes?: string;
+  userId?: string;
+  lastModified: string;
+  isDeleted?: boolean;
+  version: number;
+  conflicted?: boolean;
+}
+
+export interface IngredientItem {
+  id: string;
+  ingredientName: string; // The normalized name from a recipe
+  itemId: string;
+  defaultQty: number;
+  defaultUnit: 'stk' | 'g' | 'kg' | 'ml' | 'l' | 'pack' | string;
+  lastModified: string;
+  isDeleted?: boolean;
+  version: number;
+  conflicted?: boolean;
+}
+
 export interface MealPrefs {
   base: 'nudeln' | 'reis' | 'kartoffeln' | 'mix';
   sides: string[];
@@ -168,7 +194,7 @@ export interface MealDay {
 }
 
 export interface WeeklyPlan {
-  weekKey: string; // e.g., "2024-W34"
+  weekKey: string;
   days: MealDay[];
   totalEstimate: number;
   totalOverride: number;

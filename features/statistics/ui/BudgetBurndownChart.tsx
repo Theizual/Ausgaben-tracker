@@ -1,14 +1,13 @@
 import React, { useMemo, FC, useState, useEffect, useRef } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine } from 'recharts';
-import { AnimatePresence, motion } from 'framer-motion';
 import { clsx } from 'clsx';
 import type { Transaction, Category } from '@/shared/types';
 import { eachDayOfInterval, format, parseISO, startOfMonth, endOfMonth, isAfter, getDate, getDaysInMonth, isSameDay } from 'date-fns';
 import { formatCurrency } from '@/shared/utils/dateUtils';
-import { TrendingDown, X } from '@/shared/ui';
+import { TrendingDown } from '@/shared/ui';
 import { FIXED_COSTS_GROUP_ID, CHART_COLOR_PALETTE } from '@/constants';
 import { useApp } from '@/contexts/AppContext';
-import { ChartControls, ResizeHandle } from '@/shared/ui';
+import { motion } from 'framer-motion';
 
 interface BudgetBurndownChartProps {
     transactions: Transaction[];
@@ -82,88 +81,13 @@ const CustomTooltip = ({ active, payload, label, deLocale, locked }: any) => {
 
 const DEFAULT_HEIGHT = 350;
 
-const LockedTooltipComponent: FC<{
-    payload: any[] | null;
-    items: ItemInfoWithTrend[];
-    onClose: () => void;
-}> = ({ payload, items, onClose }) => {
-    const { deLocale } = useApp();
-
-    const animation = {
-        initial: { opacity: 0, y: 10 },
-        animate: { opacity: 1, y: 0 },
-        exit: { opacity: 0, y: -10 },
-        transition: { duration: 0.2 },
-    };
-
-    if (!payload || payload.length === 0) return <AnimatePresence />;
-
-    const dataPoint = payload[0].payload;
-    const formattedLabel = dataPoint.date
-        ? format(new Date(dataPoint.date), 'eeee, d. MMM yyyy', { locale: deLocale })
-        : '';
-
-    const entries = payload
-        .map((p) => {
-            const item = items.find((i) => i.name === p.dataKey.replace('_trend', ''));
-            if (!item || p.value === null || p.value === undefined) return null;
-            const isTrend = p.dataKey.includes('_trend');
-            return {
-                name: item.name,
-                value: p.value,
-                color: item.color,
-                isTrend,
-            };
-        })
-        .filter((e): e is NonNullable<typeof e> => e !== null)
-        .sort((a, b) => b.value - a.value);
-
-    if (entries.length === 0) return null;
-
-    return (
-        <AnimatePresence>
-            <motion.div {...animation} className="mt-4 pt-4 border-t border-slate-700/50">
-                <div className="bg-slate-700/50 p-3 rounded-lg relative">
-                    <button
-                        onClick={onClose}
-                        className="absolute top-2 right-2 p-1.5 rounded-full hover:bg-slate-600/50"
-                        aria-label="Fixierten Tooltip schließen"
-                    >
-                        <X className="h-4 w-4 text-slate-400" />
-                    </button>
-                    <h4 className="font-bold text-white mb-2">{formattedLabel}</h4>
-                    <div className="space-y-1.5">
-                        {entries.map((entry) => (
-                            <div key={entry.name} className="flex justify-between items-center text-sm gap-4">
-                                <div className="flex items-center gap-2 truncate">
-                                    <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: entry.color }} />
-                                    <span className="text-slate-300 truncate" style={{ color: entry.color }}>
-                                        {entry.name}
-                                    </span>
-                                </div>
-                                <span className="font-mono text-white font-semibold flex-shrink-0">
-                                    {entry.isTrend && <span className="text-slate-400 mr-1 text-xs">(Prognose)</span>}
-                                    {formatCurrency(entry.value)}
-                                </span>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            </motion.div>
-        </AnimatePresence>
-    );
-};
-
-
 export const BudgetBurndownChart: FC<BudgetBurndownChartProps> = ({ transactions, currentMonth }) => {
     const { deLocale, flexibleCategories, groups, statisticsSelectedDay, setStatisticsSelectedDay } = useApp();
     const [inactiveLegendItems, setInactiveLegendItems] = useState<string[]>([]);
     const [hoveredLegendItem, setHoveredLegendItem] = useState<string | null>(null);
-    const [zoomAxis, setZoomAxis] = useState<'x' | 'y'>('x');
-    const [chartHeight, setChartHeight] = useState(DEFAULT_HEIGHT);
-    const [domain, setDomain] = useState<{ x: [any, any]; y: [any, any] }>({ x: ['dataMin', 'dataMax'], y: [0, 'auto'] });
     const dataRef = useRef<{ data: any[], items: ItemInfoWithTrend[] }>({ data: [], items: [] });
     const [lockedTooltipPayload, setLockedTooltipPayload] = useState<any[] | null>(null);
+    const [lockedCoordinate, setLockedCoordinate] = useState<{x: number, y: number} | null>(null);
     
     const allItems = useMemo(() => {
         const allPotentialItems = groups
@@ -268,8 +192,8 @@ export const BudgetBurndownChart: FC<BudgetBurndownChartProps> = ({ transactions
     }, [allItems, currentMonth, transactions]);
 
     useEffect(() => {
-        setDomain({ x: ['dataMin', 'dataMax'], y: [0, 'auto'] });
-        setChartHeight(DEFAULT_HEIGHT);
+        setLockedTooltipPayload(null);
+        setLockedCoordinate(null);
     }, [currentMonth]);
     
     useEffect(() => {
@@ -279,46 +203,12 @@ export const BudgetBurndownChart: FC<BudgetBurndownChartProps> = ({ transactions
                     setStatisticsSelectedDay(null);
                 }
                 setLockedTooltipPayload(null);
+                setLockedCoordinate(null);
             }
         };
         window.addEventListener('keydown', handleEscape);
         return () => window.removeEventListener('keydown', handleEscape);
     }, [setStatisticsSelectedDay]);
-
-    const handleZoom = (direction: 'in' | 'out') => {
-        const factor = direction === 'in' ? 0.8 : 1.2;
-        if (zoomAxis === 'x') {
-            const { data: chartData } = dataRef.current;
-            if (!chartData || chartData.length === 0) return;
-            const [min, max] = domain.x;
-            const dataMin = chartData[0].date;
-            const dataMax = chartData[chartData.length - 1].date;
-            const currentMin = min === 'dataMin' ? dataMin : min;
-            const currentMax = max === 'dataMax' ? dataMax : max;
-            const range = currentMax - currentMin;
-            const newRange = range * factor;
-            const mid = currentMin + range / 2;
-            let newMin = mid - newRange / 2;
-            let newMax = mid + newRange / 2;
-            if (newMin < dataMin) newMin = dataMin;
-            if (newMax > dataMax) newMax = dataMax;
-            if (newMax - newMin < 86400000 * 2) return;
-            setDomain(d => ({ ...d, x: [newMin, newMax] }));
-        } else {
-            const [min, max] = domain.y;
-            const dataMax = Math.max(...dataRef.current.items.map(item => item.budget));
-            const currentMax = max === 'auto' ? dataMax : max;
-            const newMax = Math.max(10, currentMax * factor);
-            setDomain(d => ({ ...d, y: [0, newMax] }));
-        }
-    };
-
-    const handleReset = () => {
-        setDomain({ x: ['dataMin', 'dataMax'], y: [0, 'auto'] });
-        setChartHeight(DEFAULT_HEIGHT);
-        if (setStatisticsSelectedDay) setStatisticsSelectedDay(null);
-        setLockedTooltipPayload(null);
-    };
 
     const handleChartClick = (e: any) => {
         if (e && e.activeLabel) {
@@ -327,15 +217,18 @@ export const BudgetBurndownChart: FC<BudgetBurndownChartProps> = ({ transactions
                 setStatisticsSelectedDay(prev => {
                     if (prev && isSameDay(prev, clickedDate)) {
                         setLockedTooltipPayload(null);
+                        setLockedCoordinate(null);
                         return null;
                     }
                     setLockedTooltipPayload(e.activePayload);
+                    setLockedCoordinate(e.chartX && e.chartY ? { x: e.chartX, y: e.chartY } : null);
                     return clickedDate;
                 });
             }
         } else if (setStatisticsSelectedDay) {
             setStatisticsSelectedDay(null);
             setLockedTooltipPayload(null);
+            setLockedCoordinate(null);
         }
     };
     
@@ -367,20 +260,13 @@ export const BudgetBurndownChart: FC<BudgetBurndownChartProps> = ({ transactions
         <motion.div {...chartAnimation} className="bg-slate-800 p-6 rounded-2xl border border-slate-700">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
                 <h3 className="text-lg font-bold text-white flex items-center gap-2"><TrendingDown className="h-5 w-5 text-rose-400" /> Budget-Verlauf (Gruppen)</h3>
-                <ChartControls
-                    onZoomIn={() => handleZoom('in')}
-                    onZoomOut={() => handleZoom('out')}
-                    onReset={handleReset}
-                    zoomAxis={zoomAxis}
-                    onZoomAxisChange={setZoomAxis}
-                />
             </div>
-            <div style={{ height: `${chartHeight}px` }} className="pr-4 -ml-4 relative">
+            <div style={{ height: `${DEFAULT_HEIGHT}px` }} className="pr-4 -ml-4 relative">
                 <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={data} onClick={handleChartClick} margin={{ top: 5, right: 10, left: 0, bottom: 20 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#475569" strokeOpacity={0.3} />
-                        <XAxis dataKey="date" type="number" scale="time" domain={domain.x} tickFormatter={(d) => format(new Date(d), 'd. MMM', { locale: deLocale })} stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} dy={10} />
-                        <YAxis domain={domain.y} tickFormatter={(v) => formatCurrency(v)} stroke="#94a3b8" fontSize={12} width={80} axisLine={false} tickLine={false} />
+                        <XAxis dataKey="date" type="number" scale="time" domain={['dataMin', 'dataMax']} tickFormatter={(d) => format(new Date(d), 'd. MMM', { locale: deLocale })} stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} dy={10} />
+                        <YAxis domain={[0, 'auto']} tickFormatter={(v) => formatCurrency(v)} stroke="#94a3b8" fontSize={12} width={80} axisLine={false} tickLine={false} />
                         <Tooltip content={<CustomTooltip deLocale={deLocale} locked={!!lockedTooltipPayload} />} cursor={{ stroke: '#f43f5e', strokeWidth: 1, strokeDasharray: '3 3' }} active={!lockedTooltipPayload} />
                         <Legend wrapperStyle={{paddingTop: '20px'}} onClick={handleLegendClick} onMouseEnter={handleLegendHover} onMouseLeave={handleLegendLeave} formatter={(value) => { const item = activeItems.find(i => i.name === value); const isInactive = inactiveLegendItems.includes(value); const isDimmed = hoveredLegendItem && hoveredLegendItem !== value; return ( <span className={clsx('flex items-center gap-1.5 text-sm cursor-pointer transition-opacity', { 'text-slate-300': !isInactive, 'text-slate-500 line-through': isInactive, 'opacity-50': isDimmed, })}> {value} {item?.isTrendNegative && !isInactive && <span title="Prognose: Budget wird überschritten"><TrendingDown className="h-4 w-4 text-red-500"/></span>} </span> ); }}/>
                         
@@ -394,18 +280,18 @@ export const BudgetBurndownChart: FC<BudgetBurndownChartProps> = ({ transactions
                         ))}
                     </LineChart>
                 </ResponsiveContainer>
-                 <ResizeHandle onResize={setChartHeight} />
+                {lockedTooltipPayload && lockedCoordinate && (
+                    <div style={{ position: 'absolute', top: lockedCoordinate.y, left: lockedCoordinate.x, transform: 'translate(10px, -50%)', pointerEvents: 'none', zIndex: 1000 }}>
+                        <CustomTooltip
+                            active={true}
+                            payload={lockedTooltipPayload}
+                            label={lockedTooltipPayload[0]?.payload.date}
+                            deLocale={deLocale}
+                            locked={true}
+                        />
+                    </div>
+                )}
             </div>
-            {lockedTooltipPayload && (
-                <LockedTooltipComponent
-                    payload={lockedTooltipPayload}
-                    items={activeItems}
-                    onClose={() => {
-                        setLockedTooltipPayload(null);
-                        if (setStatisticsSelectedDay) setStatisticsSelectedDay(null);
-                    }}
-                />
-            )}
             {endangeredGroups.length > 0 && (
                 <div className="mt-6 pt-4 border-t border-slate-700">
                     <h4 className="text-sm font-semibold text-red-400 mb-3">Budget gefährdet:</h4>

@@ -54,7 +54,9 @@ export const generatePlan = ({ prefs, allRecipes, recentRecipeIds, forceCheap, t
 
     const days: MealDay[] = [];
     
-    const totalServings = prefs.people.adults + prefs.people.kids * 0.7;
+    const CHILD_FACTOR = 0.6;
+    const round2 = (num: number) => Math.round(num * 100) / 100;
+    const servings = (prefs.people.adults || 1) + (prefs.people.kids || 0) * CHILD_FACTOR;
 
     for (let i = 0; i < 7; i++) {
         const dayDate = addDays(weekStart, i);
@@ -103,7 +105,7 @@ export const generatePlan = ({ prefs, allRecipes, recentRecipeIds, forceCheap, t
             planRecipeIds.delete(existingDay.recipeId);
         }
 
-        const price = (selectedRecipe.price || 2.5) * totalServings;
+        const price = round2((selectedRecipe.price || 2.5) * servings);
         
         days.push({
             day: format(dayDate, 'EEEE', { locale: de }),
@@ -118,14 +120,15 @@ export const generatePlan = ({ prefs, allRecipes, recentRecipeIds, forceCheap, t
         });
     }
 
-    const finalTotal = days.reduce((sum, day) => sum + (day.priceOverride ?? day.estimatedPrice), 0);
-    const finalTotalWithOverrides = days.reduce((sum, day) => sum + (day.priceOverride ?? day.estimatedPrice), 0);
-
+    const finalTotal = days.reduce((sum, day) => {
+        const basePrice = day.priceOverride ?? allRecipes.find(r => r.id === day.recipeId)?.price ?? 2.5;
+        return sum + round2(basePrice * servings);
+    }, 0);
 
     return {
         weekKey,
         days,
         totalEstimate: finalTotal,
-        totalOverride: finalTotalWithOverrides,
+        totalOverride: finalTotal, // totalOverride is now implicitly handled by priceOverride
     };
 };
