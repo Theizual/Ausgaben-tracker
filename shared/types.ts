@@ -153,7 +153,8 @@ export interface MealDay {
   };
   estimatedPrice: number;
   isConfirmed?: boolean;
-  title: string;
+  // Day-specific overrides
+  title?: string;
   side?: string;
   link?: string;
   priceOverride?: number;

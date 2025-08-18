@@ -107,9 +107,16 @@ export function rowsToObjects(sheet: SheetName, rows: any[][] = []): any[] {
       }
       if (sheet === 'Recipes') {
         if (obj.ingredients && typeof obj.ingredients === 'string') {
-          obj.ingredients = String(obj.ingredients).split('\n').map(t => t.trim()).filter(Boolean);
+            obj.ingredients = String(obj.ingredients).split('\n').map(t => t.trim()).filter(Boolean).map(line => {
+                const parts = line.split('::');
+                if (parts.length === 2) {
+                    return { name: parts[0], category: parts[1] };
+                }
+                // Fallback for old format (just strings)
+                return { name: line, category: 'Sonstiges' };
+            });
         } else {
-          obj.ingredients = [];
+            obj.ingredients = [];
         }
         if (obj.tags && typeof obj.tags === 'string') {
           obj.tags = String(obj.tags).split(',').map(t => t.trim()).filter(Boolean);
@@ -159,7 +166,9 @@ export function objectsToRows(sheet: SheetName, items: any[] = []): any[][] {
     let val = h === 'userId' && sheet === 'Transactions' ? it.createdBy : it[h];
 
     if (sheet === 'Recipes') {
-      if (h === 'ingredients') val = Array.isArray(it.ingredients) ? it.ingredients.join('\n') : '';
+      if (h === 'ingredients') {
+        val = Array.isArray(it.ingredients) ? it.ingredients.map((ing: any) => `${ing.name}::${ing.category}`).join('\n') : '';
+      }
     }
 
     if (Array.isArray(val)) return val.join(',');

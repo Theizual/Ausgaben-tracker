@@ -2,18 +2,19 @@ import React, { FC, useMemo } from 'react';
 import { WeeklyPlan } from '@/shared/types';
 import { MealDayCard } from './MealDayCard';
 import { ShoppingListCard } from './ShoppingListCard';
-import type { Recipe } from '../data/recipes';
+import { useApp } from '@/contexts/AppContext';
 
 interface MealCalendarProps {
     plan: WeeklyPlan | null;
-    allRecipes: Recipe[];
     onShoppingListClick: () => void;
     onOpenDetail: (dayIndex: number) => void;
     onOpenPicker: (dayIndex: number) => void;
     onToggleConfirm: (dayIndex: number) => void;
 }
 
-export const MealCalendar: FC<MealCalendarProps> = ({ plan, allRecipes, onShoppingListClick, onOpenDetail, onOpenPicker, onToggleConfirm }) => {
+export const MealCalendar: FC<MealCalendarProps> = ({ plan, onShoppingListClick, onOpenDetail, onOpenPicker, onToggleConfirm }) => {
+    const { recipeMap } = useApp();
+    
     if (!plan) {
         return (
             <div className="bg-slate-800/50 p-6 rounded-2xl border border-slate-700/50 h-96 flex items-center justify-center">
@@ -21,8 +22,6 @@ export const MealCalendar: FC<MealCalendarProps> = ({ plan, allRecipes, onShoppi
             </div>
         );
     }
-
-    const recipeMap = useMemo(() => new Map(allRecipes.map(r => [r.id, r])), [allRecipes]);
     
     return (
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 xl:grid-cols-8 gap-2 sm:gap-4">

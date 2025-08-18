@@ -4,7 +4,7 @@ import { formatCurrency } from '@/shared/utils/dateUtils';
 import { ShieldCheck, RefreshCw, Beef, Fish, Carrot, Sprout, Salad, Button } from '@/shared/ui';
 import { format, parseISO } from 'date-fns';
 import { clsx } from 'clsx';
-import type { Recipe } from '../data/recipes';
+import type { Recipe } from '@/shared/types';
 
 interface MealDayCardProps {
     mealDay: MealDay;
@@ -93,7 +93,7 @@ export const MealDayCard: FC<MealDayCardProps> = ({ mealDay, recipe, onOpenPicke
             {/* Content: Title & Confirm Action */}
             <div className="flex-grow flex flex-col items-center justify-center w-full px-1 py-1">
                  <div className="flex items-center gap-2">
-                     <p className="text-sm font-bold text-rose-300 leading-tight line-clamp-3 text-center">{mealDay.title}</p>
+                     <p className="text-sm font-bold text-rose-300 leading-tight line-clamp-3 text-center">{mealDay.title || recipe?.name}</p>
                      {mealDay.isConfirmed && <span title="Bestätigt"><ShieldCheck className="h-4 w-4 text-green-400 flex-shrink-0" /></span>}
                  </div>
                  {!mealDay.isConfirmed && (

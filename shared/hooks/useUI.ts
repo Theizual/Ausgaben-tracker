@@ -1,9 +1,9 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { format, subDays } from '@/shared/utils/dateUtils';
-import type { Transaction, ViewMode, PeriodType, QuickFilterId, SettingsTab, Category, User, MealPrefs, WeeklyPlan, ShoppingListState } from '@/shared/types';
+import type { Transaction, ViewMode, PeriodType, QuickFilterId, SettingsTab, Category, User, MealPrefs, WeeklyPlan, ShoppingListState, Recipe } from '@/shared/types';
 import useLocalStorage from '@/shared/hooks/useLocalStorage';
 import type { CategoryFormData } from '@/features/settings/components/CategoryLibrarySettings';
-import type { Recipe } from '@/features/meal-plan/data/recipes';
+import { getSeedRecipes } from '@/features/meal-plan/data/recipes';
 
 
 export const useUI = (props?: { isDemoModeEnabled: boolean }) => {
@@ -66,7 +66,7 @@ export const useUI = (props?: { isDemoModeEnabled: boolean }) => {
     const [weeklyMealPlans, setWeeklyMealPlans] = useLocalStorage<Record<string, WeeklyPlan>>(`${prefix}weeklyMealPlans`, {});
     const [shoppingLists, setShoppingLists] = useLocalStorage<Record<string, ShoppingListState>>(`${prefix}shoppingLists`, {});
     const [currentMealPlanWeek, setCurrentMealPlanWeek] = useState(new Date());
-    const [customRecipes, setCustomRecipes] = useLocalStorage<Recipe[]>(`${prefix}customMealRecipes`, []);
+    const [recipes, setRecipes] = useLocalStorage<Recipe[]>(`${prefix}recipes`, getSeedRecipes);
     const [recentRecipeIds, setRecentRecipeIds] = useLocalStorage<string[]>(`${prefix}recentRecipeIds`, []);
     
 
@@ -175,8 +175,8 @@ export const useUI = (props?: { isDemoModeEnabled: boolean }) => {
         setShoppingLists,
         currentMealPlanWeek,
         setCurrentMealPlanWeek,
-        customRecipes,
-        setCustomRecipes,
+        recipes,
+        setRecipes,
         recentRecipeIds,
         setRecentRecipeIds,
     };

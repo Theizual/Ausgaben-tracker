@@ -6,15 +6,13 @@ import { BudgetBox } from './components/BudgetBox';
 import { TipsCard } from './components/TipsCard';
 import { Toolbar } from './components/Toolbar';
 import { generatePlan } from './lib/planGenerator';
-import { recipes as baseRecipes } from './data/recipes';
-import type { WeeklyPlan, MealDay, MealPrefs } from '@/shared/types';
+import type { WeeklyPlan, MealDay, MealPrefs, Recipe } from '@/shared/types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { AddRecipeModal } from './components/AddRecipeModal';
 import { ShoppingListModal } from './components/ShoppingListModal';
 import { MealDetailModal } from './components/MealDetailModal';
 import { RecipePickerModal } from './components/RecipePickerModal';
-import type { Recipe } from './data/recipes';
 import { Loader2 } from '@/shared/ui';
 
 const MealPlanPage = () => {
@@ -25,7 +23,7 @@ const MealPlanPage = () => {
         setWeeklyMealPlans,
         currentMealPlanWeek,
         setCurrentMealPlanWeek,
-        customRecipes,
+        recipeMap,
         recentRecipeIds,
         setRecentRecipeIds,
     } = useApp();
@@ -45,8 +43,7 @@ const MealPlanPage = () => {
     }, [currentMealPlanWeek]);
     
     const currentPlan = useMemo(() => (weeklyMealPlans || {})[weekKey], [weeklyMealPlans, weekKey]);
-    const allRecipes = useMemo(() => [...baseRecipes, ...(customRecipes || [])], [customRecipes]);
-    const recipeMap = useMemo(() => new Map(allRecipes.map(r => [r.id, r])), [allRecipes]);
+    const allRecipes = useMemo(() => Array.from(recipeMap.values()), [recipeMap]);
 
     useEffect(() => {
         // Automatically set default preferences if they don't exist
@@ -137,14 +134,9 @@ const MealPlanPage = () => {
         const newMealDay: MealDay = {
             ...originalDay,
             recipeId: recipe.id,
-            title: recipe.title,
-            side: recipe.sideSuggestion,
-            estimatedPrice: recipe.estimatedPricePerServing * totalServings,
-            link: recipe.link,
+            title: recipe.name,
+            estimatedPrice: (recipe.price || 0) * totalServings,
             priceOverride: undefined,
-            note: undefined,
-            ingredients: recipe.ingredients.map(i => i.name),
-            instructions: recipe.instructions?.join('\n'),
         };
 
         const updatedDays = [...currentPlan.days];
@@ -241,7 +233,6 @@ const MealPlanPage = () => {
                             >
                                 <MealCalendar 
                                     plan={currentPlan} 
-                                    allRecipes={allRecipes}
                                     onShoppingListClick={() => setIsShoppingListOpen(true)}
                                     onOpenDetail={setDetailDayIndex}
                                     onOpenPicker={setPickerDayIndex}

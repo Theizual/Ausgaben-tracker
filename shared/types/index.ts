@@ -107,10 +107,15 @@ export interface UserSetting {
   conflicted?: boolean;
 }
 
+export interface Ingredient {
+  name: string;
+  category: string;
+}
+
 export interface Recipe {
   id: string;
   name: string;
-  ingredients: string[];
+  ingredients: Ingredient[];
   instructions: string;
   price?: number;
   link?: string;
@@ -152,12 +157,13 @@ export interface MealDay {
   };
   estimatedPrice: number;
   isConfirmed?: boolean;
-  title: string;
+  // Day-specific overrides
+  title?: string;
   side?: string;
   link?: string;
   priceOverride?: number;
   note?: string;
-  ingredients?: string[];
+  ingredients?: Ingredient[];
   instructions?: string;
 }
 

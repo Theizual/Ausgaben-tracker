@@ -1,9 +1,11 @@
-export interface Ingredient {
+import type { Recipe } from '@/shared/types';
+
+interface OldIngredient {
     category: 'Obst & Gemüse' | 'Fleisch & Fisch' | 'Trockenwaren & Konserven' | 'Milchprodukte & Eier' | 'Backwaren' | 'Gewürze & Öle' | 'Sonstiges';
     name: string;
 }
 
-export interface Recipe {
+interface OldRecipe {
     id: string;
     title: string;
     link?: string;
@@ -12,11 +14,11 @@ export interface Recipe {
     estimatedPricePerServing: number;
     sideSuggestion?: string;
     isPremium?: boolean;
-    ingredients: Ingredient[];
+    ingredients: OldIngredient[];
     instructions?: string[];
 }
 
-export const recipes: readonly Recipe[] = [
+const oldRecipes: readonly OldRecipe[] = [
     // Pasta
     { id: 'r001', title: 'Spaghetti Bolognese', base: 'nudeln', tags: ['Fleisch', 'Klassiker', 'Italienisch'], estimatedPricePerServing: 2.8, sideSuggestion: 'Salat', ingredients: [
         { category: 'Fleisch & Fisch', name: '500g Hackfleisch (Rind)' }, { category: 'Obst & Gemüse', name: '2 Zwiebeln' }, { category: 'Obst & Gemüse', name: '2 Karotten' }, { category: 'Obst & Gemüse', name: '1 Stange Sellerie' }, { category: 'Obst & Gemüse', name: '2 Zehen Knoblauch' }, { category: 'Trockenwaren & Konserven', name: '800g Passierte Tomaten' }, { category: 'Trockenwaren & Konserven', name: '2 EL Tomatenmark' }, { category: 'Trockenwaren & Konserven', name: '500g Spaghetti' }, { category: 'Gewürze & Öle', name: 'Olivenöl' }, { category: 'Gewürze & Öle', name: '100ml Rotwein (optional)' }, { category: 'Gewürze & Öle', name: 'Italienische Kräuter' }
@@ -510,14 +512,15 @@ export const recipes: readonly Recipe[] = [
         "Mit Wasser oder Brühe ablöschen und zugedeckt ca. 1,5 Stunden schmoren.",
         "Sauce andicken und mit Salzkartoffeln und Rotkohl servieren."
     ]},
-    { id: 'r060', title: 'Kaiserschmarrn', base: 'mix', tags: ['Vegetarisch', 'Süßspeise', 'Schnell'], estimatedPricePerServing: 2.1, sideSuggestion: 'Apfelmus', ingredients: [
+    { id: 'r060', title: 'Kaiserschmarrn', base: 'mix', tags: ['Vegetarisch', 'Süßspeise', 'Schnell'], estimatedPricePerServing: 2.1, sideSuggestion: 'Apfelmus oder Zwetschgenröster', ingredients: [
         { category: 'Milchprodukte & Eier', name: '4 Eier' }, { category: 'Backwaren', name: '150g Mehl' }, { category: 'Milchprodukte & Eier', name: '250ml Milch' }, { category: 'Trockenwaren & Konserven', name: '50g Rosinen (optional)' }, { category: 'Sonstiges', name: 'Puderzucker' }
     ], instructions: [
-        "Eier trennen. Eigelb mit Mehl, Milch und Zucker zu einem glatten Teig verrühren.",
-        "Eiweiß steif schlagen und unter den Teig heben.",
-        "Teig in eine gebutterte Pfanne geben, optional Rosinen darauf streuen.",
-        "Von einer Seite goldbraun backen, dann wenden und mit zwei Gabeln in Stücke reißen.",
-        "Mit Butter und Zucker karamellisieren und mit Puderzucker bestäubt servieren."
+        "Eier trennen. Eigelb mit Mehl, Milch und Zucker zu einem glatten Teig verrühren. Rosinen unterrühren.",
+        "Eiweiß zu steifem Schnee schlagen und vorsichtig unter den Teig heben.",
+        "Butter in einer großen Pfanne erhitzen, den Teig hineingießen und bei mittlerer Hitze goldbraun anbacken.",
+        "Den Teig vierteln, wenden und ebenfalls goldbraun backen.",
+        "Mit zwei Gabeln in mundgerechte Stücke reißen.",
+        "Mit Puderzucker bestäuben und kurz karamellisieren lassen. Mit Apfelmus oder Zwetschgenröster servieren."
     ]},
     { id: 'r061', title: 'Kartoffel-Kohlrabi-Gemüse', base: 'kartoffeln', tags: ['Vegetarisch', 'Günstig', 'Schnell', 'Pfannengericht'], estimatedPricePerServing: 1.8, sideSuggestion: 'Spiegelei oder Frikadelle', ingredients: [
         { category: 'Obst & Gemüse', name: '800g Kartoffeln' }, { category: 'Obst & Gemüse', name: '2 Kohlrabi' }, { category: 'Obst & Gemüse', name: '1 Zwiebel' }, { category: 'Gewürze & Öle', name: '200ml Gemüsebrühe' }, { category: 'Milchprodukte & Eier', name: '200ml Sahne' }, { category: 'Obst & Gemüse', name: '1 Bund Petersilie' }, { category: 'Gewürze & Öle', name: 'Muskatnuss' }
@@ -564,5 +567,23 @@ export const recipes: readonly Recipe[] = [
         "Den Teig vierteln, wenden und ebenfalls goldbraun backen.",
         "Mit zwei Gabeln in mundgerechte Stücke reißen.",
         "Mit Puderzucker bestäuben und kurz karamellisieren lassen. Mit Apfelmus oder Zwetschgenröster servieren."
-    ]}
+    ]},
 ] as const;
+
+export const getSeedRecipes = (): Recipe[] => {
+    const now = new Date().toISOString();
+    return oldRecipes.map(r => ({
+        id: r.id,
+        name: r.title,
+        ingredients: r.ingredients,
+        instructions: (r.instructions || []).join('\n'),
+        price: r.estimatedPricePerServing,
+        link: r.link,
+        tags: r.tags,
+        base: r.base,
+        sideSuggestion: r.sideSuggestion,
+        isPremium: r.isPremium,
+        lastModified: now,
+        version: 1,
+    }));
+};

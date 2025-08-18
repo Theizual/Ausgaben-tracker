@@ -1,5 +1,4 @@
-import type { MealPrefs, WeeklyPlan, MealDay } from '@/shared/types';
-import type { Recipe } from '../data/recipes';
+import type { MealPrefs, WeeklyPlan, MealDay, Recipe } from '@/shared/types';
 import { getWeek, startOfWeek, format, addDays, getDay } from 'date-fns';
 import { de } from 'date-fns/locale';
 
@@ -104,13 +103,13 @@ export const generatePlan = ({ prefs, allRecipes, recentRecipeIds, forceCheap, t
             planRecipeIds.delete(existingDay.recipeId);
         }
 
-        const price = selectedRecipe.estimatedPricePerServing * totalServings;
+        const price = (selectedRecipe.price || 2.5) * totalServings;
         
         days.push({
             day: format(dayDate, 'EEEE', { locale: de }),
             dateISO: dayDate.toISOString(),
             recipeId: selectedRecipe.id,
-            title: selectedRecipe.title,
+            title: selectedRecipe.name,
             side: selectedRecipe.sideSuggestion,
             servings: prefs.people,
             estimatedPrice: price,

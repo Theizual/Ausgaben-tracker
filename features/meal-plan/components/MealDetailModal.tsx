@@ -1,8 +1,6 @@
 import React, { FC, useState, useMemo, useEffect } from 'react';
 import { useApp } from '@/contexts/AppContext';
-import type { MealDay, WeeklyPlan } from '@/shared/types';
-import type { Recipe } from '../data/recipes';
-import { recipes as baseRecipes } from '../data/recipes';
+import type { MealDay, WeeklyPlan, Recipe } from '@/shared/types';
 import { Modal, Button, RefreshCw, ChevronDown, Edit } from '@/shared/ui';
 import { toast } from 'react-hot-toast';
 import { formatCurrency } from '@/shared/utils/dateUtils';
@@ -20,9 +18,8 @@ const BASE_INPUT_CLASSES = "w-full bg-slate-700 border border-slate-600 rounded-
 const TEXTAREA_CLASSES = `${BASE_INPUT_CLASSES} min-h-[100px] text-sm`;
 
 export const MealDetailModal: FC<MealDetailModalProps> = ({ isOpen, onClose, mealDay, dayIndex, onOpenPicker }) => {
-    const { customRecipes, weeklyMealPlans, setWeeklyMealPlans } = useApp();
-    const allRecipes = useMemo(() => [...baseRecipes, ...customRecipes], [customRecipes]);
-    const recipe = useMemo(() => mealDay ? allRecipes.find(r => r.id === mealDay.recipeId) : null, [allRecipes, mealDay]);
+    const { recipeMap, weeklyMealPlans, setWeeklyMealPlans } = useApp();
+    const recipe = useMemo(() => mealDay ? recipeMap.get(mealDay.recipeId) : null, [recipeMap, mealDay]);
 
     const [price, setPrice] = useState('');
     const [note, setNote] = useState('');
@@ -38,13 +35,13 @@ export const MealDetailModal: FC<MealDetailModalProps> = ({ isOpen, onClose, mea
             setNote(mealDay.note || '');
             setIngredients(
                 mealDay.ingredients
-                    ? mealDay.ingredients.join('\n')
+                    ? mealDay.ingredients.map(i => i.name).join('\n')
                     : recipe.ingredients.map(i => i.name).join('\n')
             );
             setInstructions(
                 mealDay.instructions !== undefined
                     ? mealDay.instructions
-                    : (recipe.instructions || []).join('\n')
+                    : recipe.instructions
             );
             setIsEditingRecipe(false); // Reset edit mode when modal opens
         }
@@ -53,7 +50,7 @@ export const MealDetailModal: FC<MealDetailModalProps> = ({ isOpen, onClose, mea
     const handleSave = () => {
         if (!mealDay) return;
 
-        const finalIngredients = ingredients.split('\n').filter(Boolean);
+        const finalIngredients = ingredients.split('\n').filter(Boolean).map(name => ({ name, category: 'Sonstiges' }));
         const finalInstructions = instructions.trim();
         
         const planKey = Object.keys(weeklyMealPlans).find(k => weeklyMealPlans[k].days.some(d => d.dateISO === mealDay.dateISO));
@@ -87,8 +84,8 @@ export const MealDetailModal: FC<MealDetailModalProps> = ({ isOpen, onClose, mea
     
     const handleCancelEdit = () => {
         if (mealDay && recipe) {
-            setIngredients(mealDay.ingredients ? mealDay.ingredients.join('\n') : recipe.ingredients.map(i => i.name).join('\n'));
-            setInstructions(mealDay.instructions !== undefined ? mealDay.instructions : (recipe.instructions || []).join('\n'));
+            setIngredients(mealDay.ingredients ? mealDay.ingredients.map(i => i.name).join('\n') : recipe.ingredients.map(i => i.name).join('\n'));
+            setInstructions(mealDay.instructions !== undefined ? mealDay.instructions : recipe.instructions);
         }
         setIsEditingRecipe(false);
     };
@@ -111,7 +108,7 @@ export const MealDetailModal: FC<MealDetailModalProps> = ({ isOpen, onClose, mea
     const instructionsList = instructions.split('\n').filter(Boolean);
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title={`Gericht anpassen: ${recipe.title}`} footer={footer} size="2xl">
+        <Modal isOpen={isOpen} onClose={onClose} title={`Gericht anpassen: ${recipe.name}`} footer={footer} size="2xl">
             <div className="space-y-4 max-h-[70vh] overflow-y-auto custom-scrollbar -mr-4 pr-4">
                 <div className="flex flex-col sm:flex-row gap-4">
                     <div className="flex-1 space-y-4">
@@ -165,7 +162,7 @@ export const MealDetailModal: FC<MealDetailModalProps> = ({ isOpen, onClose, mea
                         </div>
                     </div>
                     <div className="w-full sm:w-64 flex-shrink-0 space-y-4">
-                         <a href={recipe.link || `https://www.chefkoch.de/rs/s0/${encodeURIComponent(recipe.title)}/Rezepte.html`} target="_blank" rel="noopener noreferrer" className="block w-full text-center bg-orange-600/20 text-orange-400 font-semibold p-3 rounded-lg hover:bg-orange-600/40">
+                         <a href={recipe.link || `https://www.chefkoch.de/rs/s0/${encodeURIComponent(recipe.name)}/Rezepte.html`} target="_blank" rel="noopener noreferrer" className="block w-full text-center bg-orange-600/20 text-orange-400 font-semibold p-3 rounded-lg hover:bg-orange-600/40">
                            Rezept suchen
                         </a>
                          <div className="bg-slate-800/50 p-3 rounded-lg space-y-3">

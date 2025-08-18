@@ -1,7 +1,6 @@
 import React, { FC, useState, useEffect, FormEvent, useMemo } from 'react';
 import { Modal, Button, Trash2, Plus } from '@/shared/ui';
-import { WeeklyPlan, CustomShoppingListItem } from '@/shared/types';
-import type { Recipe, Ingredient } from '../data/recipes';
+import { WeeklyPlan, CustomShoppingListItem, Recipe, Ingredient } from '@/shared/types';
 import { toast } from 'react-hot-toast';
 import { useApp } from '@/contexts/AppContext';
 import { getWeek, startOfWeek, parseISO } from 'date-fns';
@@ -74,7 +73,7 @@ export const ShoppingListModal: FC<ShoppingListModalProps> = ({ plan, allRecipes
             }
         });
         
-        const categorized = allIngredients.reduce((acc, ingredient) => {
+        const categorized = allIngredients.reduce((acc: Record<string, Set<string>>, ingredient) => {
             if (!acc[ingredient.category]) {
                 acc[ingredient.category] = new Set();
             }
@@ -88,7 +87,7 @@ export const ShoppingListModal: FC<ShoppingListModalProps> = ({ plan, allRecipes
         let generatedList: CategorizedList[] = Object.entries(categorized)
             .map(([category, itemsSet]) => ({
                 category,
-                items: Array.from(itemsSet).sort().map(name => ({ name, checked: checkedSet.has(name) }))
+                items: [...itemsSet].sort().map(name => ({ name: name, checked: checkedSet.has(name) }))
             }))
             .sort((a,b) => {
                 const indexA = CATEGORY_ORDER.indexOf(a.category);

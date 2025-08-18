@@ -1,7 +1,6 @@
-
 import React, { FC, useState } from 'react';
 import { Modal, Button, TagInput, Loader2 } from '@/shared/ui';
-import type { Recipe } from '../data/recipes';
+import type { Recipe } from '@/shared/types';
 import { useApp } from '@/contexts/AppContext';
 import { generateUUID } from '@/shared/utils/uuid';
 import { toast } from 'react-hot-toast';
@@ -15,7 +14,7 @@ const BASE_INPUT_CLASSES = "w-full bg-slate-700 border border-slate-600 rounded-
 const TEXTAREA_CLASSES = `${BASE_INPUT_CLASSES} min-h-[120px] text-sm`;
 
 export const AddRecipeModal: FC<AddRecipeModalProps> = ({ onClose }) => {
-    const { customRecipes, setCustomRecipes } = useApp();
+    const { addRecipe } = useApp();
     const [title, setTitle] = useState('');
     const [price, setPrice] = useState('');
     const [base, setBase] = useState<'nudeln' | 'reis' | 'kartoffeln' | 'mix'>('mix');
@@ -70,18 +69,20 @@ export const AddRecipeModal: FC<AddRecipeModalProps> = ({ onClose }) => {
 
         const newRecipe: Recipe = {
             id: generateUUID('recipe_custom'),
-            title: title.trim(),
+            name: title.trim(),
             base,
             tags: finalTags,
-            estimatedPricePerServing,
+            price: estimatedPricePerServing,
             link: link.trim() || undefined,
             isPremium,
             ingredients: ingredients.split('\n').filter(Boolean).map(name => ({ name, category: 'Sonstiges' })),
-            instructions: instructions.split('\n').filter(Boolean),
+            instructions: instructions,
+            lastModified: new Date().toISOString(),
+            version: 1,
         };
         
-        setCustomRecipes([...customRecipes, newRecipe]);
-        toast.success(`Rezept "${newRecipe.title}" hinzugefügt.`);
+        addRecipe(newRecipe);
+        toast.success(`Rezept "${newRecipe.name}" hinzugefügt.`);
         onClose();
     };
 

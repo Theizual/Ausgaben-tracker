@@ -8,7 +8,7 @@ import { useUserSettings } from '@/shared/hooks/useUserSettings';
 import { useCategories } from '@/shared/hooks/useCategories';
 import { useCategoryPreferences } from '@/shared/hooks/useCategoryPreferences';
 import useLocalStorage from '@/shared/hooks/useLocalStorage';
-import type { User, Category, Group, RecurringTransaction, Transaction, Tag, UserSetting, TransactionGroup } from '@/shared/types';
+import type { User, Category, Group, RecurringTransaction, Transaction, Tag, UserSetting, TransactionGroup, Recipe } from '@/shared/types';
 import { FIXED_COSTS_GROUP_ID, DEFAULT_CATEGORY_ID } from '@/constants';
 import { isWithinInterval, parseISO, startOfMonth, endOfMonth } from 'date-fns';
 import type { Locale } from 'date-fns';
@@ -28,7 +28,7 @@ export interface AnalyzeReceiptResult {
 // Combine the return types of all hooks to define the shape of the context
 type AppContextType = 
     Omit<ReturnType<typeof useTransactionData>, 'reassignUserForTransactions' | 'addMultipleTransactions'> &
-    Omit<ReturnType<typeof useUI>, 'openSettings'> &
+    Omit<ReturnType<typeof useUI>, 'openSettings' | 'setRecipes'> &
     Omit<ReturnType<typeof useUsers>, 'addUser' | 'isLoading' | 'updateUser' | 'deleteUser'> &
     Omit<ReturnType<typeof useUserSettings>, 'setQuickAddHideGroups' | 'updateGroupColor' | 'updateCategoryColorOverride' | 'updateVisibleGroups' | 'setIsAiEnabled'> &
     Omit<ReturnType<typeof useCategories>, 'upsertCategory' | 'upsertMultipleCategories' | 'deleteCategory' | 'addGroup' | 'renameGroup' | 'updateGroup' | 'deleteGroup' | 'reorderGroups' | 'reorderCategories'> &
@@ -62,6 +62,9 @@ type AppContextType =
         analyzeReceipt: (base64Image: string) => Promise<AnalyzeReceiptResult | null>;
         mergeTransactionWithTarget: (sourceTxId: string, targetTxId: string) => void;
         updateGroupVerifiedStatus: (groupId: string, verified: boolean) => void;
+        addRecipe: (recipe: Recipe) => void;
+        updateRecipe: (recipe: Recipe) => void;
+        deleteRecipe: (recipeId: string) => void;
 
 
         reassignUserForTransactions: (sourceUserId: string, targetUserId: string, onlyNonDemo?: boolean) => void;
@@ -80,6 +83,7 @@ type AppContextType =
         showDemoData: boolean;
         setShowDemoData: (value: boolean | ((prev: boolean) => boolean)) => void;
         isAiEnabled: boolean;
+        recipeMap: Map<string, Recipe>;
     };
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -312,6 +316,7 @@ const ReadyAppProvider: React.FC<{
         rawUsers: usersState.rawUsers,
         rawUserSettings: userSettingsState.rawUserSettings,
         rawTransactionGroups: transactionDataState.rawTransactionGroups,
+        rawRecipes: uiState.recipes,
         setCategoriesAndGroups: categoryState.setCategoriesAndGroups,
         setTransactions: transactionDataState.setTransactions,
         setRecurringTransactions: transactionDataState.setRecurringTransactions,
@@ -319,6 +324,7 @@ const ReadyAppProvider: React.FC<{
         setUsers: usersState.setUsers,
         setUserSettings: userSettingsState.setUserSettings,
         setTransactionGroups: transactionDataState.setTransactionGroups,
+        setRecipes: uiState.setRecipes,
         isInitialSetupDone: isInitialSetupDone,
         isDemoModeEnabled,
         setIsInitialSetupDone: setIsInitialSetupDone,
@@ -390,6 +396,7 @@ const ReadyAppProvider: React.FC<{
         transactionDataState.rawTransactionGroups,
         usersState.rawUsers,
         userSettingsState.rawUserSettings,
+        uiState.recipes, // Sync recipes too
     ]);
 
     // --- Global Persistence Wrappers ---
@@ -404,6 +411,8 @@ const ReadyAppProvider: React.FC<{
             return result;
         };
     };
+    
+    const recipeMap = useMemo(() => new Map(uiState.recipes.filter(r => !r.isDeleted).map(r => [r.id, r])), [uiState.recipes]);
 
     const persistentActions = useMemo(() => ({
         // from useCategories
@@ -437,9 +446,17 @@ const ReadyAppProvider: React.FC<{
         addTransactionsToGroup: createPersistentWrapper(transactionDataState.addTransactionsToGroup),
         mergeTransactionWithTarget: createPersistentWrapper(transactionDataState.mergeTransactionWithTarget),
         updateGroupVerifiedStatus: createPersistentWrapper(transactionDataState.updateGroupVerifiedStatus),
+        
+        // From useUI (for recipes)
+        addRecipe: createPersistentWrapper((recipe: Recipe) => uiState.setRecipes(prev => [...prev, recipe])),
+        updateRecipe: createPersistentWrapper((recipe: Recipe) => uiState.setRecipes(prev => prev.map(r => r.id === recipe.id ? recipe : r))),
+        deleteRecipe: createPersistentWrapper((recipeId: string) => {
+            const now = new Date().toISOString();
+            uiState.setRecipes(prev => prev.map(r => r.id === recipeId ? { ...r, isDeleted: true, lastModified: now, version: (r.version || 0) + 1 } : r));
+        }),
 
 
-    }), [categoryState, userSettingsState, usersState, transactionDataState, debouncedSync]);
+    }), [categoryState, userSettingsState, usersState, transactionDataState, uiState.setRecipes, debouncedSync]);
 
     const setQuickAddHideGroupsForCurrentUser = useCallback((hide: boolean) => {
         if (uiState.currentUserId) {
@@ -488,7 +505,7 @@ const ReadyAppProvider: React.FC<{
             const keysToClear = [
                 'transactions', 'allAvailableTags', 'recurringTransactions', 'transactionGroups',
                 'users', 'userSettings', 'app-current-user-id', 'transactionViewMode',
-                'lastSyncTimestamp', 'autoSyncEnabled', 'categories', 'groups'
+                'lastSyncTimestamp', 'autoSyncEnabled', 'categories', 'groups', 'recipes'
             ];
             
             // Also clear favorites and recents for all users under the current mode
@@ -574,10 +591,10 @@ const ReadyAppProvider: React.FC<{
             }, [categoryState.flexibleCategories]);
 
 
-    const { openSettings: _, ...restUiState } = uiState;
-    const { setQuickAddHideGroups: __, setIsAiEnabled: ___, ...restUserSettingsState } = userSettingsState;
-    const { addUser: ____, updateUser: _____, deleteUser: ______, ...restUsersState } = usersState;
-    const { reassignUserForTransactions: _______, addMultipleTransactions: ________, mergeTransactionWithTarget: _________, updateGroupVerifiedStatus: __________, ...restTxState } = transactionDataState;
+    const { openSettings: _, setRecipes: __, ...restUiState } = uiState;
+    const { setQuickAddHideGroups: ___, setIsAiEnabled: ____, ...restUserSettingsState } = userSettingsState;
+    const { addUser: _____, updateUser: ______, deleteUser: _______, ...restUsersState } = usersState;
+    const { reassignUserForTransactions: ________, addMultipleTransactions: _________, mergeTransactionWithTarget: __________, updateGroupVerifiedStatus: ___________, ...restTxState } = transactionDataState;
     const { upsertCategory: __1, upsertMultipleCategories: __2, deleteCategory: __3, addGroup: __4, renameGroup: __5, updateGroup: __6, deleteGroup: __7, reorderGroups: __8, reorderCategories: __9, ...restCategoryState} = categoryState;
 
 
@@ -617,6 +634,7 @@ const ReadyAppProvider: React.FC<{
         isAiEnabled,
         setIsAiEnabled: setIsAiEnabledForCurrentUser,
         analyzeReceipt,
+        recipeMap,
     };
     
     return (
