@@ -7,8 +7,9 @@ import { useUsers } from '@/shared/hooks/useUsers';
 import { useUserSettings } from '@/shared/hooks/useUserSettings';
 import { useCategories } from '@/shared/hooks/useCategories';
 import { useCategoryPreferences } from '@/shared/hooks/useCategoryPreferences';
+import { useMealPlanData } from '@/shared/hooks/useMealPlanData';
 import useLocalStorage from '@/shared/hooks/useLocalStorage';
-import type { User, Category, Group, RecurringTransaction, Transaction, Tag, UserSetting, TransactionGroup } from '@/shared/types';
+import type { User, Category, Group, RecurringTransaction, Transaction, Tag, UserSetting, TransactionGroup, WeeklyPlan, MealPrefs, ShoppingListState } from '@/shared/types';
 import { FIXED_COSTS_GROUP_ID, DEFAULT_CATEGORY_ID } from '@/constants';
 import { isWithinInterval, parseISO, startOfMonth, endOfMonth } from 'date-fns';
 import type { Locale } from 'date-fns';
@@ -17,6 +18,7 @@ import { Loader2 } from '@/shared/ui';
 import { apiGet, apiPost } from '@/shared/lib/http';
 import { FirstUserSetup } from '@/features/onboarding';
 import debounce from 'lodash.debounce';
+import type { Recipe } from '@/features/meal-plan/data/recipes';
 
 // --- TYPE DEFINITIONS ---
 export interface AnalyzeReceiptResult {
@@ -27,10 +29,10 @@ export interface AnalyzeReceiptResult {
 
 // Combine the return types of all hooks to define the shape of the context
 type AppContextType = 
-    Omit<ReturnType<typeof useTransactionData>, 'reassignUserForTransactions' | 'addMultipleTransactions'> &
+    Omit<ReturnType<typeof useTransactionData>, 'reassignUserForTransactions' | 'addMultipleTransactions' | 'mergeTransactionWithTarget' | 'updateGroupVerifiedStatus'> &
     Omit<ReturnType<typeof useUI>, 'openSettings'> &
     Omit<ReturnType<typeof useUsers>, 'addUser' | 'isLoading' | 'updateUser' | 'deleteUser'> &
-    Omit<ReturnType<typeof useUserSettings>, 'setQuickAddHideGroups' | 'updateGroupColor' | 'updateCategoryColorOverride' | 'updateVisibleGroups' | 'setIsAiEnabled'> &
+    Omit<ReturnType<typeof useUserSettings>, 'setQuickAddHideGroups' | 'updateGroupColor' | 'updateCategoryColorOverride' | 'updateVisibleGroups' | 'setIsAiEnabled' | 'setMealPlanPrefs' | 'setWeeklyMealPlans' | 'setMealPlanCustomRecipes' | 'setMealPlanShoppingLists' | 'setMealPlanRecentRecipeIds'> &
     Omit<ReturnType<typeof useCategories>, 'upsertCategory' | 'upsertMultipleCategories' | 'deleteCategory' | 'addGroup' | 'renameGroup' | 'updateGroup' | 'deleteGroup' | 'reorderGroups' | 'reorderCategories'> &
     ReturnType<typeof useCategoryPreferences> &
     { currentUser: User | null } &
@@ -62,6 +64,12 @@ type AppContextType =
         analyzeReceipt: (base64Image: string) => Promise<AnalyzeReceiptResult | null>;
         mergeTransactionWithTarget: (sourceTxId: string, targetTxId: string) => void;
         updateGroupVerifiedStatus: (groupId: string, verified: boolean) => void;
+        // Meal plan setters
+        setMealPlanPrefs: (value: React.SetStateAction<MealPrefs | null>) => void;
+        setWeeklyMealPlans: (value: React.SetStateAction<Record<string, WeeklyPlan>>) => void;
+        setCustomRecipes: (value: React.SetStateAction<Recipe[]>) => void;
+        setShoppingLists: (value: React.SetStateAction<Record<string, ShoppingListState>>) => void;
+        setRecentRecipeIds: (value: React.SetStateAction<string[]>) => void;
 
 
         reassignUserForTransactions: (sourceUserId: string, targetUserId: string, onlyNonDemo?: boolean) => void;
@@ -80,6 +88,12 @@ type AppContextType =
         showDemoData: boolean;
         setShowDemoData: (value: boolean | ((prev: boolean) => boolean)) => void;
         isAiEnabled: boolean;
+        // Meal Plan Data
+        mealPlanPrefs: MealPrefs | null;
+        weeklyMealPlans: Record<string, WeeklyPlan>;
+        customRecipes: Recipe[];
+        shoppingLists: Record<string, ShoppingListState>;
+        recentRecipeIds: string[];
     };
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -303,6 +317,20 @@ const ReadyAppProvider: React.FC<{
         return userSettingsState.getIsAiEnabled(uiState.currentUserId);
     }, [uiState.currentUserId, userSettingsState]);
 
+     // --- MEAL PLAN DATA ---
+    const mealPlanInitialData = useMemo(() => ({
+        prefs: uiState.currentUserId ? userSettingsState.getMealPlanPrefs(uiState.currentUserId) : null,
+        plans: uiState.currentUserId ? userSettingsState.getWeeklyMealPlans(uiState.currentUserId) : {},
+        customRecipes: uiState.currentUserId ? userSettingsState.getMealPlanCustomRecipes(uiState.currentUserId) : [],
+        shoppingLists: uiState.currentUserId ? userSettingsState.getMealPlanShoppingLists(uiState.currentUserId) : {},
+        recentRecipeIds: uiState.currentUserId ? userSettingsState.getMealPlanRecentRecipeIds(uiState.currentUserId) : [],
+    }), [userSettingsState, uiState.currentUserId]);
+
+    const mealPlanState = useMealPlanData({
+        currentUserId: uiState.currentUserId,
+        initialData: mealPlanInitialData,
+    });
+
     const syncState = useSync({
         rawCategories: categoryState.rawCategories,
         rawGroups: categoryState.rawGroups,
@@ -423,6 +451,11 @@ const ReadyAppProvider: React.FC<{
         updateVisibleGroups: createPersistentWrapper(userSettingsState.updateVisibleGroups),
         setQuickAddHideGroups: createPersistentWrapper(userSettingsState.setQuickAddHideGroups),
         setIsAiEnabled: createPersistentWrapper(userSettingsState.setIsAiEnabled),
+        setMealPlanPrefs: createPersistentWrapper(userSettingsState.setMealPlanPrefs),
+        setWeeklyMealPlans: createPersistentWrapper(userSettingsState.setWeeklyMealPlans),
+        setMealPlanCustomRecipes: createPersistentWrapper(userSettingsState.setMealPlanCustomRecipes),
+        setMealPlanShoppingLists: createPersistentWrapper(userSettingsState.setMealPlanShoppingLists),
+        setMealPlanRecentRecipeIds: createPersistentWrapper(userSettingsState.setMealPlanRecentRecipeIds),
 
         // from useUsers
         addUser: createPersistentWrapper(usersState.addUser),
@@ -474,6 +507,26 @@ const ReadyAppProvider: React.FC<{
         }
     }, [uiState.currentUserId, persistentActions]);
 
+    // --- FINAL MEAL PLAN SETTERS ---
+    const createMealPlanSetter = <T,>(
+        localSetter: React.Dispatch<React.SetStateAction<T>>, 
+        persistentSetter: (userId: string, value: T) => void,
+        localState: T
+    ) => {
+        return useCallback((valueOrFn: React.SetStateAction<T>) => {
+            if (!uiState.currentUserId) return;
+            localSetter(valueOrFn);
+            const newValue = typeof valueOrFn === 'function' ? (valueOrFn as (prevState: T) => T)(localState) : valueOrFn;
+            persistentSetter(uiState.currentUserId, newValue);
+        }, [uiState.currentUserId, localSetter, persistentSetter, localState]);
+    };
+    
+    const setMealPlanPrefs = createMealPlanSetter(mealPlanState.setMealPlanPrefs, persistentActions.setMealPlanPrefs, mealPlanState.mealPlanPrefs);
+    const setWeeklyMealPlans = createMealPlanSetter(mealPlanState.setWeeklyMealPlans, persistentActions.setWeeklyMealPlans, mealPlanState.weeklyMealPlans);
+    const setCustomRecipes = createMealPlanSetter(mealPlanState.setCustomRecipes, persistentActions.setMealPlanCustomRecipes, mealPlanState.customRecipes);
+    const setShoppingLists = createMealPlanSetter(mealPlanState.setShoppingLists, persistentActions.setMealPlanShoppingLists, mealPlanState.shoppingLists);
+    const setRecentRecipeIds = createMealPlanSetter(mealPlanState.setRecentRecipeIds, persistentActions.setMealPlanRecentRecipeIds, mealPlanState.recentRecipeIds);
+
 
     const isInitialSetupDoneRef = useRef(isInitialSetupDone);
     useEffect(() => {
@@ -497,6 +550,11 @@ const ReadyAppProvider: React.FC<{
                 keysToClear.push(`${user.id}_recent_categories`);
                 keysToClear.push(`${user.id}_quickAddHideGroups`); // Clear the new setting too
                 keysToClear.push(`${user.id}_showDemoData`); // Clear demo data visibility setting
+                keysToClear.push(`${user.id}_mealPlanPrefs`);
+                keysToClear.push(`${user.id}_weeklyMealPlans`);
+                keysToClear.push(`${user.id}_shoppingLists`);
+                keysToClear.push(`${user.id}_customMealRecipes`);
+                keysToClear.push(`${user.id}_recentRecipeIds`);
             });
 
             keysToClear.forEach(key => window.localStorage.removeItem(`${prefix}${key}`));
@@ -617,6 +675,13 @@ const ReadyAppProvider: React.FC<{
         isAiEnabled,
         setIsAiEnabled: setIsAiEnabledForCurrentUser,
         analyzeReceipt,
+        // Meal Plan State and Setters
+        ...mealPlanState,
+        setMealPlanPrefs,
+        setWeeklyMealPlans,
+        setCustomRecipes,
+        setShoppingLists,
+        setRecentRecipeIds,
     };
     
     return (

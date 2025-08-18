@@ -1,9 +1,8 @@
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback } from 'react';
 import { format, subDays } from '@/shared/utils/dateUtils';
-import type { Transaction, ViewMode, PeriodType, QuickFilterId, SettingsTab, Category, User, MealPrefs, WeeklyPlan, ShoppingListState } from '@/shared/types';
+import type { Transaction, ViewMode, PeriodType, QuickFilterId, SettingsTab, Category, User } from '@/shared/types';
 import useLocalStorage from '@/shared/hooks/useLocalStorage';
 import type { CategoryFormData } from '@/features/settings/components/CategoryLibrarySettings';
-import type { Recipe } from '@/features/meal-plan/data/recipes';
 
 
 export const useUI = (props?: { isDemoModeEnabled: boolean }) => {
@@ -60,15 +59,9 @@ export const useUI = (props?: { isDemoModeEnabled: boolean }) => {
         };
     });
     const [transactionActiveQuickFilter, setTransactionActiveQuickFilter] = useState<QuickFilterId | null>('current');
-
-    // MealPlanPage
-    const [mealPlanPrefs, setMealPlanPrefs] = useLocalStorage<MealPrefs | null>(`${prefix}mealPlanPrefs`, null);
-    const [weeklyMealPlans, setWeeklyMealPlans] = useLocalStorage<Record<string, WeeklyPlan>>(`${prefix}weeklyMealPlans`, {});
-    const [shoppingLists, setShoppingLists] = useLocalStorage<Record<string, ShoppingListState>>(`${prefix}shoppingLists`, {});
-    const [currentMealPlanWeek, setCurrentMealPlanWeek] = useState(new Date());
-    const [customRecipes, setCustomRecipes] = useLocalStorage<Recipe[]>(`${prefix}customMealRecipes`, []);
-    const [recentRecipeIds, setRecentRecipeIds] = useLocalStorage<string[]>(`${prefix}recentRecipeIds`, []);
     
+    // MealPlanPage
+    const [currentMealPlanWeek, setCurrentMealPlanWeek] = useState(new Date());
 
     // Callbacks for Modals
     const openSettings = useCallback((tab: SettingsTab = 'general') => {
@@ -167,17 +160,7 @@ export const useUI = (props?: { isDemoModeEnabled: boolean }) => {
         closeUserMergeModal,
 
         // Meal Plan state
-        mealPlanPrefs,
-        setMealPlanPrefs,
-        weeklyMealPlans,
-        setWeeklyMealPlans,
-        shoppingLists,
-        setShoppingLists,
         currentMealPlanWeek,
         setCurrentMealPlanWeek,
-        customRecipes,
-        setCustomRecipes,
-        recentRecipeIds,
-        setRecentRecipeIds,
     };
 };
