@@ -129,32 +129,6 @@ export interface Recipe {
   version: number;
 }
 
-export interface Item {
-  id: string;
-  name: string;
-  unit: 'stk' | 'g' | 'kg' | 'ml' | 'l' | 'pack' | string;
-  pricePerUnit: number;
-  brand?: string;
-  notes?: string;
-  userId?: string;
-  lastModified: string;
-  isDeleted?: boolean;
-  version: number;
-  conflicted?: boolean;
-}
-
-export interface IngredientItem {
-  id: string;
-  ingredientName: string; // The normalized name from a recipe
-  itemId: string;
-  defaultQty: number;
-  defaultUnit: 'stk' | 'g' | 'kg' | 'ml' | 'l' | 'pack' | string;
-  lastModified: string;
-  isDeleted?: boolean;
-  version: number;
-  conflicted?: boolean;
-}
-
 export interface MealPrefs {
   base: 'nudeln' | 'reis' | 'kartoffeln' | 'mix';
   sides: string[];
@@ -198,6 +172,9 @@ export interface WeeklyPlan {
   days: MealDay[];
   totalEstimate: number;
   totalOverride: number;
+  lastModified: string;
+  version: number;
+  isDeleted?: boolean;
 }
 
 export interface CustomShoppingListItem {
@@ -207,8 +184,12 @@ export interface CustomShoppingListItem {
     checked: boolean;
 }
 export interface ShoppingListState {
+    weekKey: string;
     checkedItems: string[]; // names of items from recipes
     customItems: CustomShoppingListItem[];
+    lastModified: string;
+    version: number;
+    isDeleted?: boolean;
 }
 
 export type ViewMode = 'woche' | 'monat';

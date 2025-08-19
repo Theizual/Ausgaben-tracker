@@ -2,8 +2,6 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useApp } from '@/contexts/AppContext';
 import { getWeek, startOfWeek } from 'date-fns';
 import { MealCalendar } from './components/MealCalendar';
-import { BudgetBox } from './components/BudgetBox';
-import { TipsCard } from './components/TipsCard';
 import { Toolbar } from './components/Toolbar';
 import { generatePlan } from './lib/planGenerator';
 import type { WeeklyPlan, MealDay, MealPrefs, Recipe } from '@/shared/types';
@@ -28,7 +26,6 @@ const MealPlanPage = () => {
         setRecentRecipeIds,
     } = useApp();
 
-    const [isBudgetTight, setIsBudgetTight] = useState(false);
     const [isAddRecipeModalOpen, setIsAddRecipeModalOpen] = useState(false);
     const [isShoppingListOpen, setIsShoppingListOpen] = useState(false);
     const [detailDayIndex, setDetailDayIndex] = useState<number | null>(null);
@@ -81,9 +78,9 @@ const MealPlanPage = () => {
 
     useEffect(() => {
         if (mealPlanPrefs && !currentPlan) {
-            createAndSavePlan(isBudgetTight, currentMealPlanWeek);
+            createAndSavePlan(false, currentMealPlanWeek);
         }
-    }, [mealPlanPrefs, currentPlan, createAndSavePlan, isBudgetTight, currentMealPlanWeek]);
+    }, [mealPlanPrefs, currentPlan, createAndSavePlan, currentMealPlanWeek]);
     
     const handleReroll = (dayIndex?: number) => {
         if (!mealPlanPrefs || !currentPlan) return;
@@ -106,7 +103,7 @@ const MealPlanPage = () => {
             prefs: mealPlanPrefs, 
             allRecipes, 
             recentRecipeIds: recentRecipeIds || [],
-            forceCheap: isBudgetTight, 
+            forceCheap: false, 
             targetDate: currentMealPlanWeek,
             existingPlan: planToUpdate,
             dayToReroll: dayIndex
@@ -221,39 +218,25 @@ const MealPlanPage = () => {
                     />
                 </motion.div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-                    <div className="lg:col-span-2 space-y-6">
-                        <AnimatePresence mode="wait">
-                            <motion.div
-                                 key={weekKey}
-                                 initial={{ opacity: 0, x: -20 }}
-                                 animate={{ opacity: 1, x: 0 }}
-                                 exit={{ opacity: 0, x: 20 }}
-                                 transition={{ duration: 0.3 }}
-                            >
-                                <MealCalendar 
-                                    plan={currentPlan} 
-                                    onShoppingListClick={() => setIsShoppingListOpen(true)}
-                                    onOpenDetail={setDetailDayIndex}
-                                    onOpenPicker={setPickerDayIndex}
-                                    onToggleConfirm={handleToggleConfirm}
-                                />
-                            </motion.div>
-                        </AnimatePresence>
-                    </div>
-
-                    <div className="space-y-6">
-                        <motion.div variants={itemAnimation}>
-                            <BudgetBox 
+                <motion.div variants={itemAnimation}>
+                    <AnimatePresence mode="wait">
+                        <motion.div
+                             key={weekKey}
+                             initial={{ opacity: 0, x: -20 }}
+                             animate={{ opacity: 1, x: 0 }}
+                             exit={{ opacity: 0, x: 20 }}
+                             transition={{ duration: 0.3 }}
+                        >
+                            <MealCalendar 
                                 plan={currentPlan} 
-                                onBudgetStatusChange={setIsBudgetTight}
+                                onShoppingListClick={() => setIsShoppingListOpen(true)}
+                                onOpenDetail={setDetailDayIndex}
+                                onOpenPicker={setPickerDayIndex}
+                                onToggleConfirm={handleToggleConfirm}
                             />
                         </motion.div>
-                        <motion.div variants={itemAnimation}>
-                            <TipsCard isVisible={isBudgetTight && mealPlanPrefs.tipsEnabled} />
-                        </motion.div>
-                    </div>
-                </div>
+                    </AnimatePresence>
+                </motion.div>
             </motion.div>
             <AnimatePresence>
                 {isAddRecipeModalOpen && <AddRecipeModal onClose={() => setIsAddRecipeModalOpen(false)} />}

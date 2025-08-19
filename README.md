@@ -31,7 +31,5 @@ Your Google Sheet must have the following tabs with the exact names:
 - `Users`
 - `UserSettings`
 - `TransactionGroups`
-- `Items`
-- `IngredientItems`
 
 You also need to share the Google Sheet with your service account's email address and give it "Editor" permissions.

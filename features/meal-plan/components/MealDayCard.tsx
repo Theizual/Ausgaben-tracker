@@ -1,7 +1,6 @@
 import React, { FC, useMemo } from 'react';
 import { MealDay } from '@/shared/types';
-import { formatCurrency } from '@/shared/utils/dateUtils';
-import { ShieldCheck, RefreshCw, Beef, Fish, Carrot, Sprout, Salad, Button } from '@/shared/ui';
+import { ShieldCheck, RefreshCw, Beef, Fish, Carrot, Sprout, Salad } from '@/shared/ui';
 import { format, parseISO } from 'date-fns';
 import { clsx } from 'clsx';
 import type { Recipe } from '@/shared/types';
@@ -65,8 +64,6 @@ export const MealDayCard: FC<MealDayCardProps> = ({ mealDay, recipe, onOpenPicke
         }
     }
     
-    const displayPrice = mealDay.priceOverride ?? mealDay.estimatedPrice;
-    
     const borderColorClass = mealDay.isConfirmed ? 'border-green-500' : 'border-slate-700';
 
     return (
@@ -92,10 +89,17 @@ export const MealDayCard: FC<MealDayCardProps> = ({ mealDay, recipe, onOpenPicke
             
             {/* Content: Title & Confirm Action */}
             <div className="flex-grow flex flex-col items-center justify-center w-full px-1 py-1">
-                 <div className="flex items-center gap-2">
-                     <p className="text-sm font-bold text-rose-300 leading-tight line-clamp-3 text-center">{mealDay.title || recipe?.name}</p>
-                     {mealDay.isConfirmed && <span title="Bestätigt"><ShieldCheck className="h-4 w-4 text-green-400 flex-shrink-0" /></span>}
-                 </div>
+                <div className="text-center">
+                    <div className="flex items-center justify-center gap-2">
+                        <p className="text-sm font-bold text-rose-300 leading-tight line-clamp-2">{mealDay.title || recipe?.name}</p>
+                        {mealDay.isConfirmed && <span title="Bestätigt"><ShieldCheck className="h-4 w-4 text-green-400 flex-shrink-0" /></span>}
+                    </div>
+                    {recipe?.sideSuggestion && (
+                        <p className="text-xs text-slate-400 mt-0.5 truncate" title={recipe.sideSuggestion}>
+                            + {recipe.sideSuggestion}
+                        </p>
+                    )}
+                </div>
                  {!mealDay.isConfirmed && (
                     <button onClick={toggleConfirm} className="mt-2 text-xs bg-slate-700/80 text-slate-300 px-2 py-1 rounded-full hover:bg-green-500/40 hover:text-white transition-colors">
                         Bestätigen
@@ -103,8 +107,8 @@ export const MealDayCard: FC<MealDayCardProps> = ({ mealDay, recipe, onOpenPicke
                  )}
             </div>
 
-            {/* Footer: Price & Reroll */}
-            <div className="w-full flex justify-between items-center h-7">
+            {/* Footer: Reroll */}
+            <div className="w-full flex justify-end items-center h-7">
                 <button 
                     onClick={handlePickerClick} 
                     className="p-1.5 rounded-full hover:bg-slate-600/50 transition-colors z-10" 
@@ -112,7 +116,6 @@ export const MealDayCard: FC<MealDayCardProps> = ({ mealDay, recipe, onOpenPicke
                 >
                     <RefreshCw className="h-3.5 w-3.5 text-slate-400" />
                 </button>
-                <span className="font-bold text-white text-sm">{formatCurrency(displayPrice)}</span>
             </div>
         </button>
     );

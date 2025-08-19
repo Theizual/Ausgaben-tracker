@@ -1,4 +1,4 @@
-export const APP_VERSION = '0.892';
+export const APP_VERSION = '0.912';
 
 export const FIXED_COSTS_GROUP_ID = 'grp_fixed';
 export const FIXED_COSTS_GROUP_NAME = 'Fixkosten';

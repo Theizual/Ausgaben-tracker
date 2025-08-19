@@ -8,8 +8,8 @@ export const HEADERS = {
   UserSettings: ['userId','key','value','lastModified','version'],
   TransactionGroups: ['id','targetAmount','createdAt','lastModified','version','isDeleted'],
   Recipes: ['id','name','ingredients','instructions','price','link','lastModified','isDeleted','userId','tags','base','sideSuggestion','isPremium','version'],
-  Items: ['id','name','unit','pricePerUnit','brand','notes','lastModified','isDeleted','userId'],
-  IngredientItems: ['id','ingredientName','itemId','defaultQty','defaultUnit','lastModified','isDeleted'],
+  WeeklyPlans: ['weekKey', 'data', 'lastModified', 'version', 'isDeleted'],
+  ShoppingLists: ['weekKey', 'data', 'lastModified', 'version', 'isDeleted'],
 } as const;
 
 export type SheetName = keyof typeof HEADERS;
@@ -66,12 +66,6 @@ export function rowsToObjects(sheet: SheetName, rows: any[][] = []): any[] {
       }
       if (sheet === 'Recipes') {
         obj.price = parseGermanNumber(obj.price);
-      }
-       if (sheet === 'Items') {
-        obj.pricePerUnit = parseGermanNumber(obj.pricePerUnit);
-      }
-      if (sheet === 'IngredientItems') {
-        obj.defaultQty = Number(obj.defaultQty) || 0;
       }
       if(sheet === 'Transactions'){
           obj.groupBaseAmount = parseGermanNumber(obj.groupBaseAmount);
@@ -155,6 +149,17 @@ export function rowsToObjects(sheet: SheetName, rows: any[][] = []): any[] {
       } else {
         (obj as any).version = 0;
       }
+      
+      // Parse JSON data for specific sheets
+      if ((sheet === 'WeeklyPlans' || sheet === 'ShoppingLists') && obj.data) {
+        try {
+            obj.data = JSON.parse(obj.data);
+        } catch (e) {
+            console.warn(`Could not parse JSON for ${sheet} with key ${obj.weekKey}`);
+            obj.data = null;
+        }
+      }
+
 
       return obj;
     });
@@ -171,10 +176,16 @@ export function objectsToRows(sheet: SheetName, items: any[] = []): any[][] {
         val = Array.isArray(it.ingredients) ? it.ingredients.map(i => i.name).join('\n') : '';
       }
     }
+    
+    if ((sheet === 'WeeklyPlans' || sheet === 'ShoppingLists') && h === 'data') {
+        if (typeof val === 'object' && val !== null) {
+            return JSON.stringify(val);
+        }
+    }
 
     if (Array.isArray(val)) return val.join(',');
     if (typeof val === 'number') {
-        if (h === 'version' || h === 'sortIndex' || (h === 'defaultQty' && sheet === 'IngredientItems')) return val;
+        if (h === 'version' || h === 'sortIndex') return val;
         return val.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
 

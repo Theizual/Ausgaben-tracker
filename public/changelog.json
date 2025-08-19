@@ -1,5 +1,15 @@
 [
     {
+        "version": "0.912",
+        "date": "22.08.2024, 10:00 Uhr",
+        "title": "Synchronisierung für Essenspläne & UI-Verbesserungen",
+        "changes": [
+            "**Geräteübergreifende Synchronisierung:** Ihr Wochenplan und Ihre Einkaufsliste werden jetzt automatisch über Google Sheets synchronisiert. Planen Sie auf einem Gerät und sehen Sie die Änderungen sofort auf allen anderen.",
+            "**Optimierte Essens-Karten:** Beilagen-Vorschläge werden nun direkt auf der Karte angezeigt, während der Preis für eine bessere Übersichtlichkeit in die Detailansicht verschoben wurde.",
+            "**Stabilitätsverbesserungen:** Diverse kleine Fehlerbehebungen und Optimierungen unter der Haube für ein runderes Gesamterlebnis."
+        ]
+    },
+    {
         "version": "0.892",
         "date": "21.08.2024, 11:00 Uhr",
         "title": "Intelligente Essensplanung & Einkaufslisten",

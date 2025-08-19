@@ -130,5 +130,7 @@ export const generatePlan = ({ prefs, allRecipes, recentRecipeIds, forceCheap, t
         days,
         totalEstimate: finalTotal,
         totalOverride: finalTotal, // totalOverride is now implicitly handled by priceOverride
+        lastModified: new Date().toISOString(),
+        version: (existingPlan?.version || 0) + 1,
     };
 };

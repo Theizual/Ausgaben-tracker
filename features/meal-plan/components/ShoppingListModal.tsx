@@ -59,10 +59,19 @@ export const ShoppingListModal: FC<ShoppingListModalProps> = ({ plan, allRecipes
             });
         });
 
-        setShoppingLists(prev => ({
-            ...prev,
-            [weekKey]: { checkedItems, customItems }
-        }));
+        setShoppingLists(prev => {
+            const existing = prev[weekKey];
+            return {
+                ...prev,
+                [weekKey]: {
+                    weekKey,
+                    checkedItems,
+                    customItems,
+                    lastModified: new Date().toISOString(),
+                    version: (existing?.version || 0) + 1,
+                }
+            };
+        });
     };
 
     useEffect(() => {

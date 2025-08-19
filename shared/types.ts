@@ -129,7 +129,6 @@ export interface Recipe {
   version: number;
 }
 
-
 export interface MealPrefs {
   base: 'nudeln' | 'reis' | 'kartoffeln' | 'mix';
   sides: string[];
@@ -168,6 +167,16 @@ export interface MealDay {
   instructions?: string;
 }
 
+export interface WeeklyPlan {
+  weekKey: string;
+  days: MealDay[];
+  totalEstimate: number;
+  totalOverride: number;
+  lastModified: string;
+  version: number;
+  isDeleted?: boolean;
+}
+
 export interface CustomShoppingListItem {
     id: string;
     name: string;
@@ -175,8 +184,12 @@ export interface CustomShoppingListItem {
     checked: boolean;
 }
 export interface ShoppingListState {
+    weekKey: string;
     checkedItems: string[]; // names of items from recipes
     customItems: CustomShoppingListItem[];
+    lastModified: string;
+    version: number;
+    isDeleted?: boolean;
 }
 
 export type ViewMode = 'woche' | 'monat';

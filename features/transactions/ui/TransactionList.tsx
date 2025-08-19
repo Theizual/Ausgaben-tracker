@@ -14,10 +14,27 @@ type GroupedTransactions = {
 }[];
 
 const TransactionGroupVisual: FC<{ transactions: Transaction[], onClick: (t: Transaction) => void }> = ({ transactions, onClick }) => {
-    const { transactionGroups } = useApp();
+    const { transactionGroups, tagMap } = useApp();
     const groupId = transactions[0]?.transactionGroupId;
     const groupInfo = transactionGroups.find(g => g.id === groupId);
     const groupTotal = groupInfo?.targetAmount ?? transactions.reduce((sum, t) => sum + t.amount, 0);
+
+    const groupTags = useMemo(() => {
+        const allTagIds = new Set<string>();
+        transactions.forEach(t => {
+            if (t.tagIds) {
+                t.tagIds.forEach(tagId => allTagIds.add(tagId));
+            }
+        });
+        
+        const tagNames = Array.from(allTagIds)
+            .map(tagId => tagMap.get(tagId))
+            .filter((name): name is string => !!name);
+            
+        return tagNames;
+    }, [transactions, tagMap]);
+
+    const displayText = groupTags.length > 0 ? groupTags.join(', ') : `${transactions.length} Einträge`;
 
     return (
         <div className="relative pl-4 my-2">
@@ -27,8 +44,8 @@ const TransactionGroupVisual: FC<{ transactions: Transaction[], onClick: (t: Tra
             {/* Group Header */}
             <div className="flex items-center gap-2 mb-1 text-xs text-slate-400">
                 <Link className="h-3 w-3" />
-                <span>Gruppe ({transactions.length} Einträge)</span>
-                <span className="font-bold text-slate-300">{formatCurrency(groupTotal)}</span>
+                <span className="truncate">Gruppe ({displayText})</span>
+                <span className="font-bold text-slate-300 flex-shrink-0">{formatCurrency(groupTotal)}</span>
             </div>
 
             {/* Transactions */}
