@@ -20,6 +20,7 @@ export interface Group {
   isDeleted?: boolean;
   version: number;
   conflicted?: boolean;
+  isHiddenInQuickAdd?: boolean;
 }
 
 export interface Tag {
@@ -100,7 +101,7 @@ export interface RecurringTransaction {
 
 export interface UserSetting {
   userId: string | 'app_meta';
-  key: 'groupColors' | 'visibleGroups' | 'mode' | 'quickAddHideGroups' | 'categoryColorOverrides' | 'hiddenCategories' | 'aiFeaturesEnabled';
+  key: 'groupColors' | 'visibleGroups' | 'mode' | 'quickAddShowFavorites' | 'quickAddShowRecents' | 'categoryColorOverrides' | 'hiddenCategories' | 'aiFeaturesEnabled';
   value: string; // Comma-separated list for visibleGroups, JSON string for groupColors/categoryColorOverrides/hiddenCategories
   lastModified: string;
   version: number;

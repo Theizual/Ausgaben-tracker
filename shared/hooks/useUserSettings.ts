@@ -128,18 +128,37 @@ export const useUserSettings = () => {
         setGroupColorsForUser(userId, newColors);
     }, [getGroupColorsForUser, setGroupColorsForUser]);
 
-    const getQuickAddHideGroups = useCallback((userId: string): boolean => {
-        const setting = liveUserSettings.find(s => s.userId === userId && s.key === 'quickAddHideGroups');
-        return setting?.value === 'true'; // Default to false
+    const getQuickAddShowFavorites = useCallback((userId: string): boolean => {
+        const setting = liveUserSettings.find(s => s.userId === userId && s.key === 'quickAddShowFavorites');
+        return setting?.value !== 'false'; // Default to true
     }, [liveUserSettings]);
 
-    const setQuickAddHideGroups = useCallback((userId: string, hide: boolean) => {
+    const setQuickAddShowFavorites = useCallback((userId: string, show: boolean) => {
         const now = new Date().toISOString();
-        const existingSetting = rawUserSettings.find(s => s.userId === userId && s.key === 'quickAddHideGroups');
+        const existingSetting = rawUserSettings.find(s => s.userId === userId && s.key === 'quickAddShowFavorites');
         const newSetting: UserSetting = {
             userId,
-            key: 'quickAddHideGroups',
-            value: String(hide),
+            key: 'quickAddShowFavorites',
+            value: String(show),
+            lastModified: now,
+            version: (existingSetting?.version || 0) + 1,
+            isDeleted: false,
+        };
+        dispatch({ type: 'UPDATE_SETTING', payload: newSetting });
+    }, [rawUserSettings]);
+    
+    const getQuickAddShowRecents = useCallback((userId: string): boolean => {
+        const setting = liveUserSettings.find(s => s.userId === userId && s.key === 'quickAddShowRecents');
+        return setting?.value !== 'false'; // Default to true
+    }, [liveUserSettings]);
+
+    const setQuickAddShowRecents = useCallback((userId: string, show: boolean) => {
+        const now = new Date().toISOString();
+        const existingSetting = rawUserSettings.find(s => s.userId === userId && s.key === 'quickAddShowRecents');
+        const newSetting: UserSetting = {
+            userId,
+            key: 'quickAddShowRecents',
+            value: String(show),
             lastModified: now,
             version: (existingSetting?.version || 0) + 1,
             isDeleted: false,
@@ -268,15 +287,17 @@ export const useUserSettings = () => {
         setGroupColorsForUser,
         getVisibleGroupsForUser,
         updateVisibleGroups,
-        getQuickAddHideGroups,
-        setQuickAddHideGroups,
+        getQuickAddShowFavorites,
+        setQuickAddShowFavorites,
+        getQuickAddShowRecents,
+        setQuickAddShowRecents,
+        getIsAiEnabled,
+        setIsAiEnabled,
         getCategoryColorOverrides,
         updateCategoryColorOverride,
         getHiddenCategoryIds,
         hideCategory,
         unhideCategory,
         clearHiddenCategories,
-        getIsAiEnabled,
-        setIsAiEnabled,
     };
 };

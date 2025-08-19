@@ -20,7 +20,8 @@ export const QuickAddForm: FC = () => {
         favoriteIds,
         recentCategoryIds,
         addRecent,
-        quickAddHideGroups,
+        quickAddShowFavorites,
+        quickAddShowRecents,
         groups,
         openSettings,
         isAiEnabled,
@@ -39,7 +40,6 @@ export const QuickAddForm: FC = () => {
         const sortedTransactions = [...transactions].sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime());
         const recentTagIds = new Set<string>();
 
-        // Limit to 6 to reduce vertical space, usually fits in 2 lines
         for (const transaction of sortedTransactions) {
             if (recentTagIds.size >= 6) break;
             if (transaction.tagIds) {
@@ -63,6 +63,15 @@ export const QuickAddForm: FC = () => {
         recentCategoryIds.map(id => categories.find(c => c.id === id)).filter(Boolean) as Category[],
         [recentCategoryIds, categories]
     );
+
+    const { visibleGroupsForMainView, visibleCategoriesForMainView, someGroupsAreHidden } = useMemo(() => {
+        const allFlexGroups = groups.filter(g => g.id !== FIXED_COSTS_GROUP_ID);
+        const visibleGroups = allFlexGroups.filter(g => !g.isHiddenInQuickAdd);
+        const visibleCategories = categories.filter(c => visibleGroups.some(g => g.id === c.groupId));
+        const someHidden = visibleGroups.length < allFlexGroups.length;
+        return { visibleGroupsForMainView: visibleGroups, visibleCategoriesForMainView: visibleCategories, someGroupsAreHidden: someHidden };
+    }, [groups, categories]);
+
 
     const handleSelectCategory = (newCategoryId: string) => {
         setCategoryId(newCategoryId);
@@ -156,7 +165,6 @@ export const QuickAddForm: FC = () => {
         };
         reader.readAsDataURL(file);
         
-        // Reset file input to allow selecting the same file again
         event.target.value = '';
     };
 
@@ -229,45 +237,42 @@ export const QuickAddForm: FC = () => {
                             <h5 className="text-xs font-bold uppercase tracking-wider text-slate-500">Kategorie wählen</h5>
                         </div>
                          
-                        {quickAddHideGroups ? (
-                             <div className="space-y-2">
-                                {favoriteCategories.length > 0 && (
-                                    <div>
-                                        <h5 className="text-xs font-bold uppercase tracking-wider text-slate-500/80 mb-1.5 ml-1">Favoriten</h5>
-                                        <CategoryButtons 
-                                            categories={favoriteCategories}
-                                            selectedCategoryId={categoryId}
-                                            onSelectCategory={handleSelectCategory}
-                                            showGroups={false}
-                                            favoriteIds={favoriteIds}
-                                        />
-                                    </div>
-                                )}
-                                {favoriteCategories.length === 0 && (
-                                     <div className="text-center text-sm text-slate-400 p-2">
-                                         Keine Favoriten festgelegt.
-                                         <button 
-                                            type="button" 
-                                            onClick={() => openSettings('categories')} 
-                                            className="ml-1 underline hover:text-white font-semibold"
-                                            aria-label="Gehe zur Kategorienbibliothek, um Favoriten zu verwalten"
-                                        >
-                                             Favoriten verwalten
-                                         </button>
-                                     </div>
-                                )}
-                                {recentCategories.length > 0 && (
-                                    <div>
-                                        <h5 className="text-xs font-bold uppercase tracking-wider text-slate-500/80 mb-1.5 ml-1">Zuletzt verwendet</h5>
-                                        <CategoryButtons 
-                                            categories={recentCategories}
-                                            selectedCategoryId={categoryId}
-                                            onSelectCategory={handleSelectCategory}
-                                            showGroups={false}
-                                            favoriteIds={favoriteIds}
-                                        />
-                                    </div>
-                                )}
+                        <div className="space-y-3">
+                            {quickAddShowFavorites && favoriteCategories.length > 0 && (
+                                <div>
+                                    <h5 className="text-xs font-bold uppercase tracking-wider text-slate-500/80 mb-1.5 ml-1">Favoriten</h5>
+                                    <CategoryButtons 
+                                        categories={favoriteCategories}
+                                        selectedCategoryId={categoryId}
+                                        onSelectCategory={handleSelectCategory}
+                                        showGroups={false}
+                                        favoriteIds={favoriteIds}
+                                    />
+                                </div>
+                            )}
+                            {quickAddShowRecents && recentCategories.length > 0 && (
+                                <div>
+                                    <h5 className="text-xs font-bold uppercase tracking-wider text-slate-500/80 mb-1.5 ml-1">Zuletzt verwendet</h5>
+                                    <CategoryButtons 
+                                        categories={recentCategories}
+                                        selectedCategoryId={categoryId}
+                                        onSelectCategory={handleSelectCategory}
+                                        showGroups={false}
+                                        favoriteIds={favoriteIds}
+                                    />
+                                </div>
+                            )}
+                            
+                            <CategoryButtons 
+                                categories={visibleCategoriesForMainView}
+                                groups={visibleGroupsForMainView}
+                                selectedCategoryId={categoryId}
+                                onSelectCategory={handleSelectCategory}
+                                showGroups={true}
+                                favoriteIds={favoriteIds}
+                            />
+
+                            {someGroupsAreHidden && (
                                 <div className="flex justify-end pt-1">
                                     <Button
                                         type="button"
@@ -278,17 +283,8 @@ export const QuickAddForm: FC = () => {
                                         Alle Gruppen anzeigen
                                     </Button>
                                 </div>
-                            </div>
-                        ) : (
-                            <CategoryButtons 
-                                categories={categories}
-                                groups={groups}
-                                selectedCategoryId={categoryId}
-                                onSelectCategory={handleSelectCategory}
-                                showGroups={true}
-                                favoriteIds={favoriteIds}
-                            />
-                        )}
+                            )}
+                        </div>
                     </div>
 
                     <div className="space-y-2 pt-3 border-t border-slate-700/50">

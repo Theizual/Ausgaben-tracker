@@ -1,5 +1,5 @@
 export const HEADERS = {
-  Groups:       ['id','name','sortIndex','lastModified','version','isDeleted', 'color', 'isDefault', 'icon'],
+  Groups:       ['id','name','sortIndex','lastModified','version','isDeleted', 'color', 'isDefault', 'icon', 'isHiddenInQuickAdd'],
   Categories:   ['id','name','color','budget','icon','lastModified','version','isDeleted', 'groupId', 'sortIndex'],
   Transactions: ['id','amount','description','categoryId','date','tagIds','lastModified','isDeleted','recurringId','version','userId','transactionGroupId','iconOverride','isCorrected','groupBaseAmount','createdAt','notes','isVerified'],
   Recurring:    ['id','amount','description','categoryId','frequency','dayOfMonth','startDate','endDate','lastProcessedDate','active','lastModified','version','isDeleted', 'notes'],
@@ -145,6 +145,7 @@ export function rowsToObjects(sheet: SheetName, rows: any[][] = []): any[] {
       
       if (sheet === 'Groups') {
         obj.isDefault = String(obj.isDefault).toUpperCase() === 'TRUE';
+        obj.isHiddenInQuickAdd = String(obj.isHiddenInQuickAdd).toUpperCase() === 'TRUE';
       }
 
       if (sheet === 'Recurring') {
