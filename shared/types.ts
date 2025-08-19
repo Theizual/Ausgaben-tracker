@@ -85,7 +85,7 @@ export interface RecurringTransaction {
   amount: number;
   description: string;
   categoryId: string;
-  frequency: 'monthly' | 'yearly';
+  frequency: 'monthly' | 'bimonthly' | 'quarterly' | 'semiannually' | 'yearly';
   dayOfMonth?: number;
   startDate: string; // ISO string
   endDate?: string;
@@ -95,6 +95,7 @@ export interface RecurringTransaction {
   isDeleted?: boolean;
   version: number;
   conflicted?: boolean;
+  notes?: string;
 }
 
 export interface UserSetting {

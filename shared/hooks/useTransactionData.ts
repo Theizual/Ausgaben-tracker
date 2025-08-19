@@ -395,7 +395,17 @@ export const useTransactionData = ({ showConfirmation, closeTransactionDetail, c
             try { lastDate = rec.lastProcessedDate ? parseISO(rec.lastProcessedDate) : parseISO(rec.startDate); if (!isValid(lastDate)) throw new Error("Invalid date"); } catch (e) { return; }
             let hasChanged = false; let iterations = 0;
             while (iterations < MAX_RECURRING_ITERATIONS) {
-                const nextDueDate = rec.frequency === 'monthly' ? addMonths(lastDate, 1) : addYears(lastDate, 1);
+                const nextDueDate = (() => {
+                    switch (rec.frequency) {
+                        case 'bimonthly': return addMonths(lastDate, 2);
+                        case 'quarterly': return addMonths(lastDate, 3);
+                        case 'semiannually': return addMonths(lastDate, 6);
+                        case 'yearly': return addYears(lastDate, 1);
+                        case 'monthly':
+                        default: return addMonths(lastDate, 1);
+                    }
+                })();
+                
                 if (!isValid(nextDueDate) || nextDueDate > now) break;
                 if (nextDueDate >= parseISO(rec.startDate)) {
                     if (!rawState.transactions.some(t => !t.isDeleted && t.recurringId === rec.id && isSameDay(parseISO(t.date), nextDueDate))) {

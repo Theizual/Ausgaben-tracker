@@ -14,7 +14,7 @@ export const QuickAddForm: FC = () => {
     const { 
         addTransaction,
         addMultipleTransactions,
-        flexibleCategories, 
+        categories, 
         allAvailableTags, 
         transactions,
         favoriteIds,
@@ -34,8 +34,6 @@ export const QuickAddForm: FC = () => {
     const [tagInputValue, setTagInputValue] = useState('');
     const [isMoreCategoriesOpen, setIsMoreCategoriesOpen] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
-
-    const flexibleGroups = useMemo(() => groups.filter(g => g.id !== FIXED_COSTS_GROUP_ID), [groups]);
 
     const recentlyUsedTags = useMemo(() => {
         const sortedTransactions = [...transactions].sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime());
@@ -57,13 +55,13 @@ export const QuickAddForm: FC = () => {
     }, [transactions, allAvailableTags]);
 
     const favoriteCategories = useMemo(() => 
-        favoriteIds.map(id => flexibleCategories.find(c => c.id === id)).filter(Boolean) as Category[],
-        [favoriteIds, flexibleCategories]
+        favoriteIds.map(id => categories.find(c => c.id === id)).filter(Boolean) as Category[],
+        [favoriteIds, categories]
     );
 
     const recentCategories = useMemo(() => 
-        recentCategoryIds.map(id => flexibleCategories.find(c => c.id === id)).filter(Boolean) as Category[],
-        [recentCategoryIds, flexibleCategories]
+        recentCategoryIds.map(id => categories.find(c => c.id === id)).filter(Boolean) as Category[],
+        [recentCategoryIds, categories]
     );
 
     const handleSelectCategory = (newCategoryId: string) => {
@@ -283,8 +281,8 @@ export const QuickAddForm: FC = () => {
                             </div>
                         ) : (
                             <CategoryButtons 
-                                categories={flexibleCategories}
-                                groups={flexibleGroups}
+                                categories={categories}
+                                groups={groups}
                                 selectedCategoryId={categoryId}
                                 onSelectCategory={handleSelectCategory}
                                 showGroups={true}
