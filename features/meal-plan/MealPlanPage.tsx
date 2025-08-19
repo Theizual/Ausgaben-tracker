@@ -13,6 +13,9 @@ import { MealDetailModal } from './components/MealDetailModal';
 import { RecipePickerModal } from './components/RecipePickerModal';
 import { Loader2 } from '@/shared/ui';
 
+const MotionDiv = motion.div;
+const MotionH1 = motion.h1;
+
 const MealPlanPage = () => {
     const { 
         mealPlanPrefs, 
@@ -204,10 +207,10 @@ const MealPlanPage = () => {
 
     return (
         <>
-            <motion.div variants={pageAnimation} initial="initial" animate="animate" className="space-y-6">
-                <motion.h1 variants={itemAnimation} className="text-3xl font-bold text-white">Essensplanung</motion.h1>
+            <MotionDiv variants={pageAnimation} initial="initial" animate="animate" className="space-y-6">
+                <MotionH1 variants={itemAnimation} className="text-3xl font-bold text-white">Essensplanung</MotionH1>
                 
-                <motion.div variants={itemAnimation}>
+                <MotionDiv variants={itemAnimation}>
                     <Toolbar 
                         currentWeek={currentMealPlanWeek}
                         setCurrentWeek={setCurrentMealPlanWeek}
@@ -216,11 +219,11 @@ const MealPlanPage = () => {
                         hasUndo={!!undoState}
                         onUndo={handleUndoReroll}
                     />
-                </motion.div>
+                </MotionDiv>
 
-                <motion.div variants={itemAnimation}>
+                <MotionDiv variants={itemAnimation}>
                     <AnimatePresence mode="wait">
-                        <motion.div
+                        <MotionDiv
                              key={weekKey}
                              initial={{ opacity: 0, x: -20 }}
                              animate={{ opacity: 1, x: 0 }}
@@ -234,10 +237,10 @@ const MealPlanPage = () => {
                                 onOpenPicker={setPickerDayIndex}
                                 onToggleConfirm={handleToggleConfirm}
                             />
-                        </motion.div>
+                        </MotionDiv>
                     </AnimatePresence>
-                </motion.div>
-            </motion.div>
+                </MotionDiv>
+            </MotionDiv>
             <AnimatePresence>
                 {isAddRecipeModalOpen && <AddRecipeModal onClose={() => setIsAddRecipeModalOpen(false)} />}
             </AnimatePresence>

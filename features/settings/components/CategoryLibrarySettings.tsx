@@ -3,7 +3,7 @@ import { AnimatePresence, motion, Reorder, useDragControls } from 'framer-motion
 import { toast } from 'react-hot-toast';
 import { useApp } from '@/contexts/AppContext';
 import type { Category, Group } from '@/shared/types';
-import { Button, Trash2, Plus, DownloadCloud, Star, getIconComponent, Info, GripVertical, ChevronDown, ArrowUpDown, Edit } from '@/shared/ui';
+import { Button, Trash2, Plus, DownloadCloud, Star, getIconComponent, Info, GripVertical, ChevronDown, ArrowUpDown, Edit, Eye, EyeOff, ToggleSwitch } from '@/shared/ui';
 import { FIXED_COSTS_GROUP_ID, DEFAULT_GROUP_ID, DEFAULT_GROUP_NAME } from '@/constants';
 import { CategoryEditModal } from './CategoryEditModal';
 import { parseISO } from 'date-fns';
@@ -99,9 +99,10 @@ const CategoryReorderItem: FC<{
 
 export const CategoryLibrarySettings: FC<{ onEditGroupDesign: (group: Group) => void }> = ({ onEditGroupDesign }) => {
     const { 
-        categories, groups, upsertCategory, addGroup, deleteGroup, renameGroup, reorderGroups, reorderCategories,
+        categories, groups, upsertCategory, addGroup, deleteGroup, reorderGroups, reorderCategories,
         loadStandardConfiguration, unassignedCategories, transactions, openReassignModal,
         currentUserId, updateCategoryColorOverride, favoriteIds, toggleFavorite,
+        quickAddShowFavorites, setQuickAddShowFavorites, quickAddShowRecents, setQuickAddShowRecents,
     } = useApp();
     
     const [orderedGroups, setOrderedGroups] = useState(groups);
@@ -227,10 +228,21 @@ export const CategoryLibrarySettings: FC<{ onEditGroupDesign: (group: Group) => 
                 <h3 className="text-lg font-semibold text-white mb-1">Gruppen & Kategorien</h3>
                 <p className="text-sm text-slate-400 mb-6">Verwalten Sie hier Ihre Ausgabenstruktur. Sortieren Sie Gruppen und Kategorien per Drag & Drop.</p>
                 
-                <div className="bg-sky-900/50 border border-sky-700/50 text-sky-300 text-sm rounded-lg p-4 flex items-start gap-3 mb-6">
-                    <Info className="h-5 w-5 mt-0.5 flex-shrink-0" />
-                    <div>
-                        Fassen Sie eine Gruppe oder Kategorie am Griff-Symbol <GripVertical className="inline h-4 w-4 -mt-1" /> an, um sie zu verschieben und neu anzuordnen.
+                <div className="mb-6 p-4 bg-slate-700/30 rounded-lg space-y-4 border border-slate-700/50">
+                    <h4 className="text-md font-semibold text-white">Schnelleingabe-Anzeige</h4>
+                    <div className="flex items-center justify-between pt-3 border-t border-slate-600/50">
+                        <div>
+                            <label htmlFor="fav-toggle" className="block text-sm font-medium text-slate-300">Favoriten anzeigen</label>
+                            <p className="text-xs text-slate-400 mt-1">Zeigt deine als Favorit markierten Kategorien oben an.</p>
+                        </div>
+                        <ToggleSwitch id="fav-toggle" enabled={quickAddShowFavorites} setEnabled={setQuickAddShowFavorites} />
+                    </div>
+                    <div className="flex items-center justify-between pt-3 border-t border-slate-600/50">
+                        <div>
+                            <label htmlFor="recent-toggle" className="block text-sm font-medium text-slate-300">Zuletzt verwendete anzeigen</label>
+                            <p className="text-xs text-slate-400 mt-1">Zeigt eine Liste deiner zuletzt genutzten Kategorien an.</p>
+                        </div>
+                        <ToggleSwitch id="recent-toggle" enabled={quickAddShowRecents} setEnabled={setQuickAddShowRecents} />
                     </div>
                 </div>
 
@@ -316,7 +328,7 @@ interface GroupItemProps {
 }
 
 const GroupItem: FC<GroupItemProps> = ({ group, dragControls, categories, isExpanded, onToggleExpand, onEditGroupDesign, onDeleteGroup, onEditCategory }) => {
-    const { reorderCategories, favoriteIds, toggleFavorite } = useApp();
+    const { reorderCategories, favoriteIds, toggleFavorite, updateGroup } = useApp();
     const [localCategories, setLocalCategories] = useState(categories);
     
     useEffect(() => { setLocalCategories(categories); }, [categories]);
@@ -328,6 +340,7 @@ const GroupItem: FC<GroupItemProps> = ({ group, dragControls, categories, isExpa
 
     const GroupIcon = getIconComponent(group.icon);
     const isProtected = group.id === DEFAULT_GROUP_ID || group.id === FIXED_COSTS_GROUP_ID;
+    const isFixedCosts = group.id === FIXED_COSTS_GROUP_ID;
 
     return (
          <div className="relative bg-slate-700/30 p-3 rounded-lg overflow-hidden">
@@ -353,10 +366,15 @@ const GroupItem: FC<GroupItemProps> = ({ group, dragControls, categories, isExpa
                         </div>
                     </div>
                      <div className="flex items-center gap-1 flex-shrink-0">
-                        <Button variant="ghost" size="icon-auto" onClick={() => onEditGroupDesign(group)} title="Design und Name bearbeiten">
+                        {!isFixedCosts && (
+                            <Button variant="ghost" size="icon-auto" onClick={(e) => { e.stopPropagation(); updateGroup(group.id, { isHiddenInQuickAdd: !group.isHiddenInQuickAdd })}} title={group.isHiddenInQuickAdd ? "In Schnelleingabe anzeigen" : "In Schnelleingabe ausblenden"}>
+                                {group.isHiddenInQuickAdd ? <EyeOff className="h-4 w-4 text-slate-500" /> : <Eye className="h-4 w-4 text-slate-400" />}
+                            </Button>
+                        )}
+                        <Button variant="ghost" size="icon-auto" onClick={(e) => { e.stopPropagation(); onEditGroupDesign(group) }} title="Design und Name bearbeiten">
                             <Edit className="h-4 w-4 text-slate-400" />
                         </Button>
-                        {!isProtected && ( <Button variant="destructive-ghost" size="icon-auto" onClick={() => onDeleteGroup(group)} title="Gruppe löschen"><Trash2 className="h-5 w-5" /></Button> )}
+                        {!isProtected && ( <Button variant="destructive-ghost" size="icon-auto" onClick={(e) => { e.stopPropagation(); onDeleteGroup(group) }} title="Gruppe löschen"><Trash2 className="h-5 w-5" /></Button> )}
                     </div>
                 </div>
 

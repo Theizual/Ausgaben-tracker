@@ -7,6 +7,8 @@ import { Button, Plus, Trash2, getIconComponent, GripVertical } from '@/shared/u
 import { DEFAULT_GROUP_ID, FIXED_COSTS_GROUP_ID, DEFAULT_GROUP_COLOR } from '@/constants';
 import { settingsContentAnimation } from '@/shared/lib/animations';
 
+const MotionDiv = motion.div;
+
 // This new component encapsulates the logic for a single item,
 // allowing `useDragControls` to be called safely and unconditionally within it.
 const GroupReorderItem: FC<{
@@ -137,7 +139,7 @@ export const GroupSettings: FC<{ onEditGroupDesign: (group: Group) => void }> = 
     };
 
     return (
-        <motion.div 
+        <MotionDiv 
             variants={settingsContentAnimation} 
             initial="initial" 
             animate="animate" 
@@ -174,6 +176,6 @@ export const GroupSettings: FC<{ onEditGroupDesign: (group: Group) => void }> = 
                     ))}
                 </div>
             </Reorder.Group>
-        </motion.div>
+        </MotionDiv>
     );
 };

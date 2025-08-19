@@ -5,6 +5,8 @@ import { useApp } from '@/contexts/AppContext';
 import { Button, Plus, Trash2, getIconComponent } from '@/shared/ui';
 import { DEFAULT_GROUP_ID, FIXED_COSTS_GROUP_ID, DEFAULT_GROUP_COLOR } from '@/constants';
 
+const MotionDiv = motion.div;
+
 const settingsAnimationVariants = {
     initial: { opacity: 0, x: 10 },
     animate: { opacity: 1, x: 0 },
@@ -61,7 +63,7 @@ export const GroupSettings = () => {
     };
 
     return (
-        <motion.div 
+        <MotionDiv 
             variants={settingsAnimationVariants}
             initial="initial"
             animate="animate"
@@ -151,6 +153,6 @@ export const GroupSettings = () => {
                     );
                 })}
             </div>
-        </motion.div>
+        </MotionDiv>
     );
 };

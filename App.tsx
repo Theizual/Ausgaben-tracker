@@ -21,6 +21,8 @@ import type { Transaction } from '@/shared/types';
 import { pageContentAnimation } from '@/shared/lib/animations';
 import { ErrorBoundary } from '@/shared/ui';
 
+const MotionDiv = motion.div;
+
 // Main App Component (now a clean layout/composition root)
 const App = () => {
     const {
@@ -124,7 +126,7 @@ const App = () => {
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">
                     <main className="mt-6">
                         <AnimatePresence mode="wait">
-                            <motion.div
+                            <MotionDiv
                                 key={activeTab}
                                 initial={pageContentAnimation.initial}
                                 animate={pageContentAnimation.animate}
@@ -132,7 +134,7 @@ const App = () => {
                                 transition={{ duration: 0.3 }}
                             >
                                 {renderContent()}
-                            </motion.div>
+                            </MotionDiv>
                         </AnimatePresence>
                     </main>
                 </div>

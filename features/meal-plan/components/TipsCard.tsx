@@ -3,6 +3,8 @@ import { useApp } from '@/contexts/AppContext';
 import { Lightbulb, Button } from '@/shared/ui';
 import { AnimatePresence, motion } from 'framer-motion';
 
+const MotionDiv = motion.div;
+
 interface TipsCardProps {
     isVisible: boolean;
 }
@@ -40,7 +42,7 @@ export const TipsCard: FC<TipsCardProps> = ({ isVisible }) => {
     return (
         <AnimatePresence>
             {isVisible && (
-                <motion.div
+                <MotionDiv
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 20 }}
@@ -51,9 +53,9 @@ export const TipsCard: FC<TipsCardProps> = ({ isVisible }) => {
                         <h3 className="text-lg font-bold text-white">Spar-Tipp</h3>
                     </div>
                     <AnimatePresence mode="wait">
-                        <motion.p {...tipAnimation} className="text-sky-200 text-sm min-h-[4.5em]">
+                        <MotionDiv {...tipAnimation} className="text-sky-200 text-sm min-h-[4.5em]">
                             {tips[tipIndex]}
-                        </motion.p>
+                        </MotionDiv>
                     </AnimatePresence>
                     <div className="flex justify-between items-center pt-2">
                         <button onClick={handleDisable} className="text-xs text-sky-400 hover:underline">
@@ -63,7 +65,7 @@ export const TipsCard: FC<TipsCardProps> = ({ isVisible }) => {
                             Nächster Tipp
                         </Button>
                     </div>
-                </motion.div>
+                </MotionDiv>
             )}
         </AnimatePresence>
     );

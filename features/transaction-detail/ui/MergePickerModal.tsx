@@ -5,6 +5,8 @@ import type { Transaction } from '@/shared/types';
 import { AnimatePresence, motion } from 'framer-motion';
 import { parseISO } from 'date-fns';
 
+const MotionDiv = motion.div;
+
 interface MergePickerModalProps {
     isOpen: boolean;
     onClose: () => void;
@@ -62,7 +64,7 @@ export const MergePickerModal: React.FC<MergePickerModalProps> = ({ isOpen, onCl
                         {eligibleTransactions.map(t => {
                             const isSelected = selectedId === t.id;
                             return (
-                                <motion.div
+                                <MotionDiv
                                     key={t.id}
                                     layout
                                     initial={{ opacity: 0 }}
@@ -86,7 +88,7 @@ export const MergePickerModal: React.FC<MergePickerModalProps> = ({ isOpen, onCl
                                         </div>
                                         {t.transactionGroupId && <span title="Teil einer Gruppe"><Link className="h-4 w-4 text-slate-500 flex-shrink-0" /></span>}
                                     </button>
-                                </motion.div>
+                                </MotionDiv>
                             )
                         })}
                     </AnimatePresence>

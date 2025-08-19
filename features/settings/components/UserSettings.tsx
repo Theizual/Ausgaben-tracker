@@ -4,6 +4,8 @@ import { useApp } from '@/contexts/AppContext';
 import { Button, Plus, Trash2, UserAvatar } from '@/shared/ui';
 import { settingsContentAnimation } from '@/shared/lib/animations';
 
+const MotionDiv = motion.div;
+
 const BASE_INPUT_CLASSES = "w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-rose-500";
 const TRANSPARENT_INPUT_CLASSES = "bg-transparent font-medium text-white w-full focus:outline-none focus:bg-slate-600/50 rounded px-2 py-1";
 
@@ -25,7 +27,7 @@ export const UserSettings = () => {
     const handleNameUpdate = useCallback((id: string, name: string) => updateUser(id, { name }), [updateUser]);
 
     return (
-        <motion.div 
+        <MotionDiv 
             key="users"
             variants={settingsContentAnimation}
             initial="initial"
@@ -64,6 +66,6 @@ export const UserSettings = () => {
                     </div>
                 ))}
             </div>
-        </motion.div>
+        </MotionDiv>
     );
 };

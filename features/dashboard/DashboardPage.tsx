@@ -15,6 +15,8 @@ import { BudgetProgressBar } from '@/shared/ui/BudgetProgressBar';
 import useLocalStorage from '@/shared/hooks/useLocalStorage';
 import { pageContentAnimation, collapsibleAnimation, transactionDetailsAnimation } from '@/shared/lib/animations';
 
+const MotionDiv = motion.div;
+
 const DashboardPage = () => {
     const {
         transactions,
@@ -166,7 +168,7 @@ const DashboardPage = () => {
                 
                 {/* Right Column */}
                 <div className="space-y-6">
-                    <motion.div
+                    <MotionDiv
                         initial={pageContentAnimation.initial}
                         animate={pageContentAnimation.animate}
                         exit={pageContentAnimation.exit}
@@ -204,8 +206,8 @@ const DashboardPage = () => {
                                 </div>
                             </div>
                         </div>
-                    </motion.div>
-                    <motion.div
+                    </MotionDiv>
+                    <MotionDiv
                         className="bg-slate-800/50 p-6 rounded-2xl border border-slate-700/50 flex flex-col"
                         initial={pageContentAnimation.initial}
                         animate={pageContentAnimation.animate}
@@ -231,10 +233,10 @@ const DashboardPage = () => {
                                 <BudgetProgressBar percentage={totalBudgetPercentage} color={COLOR_SUCCESS} />
                             </div>
                         )}
-                    </motion.div>
+                    </MotionDiv>
 
                     {hasAnyBudgetedCategories && (
-                        <motion.div
+                        <MotionDiv
                             className="bg-slate-800/50 p-6 rounded-2xl border border-slate-700/50"
                             initial={pageContentAnimation.initial}
                             animate={pageContentAnimation.animate}
@@ -267,7 +269,7 @@ const DashboardPage = () => {
                                             </div>
                                             <AnimatePresence>
                                                 {isGroupExpanded && (
-                                                    <motion.div
+                                                    <MotionDiv
                                                         variants={collapsibleAnimation}
                                                         initial="initial"
                                                         animate="animate"
@@ -302,7 +304,7 @@ const DashboardPage = () => {
                                                                         </div>
                                                                         <AnimatePresence>
                                                                             {isExpanded && (
-                                                                                <motion.div
+                                                                                <MotionDiv
                                                                                     variants={transactionDetailsAnimation}
                                                                                     initial="initial"
                                                                                     animate="animate"
@@ -325,21 +327,21 @@ const DashboardPage = () => {
                                                                                             <p className="text-slate-500 text-sm p-2">Keine Ausgaben diesen Monat.</p>
                                                                                         )}
                                                                                     </div>
-                                                                                </motion.div>
+                                                                                </MotionDiv>
                                                                             )}
                                                                         </AnimatePresence>
                                                                     </div>
                                                                 );
                                                             })}
                                                         </div>
-                                                    </motion.div>
+                                                    </MotionDiv>
                                                 )}
                                             </AnimatePresence>
                                         </div>
                                     );
                                 })}
                             </div>
-                        </motion.div>
+                        </MotionDiv>
                     )}
                 </div>
             </div>

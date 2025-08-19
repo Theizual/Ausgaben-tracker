@@ -6,6 +6,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { MealPrefs } from '@/shared/types';
 import { toast } from 'react-hot-toast';
 
+const MotionDiv = motion.div;
+
 // New Popover Component for editing people count
 const PeopleEditorPopover: FC<{
     prefs: MealPrefs;
@@ -44,7 +46,7 @@ const PeopleEditorPopover: FC<{
     };
     
     return (
-        <motion.div
+        <MotionDiv
             ref={popoverRef}
             initial={{ opacity: 0, y: 5 }}
             animate={{ opacity: 1, y: 0 }}
@@ -70,7 +72,7 @@ const PeopleEditorPopover: FC<{
                 </div>
             </div>
             <Button onClick={handleSave} size="sm" className="w-full mt-4">Anwenden</Button>
-        </motion.div>
+        </MotionDiv>
     );
 };
 
