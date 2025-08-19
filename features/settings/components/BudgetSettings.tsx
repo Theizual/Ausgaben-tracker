@@ -189,7 +189,7 @@ export const BudgetSettings = () => {
     
     // --- Handlers for Fixed & Recurring Costs ---
     const handleFixedAmountUpdate = (categoryId: string, amountStr: string) => {
-        const amount = parseFloat(amountStr.replace(',', '.'));
+        const amount = parseFloat(amountStr.replace(/\./g, '').replace(',', '.'));
         if (isNaN(amount) || amount < 0) return;
 
         const existingRec = recurringMapByCatId.get(categoryId);
@@ -308,7 +308,7 @@ export const BudgetSettings = () => {
                 <button onClick={() => setIsDetailsExpanded(p => !p)} className="w-full flex justify-between items-center p-3 text-left hover:bg-slate-700/30">
                     <div className="flex items-center gap-3">
                          <ChevronDown className={`h-5 w-5 text-slate-400 transition-transform ${isDetailsExpanded ? 'rotate-180' : ''}`} />
-                         <h4 className="font-bold text-white">Budget-Aufschlüsselung</h4>
+                         <h4 className="font-bold text-white">Budget-Aufschlüsselung (Flexibel)</h4>
                     </div>
                     <span className="font-bold text-white">{formatCurrency(totalMonthlyBudget)}</span>
                 </button>
@@ -322,7 +322,6 @@ export const BudgetSettings = () => {
                             className="overflow-hidden"
                         >
                             <div className="p-3 border-t border-slate-600/50 space-y-3">
-                                <h5 className="text-xs font-semibold uppercase tracking-wider text-slate-400">Flexibles Budget</h5>
                                 {groupedBudgetData.map(({ group, categories, groupTotalBudget }) => (
                                     <BudgetGroup
                                         key={group.id}
@@ -340,33 +339,38 @@ export const BudgetSettings = () => {
                                         focusedInputRef={focusedInputRef}
                                     />
                                 ))}
-                                
-                                <div className="pt-3 mt-3 border-t border-slate-700/50">
-                                    <h5 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">Monatliche Fixkosten</h5>
-                                    <div className="space-y-2">
-                                        {fixedCategories.map(category => {
-                                            const rec = recurringMapByCatId.get(category.id);
-                                            const Icon = getIconComponent(category.icon);
-                                            return (
-                                                <div key={category.id}>
-                                                    <div className="flex items-center gap-3">
-                                                        <Icon className="h-5 w-5 flex-shrink-0" style={{color: category.color}} />
-                                                        <span className="flex-1 font-medium text-white truncate">{category.name}</span>
-                                                        <div className="flex items-center bg-slate-700 border border-slate-600 rounded-lg focus-within:ring-2 focus-within:ring-rose-500 w-24 flex-shrink-0 ml-2 px-3">
-                                                          <span className="text-slate-400 text-sm">€</span>
-                                                          <input type="text" inputMode="decimal" defaultValue={rec?.amount ? rec.amount.toString().replace('.', ',') : ''} onBlur={e => handleFixedAmountUpdate(category.id, e.currentTarget.value)} onKeyDown={e => {if (e.key === 'Enter') (e.target as HTMLInputElement).blur()}} placeholder="Betrag" className="w-full bg-transparent border-none pl-2 py-1.5 text-right text-white text-sm placeholder-slate-500 focus:outline-none"/>
-                                                        </div>
-                                                    </div>
-                                                    <div className="pl-8 mt-1.5"><ProgressBar percentage={(rec?.amount || 0) / (totalMonthlyFixedCosts || 1) * 100} color={category.color} className="h-1.5" /></div>
-                                                </div>
-                                            )
-                                        })}
-                                    </div>
-                                </div>
                             </div>
                         </motion.div>
                     )}
                 </AnimatePresence>
+            </div>
+            
+            <div className="bg-slate-700/30 rounded-lg overflow-hidden mb-4">
+                <div className="w-full flex justify-between items-center p-3 text-left">
+                     <h4 className="font-bold text-white">Monatliche Fixkosten</h4>
+                     <span className="font-bold text-white">{formatCurrency(totalMonthlyFixedCosts)}</span>
+                </div>
+                 <div className="p-3 border-t border-slate-600/50">
+                    <div className="space-y-3">
+                        {fixedCategories.map(category => {
+                            const rec = recurringMapByCatId.get(category.id);
+                            const Icon = getIconComponent(category.icon);
+                            return (
+                                <div key={category.id}>
+                                    <div className="flex items-center gap-3">
+                                        <Icon className="h-5 w-5 flex-shrink-0" style={{color: category.color}} />
+                                        <span className="flex-1 font-medium text-white truncate">{category.name}</span>
+                                        <div className="flex items-center bg-slate-700 border border-slate-600 rounded-lg focus-within:ring-2 focus-within:ring-rose-500 w-28 flex-shrink-0 ml-2 px-3">
+                                          <span className="text-slate-400 text-sm">€</span>
+                                          <input type="text" inputMode="decimal" defaultValue={rec?.amount ? rec.amount.toLocaleString('de-DE') : ''} onBlur={e => handleFixedAmountUpdate(category.id, e.currentTarget.value)} onKeyDown={e => {if (e.key === 'Enter') (e.target as HTMLInputElement).blur()}} placeholder="Betrag" className="w-full bg-transparent border-none pl-2 py-1.5 text-right text-white text-sm font-semibold placeholder-slate-500 focus:outline-none"/>
+                                        </div>
+                                    </div>
+                                    <div className="pl-8 mt-1.5"><ProgressBar percentage={(rec?.amount || 0) / (totalMonthlyFixedCosts || 1) * 100} color={category.color} className="h-1.5" /></div>
+                                </div>
+                            )
+                        })}
+                    </div>
+                </div>
             </div>
 
             {/* Other Recurring Transactions Section */}
@@ -394,7 +398,7 @@ export const BudgetSettings = () => {
                                 </div>
                                 <input type="date" value={format(parseISO(item.startDate), 'yyyy-MM-dd')} onChange={e => handleUpdateNonFixed(item.id, {startDate: e.currentTarget.value})} className={BASE_INPUT_CLASSES}/>
                                 <div className="relative">
-                                    <select value={item.frequency} onChange={e => { const val = e.currentTarget.value; if(val === 'monthly' || val === 'yearly') handleUpdateNonFixed(item.id, {frequency: val}); }} className={`${BASE_INPUT_CLASSES} appearance-none pr-10`}>
+                                    <select value={item.frequency} onChange={e => { const val = e.currentTarget.value; if(val === 'monthly' || val === 'yearly') handleUpdateNonFixed(item.id, {frequency: val as 'monthly' | 'yearly'}); }} className={`${BASE_INPUT_CLASSES} appearance-none pr-10`}>
                                         <option value="monthly" className="bg-slate-800 text-white">Monatlich</option><option value="yearly" className="bg-slate-800 text-white">Jährlich</option>
                                     </select>
                                     <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 pointer-events-none" />

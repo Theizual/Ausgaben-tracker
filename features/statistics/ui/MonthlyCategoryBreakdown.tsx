@@ -2,15 +2,15 @@ import React, { FC, useState, useMemo, useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
 import type { Transaction, Category, Group } from '@/shared/types';
-import { format, parseISO } from 'date-fns';
-import { ChevronDown, getIconComponent } from '@/shared/ui';
+import { format, parseISO, isSameMonth } from 'date-fns';
+import { ChevronDown, getIconComponent, CheckCircle2, CalendarClock } from '@/shared/ui';
 import { formatCurrency } from '@/shared/utils/dateUtils';
 import { StandardTransactionItem } from '@/shared/ui';
 import { FIXED_COSTS_GROUP_ID } from '@/constants';
 import { BudgetProgressBar } from '@/shared/ui/BudgetProgressBar';
 
 export const MonthlyCategoryBreakdown: FC<{ transactions: Transaction[], currentMonth: Date }> = ({ transactions, currentMonth }) => {
-    const { categoryMap, handleTransactionClick, deLocale, groupMap, groups } = useApp();
+    const { categoryMap, handleTransactionClick, deLocale, groupMap, groups, recurringTransactions } = useApp();
     const [expandedSupergroups, setExpandedSupergroups] = useState<string[]>(['Variable Kosten', 'Fixkosten']);
     const [expandedGroups, setExpandedGroups] = useState<string[]>([]);
     const [expandedCategoryId, setExpandedCategoryId] = useState<string | null>(null);
@@ -131,56 +131,92 @@ export const MonthlyCategoryBreakdown: FC<{ transactions: Transaction[], current
                          {expandedSupergroups.includes(supergroup.name) && (
                              <motion.div {...groupAnimationProps} className="overflow-hidden">
                                  <div className="mt-3 pt-3 border-t border-slate-600/50 space-y-2">
-                                     {supergroup.groups.map(({ group, categories, totalSpent, totalBudget }) => {
-                                         const GroupIcon = getIconComponent(group.icon);
-                                         const isExpanded = expandedGroups.includes(group.id);
-                                         return (
-                                             <div key={group.id} className="relative bg-slate-700/30 p-2 rounded-lg overflow-hidden">
-                                                 <div className="absolute inset-0 pointer-events-none" style={{ backgroundColor: group.color || '#64748b', opacity: 0.07 }}></div>
-                                                 <button onClick={() => toggleGroup(group.id)} className="relative w-full flex justify-between items-center text-left p-1">
-                                                     <div className="flex items-center gap-2">
-                                                         <ChevronDown className={`h-4 w-4 text-slate-500 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
-                                                         <GroupIcon className="h-4 w-4" style={{ color: group.color }} />
-                                                         <h5 className="font-semibold text-white text-sm">{group.name}</h5>
-                                                     </div>
-                                                     <span className="font-semibold text-white text-sm">{formatCurrency(totalSpent)}</span>
-                                                 </button>
-                                                 {totalBudget > 0 && <div className="relative mt-1.5 mx-1"><BudgetProgressBar percentage={totalSpent / totalBudget * 100} color={group.color} /></div>}
-                                                 <AnimatePresence>
-                                                     {isExpanded && (
-                                                         <motion.div {...transactionDetailsAnimation} className="overflow-hidden relative">
-                                                             <div className="ml-4 pl-4 border-l border-slate-600/50 space-y-1">
-                                                                 {categories.map(category => {
-                                                                     const spent = spendingByCategory.get(category.id) || 0;
-                                                                     const isCatExpanded = expandedCategoryId === category.id;
-                                                                     return (
-                                                                         <div key={category.id}>
-                                                                             <StandardTransactionItem
-                                                                                 transaction={{ id: category.id, amount: spent, description: category.name, categoryId: category.id, date: '', createdAt: '', iconOverride: category.icon, lastModified: '', version: 0 }}
-                                                                                 onClick={() => setExpandedCategoryId(isCatExpanded ? null : category.id)}
-                                                                                 density="compact"
-                                                                             />
-                                                                             <AnimatePresence>
-                                                                                 {isCatExpanded && (
-                                                                                     <motion.div {...transactionDetailsAnimation}>
-                                                                                         <div className="ml-4 pl-4 border-l border-slate-700/50 space-y-1">
-                                                                                             {transactions.filter(t => t.categoryId === category.id).map(t => (
-                                                                                                 <StandardTransactionItem key={t.id} transaction={t} onClick={() => handleTransactionClick(t)} density="compact" showSublineInList="date" />
-                                                                                             ))}
-                                                                                         </div>
-                                                                                     </motion.div>
-                                                                                 )}
-                                                                             </AnimatePresence>
-                                                                         </div>
-                                                                     );
-                                                                 })}
-                                                             </div>
-                                                         </motion.div>
-                                                     )}
-                                                 </AnimatePresence>
-                                             </div>
-                                         );
-                                     })}
+                                     {supergroup.name === 'Fixkosten' ? (
+                                         supergroup.groups.map(({ group, categories }) => (
+                                            <div key={group.id} className="relative bg-slate-700/30 p-2 rounded-lg overflow-hidden">
+                                                <div className="pl-4 space-y-1">
+                                                    {categories.map(category => {
+                                                        const rec = recurringTransactions.find(rt => rt.categoryId === category.id && !rt.isDeleted);
+                                                        const budgetAmount = rec?.amount || 0;
+                                                        const isPostedThisMonth = rec ? transactions.some(t => t.recurringId === rec.id && isSameMonth(parseISO(t.date), currentMonth)) : false;
+                                                        const Icon = getIconComponent(category.icon);
+
+                                                        return (
+                                                            <div key={category.id} className="flex justify-between items-center text-sm py-1">
+                                                                <div className="flex items-center gap-3 truncate">
+                                                                    <Icon className="h-4 w-4 flex-shrink-0" style={{ color: category.color }} />
+                                                                    <span className="font-medium text-white truncate">{category.name}</span>
+                                                                </div>
+                                                                <div className="flex items-center gap-4">
+                                                                    <span className="font-semibold text-white text-sm flex-shrink-0">{formatCurrency(budgetAmount)} / Monat</span>
+                                                                    {isPostedThisMonth ? (
+                                                                        <span className="flex items-center gap-1 text-xs bg-green-500/20 text-green-300 px-2 py-1 rounded-full font-semibold" title="Buchung für diesen Monat erfolgt">
+                                                                            <CheckCircle2 className="h-3 w-3" /> Gebucht
+                                                                        </span>
+                                                                    ) : (
+                                                                        <span className="flex items-center gap-1 text-xs bg-slate-600/50 text-slate-400 px-2 py-1 rounded-full font-semibold" title="Buchung für diesen Monat offen">
+                                                                            <CalendarClock className="h-3 w-3" /> Offen
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                        ))
+                                     ) : (
+                                        supergroup.groups.map(({ group, categories, totalSpent, totalBudget }) => {
+                                            const GroupIcon = getIconComponent(group.icon);
+                                            const isExpanded = expandedGroups.includes(group.id);
+                                            return (
+                                                <div key={group.id} className="relative bg-slate-700/30 p-2 rounded-lg overflow-hidden">
+                                                    <div className="absolute inset-0 pointer-events-none" style={{ backgroundColor: group.color || '#64748b', opacity: 0.07 }}></div>
+                                                    <button onClick={() => toggleGroup(group.id)} className="relative w-full flex justify-between items-center text-left p-1">
+                                                        <div className="flex items-center gap-2">
+                                                            <ChevronDown className={`h-4 w-4 text-slate-500 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                                                            <GroupIcon className="h-4 w-4" style={{ color: group.color }} />
+                                                            <h5 className="font-semibold text-white text-sm">{group.name}</h5>
+                                                        </div>
+                                                        <span className="font-semibold text-white text-sm">{formatCurrency(totalSpent)}</span>
+                                                    </button>
+                                                    {totalBudget > 0 && <div className="relative mt-1.5 mx-1"><BudgetProgressBar percentage={totalSpent / totalBudget * 100} color={group.color} /></div>}
+                                                    <AnimatePresence>
+                                                        {isExpanded && (
+                                                            <motion.div {...transactionDetailsAnimation} className="overflow-hidden relative">
+                                                                <div className="ml-4 pl-4 border-l border-slate-600/50 space-y-1">
+                                                                    {categories.map(category => {
+                                                                        const spent = spendingByCategory.get(category.id) || 0;
+                                                                        const isCatExpanded = expandedCategoryId === category.id;
+                                                                        return (
+                                                                            <div key={category.id}>
+                                                                                <StandardTransactionItem
+                                                                                    transaction={{ id: category.id, amount: spent, description: category.name, categoryId: category.id, date: '', createdAt: '', iconOverride: category.icon, lastModified: '', version: 0 }}
+                                                                                    onClick={() => setExpandedCategoryId(isCatExpanded ? null : category.id)}
+                                                                                    density="compact"
+                                                                                />
+                                                                                <AnimatePresence>
+                                                                                    {isCatExpanded && (
+                                                                                        <motion.div {...transactionDetailsAnimation}>
+                                                                                            <div className="ml-4 pl-4 border-l border-slate-700/50 space-y-1">
+                                                                                                {transactions.filter(t => t.categoryId === category.id).map(t => (
+                                                                                                    <StandardTransactionItem key={t.id} transaction={t} onClick={() => handleTransactionClick(t)} density="compact" showSublineInList="date" />
+                                                                                                ))}
+                                                                                            </div>
+                                                                                        </motion.div>
+                                                                                    )}
+                                                                                </AnimatePresence>
+                                                                            </div>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            </motion.div>
+                                                        )}
+                                                    </AnimatePresence>
+                                                </div>
+                                            );
+                                        })
+                                    )}
                                  </div>
                              </motion.div>
                          )}
