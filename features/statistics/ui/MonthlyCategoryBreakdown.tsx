@@ -8,6 +8,7 @@ import { formatCurrency } from '@/shared/utils/dateUtils';
 import { StandardTransactionItem } from '@/shared/ui';
 import { FIXED_COSTS_GROUP_ID } from '@/constants';
 import { BudgetProgressBar } from '@/shared/ui/BudgetProgressBar';
+import { getMonthlyEquivalent } from '@/shared/utils/transactionUtils';
 
 export const MonthlyCategoryBreakdown: FC<{ transactions: Transaction[], currentMonth: Date }> = ({ transactions, currentMonth }) => {
     const { categoryMap, handleTransactionClick, deLocale, groupMap, groups, recurringTransactions } = useApp();
@@ -132,39 +133,35 @@ export const MonthlyCategoryBreakdown: FC<{ transactions: Transaction[], current
                              <motion.div {...groupAnimationProps} className="overflow-hidden">
                                  <div className="mt-3 pt-3 border-t border-slate-600/50 space-y-2">
                                      {supergroup.name === 'Fixkosten' ? (
-                                         supergroup.groups.map(({ group, categories }) => (
-                                            <div key={group.id} className="relative bg-slate-700/30 p-2 rounded-lg overflow-hidden">
-                                                <div className="pl-4 space-y-1">
-                                                    {categories.map(category => {
-                                                        const rec = recurringTransactions.find(rt => rt.categoryId === category.id && !rt.isDeleted);
-                                                        const budgetAmount = rec?.amount || 0;
-                                                        const isPostedThisMonth = rec ? transactions.some(t => t.recurringId === rec.id && isSameMonth(parseISO(t.date), currentMonth)) : false;
-                                                        const Icon = getIconComponent(category.icon);
+                                        <div className="space-y-1 pl-4">
+                                            {supergroup.groups.flatMap(g => g.categories).map(category => {
+                                                const rec = recurringTransactions.find(rt => rt.categoryId === category.id && !rt.isDeleted);
+                                                const monthlyAmount = rec ? getMonthlyEquivalent(rec) : 0;
+                                                const isPostedThisMonth = rec ? transactions.some(t => t.recurringId === rec.id && isSameMonth(parseISO(t.date), currentMonth)) : false;
+                                                const Icon = getIconComponent(category.icon);
 
-                                                        return (
-                                                            <div key={category.id} className="flex justify-between items-center text-sm py-1">
-                                                                <div className="flex items-center gap-3 truncate">
-                                                                    <Icon className="h-4 w-4 flex-shrink-0" style={{ color: category.color }} />
-                                                                    <span className="font-medium text-white truncate">{category.name}</span>
-                                                                </div>
-                                                                <div className="flex items-center gap-4">
-                                                                    <span className="font-semibold text-white text-sm flex-shrink-0">{formatCurrency(budgetAmount)} / Monat</span>
-                                                                    {isPostedThisMonth ? (
-                                                                        <span className="flex items-center gap-1 text-xs bg-green-500/20 text-green-300 px-2 py-1 rounded-full font-semibold" title="Buchung für diesen Monat erfolgt">
-                                                                            <CheckCircle2 className="h-3 w-3" /> Gebucht
-                                                                        </span>
-                                                                    ) : (
-                                                                        <span className="flex items-center gap-1 text-xs bg-slate-600/50 text-slate-400 px-2 py-1 rounded-full font-semibold" title="Buchung für diesen Monat offen">
-                                                                            <CalendarClock className="h-3 w-3" /> Offen
-                                                                        </span>
-                                                                    )}
-                                                                </div>
-                                                            </div>
-                                                        );
-                                                    })}
-                                                </div>
-                                            </div>
-                                        ))
+                                                return (
+                                                    <div key={category.id} className="flex justify-between items-center text-sm py-1">
+                                                        <div className="flex items-center gap-3 truncate">
+                                                            <Icon className="h-4 w-4 flex-shrink-0" style={{ color: category.color }} />
+                                                            <span className="font-medium text-white truncate">{category.name}</span>
+                                                        </div>
+                                                        <div className="flex items-center gap-4">
+                                                            <span className="font-semibold text-white text-sm flex-shrink-0">{formatCurrency(monthlyAmount)}</span>
+                                                            {isPostedThisMonth ? (
+                                                                <span className="flex items-center gap-1 text-xs bg-green-500/20 text-green-300 px-2 py-1 rounded-full font-semibold" title="Buchung für diesen Monat erfolgt">
+                                                                    <CheckCircle2 className="h-3 w-3" /> Gebucht
+                                                                </span>
+                                                            ) : (
+                                                                <span className="flex items-center gap-1 text-xs bg-slate-600/50 text-slate-400 px-2 py-1 rounded-full font-semibold" title="Buchung für diesen Monat offen">
+                                                                    <CalendarClock className="h-3 w-3" /> Offen
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
                                      ) : (
                                         supergroup.groups.map(({ group, categories, totalSpent, totalBudget }) => {
                                             const GroupIcon = getIconComponent(group.icon);

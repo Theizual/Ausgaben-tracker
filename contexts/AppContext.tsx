@@ -18,6 +18,7 @@ import { apiGet, apiPost } from '@/shared/lib/http';
 import { FirstUserSetup } from '@/features/onboarding';
 import debounce from 'lodash.debounce';
 import { generateUUID } from '@/shared/utils/uuid';
+import { getMonthlyEquivalent } from '@/shared/utils/transactionUtils';
 
 // --- TYPE DEFINITIONS ---
 export interface AnalyzeReceiptResult {
@@ -277,11 +278,7 @@ const ReadyAppProvider: React.FC<{
     const totalMonthlyFixedCosts = useMemo(() => {
         return transactionDataState.recurringTransactions
             .filter(rt => fixedCategoryIds.has(rt.categoryId))
-            .reduce((sum, rt) => {
-                if (rt.frequency === 'monthly') return sum + rt.amount;
-                if (rt.frequency === 'yearly') return sum + (rt.amount / 12);
-                return sum;
-            }, 0);
+            .reduce((sum, rt) => sum + getMonthlyEquivalent(rt), 0);
     }, [transactionDataState.recurringTransactions, fixedCategoryIds]);
 
     const visibleCategoryGroups = useMemo(() => {

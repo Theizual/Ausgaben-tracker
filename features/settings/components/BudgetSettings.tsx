@@ -10,6 +10,7 @@ import { FIXED_COSTS_GROUP_ID, COLOR_FLEX_BUDGET, COLOR_FIXED_BUDGET } from '@/c
 import { generateUUID } from '@/shared/utils/uuid';
 import { BudgetGroup } from './BudgetGroup';
 import { settingsContentAnimation } from '@/shared/lib/animations';
+import { RecurringConfigModal } from './RecurringConfigModal';
 
 const BASE_INPUT_CLASSES = "w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-rose-500";
 
@@ -40,6 +41,7 @@ export const BudgetSettings = () => {
 
     // --- State for Fixed & Other Recurring ---
     const [editingRecurringId, setEditingRecurringId] = useState<string | null>(null);
+    const [configuringRecurring, setConfiguringRecurring] = useState<{ recurring: RecurringTransaction; category: Category } | null>(null);
     
     // --- State for Main Accordions ---
     const [isDetailsExpanded, setIsDetailsExpanded] = useState(true);
@@ -199,22 +201,21 @@ export const BudgetSettings = () => {
                 toast.success("Fixkostenbetrag aktualisiert.");
             }
         } else {
-            const newId = generateUUID();
             addRecurringTransaction({
                 amount,
                 description: fixedCategories.find(c => c.id === categoryId)?.name || 'Fixkosten',
                 categoryId,
                 frequency: 'monthly',
-                startDate: new Date().toISOString().split('T')[0]
-            }, newId);
+                startDate: new Date().toISOString()
+            }, generateUUID('rec'));
             toast.success("Fixkostenbetrag hinzugefügt.");
         }
     };
     
     const handleAddNonFixed = useCallback(() => {
-        const newId = generateUUID();
+        const newId = `rec_new_${Date.now()}`;
         const firstFlexCategory = categories.find(c => c.groupId !== FIXED_COSTS_GROUP_ID);
-        addRecurringTransaction({ amount: 0, description: 'Neue Ausgabe', categoryId: firstFlexCategory?.id || '', frequency: 'monthly', startDate: new Date().toISOString().split('T')[0] }, newId);
+        addRecurringTransaction({ amount: 0, description: 'Neue Ausgabe', categoryId: firstFlexCategory?.id || '', frequency: 'monthly', startDate: new Date().toISOString() }, newId);
         setEditingRecurringId(newId);
     }, [categories, addRecurringTransaction]);
 
@@ -242,184 +243,217 @@ export const BudgetSettings = () => {
     };
 
     return (
-        <motion.div 
-            key="budget"
-            variants={settingsContentAnimation}
-            initial="initial"
-            animate="animate"
-            exit="exit"
-        >
-            <h3 className="text-lg font-semibold text-white mb-1">Budgetverwaltung</h3>
-            <p className="text-sm text-slate-400 mb-6">Verwalten Sie hier Ihr gesamtes monatliches Budget, aufgeteilt in flexible Ausgaben und Fixkosten.</p>
-            
-            <div className="mb-6 bg-slate-800/50 p-3 rounded-lg border border-slate-700 space-y-2">
-                 <div className="flex justify-between items-center">
-                    <h4 className="text-sm font-semibold text-white">Gesamtbudget-Verteilung</h4>
-                    <p className="font-bold text-lg text-white">{formatCurrency(totalOverallBudget)}</p>
-                </div>
-                <div className="flex justify-between items-baseline">
-                    <div className="text-left">
-                        <p className="text-xs text-slate-300 flex items-center gap-1.5"><Wallet className="h-3 w-3" style={{ color: flexBarColor }} />Flexibles Budget</p>
-                        <p className="text-white text-md font-semibold">{formatCurrency(totalMonthlyBudget)}</p>
+        <>
+            <motion.div 
+                key="budget"
+                variants={settingsContentAnimation}
+                initial="initial"
+                animate="animate"
+                exit="exit"
+            >
+                <h3 className="text-lg font-semibold text-white mb-1">Budgetverwaltung</h3>
+                <p className="text-sm text-slate-400 mb-6">Verwalten Sie hier Ihr gesamtes monatliches Budget, aufgeteilt in flexible Ausgaben und Fixkosten.</p>
+                
+                <div className="mb-6 bg-slate-800/50 p-3 rounded-lg border border-slate-700 space-y-2">
+                     <div className="flex justify-between items-center">
+                        <h4 className="text-sm font-semibold text-white">Gesamtbudget-Verteilung</h4>
+                        <p className="font-bold text-lg text-white">{formatCurrency(totalOverallBudget)}</p>
                     </div>
-                     <div className="text-right">
-                        <p className="text-xs text-slate-300 flex items-center gap-1.5 justify-end">Monatliche Fixkosten<FixedIcon className="h-3 w-3" style={{ color: fixedIconColor }} /></p>
-                        <p className="text-white text-md font-semibold">{formatCurrency(totalMonthlyFixedCosts)}</p>
-                    </div>
-                </div>
-                {totalOverallBudget > 0 ? (
-                    <div className="w-full relative h-6 rounded-full overflow-hidden bg-slate-900/50 flex" aria-label="Gesamtbudgetverteilung: Flexibles Budget vs. Fixkosten">
-                        {/* Layered approach for sharp dividing line */}
-                        <motion.div
-                            className="h-full flex items-center justify-center"
-                            style={{ backgroundColor: flexBarColor }}
-                            variants={flexBarAnimation}
-                            initial="initial"
-                            animate="animate"
-                            title={`Flexible Budgets: ${flexPercentage.toFixed(0)}%`}
-                        >
-                            {flexPercentage >= 10 && (
-                                <span className="text-white text-xs font-bold drop-shadow-sm">{flexPercentage.toFixed(0)}%</span>
-                            )}
-                        </motion.div>
-                        <motion.div
-                            className="h-full flex items-center justify-center"
-                            style={{ backgroundColor: fixedBarColor }}
-                            variants={fixedBarAnimation}
-                            initial="initial"
-                            animate="animate"
-                            title={`Fixkosten: ${fixedPercentage.toFixed(0)}%`}
-                        >
-                            {fixedPercentage >= 10 && (
-                                <span className="text-white text-xs font-bold drop-shadow-sm">{fixedPercentage.toFixed(0)}%</span>
-                            )}
-                        </motion.div>
-                    </div>
-                ) : (
-                    <div className="w-full relative flex h-6 rounded-full overflow-hidden bg-slate-900/50" aria-label="Gesamtbudgetverteilung: Flexibles Budget vs. Fixkosten">
-                        <div className="h-full flex-grow flex items-center justify-center">
-                            <span className="text-slate-400 text-xs font-bold">0% / 0%</span>
+                    <div className="flex justify-between items-baseline">
+                        <div className="text-left">
+                            <p className="text-xs text-slate-300 flex items-center gap-1.5"><Wallet className="h-3 w-3" style={{ color: flexBarColor }} />Flexibles Budget</p>
+                            <p className="text-white text-md font-semibold">{formatCurrency(totalMonthlyBudget)}</p>
+                        </div>
+                         <div className="text-right">
+                            <p className="text-xs text-slate-300 flex items-center gap-1.5 justify-end">Monatliche Fixkosten<FixedIcon className="h-3 w-3" style={{ color: fixedIconColor }} /></p>
+                            <p className="text-white text-md font-semibold">{formatCurrency(totalMonthlyFixedCosts)}</p>
                         </div>
                     </div>
-                )}
-            </div>
-            
-            <div className="bg-slate-700/30 rounded-lg overflow-hidden mb-4">
-                <button onClick={() => setIsDetailsExpanded(p => !p)} className="w-full flex justify-between items-center p-3 text-left hover:bg-slate-700/30">
-                    <div className="flex items-center gap-3">
-                         <ChevronDown className={`h-5 w-5 text-slate-400 transition-transform ${isDetailsExpanded ? 'rotate-180' : ''}`} />
-                         <h4 className="font-bold text-white">Budget-Aufschlüsselung (Flexibel)</h4>
-                    </div>
-                    <span className="font-bold text-white">{formatCurrency(totalMonthlyBudget)}</span>
-                </button>
-                <AnimatePresence>
-                    {isDetailsExpanded && (
-                        <motion.div 
-                            variants={detailsAnimation} 
-                            initial="initial"
-                            animate="animate"
-                            exit="exit"
-                            className="overflow-hidden"
-                        >
-                            <div className="p-3 border-t border-slate-600/50 space-y-3">
-                                {groupedBudgetData.map(({ group, categories, groupTotalBudget }) => (
-                                    <BudgetGroup
-                                        key={group.id}
-                                        group={group}
-                                        categories={categories}
-                                        groupTotalBudget={groupTotalBudget}
-                                        groupBudgetInputs={localGroupBudgets}
-                                        categoryBudgetInputs={localCategoryBudgets}
-                                        onGroupBudgetChange={(value) => handleLocalGroupBudgetChange(group.id, value)}
-                                        onIndividualBudgetChange={(catId, value) => handleLocalIndividualBudgetChange(catId, value)}
-                                        onCommitGroup={() => handleCommitGroupBudget(group.id)}
-                                        onCommitCategory={(catId) => handleCommitIndividualBudget(catId)}
-                                        isExpanded={flexExpandedGroups.includes(group.id)}
-                                        onToggle={() => toggleFlexGroup(group.id)}
-                                        focusedInputRef={focusedInputRef}
-                                    />
-                                ))}
+                    {totalOverallBudget > 0 ? (
+                        <div className="w-full relative h-6 rounded-full overflow-hidden bg-slate-900/50 flex" aria-label="Gesamtbudgetverteilung: Flexibles Budget vs. Fixkosten">
+                            {/* Layered approach for sharp dividing line */}
+                            <motion.div
+                                className="h-full flex items-center justify-center"
+                                style={{ backgroundColor: flexBarColor }}
+                                variants={flexBarAnimation}
+                                initial="initial"
+                                animate="animate"
+                                title={`Flexible Budgets: ${flexPercentage.toFixed(0)}%`}
+                            >
+                                {flexPercentage >= 10 && (
+                                    <span className="text-white text-xs font-bold drop-shadow-sm">{flexPercentage.toFixed(0)}%</span>
+                                )}
+                            </motion.div>
+                            <motion.div
+                                className="h-full flex items-center justify-center"
+                                style={{ backgroundColor: fixedBarColor }}
+                                variants={fixedBarAnimation}
+                                initial="initial"
+                                animate="animate"
+                                title={`Fixkosten: ${fixedPercentage.toFixed(0)}%`}
+                            >
+                                {fixedPercentage >= 10 && (
+                                    <span className="text-white text-xs font-bold drop-shadow-sm">{fixedPercentage.toFixed(0)}%</span>
+                                )}
+                            </motion.div>
+                        </div>
+                    ) : (
+                        <div className="w-full relative flex h-6 rounded-full overflow-hidden bg-slate-900/50" aria-label="Gesamtbudgetverteilung: Flexibles Budget vs. Fixkosten">
+                            <div className="h-full flex-grow flex items-center justify-center">
+                                <span className="text-slate-400 text-xs font-bold">0% / 0%</span>
                             </div>
-                        </motion.div>
+                        </div>
                     )}
-                </AnimatePresence>
-            </div>
-            
-            <div className="bg-slate-700/30 rounded-lg overflow-hidden mb-4">
-                <div className="w-full flex justify-between items-center p-3 text-left">
-                     <h4 className="font-bold text-white">Monatliche Fixkosten</h4>
-                     <span className="font-bold text-white">{formatCurrency(totalMonthlyFixedCosts)}</span>
                 </div>
-                 <div className="p-3 border-t border-slate-600/50">
-                    <div className="space-y-3">
-                        {fixedCategories.map(category => {
-                            const rec = recurringMapByCatId.get(category.id);
-                            const Icon = getIconComponent(category.icon);
-                            return (
-                                <div key={category.id}>
-                                    <div className="flex items-center gap-3">
-                                        <Icon className="h-5 w-5 flex-shrink-0" style={{color: category.color}} />
-                                        <span className="flex-1 font-medium text-white truncate">{category.name}</span>
-                                        <div className="flex items-center bg-slate-700 border border-slate-600 rounded-lg focus-within:ring-2 focus-within:ring-rose-500 w-28 flex-shrink-0 ml-2 px-3">
-                                          <span className="text-slate-400 text-sm">€</span>
-                                          <input type="text" inputMode="decimal" defaultValue={rec?.amount ? rec.amount.toLocaleString('de-DE') : ''} onBlur={e => handleFixedAmountUpdate(category.id, e.currentTarget.value)} onKeyDown={e => {if (e.key === 'Enter') (e.target as HTMLInputElement).blur()}} placeholder="Betrag" className="w-full bg-transparent border-none pl-2 py-1.5 text-right text-white text-sm font-semibold placeholder-slate-500 focus:outline-none"/>
-                                        </div>
-                                    </div>
-                                    <div className="pl-8 mt-1.5"><ProgressBar percentage={(rec?.amount || 0) / (totalMonthlyFixedCosts || 1) * 100} color={category.color} className="h-1.5" /></div>
+                
+                <div className="bg-slate-700/30 rounded-lg overflow-hidden mb-4">
+                    <button onClick={() => setIsDetailsExpanded(p => !p)} className="w-full flex justify-between items-center p-3 text-left hover:bg-slate-700/30">
+                        <div className="flex items-center gap-3">
+                             <ChevronDown className={`h-5 w-5 text-slate-400 transition-transform ${isDetailsExpanded ? 'rotate-180' : ''}`} />
+                             <h4 className="font-bold text-white">Budget-Aufschlüsselung (Flexibel)</h4>
+                        </div>
+                        <span className="font-bold text-white">{formatCurrency(totalMonthlyBudget)}</span>
+                    </button>
+                    <AnimatePresence>
+                        {isDetailsExpanded && (
+                            <motion.div 
+                                variants={detailsAnimation} 
+                                initial="initial"
+                                animate="animate"
+                                exit="exit"
+                                className="overflow-hidden"
+                            >
+                                <div className="p-3 border-t border-slate-600/50 space-y-3">
+                                    {groupedBudgetData.map(({ group, categories, groupTotalBudget }) => (
+                                        <BudgetGroup
+                                            key={group.id}
+                                            group={group}
+                                            categories={categories}
+                                            groupTotalBudget={groupTotalBudget}
+                                            groupBudgetInputs={localGroupBudgets}
+                                            categoryBudgetInputs={localCategoryBudgets}
+                                            onGroupBudgetChange={(value) => handleLocalGroupBudgetChange(group.id, value)}
+                                            onIndividualBudgetChange={(catId, value) => handleLocalIndividualBudgetChange(catId, value)}
+                                            onCommitGroup={() => handleCommitGroupBudget(group.id)}
+                                            onCommitCategory={(catId) => handleCommitIndividualBudget(catId)}
+                                            isExpanded={flexExpandedGroups.includes(group.id)}
+                                            onToggle={() => toggleFlexGroup(group.id)}
+                                            focusedInputRef={focusedInputRef}
+                                        />
+                                    ))}
                                 </div>
-                            )
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </div>
+                
+                <div className="bg-slate-700/30 rounded-lg overflow-hidden mb-4">
+                    <div className="w-full flex justify-between items-center p-3 text-left">
+                         <h4 className="font-bold text-white">Monatliche Fixkosten</h4>
+                         <span className="font-bold text-white">{formatCurrency(totalMonthlyFixedCosts)}</span>
+                    </div>
+                     <div className="p-3 border-t border-slate-600/50">
+                        <div className="space-y-3">
+                            {fixedCategories.map(category => {
+                                const rec = recurringMapByCatId.get(category.id);
+                                const Icon = getIconComponent(category.icon);
+                                return (
+                                    <div key={category.id}>
+                                        <div className="flex items-center gap-3">
+                                            <Icon className="h-5 w-5 flex-shrink-0" style={{color: category.color}} />
+                                            <span className="flex-1 font-medium text-white truncate">{category.name}</span>
+                                            <div className="flex items-center gap-2 ml-2">
+                                                <div className="flex items-center bg-slate-700 border border-slate-600 rounded-lg focus-within:ring-2 focus-within:ring-rose-500 w-28 flex-shrink-0 px-3">
+                                                    <span className="text-slate-400 text-sm">€</span>
+                                                    <input type="text" inputMode="decimal" defaultValue={rec?.amount ? rec.amount.toLocaleString('de-DE') : ''} onBlur={e => handleFixedAmountUpdate(category.id, e.currentTarget.value)} onKeyDown={e => {if (e.key === 'Enter') (e.target as HTMLInputElement).blur()}} placeholder="Betrag" className="w-full bg-transparent border-none pl-2 py-1.5 text-right text-white text-sm font-semibold placeholder-slate-500 focus:outline-none"/>
+                                                </div>
+                                                <Button
+                                                    variant="secondary"
+                                                    size="sm"
+                                                    onClick={() => {
+                                                        const recurringData = recurringMapByCatId.get(category.id);
+                                                        if (recurringData) {
+                                                            setConfiguringRecurring({ recurring: recurringData, category });
+                                                        } else {
+                                                            toast.error("Planungsdaten noch nicht bereit. Bitte kurz warten.");
+                                                        }
+                                                    }}
+                                                    aria-label={`Planung für ${category.name} bearbeiten`}
+                                                    className="flex-shrink-0"
+                                                >
+                                                    Planen
+                                                </Button>
+                                            </div>
+                                        </div>
+                                        <div className="pl-8 mt-1.5"><ProgressBar percentage={(rec?.amount || 0) / (totalMonthlyFixedCosts || 1) * 100} color={category.color} className="h-1.5" /></div>
+                                    </div>
+                                )
+                            })}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Other Recurring Transactions Section */}
+                <div className="mt-8 pt-6 border-t border-slate-700/50">
+                    <div className="flex justify-between items-center mb-4">
+                        <h3 className="text-lg font-semibold text-white">Andere wiederkehrende Ausgaben</h3>
+                        <Button onClick={handleAddNonFixed} variant="secondary" size="sm"><Plus className="h-4 w-4"/>Neue Ausgabe</Button>
+                    </div>
+                    <div className="space-y-3">
+                        {nonFixedRecurring.map(item => {
+                            const isEditing = editingRecurringId === item.id;
+                            const category = categories.find(c => c.id === item.categoryId);
+                            const Icon = getIconComponent(category?.icon);
+
+                            return isEditing ? (
+                                <div key={item.id} className="bg-slate-700/80 p-4 rounded-lg space-y-4 ring-2 ring-rose-500">
+                                   <input type="text" value={item.description} onChange={e => handleUpdateNonFixed(item.id, {description: e.currentTarget.value})} placeholder="Beschreibung" className={BASE_INPUT_CLASSES}/>
+                                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                                    <input type="number" value={item.amount} onChange={e => handleUpdateNonFixed(item.id, {amount: Number(e.currentTarget.value.replace(',', '.')) || 0})} placeholder="Betrag" className={BASE_INPUT_CLASSES}/>
+                                    <div className="relative">
+                                        <select value={item.categoryId} onChange={e => handleUpdateNonFixed(item.id, {categoryId: e.currentTarget.value})} className={`${BASE_INPUT_CLASSES} appearance-none pr-10`}>
+                                            {categories.filter(c => c.groupId !== FIXED_COSTS_GROUP_ID).map(c => <option key={c.id} value={c.id} className="bg-slate-800 text-white">{c.name}</option>)}
+                                        </select>
+                                         <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 pointer-events-none" />
+                                    </div>
+                                    <input type="date" value={format(parseISO(item.startDate), 'yyyy-MM-dd')} onChange={e => handleUpdateNonFixed(item.id, {startDate: e.currentTarget.value})} className={BASE_INPUT_CLASSES}/>
+                                    <div className="relative">
+                                        <select value={item.frequency} onChange={e => { const val = e.currentTarget.value; if(val === 'monthly' || val === 'yearly') handleUpdateNonFixed(item.id, {frequency: val as 'monthly' | 'yearly'}); }} className={`${BASE_INPUT_CLASSES} appearance-none pr-10`}>
+                                            <option value="monthly" className="bg-slate-800 text-white">Monatlich</option><option value="yearly" className="bg-slate-800 text-white">Jährlich</option>
+                                        </select>
+                                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 pointer-events-none" />
+                                    </div>
+                                   </div>
+                                   <div className="flex justify-end gap-2"><Button variant="link" onClick={() => setEditingRecurringId(null)} className="px-3 py-1">Fertig</Button></div>
+                                </div>
+                            ) : (
+                                <div key={item.id} className="flex items-center gap-4 bg-slate-700/50 p-3 rounded-lg">
+                                    <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: category?.color || '#64748b' }}><Icon className="h-5 w-5 text-white" /></div>
+                                    <div className="flex-1"><p className="font-semibold text-white">{item.description}</p><p className="text-sm text-slate-400">{category?.name} &bull; {item.frequency === 'monthly' ? 'Monatlich' : 'Jährlich'} ab {format(parseISO(item.startDate), 'dd.MM.yyyy')}</p></div>
+                                    <div className="font-bold text-white text-lg">{formatCurrency(item.amount)}</div>
+                                    <div className="flex gap-1">
+                                        <Button variant="ghost" size="icon-auto" onClick={() => setEditingRecurringId(item.id)}><Edit className="h-4 w-4 text-slate-400"/></Button>
+                                        <Button variant="destructive-ghost" size="icon-auto" onClick={() => {if(window.confirm('Diese wiederkehrende Ausgabe löschen?')) deleteRecurringTransaction(item.id)}}><Trash2 className="h-4 w-4"/></Button>
+                                    </div>
+                                </div>
+                            );
                         })}
                     </div>
                 </div>
-            </div>
-
-            {/* Other Recurring Transactions Section */}
-            <div className="mt-8 pt-6 border-t border-slate-700/50">
-                <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-semibold text-white">Andere wiederkehrende Ausgaben</h3>
-                    <Button onClick={handleAddNonFixed} variant="secondary" size="sm"><Plus className="h-4 w-4"/>Neue Ausgabe</Button>
-                </div>
-                <div className="space-y-3">
-                    {nonFixedRecurring.map(item => {
-                        const isEditing = editingRecurringId === item.id;
-                        const category = categories.find(c => c.id === item.categoryId);
-                        const Icon = getIconComponent(category?.icon);
-
-                        return isEditing ? (
-                            <div key={item.id} className="bg-slate-700/80 p-4 rounded-lg space-y-4 ring-2 ring-rose-500">
-                               <input type="text" value={item.description} onChange={e => handleUpdateNonFixed(item.id, {description: e.currentTarget.value})} placeholder="Beschreibung" className={BASE_INPUT_CLASSES}/>
-                               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-                                <input type="number" value={item.amount} onChange={e => handleUpdateNonFixed(item.id, {amount: Number(e.currentTarget.value.replace(',', '.')) || 0})} placeholder="Betrag" className={BASE_INPUT_CLASSES}/>
-                                <div className="relative">
-                                    <select value={item.categoryId} onChange={e => handleUpdateNonFixed(item.id, {categoryId: e.currentTarget.value})} className={`${BASE_INPUT_CLASSES} appearance-none pr-10`}>
-                                        {categories.filter(c => c.groupId !== FIXED_COSTS_GROUP_ID).map(c => <option key={c.id} value={c.id} className="bg-slate-800 text-white">{c.name}</option>)}
-                                    </select>
-                                     <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 pointer-events-none" />
-                                </div>
-                                <input type="date" value={format(parseISO(item.startDate), 'yyyy-MM-dd')} onChange={e => handleUpdateNonFixed(item.id, {startDate: e.currentTarget.value})} className={BASE_INPUT_CLASSES}/>
-                                <div className="relative">
-                                    <select value={item.frequency} onChange={e => { const val = e.currentTarget.value; if(val === 'monthly' || val === 'yearly') handleUpdateNonFixed(item.id, {frequency: val as 'monthly' | 'yearly'}); }} className={`${BASE_INPUT_CLASSES} appearance-none pr-10`}>
-                                        <option value="monthly" className="bg-slate-800 text-white">Monatlich</option><option value="yearly" className="bg-slate-800 text-white">Jährlich</option>
-                                    </select>
-                                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 pointer-events-none" />
-                                </div>
-                               </div>
-                               <div className="flex justify-end gap-2"><Button variant="link" onClick={() => setEditingRecurringId(null)} className="px-3 py-1">Fertig</Button></div>
-                            </div>
-                        ) : (
-                            <div key={item.id} className="flex items-center gap-4 bg-slate-700/50 p-3 rounded-lg">
-                                <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: category?.color || '#64748b' }}><Icon className="h-5 w-5 text-white" /></div>
-                                <div className="flex-1"><p className="font-semibold text-white">{item.description}</p><p className="text-sm text-slate-400">{category?.name} &bull; {item.frequency === 'monthly' ? 'Monatlich' : 'Jährlich'} ab {format(parseISO(item.startDate), 'dd.MM.yyyy')}</p></div>
-                                <div className="font-bold text-white text-lg">{formatCurrency(item.amount)}</div>
-                                <div className="flex gap-1">
-                                    <Button variant="ghost" size="icon-auto" onClick={() => setEditingRecurringId(item.id)}><Edit className="h-4 w-4 text-slate-400"/></Button>
-                                    <Button variant="destructive-ghost" size="icon-auto" onClick={() => {if(window.confirm('Diese wiederkehrende Ausgabe löschen?')) deleteRecurringTransaction(item.id)}}><Trash2 className="h-4 w-4"/></Button>
-                                </div>
-                            </div>
-                        );
-                    })}
-                </div>
-            </div>
-        </motion.div>
+            </motion.div>
+            <AnimatePresence>
+                {configuringRecurring && (
+                    <RecurringConfigModal
+                        data={configuringRecurring}
+                        onClose={() => setConfiguringRecurring(null)}
+                        onSave={(updatedRecurring) => {
+                            updateRecurringTransaction(updatedRecurring);
+                            setConfiguringRecurring(null);
+                            toast.success(`Planung für "${configuringRecurring.category.name}" aktualisiert.`);
+                        }}
+                    />
+                )}
+            </AnimatePresence>
+        </>
     );
 };
