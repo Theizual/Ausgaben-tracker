@@ -11,7 +11,16 @@ export const useUI = (props?: { isDemoModeEnabled: boolean }) => {
     const prefix = isDemoModeEnabled ? 'demo_' : '';
     
     // General App Navigation
-    const [activeTab, setActiveTab] = useState<'dashboard' | 'transactions' | 'statistics' | 'tags' | 'meal-plan'>('dashboard');
+    const [activeTab, _setActiveTab] = useState<'dashboard' | 'transactions' | 'analysis' | 'meal-plan'>('dashboard');
+    const [analysisView, setAnalysisView] = useState<'monthly' | 'tags'>('monthly');
+
+    const setActiveTab = useCallback((tab: 'dashboard' | 'transactions' | 'analysis' | 'meal-plan') => {
+        if (tab !== 'analysis') {
+            // Reset to default view when leaving the analysis tab
+            setAnalysisView('monthly');
+        }
+        _setActiveTab(tab);
+    }, []);
 
     // Modals and Global UI Elements
     const [isSettingsOpen, setSettingsOpen] = useState(false);
@@ -97,9 +106,11 @@ export const useUI = (props?: { isDemoModeEnabled: boolean }) => {
 
     // Cross-tab navigation handlers
     const handleTagAnalyticsClick = useCallback((tagId: string) => {
-        setActiveTab('tags');
+        setActiveTab('analysis');
+        setAnalysisView('tags');
         setSelectedTagIdsForAnalysis([tagId]);
-    }, []);
+    }, [setActiveTab]);
+
     const handleSelectTagForAnalysis = useCallback((tagIds: string[]) => {
         setSelectedTagIdsForAnalysis(tagIds);
     }, []);
@@ -126,14 +137,18 @@ export const useUI = (props?: { isDemoModeEnabled: boolean }) => {
         // Dashboard state
         dashboardViewMode,
         setDashboardViewMode,
+
+        // New unified analysis state
+        analysisView,
+        setAnalysisView,
         
-        // Statistics state
+        // Statistics state (now part of analysis)
         statisticsCurrentMonth,
         setStatisticsCurrentMonth,
         statisticsSelectedDay,
         setStatisticsSelectedDay,
         
-        // TagsPage state
+        // TagsPage state (now part of analysis)
         tagsPeriodType,
         setTagsPeriodType,
         tagsCurrentDate,

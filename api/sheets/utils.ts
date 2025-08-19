@@ -2,7 +2,7 @@ export const HEADERS = {
   Groups:       ['id','name','sortIndex','lastModified','version','isDeleted', 'color', 'isDefault', 'icon'],
   Categories:   ['id','name','color','budget','icon','lastModified','version','isDeleted', 'groupId', 'sortIndex'],
   Transactions: ['id','amount','description','categoryId','date','tagIds','lastModified','isDeleted','recurringId','version','userId','transactionGroupId','iconOverride','isCorrected','groupBaseAmount','createdAt','notes','isVerified'],
-  Recurring:    ['id','amount','description','categoryId','frequency','dayOfMonth','startDate','endDate','lastProcessedDate','active','lastModified','version','isDeleted'],
+  Recurring:    ['id','amount','description','categoryId','frequency','dayOfMonth','startDate','endDate','lastProcessedDate','active','lastModified','version','isDeleted', 'notes'],
   Tags:         ['id','name','color','lastModified','version','isDeleted'],
   Users:        ['id','name','color','lastModified','version','isDeleted'],
   UserSettings: ['userId','key','value','lastModified','version'],
@@ -64,6 +64,9 @@ export function rowsToObjects(sheet: SheetName, rows: any[][] = []): any[] {
       if (sheet === 'Groups') {
           obj.sortIndex = Number(obj.sortIndex) || 0;
       }
+       if (sheet === 'Recurring') {
+        obj.dayOfMonth = Number(obj.dayOfMonth) || null;
+      }
       if (sheet === 'Recipes') {
         obj.price = parseGermanNumber(obj.price);
       }
@@ -109,7 +112,13 @@ export function rowsToObjects(sheet: SheetName, rows: any[][] = []): any[] {
       }
       if (sheet === 'Recipes') {
         if (obj.ingredients && typeof obj.ingredients === 'string') {
-            obj.ingredients = String(obj.ingredients).split('\n').map(t => t.trim()).filter(Boolean).map(name => ({ name, category: 'Sonstiges' }));
+            obj.ingredients = String(obj.ingredients).split('\n').map(t => t.trim()).filter(Boolean).map(line => {
+                const parts = line.split('::');
+                if (parts.length === 2) {
+                    return { name: parts[0].trim(), category: parts[1].trim() };
+                }
+                return { name: line, category: 'Sonstiges' };
+            });
         } else {
             obj.ingredients = [];
         }
@@ -173,7 +182,7 @@ export function objectsToRows(sheet: SheetName, items: any[] = []): any[][] {
 
     if (sheet === 'Recipes') {
       if (h === 'ingredients') {
-        val = Array.isArray(it.ingredients) ? it.ingredients.map(i => i.name).join('\n') : '';
+        val = Array.isArray(it.ingredients) ? it.ingredients.map(i => `${i.name}::${i.category}`).join('\n') : '';
       }
     }
     
@@ -185,7 +194,7 @@ export function objectsToRows(sheet: SheetName, items: any[] = []): any[][] {
 
     if (Array.isArray(val)) return val.join(',');
     if (typeof val === 'number') {
-        if (h === 'version' || h === 'sortIndex') return val;
+        if (h === 'version' || h === 'sortIndex' || h === 'dayOfMonth') return val;
         return val.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
 

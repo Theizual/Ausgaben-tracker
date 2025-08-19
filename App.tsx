@@ -3,9 +3,8 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Toaster } from 'react-hot-toast';
 import { useApp } from '@/contexts/AppContext';
 import { DashboardPage } from '@/features/dashboard';
-import { StatisticsPage } from '@/features/statistics';
+import { AnalysisPage } from '@/features/statistics';
 import { TransactionsPage } from '@/features/transactions';
-import { TagsPage } from '@/features/tags';
 import { MealPlanPage } from '@/features/meal-plan';
 import { SettingsModal } from '@/features/settings';
 import { ConfirmationModal } from '@/features/confirmation';
@@ -79,8 +78,7 @@ const App = () => {
         switch (activeTab) {
             case 'dashboard': return <DashboardPage />;
             case 'transactions': return <TransactionsPage />;
-            case 'statistics': return <StatisticsPage />;
-            case 'tags': return <TagsPage />;
+            case 'analysis': return <AnalysisPage />;
             case 'meal-plan': return <MealPlanPage />;
             default: return null;
         }

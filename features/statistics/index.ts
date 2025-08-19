@@ -1,2 +1,3 @@
 
-export { default as StatisticsPage } from './StatisticsPage';
+
+export { default as AnalysisPage } from './StatisticsPage';

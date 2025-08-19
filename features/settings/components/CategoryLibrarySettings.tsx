@@ -271,12 +271,15 @@ export const CategoryLibrarySettings: FC<{ onEditGroupDesign: (group: Group) => 
                      <h4 className="text-md font-semibold text-white mb-3">Standard-Kategorien</h4>
                      <p className="text-sm text-slate-400 mb-4">Fügen Sie Kategorien aus der Standardbibliothek zu Ihren Gruppen hinzu oder laden Sie die komplette Konfiguration neu.</p>
                      <div className="flex flex-wrap gap-2 mb-6">
-                        {unassignedCategories.map(category => (
-                            <button key={category.id} type="button" onClick={() => handleOpenEditor(category)} className="flex items-center gap-2 px-3 py-2 text-white font-medium rounded-lg transition-colors duration-200 border-2 border-dashed border-slate-500 hover:border-slate-400 bg-slate-800/50 hover:bg-slate-700/80" title={`"${category.name}" hinzufügen`}>
-                                <Plus className="h-4 w-4 text-slate-400"/>
-                                <span className="text-sm">{category.name}</span>
-                            </button>
-                        ))}
+                        {unassignedCategories.map(category => {
+                            const Icon = getIconComponent(category.icon);
+                            return (
+                                <button key={category.id} type="button" onClick={() => handleOpenEditor(category)} className="flex items-center gap-2 px-3 py-2 text-white font-medium rounded-lg transition-colors duration-200 border-2 border-dashed border-slate-500 hover:border-slate-400 bg-slate-800/50 hover:bg-slate-700/80" title={`"${category.name}" hinzufügen`}>
+                                    <Icon className="h-5 w-5 shrink-0" style={{ color: category.color }} />
+                                    <span className="text-sm">{category.name}</span>
+                                </button>
+                            );
+                        })}
                      </div>
                      <Button onClick={loadStandardConfiguration} variant="secondary">
                         <DownloadCloud className="h-4 w-4" />

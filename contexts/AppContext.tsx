@@ -362,7 +362,7 @@ const ReadyAppProvider: React.FC<{
         const { isAutoSyncEnabled, syncStatus: currentSyncStatus, syncData } = syncStateRef.current;
         if (options.isAuto) {
             // Auto-sync from useEffect respects the setting
-            if (isAutoSyncEnabled && (currentSyncStatus === 'idle' || currentSyncStatus === 'success' || currentSyncStatus === 'error')) {
+            if (isAutoSyncEnabled && (currentSyncStatus === 'idle' || currentSyncStatus === 'error')) {
                 syncData({ isAuto: true });
             }
         } else {

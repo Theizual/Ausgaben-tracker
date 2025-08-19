@@ -106,9 +106,10 @@ const TagInput: FC<{
                             <li 
                                 key={suggestion} 
                                 onMouseDown={(e) => { e.preventDefault(); addTag(suggestion); }}
-                                className="px-4 py-2 text-sm text-white hover:bg-rose-500/20 cursor-pointer"
+                                className="flex items-center gap-2 px-4 py-2 text-sm text-white hover:bg-rose-500/20 cursor-pointer"
                             >
-                                #{suggestion}
+                                <Tag className="h-4 w-4 text-slate-400" />
+                                <span>{suggestion}</span>
                             </li>
                         ))}
                     </motion.ul>
