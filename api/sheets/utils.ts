@@ -160,7 +160,18 @@ export function rowsToObjects(sheet: SheetName, rows: any[][] = []): any[] {
         (obj as any).version = 0;
       }
       
-      // Parse JSON data for specific sheets
+      // Initialize structures for JSON-based sheets to prevent render errors on empty/malformed data.
+      if (sheet === 'WeeklyPlans') {
+        obj.days = [];
+        obj.totalEstimate = 0;
+        obj.totalOverride = 0;
+      }
+      if (sheet === 'ShoppingLists') {
+        obj.checkedItems = [];
+        obj.customItems = [];
+      }
+
+      // Parse JSON data, overwriting defaults if successful.
       if ((sheet === 'WeeklyPlans' || sheet === 'ShoppingLists') && obj.data) {
         try {
             const parsedData = JSON.parse(obj.data);
@@ -168,14 +179,7 @@ export function rowsToObjects(sheet: SheetName, rows: any[][] = []): any[] {
             Object.assign(obj, parsedData);
         } catch (e) {
             console.warn(`Could not parse JSON for ${sheet} with key ${obj.weekKey}`);
-            if (sheet === 'WeeklyPlans') {
-                obj.days = [];
-                obj.totalEstimate = 0;
-                obj.totalOverride = 0;
-            } else { // ShoppingLists
-                obj.checkedItems = [];
-                obj.customItems = [];
-            }
+            // Defaults will be used in case of error
         }
       }
 
