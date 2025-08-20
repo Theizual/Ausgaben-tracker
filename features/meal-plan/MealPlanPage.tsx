@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useApp } from '@/contexts/AppContext';
 import { getWeek, startOfWeek } from 'date-fns';
@@ -71,7 +72,7 @@ const MealPlanPage = () => {
         const newPlans = { ...(weeklyMealPlans || {}), [newPlan.weekKey]: newPlan };
         setWeeklyMealPlans(newPlans);
         
-        const newRecentIds = [...newPlan.days.map(d => d.recipeId), ...(recentRecipeIds || [])];
+        const newRecentIds = [...newPlan.days.map(d => d.recipeId).filter(Boolean), ...(recentRecipeIds || [])];
         setRecentRecipeIds(Array.from(new Set(newRecentIds)).slice(0, 50));
 
     }, [mealPlanPrefs, allRecipes, weeklyMealPlans, recentRecipeIds, setWeeklyMealPlans, setRecentRecipeIds]);
@@ -112,7 +113,7 @@ const MealPlanPage = () => {
         const newPlans = { ...(weeklyMealPlans || {}), [weekKey]: newPlan };
         setWeeklyMealPlans(newPlans);
 
-        const newRecentIds = [...newPlan.days.map(d => d.recipeId), ...(recentRecipeIds || [])];
+        const newRecentIds = [...newPlan.days.map(d => d.recipeId).filter(Boolean), ...(recentRecipeIds || [])];
         setRecentRecipeIds(Array.from(new Set(newRecentIds)).slice(0, 50));
     };
     
@@ -131,9 +132,14 @@ const MealPlanPage = () => {
         const newMealDay: MealDay = {
             ...originalDay,
             recipeId: recipe.id,
+            mealType: 'recipe',
             title: recipe.name,
             estimatedPrice: (recipe.price || 0) * totalServings,
             priceOverride: undefined,
+            ingredients: undefined,
+            instructions: undefined,
+            note: undefined,
+            side: recipe.sideSuggestion,
         };
 
         const updatedDays = [...currentPlan.days];
@@ -143,6 +149,41 @@ const MealPlanPage = () => {
         updatedPlan.totalEstimate = updatedPlan.days.reduce((sum, day) => sum + (day.priceOverride ?? day.estimatedPrice), 0);
         updatedPlan.totalOverride = updatedPlan.totalEstimate;
 
+
+        setWeeklyMealPlans(prev => ({ ...(prev || {}), [currentPlan.weekKey]: updatedPlan }));
+        setPickerDayIndex(null);
+    };
+
+    const handleSelectSpecialMeal = (type: 'leftovers' | 'eating_out' | 'no_meal') => {
+        if (pickerDayIndex === null || !currentPlan) return;
+
+        const titles = {
+            leftovers: 'Resteverwertung',
+            eating_out: 'Auswärts essen',
+            no_meal: 'Kein Essen geplant',
+        };
+
+        const originalDay = currentPlan.days[pickerDayIndex];
+
+        const newMealDay: MealDay = {
+            ...originalDay,
+            recipeId: undefined,
+            mealType: type,
+            title: titles[type],
+            estimatedPrice: 0,
+            priceOverride: undefined,
+            ingredients: [],
+            instructions: '',
+            side: undefined,
+            note: undefined,
+        };
+
+        const updatedDays = [...currentPlan.days];
+        updatedDays[pickerDayIndex] = newMealDay;
+
+        const updatedPlan: WeeklyPlan = { ...currentPlan, days: updatedDays };
+        updatedPlan.totalEstimate = updatedPlan.days.reduce((sum, day) => sum + (day.priceOverride ?? day.estimatedPrice), 0);
+        updatedPlan.totalOverride = updatedPlan.totalEstimate;
 
         setWeeklyMealPlans(prev => ({ ...(prev || {}), [currentPlan.weekKey]: updatedPlan }));
         setPickerDayIndex(null);
@@ -261,6 +302,7 @@ const MealPlanPage = () => {
                         isOpen={pickerDayIndex !== null}
                         onClose={() => setPickerDayIndex(null)}
                         onSelectRecipe={handleSelectRecipe}
+                        onSelectSpecial={handleSelectSpecialMeal}
                         currentRecipeId={currentPlan.days[pickerDayIndex].recipeId}
                     />
                 )}

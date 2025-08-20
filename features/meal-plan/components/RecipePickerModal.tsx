@@ -1,5 +1,6 @@
+
 import React, { FC, useState, useMemo, useEffect } from 'react';
-import { Modal, Button, Search, CheckSquare } from '@/shared/ui';
+import { Modal, Button, Search, CheckSquare, Undo2, UtensilsCrossed, X } from '@/shared/ui';
 import type { Recipe } from '@/shared/types';
 import { useApp } from '@/contexts/AppContext';
 import { clsx } from 'clsx';
@@ -8,7 +9,8 @@ interface RecipePickerModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSelectRecipe: (recipeId: string) => void;
-    currentRecipeId: string;
+    onSelectSpecial: (type: 'leftovers' | 'eating_out' | 'no_meal') => void;
+    currentRecipeId?: string;
 }
 
 const RecipeCard: FC<{recipe: Recipe, isSelected: boolean, onSelect: () => void}> = ({ recipe, isSelected, onSelect }) => {
@@ -26,7 +28,7 @@ const RecipeCard: FC<{recipe: Recipe, isSelected: boolean, onSelect: () => void}
     )
 };
 
-export const RecipePickerModal: FC<RecipePickerModalProps> = ({ isOpen, onClose, onSelectRecipe, currentRecipeId }) => {
+export const RecipePickerModal: FC<RecipePickerModalProps> = ({ isOpen, onClose, onSelectRecipe, onSelectSpecial, currentRecipeId }) => {
     const { recipeMap } = useApp();
     const [searchTerm, setSearchTerm] = useState('');
     const allRecipes = useMemo(() => Array.from(recipeMap.values()), [recipeMap]);
@@ -36,6 +38,12 @@ export const RecipePickerModal: FC<RecipePickerModalProps> = ({ isOpen, onClose,
         { key: 'reis', label: 'Reis' },
         { key: 'kartoffeln', label: 'Kartoffeln' },
         { key: 'mix', label: 'Sonstiges' },
+    ];
+    
+    const SPECIAL_MEALS = [
+        { type: 'leftovers', label: 'Resteverwertung', icon: Undo2 },
+        { type: 'eating_out', label: 'Auswärts essen', icon: UtensilsCrossed },
+        { type: 'no_meal', label: 'Kein Essen', icon: X },
     ];
 
     const filteredRecipesByBase = useMemo(() => {
@@ -76,6 +84,20 @@ export const RecipePickerModal: FC<RecipePickerModalProps> = ({ isOpen, onClose,
     return (
         <Modal isOpen={isOpen} onClose={onClose} title="Gericht auswählen" footer={footer} size="lg">
             <div className="space-y-4">
+                <div className="grid grid-cols-3 gap-2">
+                    {SPECIAL_MEALS.map(({ type, label, icon: Icon }) => (
+                        <Button key={type} variant="secondary" onClick={() => onSelectSpecial(type as any)}>
+                            <Icon className="h-4 w-4 mr-2" />
+                            {label}
+                        </Button>
+                    ))}
+                </div>
+
+                <div className="relative pt-2">
+                    <div className="absolute inset-0 flex items-center" aria-hidden="true"><div className="w-full border-t border-slate-700" /></div>
+                    <div className="relative flex justify-center"><span className="bg-slate-800 px-2 text-sm text-slate-400">Oder wähle ein Rezept</span></div>
+                </div>
+
                 <div className="flex items-center bg-slate-700 border border-slate-600 rounded-lg focus-within:ring-2 focus-within:ring-rose-500 px-3">
                     <Search className="h-4 w-4 text-slate-400 shrink-0" />
                     <input

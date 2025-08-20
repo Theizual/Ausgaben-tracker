@@ -1,3 +1,4 @@
+
 export interface User {
   id: string;
   name: string;
@@ -152,7 +153,8 @@ export interface MealPrefs {
 export interface MealDay {
   day: string;
   dateISO: string;
-  recipeId: string;
+  recipeId?: string;
+  mealType?: 'recipe' | 'leftovers' | 'eating_out' | 'no_meal';
   servings: {
     adults: number;
     kids: number;

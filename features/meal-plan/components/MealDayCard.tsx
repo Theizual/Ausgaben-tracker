@@ -1,6 +1,7 @@
+
 import React, { FC, useMemo } from 'react';
 import { MealDay } from '@/shared/types';
-import { ShieldCheck, RefreshCw, Beef, Fish, Carrot, Sprout, Salad } from '@/shared/ui';
+import { ShieldCheck, RefreshCw, Beef, Fish, Carrot, Sprout, Salad, Undo2, UtensilsCrossed, X } from '@/shared/ui';
 import { format, parseISO } from 'date-fns';
 import { clsx } from 'clsx';
 import type { Recipe } from '@/shared/types';
@@ -21,6 +22,12 @@ const tagToIconMap: { [key: string]: { icon: FC<any>, color: string, title: stri
     'Salat': { icon: Salad, color: 'text-lime-400', title: 'Salat' },
 };
 const iconPriority = ['Fleisch', 'Fisch', 'Vegan', 'Vegetarisch', 'Salat'];
+
+const SPECIAL_MEAL_INFO: Record<Exclude<MealDay['mealType'], 'recipe' | undefined>, { icon: FC<any>, title: string }> = {
+    leftovers: { icon: Undo2, title: 'Resteverwertung' },
+    eating_out: { icon: UtensilsCrossed, title: 'Auswärts essen' },
+    no_meal: { icon: X, title: 'Kein Essen geplant' },
+};
 
 const StatusIcon: FC<{ recipe: Recipe }> = ({ recipe }) => {
     const iconTag = iconPriority.find(tag => recipe.tags.includes(tag));
@@ -65,6 +72,7 @@ export const MealDayCard: FC<MealDayCardProps> = ({ mealDay, recipe, onOpenPicke
     }
     
     const borderColorClass = mealDay.isConfirmed ? 'border-green-500' : 'border-slate-700';
+    const isSpecialMeal = mealDay.mealType && mealDay.mealType !== 'recipe';
 
     return (
         <button 
@@ -82,24 +90,37 @@ export const MealDayCard: FC<MealDayCardProps> = ({ mealDay, recipe, onOpenPicke
                     <p className="text-xs text-slate-400">{format(parseISO(mealDay.dateISO), 'dd.MM.')}</p>
                 </div>
                 <div className="flex items-center gap-1.5">
-                    {recipe && <BaseBadge base={recipe.base} />}
-                    {recipe && <StatusIcon recipe={recipe} />}
+                    {recipe && !isSpecialMeal && <BaseBadge base={recipe.base} />}
+                    {recipe && !isSpecialMeal && <StatusIcon recipe={recipe} />}
                 </div>
             </div>
             
             {/* Content: Title & Confirm Action */}
             <div className="flex-grow flex flex-col items-center justify-center w-full px-1 py-1">
-                <div className="text-center">
-                    <div className="flex items-center justify-center gap-2">
-                        <p className="text-sm font-bold text-rose-300 leading-tight line-clamp-2">{mealDay.title || recipe?.name}</p>
-                        {mealDay.isConfirmed && <span title="Bestätigt"><ShieldCheck className="h-4 w-4 text-green-400 flex-shrink-0" /></span>}
+                {isSpecialMeal ? (
+                     (() => {
+                        const info = SPECIAL_MEAL_INFO[mealDay.mealType!];
+                        const Icon = info.icon;
+                        return (
+                            <div className="text-center flex flex-col items-center justify-center gap-1">
+                                <Icon className="h-6 w-6 text-slate-400" />
+                                <p className="text-sm font-semibold text-slate-300 leading-tight">{mealDay.title}</p>
+                            </div>
+                        );
+                    })()
+                ) : (
+                    <div className="text-center">
+                        <div className="flex items-center justify-center gap-2">
+                            <p className="text-sm font-bold text-rose-300 leading-tight line-clamp-2">{mealDay.title || recipe?.name}</p>
+                            {mealDay.isConfirmed && <span title="Bestätigt"><ShieldCheck className="h-4 w-4 text-green-400 flex-shrink-0" /></span>}
+                        </div>
+                        {recipe?.sideSuggestion && (
+                            <p className="text-xs text-slate-400 mt-0.5 truncate" title={recipe.sideSuggestion}>
+                                + {recipe.sideSuggestion}
+                            </p>
+                        )}
                     </div>
-                    {recipe?.sideSuggestion && (
-                        <p className="text-xs text-slate-400 mt-0.5 truncate" title={recipe.sideSuggestion}>
-                            + {recipe.sideSuggestion}
-                        </p>
-                    )}
-                </div>
+                )}
                  {!mealDay.isConfirmed && (
                     <button onClick={toggleConfirm} className="mt-2 text-xs bg-slate-700/80 text-slate-300 px-2 py-1 rounded-full hover:bg-green-500/40 hover:text-white transition-colors">
                         Bestätigen
