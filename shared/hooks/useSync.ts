@@ -14,7 +14,6 @@ export interface SyncProps {
     rawUserSettings: UserSetting[];
     rawTransactionGroups: TransactionGroup[];
     rawRecipes: Recipe[];
-    rawWeeklyPlans: WeeklyPlan[];
     setCategoriesAndGroups: (categories: Category[], groups: Group[]) => void;
     setTransactions: (data: Transaction[]) => void;
     setRecurringTransactions: (data: RecurringTransaction[]) => void;
@@ -23,7 +22,6 @@ export interface SyncProps {
     setUserSettings: (data: UserSetting[]) => void;
     setTransactionGroups: (data: TransactionGroup[]) => void;
     setRecipes: (data: Recipe[]) => void;
-    setWeeklyPlans: (data: WeeklyPlan[]) => void;
     isInitialSetupDone: boolean;
     isDemoModeEnabled: boolean;
     setIsInitialSetupDone: React.Dispatch<React.SetStateAction<boolean>>;
@@ -108,7 +106,7 @@ const translateGoogleApiError = (errorMessage: string): string => {
 };
 
 
-export const useSync = (props: SyncProps) => {
+export const useSync = (props: SyncProps & { rawWeeklyPlans: WeeklyPlan[], setWeeklyPlans: (plans: WeeklyPlan[]) => void }) => {
     const {
         rawCategories, rawGroups, rawTransactions, rawRecurringTransactions, rawAllAvailableTags, rawUsers, rawUserSettings, rawTransactionGroups, rawRecipes, rawWeeklyPlans,
         setCategoriesAndGroups, setTransactions, setRecurringTransactions, setAllAvailableTags, setUsers, setUserSettings, setTransactionGroups, setRecipes, setWeeklyPlans,

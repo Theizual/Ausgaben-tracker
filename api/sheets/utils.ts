@@ -163,10 +163,19 @@ export function rowsToObjects(sheet: SheetName, rows: any[][] = []): any[] {
       // Parse JSON data for specific sheets
       if ((sheet === 'WeeklyPlans' || sheet === 'ShoppingLists') && obj.data) {
         try {
-            obj.data = JSON.parse(obj.data);
+            const parsedData = JSON.parse(obj.data);
+            delete obj.data;
+            Object.assign(obj, parsedData);
         } catch (e) {
             console.warn(`Could not parse JSON for ${sheet} with key ${obj.weekKey}`);
-            obj.data = null;
+            if (sheet === 'WeeklyPlans') {
+                obj.days = [];
+                obj.totalEstimate = 0;
+                obj.totalOverride = 0;
+            } else { // ShoppingLists
+                obj.checkedItems = [];
+                obj.customItems = [];
+            }
         }
       }
 
@@ -177,7 +186,20 @@ export function rowsToObjects(sheet: SheetName, rows: any[][] = []): any[] {
 
 export function objectsToRows(sheet: SheetName, items: any[] = []): any[][] {
   const headers = HEADERS[sheet];
-  return items.map(it => headers.map(h => {
+
+  const processedItems = items.map(it => {
+    if (sheet === 'WeeklyPlans') {
+      const { weekKey, lastModified, version, isDeleted, days, totalEstimate, totalOverride } = it;
+      return { weekKey, lastModified, version, isDeleted, data: { days, totalEstimate, totalOverride } };
+    }
+    if (sheet === 'ShoppingLists') {
+      const { weekKey, lastModified, version, isDeleted, checkedItems, customItems } = it;
+      return { weekKey, lastModified, version, isDeleted, data: { checkedItems, customItems } };
+    }
+    return it;
+  });
+
+  return processedItems.map(it => headers.map(h => {
     // Map createdBy (App) -> userId (Sheet) für Transactions
     let val = h === 'userId' && sheet === 'Transactions' ? it.createdBy : it[h];
 
