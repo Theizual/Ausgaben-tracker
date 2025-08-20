@@ -1,9 +1,7 @@
-
-
 import React from 'react';
 import type { User as UserType } from '@/shared/types';
 import Logo from '@/shared/ui/Logo';
-import { formatGermanDate } from '@/shared/utils/dateUtils';
+import { formatGermanDate, format } from '@/shared/utils/dateUtils';
 import { Loader2, RefreshCw, Settings, FlaskConical } from '@/shared/ui';
 import { UserSelector } from './UserSelector';
 import { formatDistanceToNow } from 'date-fns';
@@ -39,9 +37,10 @@ export const Header: React.FC<{
                         Demo aktiv
                     </div>
                 )}
-                <div className="text-right hidden sm:block">
-                    <p className="text-slate-400 text-sm">{formatGermanDate(new Date(), deLocale)}</p>
-                     <p className="text-xs text-slate-500">{renderLastSyncText()}</p>
+                <div className="text-right">
+                    <p className="text-slate-400 text-sm hidden sm:block">{formatGermanDate(new Date(), deLocale)}</p>
+                    <p className="text-slate-400 text-xs sm:hidden whitespace-nowrap">{format(new Date(), 'E, d. MMM', { locale: deLocale })}</p>
+                    <p className="text-xs text-slate-500 hidden sm:block">{renderLastSyncText()}</p>
                 </div>
                  <button 
                     onClick={onSyncClick} 

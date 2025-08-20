@@ -191,7 +191,6 @@ const TransactionDetailModal = ({
             const newISO = newDate.toISOString();
             if(newISO !== formState.date){
                 handleUpdate({ date: newISO });
-                toast.success("Datum aktualisiert.");
             }
         } catch(e) {
             toast.error("Ungültiges Datumformat.");
@@ -376,14 +375,17 @@ const TransactionDetailModal = ({
                                              <div className="flex justify-between items-center">
                                                 <span className="text-slate-400 font-medium">Datum</span>
                                                  {isEditingDate ? (
-                                                      <input
-                                                        type="datetime-local"
-                                                        value={dateValue}
-                                                        onChange={e => setDateValue(e.target.value)}
-                                                        onBlur={handleDateUpdate}
-                                                        className="bg-slate-700 border border-slate-600 rounded-md px-2 py-1 text-white text-sm focus:outline-none focus:ring-1 focus:ring-rose-500"
-                                                        autoFocus
-                                                      />
+                                                      <motion.div {...inputAnimation} className="flex flex-col items-end">
+                                                        <input
+                                                            type="datetime-local"
+                                                            value={dateValue}
+                                                            onChange={e => setDateValue(e.target.value)}
+                                                            onBlur={handleDateUpdate}
+                                                            className="bg-slate-700 border border-slate-600 rounded-md px-2 py-1 text-white text-sm focus:outline-none focus:ring-1 focus:ring-rose-500"
+                                                            autoFocus
+                                                        />
+                                                        {formState.transactionGroupId && <p className="text-xs text-slate-500 mt-1">Änderung wirkt auf gesamte Gruppe.</p>}
+                                                    </motion.div>
                                                  ) : (
                                                     <button onClick={() => !isVerified && !isDemo && (setDateValue(getFormattedDate(formState.date, "yyyy-MM-dd'T'HH:mm")), setIsEditingDate(true))} disabled={isVerified || isDemo} className="text-slate-200 font-medium rounded p-1 -m-1 disabled:cursor-not-allowed" title={isVerified ? "Geprüfte Transaktionen können nicht bearbeitet werden" : (isDemo ? "Demo-Datum kann nicht geändert werden" : "Datum ändern")}>
                                                         {getFormattedDate(formState.date, 'dd. MMM yyyy, HH:mm')} Uhr

@@ -13,6 +13,7 @@ export interface StandardTransactionItemProps {
     density?: 'normal' | 'compact';
     showSublineInList?: 'category' | 'date';
     showStripe?: boolean;
+    bgOnHover?: string;
 }
 
 const StandardTransactionItem: FC<StandardTransactionItemProps> = ({
@@ -21,6 +22,7 @@ const StandardTransactionItem: FC<StandardTransactionItemProps> = ({
     density = 'compact',
     showSublineInList = 'category',
     showStripe = false,
+    bgOnHover = 'hover:bg-slate-700/50',
 }) => {
     const { categoryMap, tagMap, users, groupMap } = useApp();
 
@@ -63,9 +65,10 @@ const StandardTransactionItem: FC<StandardTransactionItemProps> = ({
             <motion.button
                 onClick={() => onClick(transaction)}
                 className={clsx(
-                    `w-full flex items-start rounded-lg transition-colors duration-150 hover:bg-slate-700/50 text-left`,
+                    `w-full flex items-start rounded-lg transition-colors duration-150 text-left`,
                     isCompact ? 'gap-2 px-2 py-1' : 'gap-3 p-2',
-                    'focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-slate-800 focus-visible:ring-rose-500'
+                    'focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-slate-800 focus-visible:ring-rose-500',
+                    bgOnHover
                 )}
             >
                 {/* Icon */}

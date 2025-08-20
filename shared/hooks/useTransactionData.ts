@@ -301,10 +301,37 @@ export const useTransactionData = ({ showConfirmation, closeTransactionDetail, c
     }, [getOrCreateTagIds, showConfirmation, currentUserId, selectTotalSpentForMonth, addRecentCategory]);
 
     const updateTransaction = useCallback((transaction: Transaction, tags?: string[] | null) => {
-        let finalTransaction: Transaction = { ...transaction, lastModified: new Date().toISOString(), version: (transaction.version || 0) + 1 };
+        const now = new Date().toISOString();
+        let finalTransaction: Transaction = { ...transaction, lastModified: now, version: (transaction.version || 0) + 1 };
         if (tags !== undefined) finalTransaction.tagIds = getOrCreateTagIds(tags || []);
+
+        const originalTransaction = rawState.transactions.find(t => t.id === transaction.id);
+
+        // Group Date Sync Logic
+        if (originalTransaction && finalTransaction.date !== originalTransaction.date && finalTransaction.transactionGroupId) {
+            const groupId = finalTransaction.transactionGroupId;
+            const newDate = finalTransaction.date;
+            
+            const transactionsToUpdate = rawState.transactions
+                .filter(t => t.transactionGroupId === groupId && !t.isDeleted);
+            
+            if (transactionsToUpdate.length > 0) {
+                const updatedTransactions = transactionsToUpdate.map(t => ({
+                    ...t,
+                    date: newDate,
+                    lastModified: now,
+                    version: (t.version || 0) + 1
+                }));
+                
+                dispatch({ type: 'UPDATE_MULTIPLE_TRANSACTIONS', payload: updatedTransactions });
+                toast.success(`Datum für ${updatedTransactions.length} Gruppeneinträge aktualisiert.`);
+                return; // Exit early as we've dispatched a multi-update
+            }
+        }
+        
+        // Fallback to single transaction update
         dispatch({ type: 'UPDATE_TRANSACTION', payload: finalTransaction });
-    }, [getOrCreateTagIds]);
+    }, [rawState.transactions, getOrCreateTagIds]);
 
     const deleteTransaction = useCallback((id: string) => {
         const transaction = rawState.transactions.find(t => t.id === id);

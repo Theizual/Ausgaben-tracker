@@ -79,6 +79,7 @@ const TransactionGroupVisual: FC<{ transactions: Transaction[], onClick: (t: Tra
                         showSublineInList='category'
                         density='normal'
                         showStripe={false}
+                        bgOnHover="hover:bg-white/10"
                     />
                 ))}
             </div>
@@ -94,7 +95,9 @@ export const TransactionList: FC = () => {
         transactionFilters, 
         tagMap, 
         transactionActiveQuickFilter,
-        deLocale 
+        deLocale,
+        categoryMap,
+        groupMap,
     } = useApp();
 
     const filteredTransactions = useMemo(() => {
@@ -207,15 +210,26 @@ export const TransactionList: FC = () => {
                 elements.push(<TransactionGroupVisual key={`group-${currentTx.transactionGroupId}-${i}`} transactions={groupChunk} onClick={handleTransactionClick} />);
                 i = j;
             } else {
+                const category = categoryMap.get(currentTx.categoryId);
+                const group = groupMap.get(category?.groupId);
+                const stripeColor = group?.color || category?.color || '#64748b';
+                const groupRgb = hexToRgb(stripeColor);
+
                 elements.push(
-                     <StandardTransactionItem
+                    <div
                         key={currentTx.id}
-                        transaction={currentTx}
-                        onClick={handleTransactionClick}
-                        showSublineInList='category'
-                        density='normal'
-                        showStripe={true}
-                    />
+                        className="group-gradient rounded-lg"
+                        style={{ '--group-rgb': groupRgb } as React.CSSProperties}
+                    >
+                        <StandardTransactionItem
+                            transaction={currentTx}
+                            onClick={() => handleTransactionClick(currentTx)}
+                            showSublineInList='category'
+                            density='normal'
+                            showStripe={false}
+                            bgOnHover="hover:bg-white/10"
+                        />
+                    </div>
                 );
                 i++;
             }
