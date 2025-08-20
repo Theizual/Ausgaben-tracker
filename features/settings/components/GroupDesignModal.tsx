@@ -8,20 +8,21 @@ import useLocalStorage from '@/shared/hooks/useLocalStorage';
 
 const INLINE_INPUT_CLASSES = "font-bold text-white bg-white/10 rounded px-2 py-1 w-full focus:ring-2 focus:ring-rose-500 focus:outline-none";
 
-const hexToRgba = (hex: string, alpha: number) => {
+const hexToRgb = (hex?: string): string => {
     let r = 0, g = 0, b = 0;
-    if (!hex) hex = '#64748b';
-    if (hex.length === 4) {
-        r = parseInt(hex[1] + hex[1], 16);
-        g = parseInt(hex[2] + hex[2], 16);
-        b = parseInt(hex[3] + hex[3], 16);
-    } else if (hex.length === 7) {
-        r = parseInt(hex.substring(1, 3), 16);
-        g = parseInt(hex.substring(3, 5), 16);
-        b = parseInt(hex.substring(5, 7), 16);
+    const localHex = hex || '#64748b'; // default color
+    if (localHex.length === 4) {
+        r = parseInt(localHex[1] + localHex[1], 16);
+        g = parseInt(localHex[2] + localHex[2], 16);
+        b = parseInt(localHex[3] + localHex[3], 16);
+    } else if (localHex.length === 7) {
+        r = parseInt(localHex.substring(1, 3), 16);
+        g = parseInt(localHex.substring(3, 5), 16);
+        b = parseInt(localHex.substring(5, 7), 16);
     }
-    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    return `${r}, ${g}, ${b}`;
 };
+
 
 interface GroupDesignModalProps {
     group: Group;
@@ -72,8 +73,8 @@ export const GroupDesignModal: FC<GroupDesignModalProps> = ({ group, onClose, on
 
     const footer = (
         <div 
-            className="p-3 flex justify-end items-center w-full transition-colors gap-3"
-            style={{ backgroundColor: hexToRgba(design.color, 0.2) }}
+            className="p-3 flex justify-end items-center w-full transition-colors gap-3 group-gradient"
+            style={{ '--group-rgb': hexToRgb(design.color) } as React.CSSProperties}
         >
             <Button variant="secondary" onClick={onClose}>Abbrechen</Button>
             <Button variant="primary" onClick={handleSave}>Übernehmen</Button>
@@ -81,12 +82,13 @@ export const GroupDesignModal: FC<GroupDesignModalProps> = ({ group, onClose, on
     );
     
     const Icon = getIconComponent(design.icon);
+    const groupRgb = hexToRgb(design.color);
 
     return (
         <Modal isOpen={true} onClose={onClose} title="" size="3xl" footer={footer} padding="p-0" footerClassName="p-0">
              <header 
-                className="relative p-3 flex items-center gap-4 transition-colors"
-                style={{ backgroundColor: hexToRgba(design.color, 0.15) }}
+                className="relative p-3 flex items-center gap-4 transition-colors group-gradient"
+                style={{ '--group-rgb': groupRgb } as React.CSSProperties}
             >
                 <div 
                     className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 bg-transparent border-2"

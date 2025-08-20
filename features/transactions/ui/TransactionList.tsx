@@ -7,6 +7,21 @@ import { formatCurrency } from '@/shared/utils/dateUtils';
 import { Search, Link } from '@/shared/ui';
 import { StandardTransactionItem } from '@/shared/ui';
 
+const hexToRgb = (hex?: string): string => {
+    let r = 0, g = 0, b = 0;
+    const localHex = hex || '#64748b'; // default color
+    if (localHex.length === 4) {
+        r = parseInt(localHex[1] + localHex[1], 16);
+        g = parseInt(localHex[2] + localHex[2], 16);
+        b = parseInt(localHex[3] + localHex[3], 16);
+    } else if (localHex.length === 7) {
+        r = parseInt(localHex.substring(1, 3), 16);
+        g = parseInt(localHex.substring(3, 5), 16);
+        b = parseInt(localHex.substring(5, 7), 16);
+    }
+    return `${r}, ${g}, ${b}`;
+};
+
 type GroupedTransactions = {
     date: string;
     total: number;
@@ -14,10 +29,15 @@ type GroupedTransactions = {
 }[];
 
 const TransactionGroupVisual: FC<{ transactions: Transaction[], onClick: (t: Transaction) => void }> = ({ transactions, onClick }) => {
-    const { transactionGroups, tagMap } = useApp();
+    const { transactionGroups, tagMap, categoryMap, groupMap } = useApp();
     const groupId = transactions[0]?.transactionGroupId;
     const groupInfo = transactionGroups.find(g => g.id === groupId);
     const groupTotal = groupInfo?.targetAmount ?? transactions.reduce((sum, t) => sum + t.amount, 0);
+
+    const category = categoryMap.get(transactions[0]?.categoryId);
+    const group = groupMap.get(category?.groupId);
+    const stripeColor = group?.color || category?.color || '#64748b';
+
 
     const groupTags = useMemo(() => {
         const allTagIds = new Set<string>();
@@ -35,13 +55,14 @@ const TransactionGroupVisual: FC<{ transactions: Transaction[], onClick: (t: Tra
     }, [transactions, tagMap]);
 
     const displayText = groupTags.length > 0 ? groupTags.join(', ') : `${transactions.length} Einträge`;
+    const groupRgb = hexToRgb(stripeColor);
 
     return (
-        <div className="relative pl-4 my-2">
-            {/* Connecting line */}
-            <div className="absolute top-2 bottom-2 left-0 w-0.5 bg-slate-700 rounded-full" />
-
-            {/* Group Header */}
+        <div 
+            className="relative my-2 group group-gradient rounded-lg p-2"
+            style={{ '--group-rgb': groupRgb } as React.CSSProperties}
+        >
+             {/* Group Header */}
             <div className="flex items-center gap-2 mb-1 text-xs text-slate-400">
                 <Link className="h-3 w-3" />
                 <span className="truncate">Gruppe ({displayText})</span>
@@ -57,6 +78,7 @@ const TransactionGroupVisual: FC<{ transactions: Transaction[], onClick: (t: Tra
                         onClick={() => onClick(t)}
                         showSublineInList='category'
                         density='normal'
+                        showStripe={false}
                     />
                 ))}
             </div>
@@ -192,6 +214,7 @@ export const TransactionList: FC = () => {
                         onClick={handleTransactionClick}
                         showSublineInList='category'
                         density='normal'
+                        showStripe={true}
                     />
                 );
                 i++;

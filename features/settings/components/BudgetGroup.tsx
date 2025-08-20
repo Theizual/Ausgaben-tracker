@@ -1,5 +1,3 @@
-
-
 import React, { FC } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import type { Category, Group } from '@/shared/types';
@@ -19,6 +17,21 @@ interface BudgetGroupProps {
     onToggle: () => void;
     focusedInputRef: React.MutableRefObject<string | null>;
 }
+
+const hexToRgb = (hex?: string): string => {
+    let r = 0, g = 0, b = 0;
+    const localHex = hex || '#64748b'; // default color
+    if (localHex.length === 4) {
+        r = parseInt(localHex[1] + localHex[1], 16);
+        g = parseInt(localHex[2] + localHex[2], 16);
+        b = parseInt(localHex[3] + localHex[3], 16);
+    } else if (localHex.length === 7) {
+        r = parseInt(localHex.substring(1, 3), 16);
+        g = parseInt(localHex.substring(3, 5), 16);
+        b = parseInt(localHex.substring(5, 7), 16);
+    }
+    return `${r}, ${g}, ${b}`;
+};
 
 export const BudgetGroup: FC<BudgetGroupProps> = React.memo(({
     group,
@@ -42,10 +55,14 @@ export const BudgetGroup: FC<BudgetGroupProps> = React.memo(({
         exit: { opacity: 0, height: 0 },
         transition: { duration: 0.3 },
     };
+    
+    const groupRgb = hexToRgb(group.color);
 
     return (
-        <div className="relative bg-slate-700/30 p-2 rounded-lg overflow-hidden">
-            <div className="absolute inset-0 pointer-events-none" style={{ backgroundColor: group.color || '#64748b', opacity: 0.07 }}></div>
+        <div
+            className="relative group-gradient p-2 rounded-lg overflow-hidden"
+            style={{ '--group-rgb': groupRgb } as React.CSSProperties}
+        >
             <div className="relative flex justify-between items-center gap-2 h-10">
                 <button onClick={onToggle} className="flex items-center gap-3 text-left flex-grow rounded-md -m-2 p-2 min-w-0">
                     <ChevronDown className={`h-5 w-5 text-slate-400 transition-transform flex-shrink-0 ${isExpanded ? 'rotate-180' : ''}`} />

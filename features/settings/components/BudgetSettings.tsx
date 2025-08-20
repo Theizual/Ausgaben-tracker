@@ -14,6 +14,21 @@ import { RecurringConfigModal } from './RecurringConfigModal';
 
 const BASE_INPUT_CLASSES = "w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-rose-500";
 
+const hexToRgb = (hex?: string): string => {
+    let r = 0, g = 0, b = 0;
+    const localHex = hex || '#64748b'; // default color
+    if (localHex.length === 4) {
+        r = parseInt(localHex[1] + localHex[1], 16);
+        g = parseInt(localHex[2] + localHex[2], 16);
+        b = parseInt(localHex[3] + localHex[3], 16);
+    } else if (localHex.length === 7) {
+        r = parseInt(localHex.substring(1, 3), 16);
+        g = parseInt(localHex.substring(3, 5), 16);
+        b = parseInt(localHex.substring(5, 7), 16);
+    }
+    return `${r}, ${g}, ${b}`;
+};
+
 export const BudgetSettings = () => {
     const {
         flexibleCategories,
@@ -57,6 +72,7 @@ export const BudgetSettings = () => {
     const fixedGroup = useMemo(() => groups.find(g => g.id === FIXED_COSTS_GROUP_ID), [groups]);
     const fixedIconColor = fixedGroup?.color || fixedBarColor; 
     const FixedIcon = getIconComponent(fixedGroup?.icon || 'Home');
+    const fixedGroupRgb = hexToRgb(fixedGroup?.color);
     
     const recurringMapByCatId = useMemo(() => {
         const map = new Map<string, RecurringTransaction>();
@@ -347,12 +363,15 @@ export const BudgetSettings = () => {
                     </AnimatePresence>
                 </div>
                 
-                <div className="bg-slate-700/30 rounded-lg overflow-hidden mb-4">
-                    <div className="w-full flex justify-between items-center p-3 text-left">
+                <div 
+                    className="group-gradient rounded-lg overflow-hidden mb-4 p-3"
+                    style={{ '--group-rgb': fixedGroupRgb } as React.CSSProperties}
+                >
+                    <div className="w-full flex justify-between items-center text-left pb-3">
                          <h4 className="font-bold text-white">Monatliche Fixkosten</h4>
                          <span className="font-bold text-white">{formatCurrency(totalMonthlyFixedCosts)}</span>
                     </div>
-                     <div className="p-3 border-t border-slate-600/50">
+                     <div className="pt-3 border-t border-slate-600/50">
                         <div className="space-y-3">
                             {fixedCategories.map(category => {
                                 const rec = recurringMapByCatId.get(category.id);

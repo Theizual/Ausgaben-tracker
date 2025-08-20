@@ -20,6 +20,21 @@ export type CategoryFormData = {
     budget?: number;
 };
 
+const hexToRgb = (hex?: string): string => {
+    let r = 0, g = 0, b = 0;
+    const localHex = hex || '#64748b'; // default color
+    if (localHex.length === 4) {
+        r = parseInt(localHex[1] + localHex[1], 16);
+        g = parseInt(localHex[2] + localHex[2], 16);
+        b = parseInt(localHex[3] + localHex[3], 16);
+    } else if (localHex.length === 7) {
+        r = parseInt(localHex.substring(1, 3), 16);
+        g = parseInt(localHex.substring(3, 5), 16);
+        b = parseInt(localHex.substring(5, 7), 16);
+    }
+    return `${r}, ${g}, ${b}`;
+};
+
 const CategoryReorderItem: FC<{
     category: Category;
     onEdit: (category: Partial<Category> & { groupId?: string }) => void;
@@ -57,10 +72,10 @@ const CategoryReorderItem: FC<{
             exit={{ opacity: 0 }}
             onPointerDown={(e) => e.stopPropagation()}
         >
-            <div className="flex items-center gap-2 bg-slate-800/50 p-1.5 rounded-lg group">
+            <div className="flex items-center gap-2 bg-slate-800/50 p-1 rounded-lg group">
                 <div
                     onPointerDown={(e) => dragControls.start(e) }
-                    className="p-3 cursor-grab active:cursor-grabbing text-slate-500 hover:text-white touch-none"
+                    className="p-2 cursor-grab active:cursor-grabbing text-slate-500 hover:text-white touch-none"
                     aria-label={`Kategorie ${category.name} verschieben`}
                 >
                     <GripVertical className="h-4 w-4" />
@@ -341,21 +356,24 @@ const GroupItem: FC<GroupItemProps> = ({ group, dragControls, categories, isExpa
     const GroupIcon = getIconComponent(group.icon);
     const isProtected = group.id === DEFAULT_GROUP_ID || group.id === FIXED_COSTS_GROUP_ID;
     const isFixedCosts = group.id === FIXED_COSTS_GROUP_ID;
+    const groupRgb = hexToRgb(group.color);
 
     return (
-         <div className="relative bg-slate-700/30 p-3 rounded-lg overflow-hidden">
-            <div className="absolute inset-0 pointer-events-none" style={{ backgroundColor: group.color || '#64748b', opacity: 0.15 }}></div>
+         <div 
+            className="relative group-gradient p-2 rounded-lg overflow-hidden"
+            style={{ '--group-rgb': groupRgb } as React.CSSProperties}
+        >
             <div className="relative">
                 <div className="flex items-center gap-2">
                     <div
                         onPointerDown={(e) => dragControls.start(e)}
-                        className="p-3 -ml-2 text-slate-500 cursor-grab active:cursor-grabbing touch-none"
+                        className="p-2 -ml-2 text-slate-500 cursor-grab active:cursor-grabbing touch-none"
                         aria-label={`Gruppe ${group.name} verschieben`}
                     >
                         <GripVertical className="h-5 w-5" />
                     </div>
                      <button onClick={onToggleExpand} className="p-2 rounded-full hover:bg-slate-700/50" aria-expanded={isExpanded} aria-label={isExpanded ? "Gruppe einklappen" : "Gruppe ausklappen"}>
-                        <ChevronDown className={`h-5 w-5 text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                        <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                     </button>
                     <div className="flex-grow min-w-0 flex items-center gap-2">
                         <div className="w-8 h-8 rounded-md flex items-center justify-center flex-shrink-0 border-2" style={{ borderColor: group.color }}>

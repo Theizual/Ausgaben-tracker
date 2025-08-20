@@ -15,6 +15,22 @@ import { BudgetProgressBar } from '@/shared/ui/BudgetProgressBar';
 import useLocalStorage from '@/shared/hooks/useLocalStorage';
 import { pageContentAnimation, collapsibleAnimation, transactionDetailsAnimation } from '@/shared/lib/animations';
 
+const hexToRgb = (hex?: string): string => {
+    let r = 0, g = 0, b = 0;
+    const localHex = hex || '#64748b'; // default color
+    if (localHex.length === 4) {
+        r = parseInt(localHex[1] + localHex[1], 16);
+        g = parseInt(localHex[2] + localHex[2], 16);
+        b = parseInt(localHex[3] + localHex[3], 16);
+    } else if (localHex.length === 7) {
+        r = parseInt(localHex.substring(1, 3), 16);
+        g = parseInt(localHex.substring(3, 5), 16);
+        b = parseInt(localHex.substring(5, 7), 16);
+    }
+    return `${r}, ${g}, ${b}`;
+};
+
+
 const DashboardPage = () => {
     const {
         transactions,
@@ -250,10 +266,14 @@ const DashboardPage = () => {
                                     const groupPercentage = data.totalBudget > 0 ? (data.totalSpent / data.totalBudget) * 100 : (data.totalSpent > 0 ? 101 : 0);
                                     const GroupIcon = getIconComponent(group.icon);
                                     const isGroupExpanded = expandedBudgetGroupIds?.includes(group.id) ?? true;
+                                    const groupRgb = hexToRgb(group.color);
                                     
                                     return (
-                                        <div key={group.id} className="relative bg-slate-700/30 p-3 rounded-lg overflow-hidden">
-                                            <div className="absolute inset-0 pointer-events-none" style={{ backgroundColor: group.color || '#64748b', opacity: 0.07 }}></div>
+                                        <div 
+                                            key={group.id} 
+                                            className="relative group-gradient p-3 rounded-lg overflow-hidden"
+                                            style={{ '--group-rgb': groupRgb } as React.CSSProperties}
+                                        >
                                             <div className="relative flex flex-col">
                                                 <button onClick={() => toggleBudgetGroup(group.id)} className="w-full flex justify-between items-center text-sm mb-1.5 text-left" aria-expanded={isGroupExpanded}>
                                                     <div className="flex items-center gap-3 truncate">

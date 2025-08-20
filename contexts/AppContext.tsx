@@ -8,7 +8,7 @@ import { useUserSettings } from '@/shared/hooks/useUserSettings';
 import { useCategories } from '@/shared/hooks/useCategories';
 import { useCategoryPreferences } from '@/shared/hooks/useCategoryPreferences';
 import useLocalStorage from '@/shared/hooks/useLocalStorage';
-import type { User, Category, Group, RecurringTransaction, Transaction, Tag, UserSetting, TransactionGroup, Recipe, WeeklyPlan } from '@/shared/types';
+import type { User, Category, Group, RecurringTransaction, Transaction, Tag, UserSetting, TransactionGroup, Recipe, WeeklyPlan, ShoppingListState } from '@/shared/types';
 import { FIXED_COSTS_GROUP_ID, DEFAULT_CATEGORY_ID } from '@/constants';
 import { isWithinInterval, parseISO, startOfMonth, endOfMonth } from 'date-fns';
 import type { Locale } from 'date-fns';
@@ -90,6 +90,8 @@ type AppContextType =
         recipeMap: Map<string, Recipe>;
         isGroupDnDEnabled: boolean;
         setIsGroupDnDEnabled: (enabled: boolean) => void;
+        shoppingLists: Record<string, ShoppingListState>;
+        setShoppingLists: React.Dispatch<React.SetStateAction<Record<string, ShoppingListState>>>;
     };
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -334,6 +336,7 @@ const ReadyAppProvider: React.FC<{
     }, [uiState.currentUserId, userSettingsState]);
 
     const rawWeeklyPlans = useMemo(() => Object.values(uiState.weeklyMealPlans || {}), [uiState.weeklyMealPlans]);
+    const rawShoppingLists = useMemo(() => Object.values(uiState.shoppingLists || {}), [uiState.shoppingLists]);
 
     const syncState = useSync({
         rawCategories: categoryState.rawCategories,
@@ -345,7 +348,8 @@ const ReadyAppProvider: React.FC<{
         rawUserSettings: userSettingsState.rawUserSettings,
         rawTransactionGroups: transactionDataState.rawTransactionGroups,
         rawRecipes: uiState.recipes,
-        rawWeeklyPlans: rawWeeklyPlans,
+        rawWeeklyPlans,
+        rawShoppingLists,
         setCategoriesAndGroups: categoryState.setCategoriesAndGroups,
         setTransactions: transactionDataState.setTransactions,
         setRecurringTransactions: transactionDataState.setRecurringTransactions,
@@ -361,9 +365,16 @@ const ReadyAppProvider: React.FC<{
             }, {} as Record<string, WeeklyPlan>);
             uiState.setWeeklyMealPlans(plansObject);
         },
-        isInitialSetupDone: isInitialSetupDone,
+        setShoppingLists: (lists: ShoppingListState[]) => {
+            const listsObject = lists.reduce((acc, list) => {
+                acc[list.weekKey] = list;
+                return acc;
+            }, {} as Record<string, ShoppingListState>);
+            uiState.setShoppingLists(listsObject);
+        },
+        isInitialSetupDone,
         isDemoModeEnabled,
-        setIsInitialSetupDone: setIsInitialSetupDone,
+        setIsInitialSetupDone,
         currentUserId: uiState.currentUserId,
         appMode,
         openUserMergeModal: uiState.openUserMergeModal,
@@ -429,6 +440,8 @@ const ReadyAppProvider: React.FC<{
         userSettingsState.rawUserSettings,
         uiState.recipes,
         rawWeeklyPlans,
+        rawShoppingLists,
+        debouncedSync
     ]);
 
     const createPersistentWrapper = (action: (...args: any[]) => any) => {
@@ -650,6 +663,8 @@ const ReadyAppProvider: React.FC<{
         recipeMap,
         isGroupDnDEnabled,
         setIsGroupDnDEnabled,
+        shoppingLists: uiState.shoppingLists,
+        setShoppingLists: uiState.setShoppingLists,
     };
     
     return (

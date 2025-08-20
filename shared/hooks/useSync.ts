@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'react-hot-toast';
 import useLocalStorage from '@/shared/hooks/useLocalStorage';
-import type { Category, Transaction, RecurringTransaction, Tag, User, UserSetting, Group, TransactionGroup, Recipe, WeeklyPlan } from '@/shared/types';
+import type { Category, Transaction, RecurringTransaction, Tag, User, UserSetting, Group, TransactionGroup, Recipe, WeeklyPlan, ShoppingListState } from '@/shared/types';
 import { apiGet, apiPost, HttpError } from '@/shared/lib/http';
 
 export interface SyncProps {
@@ -14,6 +14,8 @@ export interface SyncProps {
     rawUserSettings: UserSetting[];
     rawTransactionGroups: TransactionGroup[];
     rawRecipes: Recipe[];
+    rawWeeklyPlans: WeeklyPlan[];
+    rawShoppingLists: ShoppingListState[];
     setCategoriesAndGroups: (categories: Category[], groups: Group[]) => void;
     setTransactions: (data: Transaction[]) => void;
     setRecurringTransactions: (data: RecurringTransaction[]) => void;
@@ -22,6 +24,8 @@ export interface SyncProps {
     setUserSettings: (data: UserSetting[]) => void;
     setTransactionGroups: (data: TransactionGroup[]) => void;
     setRecipes: (data: Recipe[]) => void;
+    setWeeklyPlans: (plans: WeeklyPlan[]) => void;
+    setShoppingLists: (lists: ShoppingListState[]) => void;
     isInitialSetupDone: boolean;
     isDemoModeEnabled: boolean;
     setIsInitialSetupDone: React.Dispatch<React.SetStateAction<boolean>>;
@@ -73,6 +77,7 @@ interface ReadApiResponse {
     tags: Tag[]; users: User[]; userSettings: UserSetting[]; transactionGroups: TransactionGroup[];
     recipes: Recipe[];
     weeklyPlans: WeeklyPlan[];
+    shoppingLists: ShoppingListState[];
 }
 interface ConflictData {
     groups: Group[];
@@ -80,6 +85,7 @@ interface ConflictData {
     tags: Tag[]; users: User[]; userSettings: UserSetting[]; transactionGroups: TransactionGroup[];
     recipes: Recipe[];
     weeklyPlans: WeeklyPlan[];
+    shoppingLists: ShoppingListState[];
 }
 
 type SyncStatus = 'idle' | 'loading' | 'syncing' | 'success' | 'error' | 'conflict';
@@ -106,10 +112,10 @@ const translateGoogleApiError = (errorMessage: string): string => {
 };
 
 
-export const useSync = (props: SyncProps & { rawWeeklyPlans: WeeklyPlan[], setWeeklyPlans: (plans: WeeklyPlan[]) => void }) => {
+export const useSync = (props: SyncProps) => {
     const {
-        rawCategories, rawGroups, rawTransactions, rawRecurringTransactions, rawAllAvailableTags, rawUsers, rawUserSettings, rawTransactionGroups, rawRecipes, rawWeeklyPlans,
-        setCategoriesAndGroups, setTransactions, setRecurringTransactions, setAllAvailableTags, setUsers, setUserSettings, setTransactionGroups, setRecipes, setWeeklyPlans,
+        rawCategories, rawGroups, rawTransactions, rawRecurringTransactions, rawAllAvailableTags, rawUsers, rawUserSettings, rawTransactionGroups, rawRecipes, rawWeeklyPlans, rawShoppingLists,
+        setCategoriesAndGroups, setTransactions, setRecurringTransactions, setAllAvailableTags, setUsers, setUserSettings, setTransactionGroups, setRecipes, setWeeklyPlans, setShoppingLists,
         isInitialSetupDone, isDemoModeEnabled, setIsInitialSetupDone, currentUserId, appMode, openUserMergeModal
     } = props;
     
@@ -141,10 +147,11 @@ export const useSync = (props: SyncProps & { rawWeeklyPlans: WeeklyPlan[], setWe
         setTransactionGroups(mergeItems<TransactionGroup>(rawTransactionGroups, [], conflicts.transactionGroups));
         setRecipes(mergeItems<Recipe>(rawRecipes, [], conflicts.recipes));
         setWeeklyPlans(mergeItems<WeeklyPlan>(rawWeeklyPlans, [], conflicts.weeklyPlans));
+        setShoppingLists(mergeItems<ShoppingListState>(rawShoppingLists, [], conflicts.shoppingLists));
         setSyncStatus('conflict');
     }, [
-        rawCategories, rawGroups, rawTransactions, rawRecurringTransactions, rawAllAvailableTags, rawUsers, rawUserSettings, rawTransactionGroups, rawRecipes, rawWeeklyPlans,
-        setCategoriesAndGroups, setTransactions, setRecurringTransactions, setAllAvailableTags, setUsers, setUserSettings, setTransactionGroups, setRecipes, setWeeklyPlans
+        rawCategories, rawGroups, rawTransactions, rawRecurringTransactions, rawAllAvailableTags, rawUsers, rawUserSettings, rawTransactionGroups, rawRecipes, rawWeeklyPlans, rawShoppingLists,
+        setCategoriesAndGroups, setTransactions, setRecurringTransactions, setAllAvailableTags, setUsers, setUserSettings, setTransactionGroups, setRecipes, setWeeklyPlans, setShoppingLists
     ]);
 
     const syncData = useCallback(async (options: { isAuto?: boolean } = {}) => {
@@ -214,6 +221,7 @@ export const useSync = (props: SyncProps & { rawWeeklyPlans: WeeklyPlan[], setWe
             const mergedTransactionGroups = merge(rawTransactionGroups, remoteData.transactionGroups);
             const mergedRecipes = merge(rawRecipes, remoteData.recipes);
             const mergedWeeklyPlans = merge(rawWeeklyPlans, remoteData.weeklyPlans);
+            const mergedShoppingLists = merge(rawShoppingLists, remoteData.shoppingLists);
             
             // 3. PUSH the merged data to the server
             const payload = {
@@ -227,6 +235,7 @@ export const useSync = (props: SyncProps & { rawWeeklyPlans: WeeklyPlan[], setWe
                 transactionGroups: mergedTransactionGroups,
                 recipes: mergedRecipes,
                 weeklyPlans: mergedWeeklyPlans,
+                shoppingLists: mergedShoppingLists,
             };
 
             const { data: finalData }: { data: ReadApiResponse } = await apiPost('/api/sheets/write', payload);
@@ -241,6 +250,7 @@ export const useSync = (props: SyncProps & { rawWeeklyPlans: WeeklyPlan[], setWe
             setTransactionGroups(finalData.transactionGroups);
             setRecipes(finalData.recipes);
             setWeeklyPlans(finalData.weeklyPlans);
+            setShoppingLists(finalData.shoppingLists);
 
             setLastSync(new Date().toISOString());
             setSyncStatus('success');
@@ -268,9 +278,9 @@ export const useSync = (props: SyncProps & { rawWeeklyPlans: WeeklyPlan[], setWe
     }, [
         isDemoModeEnabled, isInitialSetupDone, setIsInitialSetupDone, rawUsers, openUserMergeModal,
         setSyncStatus, setSyncError, rawGroups, rawCategories, rawTransactions, rawRecurringTransactions,
-        rawAllAvailableTags, rawUserSettings, rawTransactionGroups, rawRecipes, rawWeeklyPlans, handleMergeConflicts, setLastSync,
+        rawAllAvailableTags, rawUserSettings, rawTransactionGroups, rawRecipes, rawWeeklyPlans, rawShoppingLists, handleMergeConflicts, setLastSync,
         setCategoriesAndGroups, setTransactions, setRecurringTransactions, setAllAvailableTags,
-        setUsers, setUserSettings, setTransactionGroups, setRecipes, setWeeklyPlans,
+        setUsers, setUserSettings, setTransactionGroups, setRecipes, setWeeklyPlans, setShoppingLists
     ]);
 
     const loadFromSheet = useCallback(async (options?: { preserveLocalTransactions?: boolean, preserveNewLocalUsers?: boolean }) => {
@@ -304,6 +314,7 @@ export const useSync = (props: SyncProps & { rawWeeklyPlans: WeeklyPlan[], setWe
             setTransactionGroups(data.transactionGroups);
             setRecipes(data.recipes);
             setWeeklyPlans(data.weeklyPlans);
+            setShoppingLists(data.shoppingLists);
             setLastSync(new Date().toISOString());
             setSyncStatus('success');
         } catch (e: any) {
@@ -313,7 +324,7 @@ export const useSync = (props: SyncProps & { rawWeeklyPlans: WeeklyPlan[], setWe
         } finally {
             syncInProgressRef.current = false;
         }
-    }, [isDemoModeEnabled, rawUsers, setCategoriesAndGroups, setTransactions, setRecurringTransactions, setAllAvailableTags, setUsers, setUserSettings, setTransactionGroups, setRecipes, setWeeklyPlans, setLastSync]);
+    }, [isDemoModeEnabled, rawUsers, setCategoriesAndGroups, setTransactions, setRecurringTransactions, setAllAvailableTags, setUsers, setUserSettings, setTransactionGroups, setRecipes, setWeeklyPlans, setShoppingLists, setLastSync]);
 
 
     useEffect(() => {

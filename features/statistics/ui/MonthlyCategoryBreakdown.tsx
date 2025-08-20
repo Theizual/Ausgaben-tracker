@@ -10,6 +10,21 @@ import { FIXED_COSTS_GROUP_ID } from '@/constants';
 import { BudgetProgressBar } from '@/shared/ui/BudgetProgressBar';
 import { getMonthlyEquivalent } from '@/shared/utils/transactionUtils';
 
+const hexToRgb = (hex?: string): string => {
+    let r = 0, g = 0, b = 0;
+    const localHex = hex || '#64748b'; // default color
+    if (localHex.length === 4) {
+        r = parseInt(localHex[1] + localHex[1], 16);
+        g = parseInt(localHex[2] + localHex[2], 16);
+        b = parseInt(localHex[3] + localHex[3], 16);
+    } else if (localHex.length === 7) {
+        r = parseInt(localHex.substring(1, 3), 16);
+        g = parseInt(localHex.substring(3, 5), 16);
+        b = parseInt(localHex.substring(5, 7), 16);
+    }
+    return `${r}, ${g}, ${b}`;
+};
+
 export const MonthlyCategoryBreakdown: FC<{ transactions: Transaction[], currentMonth: Date }> = ({ transactions, currentMonth }) => {
     const { categoryMap, handleTransactionClick, deLocale, groupMap, groups, recurringTransactions } = useApp();
     const [expandedSupergroups, setExpandedSupergroups] = useState<string[]>(['Variable Kosten', 'Fixkosten']);
@@ -166,9 +181,13 @@ export const MonthlyCategoryBreakdown: FC<{ transactions: Transaction[], current
                                         supergroup.groups.map(({ group, categories, totalSpent, totalBudget }) => {
                                             const GroupIcon = getIconComponent(group.icon);
                                             const isExpanded = expandedGroups.includes(group.id);
+                                            const groupRgb = hexToRgb(group.color);
                                             return (
-                                                <div key={group.id} className="relative bg-slate-700/30 p-2 rounded-lg overflow-hidden">
-                                                    <div className="absolute inset-0 pointer-events-none" style={{ backgroundColor: group.color || '#64748b', opacity: 0.07 }}></div>
+                                                <div 
+                                                    key={group.id} 
+                                                    className="relative group-gradient p-2 rounded-lg overflow-hidden"
+                                                    style={{ '--group-rgb': groupRgb } as React.CSSProperties}
+                                                >
                                                     <button onClick={() => toggleGroup(group.id)} className="relative w-full flex justify-between items-center text-left p-1">
                                                         <div className="flex items-center gap-2">
                                                             <ChevronDown className={`h-4 w-4 text-slate-500 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />

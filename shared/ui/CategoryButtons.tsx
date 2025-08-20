@@ -19,6 +19,21 @@ const hexToRgba = (hex: string = '#64748b', alpha: number): string => {
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 };
 
+const hexToRgb = (hex?: string): string => {
+    let r = 0, g = 0, b = 0;
+    const localHex = hex || '#64748b'; // default color
+    if (localHex.length === 4) {
+        r = parseInt(localHex[1] + localHex[1], 16);
+        g = parseInt(localHex[2] + localHex[2], 16);
+        b = parseInt(localHex[3] + localHex[3], 16);
+    } else if (localHex.length === 7) {
+        r = parseInt(localHex.substring(1, 3), 16);
+        g = parseInt(localHex.substring(3, 5), 16);
+        b = parseInt(localHex.substring(5, 7), 16);
+    }
+    return `${r}, ${g}, ${b}`;
+};
+
 const CategoryTile: FC<{
     category: Category;
     isSelected: boolean;
@@ -164,16 +179,13 @@ const CategoryButtons: FC<{
             {groupedCategories?.map(group => {
                 const GroupIcon = getIconComponent(group.icon);
                 const groupColor = group.color || '#64748b';
-
-                const gradientStyle = {
-                    background: `radial-gradient(ellipse 80% 70% at 50% 20%, ${hexToRgba(groupColor, 0.25)} 0%, transparent 100%), rgb(51 65 85 / 0.3)`
-                };
+                const groupRgb = hexToRgb(groupColor);
 
                 return (
                     <div 
                         key={group.id} 
-                        className="relative p-1.5 rounded-xl overflow-hidden border border-slate-700/50 flex flex-col"
-                        style={gradientStyle}
+                        className="relative p-1.5 rounded-xl overflow-hidden border border-slate-700/50 flex flex-col group-gradient bg-slate-800/20"
+                        style={{'--group-rgb': groupRgb} as React.CSSProperties}
                     >
                         <div className="relative">
                             <div className="flex items-center gap-2 mb-1.5 px-1 pt-0 pb-1">
