@@ -18,6 +18,7 @@ import { apiGet, apiPost } from '@/shared/lib/http';
 import { FirstUserSetup } from '@/features/onboarding';
 import debounce from 'lodash.debounce';
 import { generateUUID } from '@/shared/utils/uuid';
+import { getMonthlyEquivalent } from '@/shared/utils/transactionUtils';
 
 // --- TYPE DEFINITIONS ---
 export interface AnalyzeReceiptResult {
@@ -31,7 +32,7 @@ type AppContextType =
     Omit<ReturnType<typeof useTransactionData>, 'reassignUserForTransactions' | 'addMultipleTransactions'> &
     Omit<ReturnType<typeof useUI>, 'openSettings' | 'setRecipes'> &
     Omit<ReturnType<typeof useUsers>, 'addUser' | 'isLoading' | 'updateUser' | 'deleteUser'> &
-    Omit<ReturnType<typeof useUserSettings>, 'setQuickAddHideGroups' | 'updateGroupColor' | 'updateCategoryColorOverride' | 'updateVisibleGroups' | 'setIsAiEnabled'> &
+    Omit<ReturnType<typeof useUserSettings>, 'updateGroupColor' | 'updateCategoryColorOverride' | 'updateVisibleGroups' | 'setIsAiEnabled' | 'setQuickAddShowFavorites' | 'setQuickAddShowRecents'> &
     Omit<ReturnType<typeof useCategories>, 'upsertCategory' | 'upsertMultipleCategories' | 'deleteCategory' | 'addGroup' | 'renameGroup' | 'updateGroup' | 'deleteGroup' | 'reorderGroups' | 'reorderCategories'> &
     ReturnType<typeof useCategoryPreferences> &
     { currentUser: User | null } &
@@ -66,6 +67,8 @@ type AppContextType =
         addRecipe: (recipe: Recipe) => void;
         updateRecipe: (recipe: Recipe) => void;
         deleteRecipe: (recipeId: string) => void;
+        setQuickAddShowFavorites: (show: boolean) => void;
+        setQuickAddShowRecents: (show: boolean) => void;
 
 
         reassignUserForTransactions: (sourceUserId: string, targetUserId: string, onlyNonDemo?: boolean) => void;
@@ -79,12 +82,14 @@ type AppContextType =
         resetAppData: () => void;
         visibleCategoryGroups: string[];
         handleReassignAndDeleteCategory: (sourceCategoryId: string, targetCategoryId: string) => void;
-        quickAddHideGroups: boolean;
-        setQuickAddHideGroups: (hide: boolean) => void;
+        quickAddShowFavorites: boolean;
+        quickAddShowRecents: boolean;
         showDemoData: boolean;
         setShowDemoData: (value: boolean | ((prev: boolean) => boolean)) => void;
         isAiEnabled: boolean;
         recipeMap: Map<string, Recipe>;
+        isGroupDnDEnabled: boolean;
+        setIsGroupDnDEnabled: (enabled: boolean) => void;
     };
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -111,24 +116,21 @@ const ReadyAppProvider: React.FC<{
     // The currentUserId is guaranteed to be valid here.
     const deLocale = de;
 
+    const [isGroupDnDEnabled, setIsGroupDnDEnabled] = useLocalStorage<boolean>('settings-groupDnDEnabled', false);
+
     // --- USER-SPECIFIC `showDemoData` STATE ---
-    // This logic replaces the appMode-based useLocalStorage hook.
-    // It's managed with useState + useEffect to react to user changes.
     const [showDemoData, setShowDemoDataInternal] = useState(() => {
         if (!uiState.currentUserId) return false;
         const item = window.localStorage.getItem(`${uiState.currentUserId}_showDemoData`);
-        // Default to true for the specific demo user, otherwise false for new/real users.
         return item ? JSON.parse(item) : uiState.currentUserId === 'usr_demo';
     });
 
-    // Update state from localStorage when the user changes.
     useEffect(() => {
         if (!uiState.currentUserId) return;
         const item = window.localStorage.getItem(`${uiState.currentUserId}_showDemoData`);
         setShowDemoDataInternal(item ? JSON.parse(item) : uiState.currentUserId === 'usr_demo');
     }, [uiState.currentUserId]);
 
-    // Create a stable setter function that also writes to localStorage.
     const setShowDemoData = useCallback((valueOrFn: boolean | ((prev: boolean) => boolean)) => {
         if (!uiState.currentUserId) return;
         
@@ -140,7 +142,6 @@ const ReadyAppProvider: React.FC<{
     }, [uiState.currentUserId]);
 
 
-    // This effect transitions the app from demo mode to production mode.
     useEffect(() => {
         if (!isInitialSetupDone) {
             const hasRealUsers = usersState.users.some(u => !u.isDemo);
@@ -150,8 +151,44 @@ const ReadyAppProvider: React.FC<{
         }
     }, [usersState.users, isInitialSetupDone, setIsInitialSetupDone]);
 
-    // Now that uiState and usersState are stable, initialize the rest of the app's state.
     const userSettingsState = useUserSettings();
+
+    useEffect(() => {
+        if (!uiState.currentUserId) return;
+        const migrationKey = `migrated_quickAdd_settings_v2_${uiState.currentUserId}`;
+        if (localStorage.getItem(migrationKey)) return;
+    
+        const oldSetting = userSettingsState.rawUserSettings.find(s => s.userId === uiState.currentUserId && (s.key as any) === 'quickAddHideGroups');
+        
+        if (oldSetting) {
+            const wasHidden = oldSetting.value === 'true';
+            
+            // Migrate: If groups were hidden, turn off both favorites and recents.
+            userSettingsState.setQuickAddShowFavorites(uiState.currentUserId, !wasHidden);
+            userSettingsState.setQuickAddShowRecents(uiState.currentUserId, !wasHidden);
+    
+            // Soft delete the old setting to prevent it from being synced back.
+            const now = new Date().toISOString();
+            const deletedSetting: UserSetting = { 
+                ...oldSetting, 
+                key: oldSetting.key as any, // Keep old key for deletion
+                isDeleted: true, 
+                lastModified: now, 
+                version: (oldSetting.version || 0) + 1 
+            };
+            
+            // Create a new settings array with the old setting marked as deleted.
+            const updatedSettings = [
+                ...userSettingsState.rawUserSettings.filter(s => (s.key as any) !== 'quickAddHideGroups' || s.userId !== uiState.currentUserId),
+                deletedSetting
+            ];
+            userSettingsState.setUserSettings(updatedSettings);
+    
+            localStorage.setItem(migrationKey, 'true');
+            toast.success('Anzeige-Einstellungen für die Schnelleingabe aktualisiert.');
+        }
+    }, [uiState.currentUserId, userSettingsState.rawUserSettings, userSettingsState.setQuickAddShowFavorites, userSettingsState.setQuickAddShowRecents, userSettingsState.setUserSettings]);
+    
     
     const hiddenCategoryIds = useMemo(() => 
         uiState.currentUserId ? userSettingsState.getHiddenCategoryIds(uiState.currentUserId) : [],
@@ -166,7 +203,6 @@ const ReadyAppProvider: React.FC<{
         clearHiddenCategories: () => uiState.currentUserId && userSettingsState.clearHiddenCategories(uiState.currentUserId),
     });
 
-    // --- Create final groups with user color overrides applied ---
     const finalGroups = useMemo(() => {
         if (!uiState.currentUserId) return categoryState.groups;
         const customColors = userSettingsState.getGroupColorsForUser(uiState.currentUserId);
@@ -179,7 +215,6 @@ const ReadyAppProvider: React.FC<{
     const finalGroupMap = useMemo(() => new Map(finalGroups.map(g => [g.id, g])), [finalGroups]);
     const finalGroupNames = useMemo(() => finalGroups.map(g => g.name), [finalGroups]);
     
-    // --- Create final categoryMap with user group AND category color overrides ---
     const finalCategoryMap = useMemo(() => {
         const newMap = new Map<string, Category>();
         if (!uiState.currentUserId) return categoryState.categoryMap;
@@ -188,19 +223,15 @@ const ReadyAppProvider: React.FC<{
         
         categoryState.categoryMap.forEach((category, id) => {
             let finalColor = category.color;
-
-            // HIERARCHY 1: User-specific category color override (highest priority)
             if (customCategoryColors[id]) {
                 finalColor = customCategoryColors[id];
             } else {
-                // HIERARCHY 2 & 3: Inherited color from a user-specific group color override
                 const group = finalGroupMap.get(category.groupId);
                 const originalGroupColor = categoryState.groupMap.get(category.groupId)?.color;
                 if (group && category.color === originalGroupColor) {
                     finalColor = group.color as string;
                 }
             }
-
             newMap.set(id, { ...category, color: finalColor });
         });
         return newMap;
@@ -226,10 +257,6 @@ const ReadyAppProvider: React.FC<{
         flexibleCategories: categoryState.flexibleCategories,
     });
     
-    // --- Orphaned Transaction Cleanup ---
-    // This effect ensures that if a category is deleted (e.g., via sync from another user),
-    // any transactions assigned to it are moved to the default category.
-    // This prevents UI flickering and maintains data integrity.
     useEffect(() => {
         const transactionsToReassign = transactionDataState.rawTransactions
             .filter(tx => !tx.isDeleted && !categoryState.categoryMap.has(tx.categoryId) && tx.categoryId !== DEFAULT_CATEGORY_ID);
@@ -261,7 +288,6 @@ const ReadyAppProvider: React.FC<{
             if (finalCategoryMap.has(tx.categoryId)) {
                 return tx;
             }
-            // This might log briefly before the cleanup effect runs, which is acceptable.
             console.warn(`Transaction ${tx.id} has orphan categoryId ${tx.categoryId}. Re-assigning to 'Sonstiges'.`);
             return { ...tx, categoryId: DEFAULT_CATEGORY_ID };
         });
@@ -277,11 +303,7 @@ const ReadyAppProvider: React.FC<{
     const totalMonthlyFixedCosts = useMemo(() => {
         return transactionDataState.recurringTransactions
             .filter(rt => fixedCategoryIds.has(rt.categoryId))
-            .reduce((sum, rt) => {
-                if (rt.frequency === 'monthly') return sum + rt.amount;
-                if (rt.frequency === 'yearly') return sum + (rt.amount / 12);
-                return sum;
-            }, 0);
+            .reduce((sum, rt) => sum + getMonthlyEquivalent(rt), 0);
     }, [transactionDataState.recurringTransactions, fixedCategoryIds]);
 
     const visibleCategoryGroups = useMemo(() => {
@@ -290,17 +312,20 @@ const ReadyAppProvider: React.FC<{
         const setting = userSettingsState.rawUserSettings.find(s => s.userId === uiState.currentUserId && s.key === 'visibleGroups' && !s.isDeleted);
         
         if (setting) {
-            // Setting exists, use it (even if it's an empty array of groups)
             return userSettingsState.getVisibleGroupsForUser(uiState.currentUserId);
         }
         
-        // No setting exists for this user, so default to all groups visible.
         return categoryState.groups.map(g => g.name);
     }, [uiState.currentUserId, userSettingsState, categoryState.groups]);
 
-    const quickAddHideGroups = useMemo(() => {
-        if (!uiState.currentUserId) return false; // Default to showing groups
-        return userSettingsState.getQuickAddHideGroups(uiState.currentUserId);
+    const quickAddShowFavorites = useMemo(() => {
+        if (!uiState.currentUserId) return true;
+        return userSettingsState.getQuickAddShowFavorites(uiState.currentUserId);
+    }, [uiState.currentUserId, userSettingsState]);
+
+    const quickAddShowRecents = useMemo(() => {
+        if (!uiState.currentUserId) return true;
+        return userSettingsState.getQuickAddShowRecents(uiState.currentUserId);
     }, [uiState.currentUserId, userSettingsState]);
     
     const isAiEnabled = useMemo(() => {
@@ -358,23 +383,19 @@ const ReadyAppProvider: React.FC<{
     const syncStateRef = useRef(syncState);
     useEffect(() => { syncStateRef.current = syncState; });
     
-    // --- Immediate & Debounced Sync ---
     const debouncedSync = useMemo(() => debounce((options: { isAuto?: boolean } = {}) => {
         const { isAutoSyncEnabled, syncStatus: currentSyncStatus, syncData } = syncStateRef.current;
         if (options.isAuto) {
-            // Auto-sync from useEffect respects the setting
             if (isAutoSyncEnabled && (currentSyncStatus === 'idle' || currentSyncStatus === 'error')) {
                 syncData({ isAuto: true });
             }
         } else {
-            // Manual trigger or wrapper-triggered syncs ignore the setting
             if (currentSyncStatus !== 'syncing' && currentSyncStatus !== 'loading') {
                 syncData(options);
             }
         }
     }, 2000), []);
     
-    // Auto-sync on data changes (respects user setting)
     const isInitialMount = useRef(true);
     const isSyncingData = useRef(false);
 
@@ -384,7 +405,6 @@ const ReadyAppProvider: React.FC<{
     
     useEffect(() => {
         if (isInitialMount.current) { isInitialMount.current = false; return; }
-        // Prevent sync from re-triggering itself after updating state
         if (isSyncingData.current) return;
         
         debouncedSync({ isAuto: true });
@@ -397,17 +417,12 @@ const ReadyAppProvider: React.FC<{
         transactionDataState.rawTransactionGroups,
         usersState.rawUsers,
         userSettingsState.rawUserSettings,
-        uiState.recipes, // Sync recipes too
+        uiState.recipes,
     ]);
 
-    // --- Global Persistence Wrappers ---
-    // These functions wrap state dispatchers and trigger a debounced sync.
     const createPersistentWrapper = (action: (...args: any[]) => any) => {
         return (...args: any[]) => {
             const result = action(...args);
-            // Trigger a debounced sync. This will fall into the "manual"
-            // part of the debouncedSync logic, which syncs regardless of the
-            // auto-sync setting. This ensures user actions are saved.
             debouncedSync();
             return result;
         };
@@ -416,7 +431,6 @@ const ReadyAppProvider: React.FC<{
     const recipeMap = useMemo(() => new Map(uiState.recipes.filter(r => !r.isDeleted).map(r => [r.id, r])), [uiState.recipes]);
 
     const persistentActions = useMemo(() => ({
-        // from useCategories
         upsertCategory: createPersistentWrapper(categoryState.upsertCategory),
         upsertMultipleCategories: createPersistentWrapper(categoryState.upsertMultipleCategories),
         deleteCategory: createPersistentWrapper(categoryState.deleteCategory),
@@ -427,19 +441,17 @@ const ReadyAppProvider: React.FC<{
         reorderGroups: createPersistentWrapper(categoryState.reorderGroups),
         reorderCategories: createPersistentWrapper(categoryState.reorderCategories),
         
-        // from useUserSettings
         updateGroupColor: createPersistentWrapper(userSettingsState.updateGroupColor),
         updateCategoryColorOverride: createPersistentWrapper(userSettingsState.updateCategoryColorOverride),
         updateVisibleGroups: createPersistentWrapper(userSettingsState.updateVisibleGroups),
-        setQuickAddHideGroups: createPersistentWrapper(userSettingsState.setQuickAddHideGroups),
+        setQuickAddShowFavorites: createPersistentWrapper(userSettingsState.setQuickAddShowFavorites),
+        setQuickAddShowRecents: createPersistentWrapper(userSettingsState.setQuickAddShowRecents),
         setIsAiEnabled: createPersistentWrapper(userSettingsState.setIsAiEnabled),
 
-        // from useUsers
         addUser: createPersistentWrapper(usersState.addUser),
         updateUser: createPersistentWrapper(usersState.updateUser),
         deleteUser: createPersistentWrapper(usersState.deleteUser),
         
-        // from useTransactionData
         createTransactionGroup: createPersistentWrapper(transactionDataState.createTransactionGroup),
         updateGroupedTransaction: createPersistentWrapper(transactionDataState.updateGroupedTransaction),
         removeTransactionFromGroup: createPersistentWrapper(transactionDataState.removeTransactionFromGroup),
@@ -450,7 +462,6 @@ const ReadyAppProvider: React.FC<{
         addRecurringTransaction: createPersistentWrapper(transactionDataState.addRecurringTransaction),
         updateRecurringTransaction: createPersistentWrapper(transactionDataState.updateRecurringTransaction),
         
-        // From useUI (for recipes)
         addRecipe: createPersistentWrapper((recipe: Recipe) => uiState.setRecipes(prev => [...prev, recipe])),
         updateRecipe: createPersistentWrapper((recipe: Recipe) => uiState.setRecipes(prev => prev.map(r => r.id === recipe.id ? recipe : r))),
         deleteRecipe: createPersistentWrapper((recipeId: string) => {
@@ -458,48 +469,24 @@ const ReadyAppProvider: React.FC<{
             uiState.setRecipes(prev => prev.map(r => r.id === recipeId ? { ...r, isDeleted: true, lastModified: now, version: (r.version || 0) + 1 } : r));
         }),
 
-
     }), [categoryState, userSettingsState, usersState, transactionDataState, uiState.setRecipes, debouncedSync]);
 
-    const setQuickAddHideGroupsForCurrentUser = useCallback((hide: boolean) => {
+    const setQuickAddShowFavoritesForCurrentUser = useCallback((show: boolean) => {
         if (uiState.currentUserId) {
-            persistentActions.setQuickAddHideGroups(uiState.currentUserId, hide);
+            persistentActions.setQuickAddShowFavorites(uiState.currentUserId, show);
+        }
+    }, [uiState.currentUserId, persistentActions]);
+    
+    const setQuickAddShowRecentsForCurrentUser = useCallback((show: boolean) => {
+        if (uiState.currentUserId) {
+            persistentActions.setQuickAddShowRecents(uiState.currentUserId, show);
         }
     }, [uiState.currentUserId, persistentActions]);
 
     const setIsAiEnabledForCurrentUser = useCallback((enabled: boolean) => {
         if (!uiState.currentUserId) return;
-    
-        // Immediately update the state for a responsive UI
         persistentActions.setIsAiEnabled(uiState.currentUserId, enabled);
-    
-        if (enabled) {
-            // Asynchronously request camera permission without blocking the UI update
-            const requestPermission = async () => {
-                if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-                    try {
-                        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-                        // Immediately stop the stream once permission is granted to turn off camera light
-                        stream.getTracks().forEach(track => track.stop());
-                    } catch (err) {
-                        console.error("Camera permission request failed:", err);
-                        toast.error("Kamerazugriff wurde nicht erteilt. Scannen ist nicht möglich.");
-                        // The feature remains enabled as file upload is still possible.
-                    }
-                } else {
-                    toast.error("Dein Browser unterstützt den Kamerazugriff nicht.");
-                }
-            };
-            requestPermission(); // Fire-and-forget
-        }
     }, [uiState.currentUserId, persistentActions]);
-
-
-    const isInitialSetupDoneRef = useRef(isInitialSetupDone);
-    useEffect(() => {
-        isInitialSetupDoneRef.current = isInitialSetupDone;
-    }, [isInitialSetupDone]);
-
 
     const resetAppData = useCallback(() => {
         const mode = isDemoModeEnabled ? 'Demo' : 'Produktiv';
@@ -508,18 +495,20 @@ const ReadyAppProvider: React.FC<{
             const keysToClear = [
                 'transactions', 'allAvailableTags', 'recurringTransactions', 'transactionGroups',
                 'users', 'userSettings', 'app-current-user-id', 'transactionViewMode',
-                'lastSyncTimestamp', 'autoSyncEnabled', 'categories', 'groups', 'recipes'
+                'lastSyncTimestamp', 'autoSyncEnabled', 'categories', 'groups', 'recipes',
+                'settings-groupDnDEnabled'
             ];
             
-            // Also clear favorites and recents for all users under the current mode
             usersState.users.forEach(user => {
                 keysToClear.push(`${user.id}_favorite_categories`);
                 keysToClear.push(`${user.id}_recent_categories`);
-                keysToClear.push(`${user.id}_quickAddHideGroups`); // Clear the new setting too
-                keysToClear.push(`${user.id}_showDemoData`); // Clear demo data visibility setting
+                keysToClear.push(`${user.id}_showDemoData`);
             });
 
             keysToClear.forEach(key => window.localStorage.removeItem(`${prefix}${key}`));
+            // Clear non-prefixed keys
+            window.localStorage.removeItem('settings-groupDnDEnabled');
+
 
             if (!isDemoModeEnabled) {
                 window.localStorage.removeItem('initialSetupDone');
@@ -532,22 +521,13 @@ const ReadyAppProvider: React.FC<{
 
     const handleReassignAndDeleteCategory = useCallback((sourceCategoryId: string, targetCategoryId: string) => {
         const sourceCategoryName = categoryState.categoryMap.get(sourceCategoryId)?.name;
-    
-        // 1. Reassign transactions
         transactionDataState.reassignCategoryForTransactions(sourceCategoryId, targetCategoryId);
-    
-        // 2. "Delete" the category (soft delete for custom, hide for standard)
         persistentActions.deleteCategory(sourceCategoryId);
-    
-        // 3. Clean up preferences
         categoryPreferencesState.removeCategoryFromPreferences(sourceCategoryId);
-        
         if (sourceCategoryName) {
             toast.success(`Kategorie "${sourceCategoryName}" gelöscht und Transaktionen neu zugeordnet.`);
         }
-    
         uiState.closeReassignModal();
-    
     }, [
         transactionDataState.reassignCategoryForTransactions, 
         persistentActions, 
@@ -556,7 +536,6 @@ const ReadyAppProvider: React.FC<{
         uiState.closeReassignModal
     ]);
     
-    // --- Auto-create recurring transactions for fixed cost categories ---
     useEffect(() => {
         const recurringCatIds = new Set(transactionDataState.rawRecurringTransactions.map(rt => rt.categoryId));
         const missingRecurrings: Omit<RecurringTransaction, 'id' | 'lastModified' | 'version'>[] = [];
@@ -584,56 +563,38 @@ const ReadyAppProvider: React.FC<{
                 lastModified: now,
                 version: 1,
             } as RecurringTransaction));
-            
-            // This is not a persistent action, so the sync will be triggered
-            // by the main data-watching useEffect.
             transactionDataState.setRecurringTransactions([...transactionDataState.rawRecurringTransactions, ...newRecs]);
         }
     }, [categoryState.fixedCategories, transactionDataState.rawRecurringTransactions, transactionDataState.setRecurringTransactions]);
 
-
-    // --- AI Functionality ---
     const analyzeReceipt = useCallback(async (base64Image: string): Promise<AnalyzeReceiptResult | null> => {
         const toastId = toast.loading('Beleg wird analysiert...');
         try {
-            // Kategorienamen an den Server geben, damit das Modell nur daraus wählt
             const categories = categoryState.flexibleCategories.map(c => c.name);
-
-            // Serverroute ruft Gemini auf und gibt { amount, description, category } zurück
             const res = await apiPost('/api/ai/analyze-receipt', { base64Image, categories });
-            if ((res as any)?.error) {
-                throw new Error((res as any).error);
-            }
+            if ((res as any)?.error) throw new Error((res as any).error);
 
             const { amount, description, category } = res as { amount: number; description: string; category: string };
-
-
-            // Category-Name -> ID mappen
             let categoryId: string | null = null;
             if (category) {
                 const lc = category.toLowerCase();
                 const found = categoryState.flexibleCategories.find(c => c.name.toLowerCase() === lc);
                 categoryId = found ? found.id : null;
             }
-
             toast.success('Analyse erfolgreich!', { id: toastId });
-            return {
-                amount: amount || 0,
-                description: description || 'Unbekannter Beleg',
-                categoryId,
-            };
-                } catch (error: any) {
-                    console.error('Fehler bei der Beleg-Analyse (Gemini):', error);
-                    toast.error(`Analyse fehlgeschlagen. ${error?.message ?? ''}`.trim(), { id: toastId });
-                    return null;
-                }
-            }, [categoryState.flexibleCategories]);
+            return { amount: amount || 0, description: description || 'Unbekannter Beleg', categoryId };
+        } catch (error: any) {
+            console.error('Fehler bei der Beleg-Analyse (Gemini):', error);
+            toast.error(`Analyse fehlgeschlagen. ${error?.message ?? ''}`.trim(), { id: toastId });
+            return null;
+        }
+    }, [categoryState.flexibleCategories]);
 
 
     const { openSettings: _, setRecipes: __, ...restUiState } = uiState;
-    const { setQuickAddHideGroups: ___, setIsAiEnabled: ____, ...restUserSettingsState } = userSettingsState;
-    const { addUser: _____, updateUser: ______, deleteUser: _______, ...restUsersState } = usersState;
-    const { reassignUserForTransactions: ________, addMultipleTransactions: _________, mergeTransactionWithTarget: __________, updateGroupVerifiedStatus: ___________, ...restTxState } = transactionDataState;
+    const { setQuickAddShowFavorites: ____, setQuickAddShowRecents: _____,...restUserSettingsState } = userSettingsState;
+    const { addUser: ______, updateUser: _______, deleteUser: ________, ...restUsersState } = usersState;
+    const { reassignUserForTransactions: _________, addMultipleTransactions: __________, ...restTxState } = transactionDataState;
     const { upsertCategory: __1, upsertMultipleCategories: __2, deleteCategory: __3, addGroup: __4, renameGroup: __5, updateGroup: __6, deleteGroup: __7, reorderGroups: __8, reorderCategories: __9, ...restCategoryState} = categoryState;
 
 
@@ -641,7 +602,7 @@ const ReadyAppProvider: React.FC<{
         ...restUiState,
         openSettings: uiState.openSettings,
         ...restCategoryState,
-        groups: finalGroups, // Use the color-overridden groups
+        groups: finalGroups,
         groupMap: finalGroupMap,
         groupNames: finalGroupNames,
         categoryMap: finalCategoryMap,
@@ -666,14 +627,18 @@ const ReadyAppProvider: React.FC<{
         visibleCategoryGroups,
         handleReassignAndDeleteCategory,
         reassignUserForTransactions: transactionDataState.reassignUserForTransactions,
-        quickAddHideGroups,
-        setQuickAddHideGroups: setQuickAddHideGroupsForCurrentUser,
+        quickAddShowFavorites,
+        setQuickAddShowFavorites: setQuickAddShowFavoritesForCurrentUser,
+        quickAddShowRecents,
+        setQuickAddShowRecents: setQuickAddShowRecentsForCurrentUser,
         showDemoData,
         setShowDemoData,
         isAiEnabled,
         setIsAiEnabled: setIsAiEnabledForCurrentUser,
         analyzeReceipt,
         recipeMap,
+        isGroupDnDEnabled,
+        setIsGroupDnDEnabled,
     };
     
     return (
@@ -682,6 +647,8 @@ const ReadyAppProvider: React.FC<{
         </AppContext.Provider>
     );
 };
+
+// ... (rest of the file remains the same)
 
 // This component is a "Gatekeeper". It ensures the core user state is stable before rendering the rest of the app.
 const AppStateContainer: React.FC<{

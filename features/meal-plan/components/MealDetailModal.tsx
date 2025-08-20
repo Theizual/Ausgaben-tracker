@@ -6,8 +6,6 @@ import { toast } from 'react-hot-toast';
 import { formatCurrency } from '@/shared/utils/dateUtils';
 import { AnimatePresence, motion } from 'framer-motion';
 
-const MotionDiv = motion.div;
-
 interface MealDetailModalProps {
     isOpen: boolean;
     onClose: () => void;
@@ -117,7 +115,7 @@ export const MealDetailModal: FC<MealDetailModalProps> = ({ isOpen, onClose, mea
                         <div className="bg-slate-700/30 p-3 rounded-lg">
                             <AnimatePresence mode="wait">
                             {isEditingRecipe ? (
-                                <MotionDiv key="edit" initial={{opacity: 0}} animate={{opacity: 1}} exit={{opacity: 0}}>
+                                <motion.div key="edit" initial={{opacity: 0}} animate={{opacity: 1}} exit={{opacity: 0}}>
                                     <div className="space-y-3">
                                         <div>
                                             <h4 className="font-semibold text-white text-sm mb-1">Zutaten</h4>
@@ -132,9 +130,9 @@ export const MealDetailModal: FC<MealDetailModalProps> = ({ isOpen, onClose, mea
                                             <Button size="sm" onClick={() => setIsEditingRecipe(false)}>Übernehmen</Button>
                                         </div>
                                     </div>
-                                </MotionDiv>
+                                </motion.div>
                             ) : (
-                                <MotionDiv key="read" initial={{opacity: 0}} animate={{opacity: 1}} exit={{opacity: 0}}>
+                                <motion.div key="read" initial={{opacity: 0}} animate={{opacity: 1}} exit={{opacity: 0}}>
                                     <div className="space-y-3">
                                         <div>
                                             <h3 className="font-semibold text-rose-300">Zutaten</h3>
@@ -158,7 +156,7 @@ export const MealDetailModal: FC<MealDetailModalProps> = ({ isOpen, onClose, mea
                                             </Button>
                                         </div>
                                     </div>
-                                </MotionDiv>
+                                </motion.div>
                             )}
                             </AnimatePresence>
                         </div>

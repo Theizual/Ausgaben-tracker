@@ -15,8 +15,6 @@ import { BudgetProgressBar } from '@/shared/ui/BudgetProgressBar';
 import useLocalStorage from '@/shared/hooks/useLocalStorage';
 import { pageContentAnimation, collapsibleAnimation, transactionDetailsAnimation } from '@/shared/lib/animations';
 
-const MotionDiv = motion.div;
-
 const DashboardPage = () => {
     const {
         transactions,
@@ -168,10 +166,11 @@ const DashboardPage = () => {
                 
                 {/* Right Column */}
                 <div className="space-y-6">
-                    <MotionDiv
-                        initial={pageContentAnimation.initial}
-                        animate={pageContentAnimation.animate}
-                        exit={pageContentAnimation.exit}
+                    <motion.div
+                        variants={pageContentAnimation}
+                        initial="initial"
+                        animate="animate"
+                        exit="exit"
                         transition={{ delay: 0.1, duration: 0.3 }}
                         className="bg-slate-800/50 p-6 rounded-2xl border border-slate-700/50"
                     >
@@ -206,12 +205,13 @@ const DashboardPage = () => {
                                 </div>
                             </div>
                         </div>
-                    </MotionDiv>
-                    <MotionDiv
+                    </motion.div>
+                    <motion.div
                         className="bg-slate-800/50 p-6 rounded-2xl border border-slate-700/50 flex flex-col"
-                        initial={pageContentAnimation.initial}
-                        animate={pageContentAnimation.animate}
-                        exit={pageContentAnimation.exit}
+                        variants={pageContentAnimation}
+                        initial="initial"
+                        animate="animate"
+                        exit="exit"
                         transition={{ delay: 0.2, duration: 0.3 }}
                     >
                         <div className="flex justify-between items-center mb-4">
@@ -233,14 +233,15 @@ const DashboardPage = () => {
                                 <BudgetProgressBar percentage={totalBudgetPercentage} color={COLOR_SUCCESS} />
                             </div>
                         )}
-                    </MotionDiv>
+                    </motion.div>
 
                     {hasAnyBudgetedCategories && (
-                        <MotionDiv
+                        <motion.div
                             className="bg-slate-800/50 p-6 rounded-2xl border border-slate-700/50"
-                            initial={pageContentAnimation.initial}
-                            animate={pageContentAnimation.animate}
-                            exit={pageContentAnimation.exit}
+                            variants={pageContentAnimation}
+                            initial="initial"
+                            animate="animate"
+                            exit="exit"
                             transition={{ delay: 0.3, duration: 0.3 }}
                         >
                             <h4 className="text-sm font-semibold text-slate-300">Kategorienbudgets (Flexibel)</h4>
@@ -269,7 +270,7 @@ const DashboardPage = () => {
                                             </div>
                                             <AnimatePresence>
                                                 {isGroupExpanded && (
-                                                    <MotionDiv
+                                                    <motion.div
                                                         variants={collapsibleAnimation}
                                                         initial="initial"
                                                         animate="animate"
@@ -304,7 +305,7 @@ const DashboardPage = () => {
                                                                         </div>
                                                                         <AnimatePresence>
                                                                             {isExpanded && (
-                                                                                <MotionDiv
+                                                                                <motion.div
                                                                                     variants={transactionDetailsAnimation}
                                                                                     initial="initial"
                                                                                     animate="animate"
@@ -327,21 +328,21 @@ const DashboardPage = () => {
                                                                                             <p className="text-slate-500 text-sm p-2">Keine Ausgaben diesen Monat.</p>
                                                                                         )}
                                                                                     </div>
-                                                                                </MotionDiv>
+                                                                                </motion.div>
                                                                             )}
                                                                         </AnimatePresence>
                                                                     </div>
                                                                 );
                                                             })}
                                                         </div>
-                                                    </MotionDiv>
+                                                    </motion.div>
                                                 )}
                                             </AnimatePresence>
                                         </div>
                                     );
                                 })}
                             </div>
-                        </MotionDiv>
+                        </motion.div>
                     )}
                 </div>
             </div>

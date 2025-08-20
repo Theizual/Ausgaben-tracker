@@ -8,9 +8,6 @@ import { QuickFilters } from './ui/QuickFilters';
 import { TransactionList } from './ui/TransactionList';
 import { FilterModal } from './ui/FilterModal';
 
-const MotionDiv = motion.div;
-const MotionButton = motion.button;
-
 const TransactionsPage = () => {
     const { 
         transactions, 
@@ -89,14 +86,14 @@ const TransactionsPage = () => {
         <div className="space-y-4">
             <h1 className="text-3xl font-bold text-white">Transaktionen</h1>
             
-            <MotionDiv
+            <motion.div
                 layout
                 className="bg-slate-800/50 p-4 rounded-2xl border border-slate-700/50"
             >
                 <div className="flex justify-between items-center flex-wrap gap-2">
                     <QuickFilters activeQuickFilter={transactionActiveQuickFilter} onQuickFilter={handleQuickFilter} />
                     <div className="flex items-center gap-2">
-                        <MotionButton
+                        <motion.button
                             layout
                             onClick={() => setFilterModalOpen(true)}
                             className={`relative p-2 rounded-full transition-colors ${
@@ -108,19 +105,19 @@ const TransactionsPage = () => {
                         >
                             <SlidersHorizontal className="h-5 w-5" />
                             {isFilterActive && (
-                                <MotionDiv layoutId="filter-dot" className="absolute top-1 right-1 h-2 w-2 bg-rose-400 rounded-full" />
+                                <motion.div layoutId="filter-dot" className="absolute top-1 right-1 h-2 w-2 bg-rose-400 rounded-full" />
                             )}
-                        </MotionButton>
+                        </motion.button>
                     </div>
                 </div>
-            </MotionDiv>
+            </motion.div>
 
-            <MotionDiv
+            <motion.div
                 layout
                 className="bg-slate-800/50 p-4 rounded-2xl border border-slate-700/50"
             >
                 <TransactionList />
-            </MotionDiv>
+            </motion.div>
             
             <FilterModal
                 isOpen={isFilterModalOpen}

@@ -1,10 +1,10 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
 import type { Transaction } from '@/shared/types';
 import { formatCurrency } from '@/shared/utils/dateUtils';
 import { isWithinInterval, parseISO, startOfMonth, endOfMonth } from 'date-fns';
-import { iconMap, CheckCircle2, getIconComponent } from '@/shared/ui';
+import { iconMap, CheckCircle2, getIconComponent, Edit, Button } from '@/shared/ui';
 import { modalBackdropAnimation, modalSlideDownAnimation, barAnimation } from '@/shared/lib/animations';
 import { COLOR_DANGER, COLOR_SUCCESS, COLOR_WARNING } from '@/constants';
 
@@ -25,14 +25,17 @@ const ConfirmationModal = ({
         categoryMap, 
         totalMonthlyBudget, 
         totalSpentThisMonth,
-        transactions: allTransactions 
+        transactions: allTransactions,
+        handleTransactionClick
     } = useApp();
+
+    const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     useEffect(() => {
         if (!isOpen) return;
 
         document.body.classList.add('modal-open');
-        const timer = setTimeout(() => {
+        timerRef.current = setTimeout(() => {
             onClose();
         }, 8000); // Auto-close after 8 seconds
 
@@ -45,10 +48,16 @@ const ConfirmationModal = ({
 
         return () => {
             document.body.classList.remove('modal-open');
-            clearTimeout(timer);
+            if (timerRef.current) clearTimeout(timerRef.current);
             window.removeEventListener('keydown', handleKeyDown);
         };
     }, [isOpen, onClose]);
+
+    const handleEditDetails = (transaction: Transaction) => {
+        if(timerRef.current) clearTimeout(timerRef.current);
+        handleTransactionClick(transaction);
+        // Do NOT close the confirmation modal.
+    };
 
     const firstTransaction = newTransactions.length > 0 ? newTransactions[0] : null;
     const category = firstTransaction ? categoryMap.get(firstTransaction.categoryId) : null;
@@ -124,7 +133,7 @@ const ConfirmationModal = ({
                         const color = currentCategory ? currentCategory.color : '#64748b';
                         
                         return (
-                            <div key={transaction.id} className="flex items-center gap-4">
+                            <div key={transaction.id} className="flex items-center gap-2">
                                 <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: color }}>
                                     <Icon className="h-5 w-5 text-white" />
                                 </div>
@@ -133,6 +142,9 @@ const ConfirmationModal = ({
                                     <p className="text-sm text-slate-400">{currentCategory?.name}</p>
                                 </div>
                                 <p className="font-bold text-white text-lg">{formatCurrency(transaction.amount)}</p>
+                                <Button variant="ghost" size="icon-auto" onClick={() => handleEditDetails(transaction)} title="Details bearbeiten">
+                                   <Edit className="h-4 w-4 text-slate-400" />
+                                </Button>
                             </div>
                         );
                     })}

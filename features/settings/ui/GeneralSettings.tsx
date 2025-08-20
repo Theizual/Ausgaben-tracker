@@ -4,8 +4,6 @@ import { useApp } from '@/contexts/AppContext';
 import { FileText, Wallet, Info, ChevronRight, ToggleSwitch, Trash2, Button } from '@/shared/ui';
 import { APP_VERSION } from '@/constants';
 
-const MotionDiv = motion.div;
-
 const MANAGER_LIST_ITEM_CLASSES = "w-full text-left bg-slate-700/50 hover:bg-slate-700 p-4 rounded-lg transition-colors flex justify-between items-center";
 
 export const GeneralSettings: FC<{
@@ -15,7 +13,7 @@ export const GeneralSettings: FC<{
     const { isAutoSyncEnabled, setIsAutoSyncEnabled, openChangelog, resetAppData } = useApp();
 
     return (
-        <MotionDiv key="general" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }}>
+        <motion.div key="general" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }}>
             <h3 className="text-lg font-semibold text-white mb-1">Allgemeine Einstellungen</h3>
             <p className="text-sm text-slate-400 mb-6">Verwalten Sie hier die Kerneinstellungen der Anwendung.</p>
             
@@ -74,6 +72,6 @@ export const GeneralSettings: FC<{
                     </div>
                 </div>
             </div>
-        </MotionDiv>
+        </motion.div>
     );
 };

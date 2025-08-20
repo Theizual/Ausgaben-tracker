@@ -13,8 +13,6 @@ import { PeriodNavigator } from '@/features/tags/ui/PeriodNavigator';
 import { MultiTagPicker } from '@/features/tags/ui/MultiTagPicker';
 import { TagDetailView } from '@/features/tags/ui/TagDetailView';
 
-const MotionDiv = motion.div;
-
 const pageContentAnimation = {
     initial: { opacity: 0, y: 20 },
     animate: { opacity: 1, y: 0 },
@@ -30,14 +28,17 @@ const placeholderAnimation = {
 };
 
 const CalendarPlaceholder = () => (
-    <MotionDiv
-        {...placeholderAnimation}
+    <motion.div
+        variants={placeholderAnimation}
+        initial="initial"
+        animate="animate"
+        exit="exit"
         className="bg-slate-800 rounded-2xl border border-slate-700 h-full flex flex-col items-center justify-center text-center p-6"
     >
         <Calendar className="h-12 w-12 text-slate-600 mb-4" />
         <h3 className="text-lg font-semibold text-slate-300">Tagesdetails</h3>
         <p className="text-slate-500">Wählen Sie einen Tag im Kalender aus, um eine Aufschlüsselung der Ausgaben anzuzeigen.</p>
-    </MotionDiv>
+    </motion.div>
 );
 
 const MonthlyAnalysisView = () => {
@@ -191,9 +192,12 @@ const TagAnalysisView = () => {
             />
             <AnimatePresence mode="wait">
                 {selectedTagIdsForAnalysis.length > 0 ? (
-                    <MotionDiv
+                    <motion.div
                         key={selectedTagIdsForAnalysis.join('-')}
-                        {...pageContentAnimation}
+                        variants={pageContentAnimation}
+                        initial="initial"
+                        animate="animate"
+                        exit="exit"
                     >
                         <TagDetailView
                             tagIds={selectedTagIdsForAnalysis}
@@ -202,7 +206,7 @@ const TagAnalysisView = () => {
                             customDateRange={tagsCustomDateRange}
                             appContext={{ ...rest, transactions }}
                         />
-                    </MotionDiv>
+                    </motion.div>
                 ) : (
                      <div className="flex flex-col items-center justify-center h-96 bg-slate-800/50 rounded-2xl border border-slate-700/50 text-center">
                          <Tag className="text-slate-600 h-12 w-12 mb-4" />
@@ -245,7 +249,7 @@ const AnalysisPage = () => {
             </div>
 
             <AnimatePresence mode="wait">
-                <MotionDiv
+                <motion.div
                     key={analysisView}
                     variants={pageContentAnimation}
                     initial="initial"
@@ -253,7 +257,7 @@ const AnalysisPage = () => {
                     exit="exit"
                 >
                     {analysisView === 'monthly' ? <MonthlyAnalysisView /> : <TagAnalysisView />}
-                </MotionDiv>
+                </motion.div>
             </AnimatePresence>
         </div>
     );

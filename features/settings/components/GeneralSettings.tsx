@@ -6,8 +6,6 @@ import { APP_VERSION } from '@/constants';
 import { settingsContentAnimation } from '@/shared/lib/animations';
 import { clsx } from 'clsx';
 
-const MotionDiv = motion.div;
-
 const MANAGER_LIST_ITEM_CLASSES = "w-full text-left bg-slate-700/50 hover:bg-slate-700 p-4 rounded-lg transition-colors flex justify-between items-center";
 
 export const GeneralSettings = () => {
@@ -19,7 +17,7 @@ export const GeneralSettings = () => {
     } = useApp();
 
     return (
-        <MotionDiv 
+        <motion.div 
             key="general"
             variants={settingsContentAnimation}
             initial="initial"
@@ -110,6 +108,6 @@ export const GeneralSettings = () => {
                     </div>
                 </div>
             </div>
-        </MotionDiv>
+        </motion.div>
     );
 };

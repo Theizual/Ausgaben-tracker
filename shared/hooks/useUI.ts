@@ -26,7 +26,7 @@ export const useUI = (props?: { isDemoModeEnabled: boolean }) => {
     const [isSettingsOpen, setSettingsOpen] = useState(false);
     const [initialSettingsTab, setInitialSettingsTab] = useState<SettingsTab>('general');
     const [confirmationData, setConfirmationData] = useState<{ transactions: Transaction[]; totalSpentBefore: number; } | null>(null);
-    const [transactionForDetail, setTransactionForDetail] = useState<{ transaction: Transaction } | null>(null);
+    const [transactionForDetailId, setTransactionForDetailId] = useState<string | null>(null);
     const [isChangelogOpen, setIsChangelogOpen] = useState(false);
     const [reassignModalInfo, setReassignModalInfo] = useState<{ category: Category | CategoryFormData, txCount: number, transactions: Transaction[] } | null>(null);
     const [userMergeModalInfo, setUserMergeModalInfo] = useState<{ remoteUsers: User[] } | null>(null);
@@ -87,10 +87,10 @@ export const useUI = (props?: { isDemoModeEnabled: boolean }) => {
     const closeSettings = useCallback(() => setSettingsOpen(false), []);
     const showConfirmation = useCallback((data: { transactions: Transaction[]; totalSpentBefore: number; }) => setConfirmationData(data), []);
     const closeConfirmation = useCallback(() => setConfirmationData(null), []);
-    const showTransactionDetail = useCallback((transaction: Transaction) => {
-        setTransactionForDetail({ transaction });
+    const showTransactionDetail = useCallback((transaction: Transaction | { id: string }) => {
+        setTransactionForDetailId(transaction.id);
     }, []);
-    const closeTransactionDetail = useCallback(() => setTransactionForDetail(null), []);
+    const closeTransactionDetail = useCallback(() => setTransactionForDetailId(null), []);
     const openChangelog = useCallback(() => setIsChangelogOpen(true), []);
     const closeChangelog = useCallback(() => setIsChangelogOpen(false), []);
     const openReassignModal = useCallback((category: Category | CategoryFormData, txCount: number, transactions: Transaction[]) => {
@@ -125,7 +125,7 @@ export const useUI = (props?: { isDemoModeEnabled: boolean }) => {
         confirmationData,
         showConfirmation,
         closeConfirmation,
-        transactionForDetail,
+        transactionForDetailId,
         handleTransactionClick: showTransactionDetail,
         closeTransactionDetail,
         handleTagAnalyticsClick,

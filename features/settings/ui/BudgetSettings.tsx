@@ -9,8 +9,6 @@ import { getIconComponent, Plus, Trash2, Edit, ChevronDown, ProgressBar, Button 
 import { FIXED_COSTS_GROUP_ID, FIXED_COSTS_GROUP_NAME } from '@/constants';
 import { generateUUID } from '@/shared/utils/uuid';
 
-const MotionDiv = motion.div;
-
 const BASE_INPUT_CLASSES = "w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-rose-500";
 
 export const BudgetSettings: FC = () => {
@@ -207,7 +205,7 @@ export const BudgetSettings: FC = () => {
 
 
     return (
-        <MotionDiv key="budget" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }}>
+        <motion.div key="budget" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }}>
             <h3 className="text-lg font-semibold text-white mb-1">Budgetverwaltung</h3>
             <p className="text-sm text-slate-400 mb-6">Verwalten Sie hier Ihr gesamtes monatliches Budget, aufgeteilt in flexible Ausgaben und Fixkosten.</p>
             
@@ -228,8 +226,8 @@ export const BudgetSettings: FC = () => {
                 </div>
                 {totalOverallBudget > 0 && (
                     <div className="w-full flex h-1.5 rounded-full overflow-hidden bg-slate-900/50">
-                        <MotionDiv style={{ backgroundColor: flexColor }} className="h-full" title={`Flexible Budgets: ${flexPercentage.toFixed(0)}%`} initial={{ width: '0%' }} animate={{ width: `${flexPercentage}%` }} transition={{ duration: 0.8, ease: "easeOut" }} />
-                        <MotionDiv style={{ backgroundColor: fixedColor }} className="h-full" title={`Fixkosten: ${fixedPercentage.toFixed(0)}%`} initial={{ width: '0%' }} animate={{ width: `${fixedPercentage}%` }} transition={{ duration: 0.8, ease: "easeOut" }}/>
+                        <motion.div style={{ backgroundColor: flexColor }} className="h-full" title={`Flexible Budgets: ${flexPercentage.toFixed(0)}%`} initial={{ width: '0%' }} animate={{ width: `${flexPercentage}%` }} transition={{ duration: 0.8, ease: "easeOut" }} />
+                        <motion.div style={{ backgroundColor: fixedColor }} className="h-full" title={`Fixkosten: ${fixedPercentage.toFixed(0)}%`} initial={{ width: '0%' }} animate={{ width: `${fixedPercentage}%` }} transition={{ duration: 0.8, ease: "easeOut" }}/>
                     </div>
                 )}
             </div>
@@ -244,7 +242,7 @@ export const BudgetSettings: FC = () => {
                 </button>
                 <AnimatePresence>
                     {isDetailsExpanded && (
-                        <MotionDiv initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+                        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
                             <div className="p-3 border-t border-slate-600/50 space-y-3">
                                 <h5 className="text-xs font-semibold uppercase tracking-wider text-slate-400">Flexibles Budget</h5>
                                 {groupedBudgetData.map(group => (
@@ -255,7 +253,7 @@ export const BudgetSettings: FC = () => {
                                         </div>
                                         <AnimatePresence>
                                         {flexExpandedGroups.includes(group.groupName) && (
-                                            <MotionDiv initial={{ opacity: 0, height: 0, marginTop: 0 }} animate={{ opacity: 1, height: 'auto', marginTop: '0.75rem' }} exit={{ opacity: 0, height: 0, marginTop: 0 }} className="overflow-hidden">
+                                            <motion.div initial={{ opacity: 0, height: 0, marginTop: 0 }} animate={{ opacity: 1, height: 'auto', marginTop: '0.75rem' }} exit={{ opacity: 0, height: 0, marginTop: 0 }} className="overflow-hidden">
                                                 <div className="pt-2 border-t border-slate-600/50 space-y-2">
                                                     {group.categories.map(category => {
                                                         const Icon = getIconComponent(category.icon);
@@ -264,7 +262,7 @@ export const BudgetSettings: FC = () => {
                                                         );
                                                     })}
                                                 </div>
-                                            </MotionDiv>
+                                            </motion.div>
                                         )}
                                         </AnimatePresence>
                                     </div>
@@ -283,7 +281,7 @@ export const BudgetSettings: FC = () => {
                                     </div>
                                 </div>
                             </div>
-                        </MotionDiv>
+                        </motion.div>
                     )}
                 </AnimatePresence>
             </div>
@@ -335,6 +333,6 @@ export const BudgetSettings: FC = () => {
                     })}
                 </div>
             </div>
-        </MotionDiv>
+        </motion.div>
     );
 };

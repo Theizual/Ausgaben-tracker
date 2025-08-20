@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Toaster } from 'react-hot-toast';
 import { useApp } from '@/contexts/AppContext';
@@ -21,8 +21,6 @@ import type { Transaction } from '@/shared/types';
 import { pageContentAnimation } from '@/shared/lib/animations';
 import { ErrorBoundary } from '@/shared/ui';
 
-const MotionDiv = motion.div;
-
 // Main App Component (now a clean layout/composition root)
 const App = () => {
     const {
@@ -35,7 +33,7 @@ const App = () => {
         initialSettingsTab,
         confirmationData,
         closeConfirmation,
-        transactionForDetail,
+        transactionForDetailId,
         closeTransactionDetail,
         isChangelogOpen,
         openChangelog,
@@ -49,6 +47,7 @@ const App = () => {
         // Sync State & Handlers
         syncOperation,
         lastSync,
+        transactions,
         syncData,
         // User State
         users,
@@ -57,6 +56,11 @@ const App = () => {
     } = useApp();
 
     const [lastSeenVersion, setLastSeenVersion] = useLocalStorage('lastSeenVersion', '0.0.0');
+
+    const transactionObjectForDetail = useMemo(() => 
+        transactionForDetailId ? transactions.find(t => t.id === transactionForDetailId) : null,
+        [transactions, transactionForDetailId]
+    );
 
     useEffect(() => {
         // Automatically show changelog on first launch after an update
@@ -126,15 +130,16 @@ const App = () => {
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">
                     <main className="mt-6">
                         <AnimatePresence mode="wait">
-                            <MotionDiv
+                            <motion.div
                                 key={activeTab}
-                                initial={pageContentAnimation.initial}
-                                animate={pageContentAnimation.animate}
-                                exit={pageContentAnimation.exit}
+                                variants={pageContentAnimation}
+                                initial="initial"
+                                animate="animate"
+                                exit="exit"
                                 transition={{ duration: 0.3 }}
                             >
                                 {renderContent()}
-                            </MotionDiv>
+                            </motion.div>
                         </AnimatePresence>
                     </main>
                 </div>
@@ -153,11 +158,11 @@ const App = () => {
                 </AnimatePresence>
 
                 <AnimatePresence>
-                    {transactionForDetail && (
+                    {transactionObjectForDetail && (
                          <TransactionDetailModal
-                            isOpen={!!transactionForDetail}
+                            isOpen={!!transactionObjectForDetail}
                             onClose={closeTransactionDetail}
-                            transaction={transactionForDetail.transaction}
+                            transaction={transactionObjectForDetail}
                          />
                     )}
                 </AnimatePresence>

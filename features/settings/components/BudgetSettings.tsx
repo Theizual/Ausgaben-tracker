@@ -12,8 +12,6 @@ import { BudgetGroup } from './BudgetGroup';
 import { settingsContentAnimation } from '@/shared/lib/animations';
 import { RecurringConfigModal } from './RecurringConfigModal';
 
-const MotionDiv = motion.div;
-
 const BASE_INPUT_CLASSES = "w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-rose-500";
 
 export const BudgetSettings = () => {
@@ -246,7 +244,7 @@ export const BudgetSettings = () => {
 
     return (
         <>
-            <MotionDiv 
+            <motion.div 
                 key="budget"
                 variants={settingsContentAnimation}
                 initial="initial"
@@ -274,7 +272,7 @@ export const BudgetSettings = () => {
                     {totalOverallBudget > 0 ? (
                         <div className="w-full relative h-6 rounded-full overflow-hidden bg-slate-900/50 flex" aria-label="Gesamtbudgetverteilung: Flexibles Budget vs. Fixkosten">
                             {/* Layered approach for sharp dividing line */}
-                            <MotionDiv
+                            <motion.div
                                 className="h-full flex items-center justify-center"
                                 style={{ backgroundColor: flexBarColor }}
                                 variants={flexBarAnimation}
@@ -285,8 +283,8 @@ export const BudgetSettings = () => {
                                 {flexPercentage >= 10 && (
                                     <span className="text-white text-xs font-bold drop-shadow-sm">{flexPercentage.toFixed(0)}%</span>
                                 )}
-                            </MotionDiv>
-                            <MotionDiv
+                            </motion.div>
+                            <motion.div
                                 className="h-full flex items-center justify-center"
                                 style={{ backgroundColor: fixedBarColor }}
                                 variants={fixedBarAnimation}
@@ -297,7 +295,7 @@ export const BudgetSettings = () => {
                                 {fixedPercentage >= 10 && (
                                     <span className="text-white text-xs font-bold drop-shadow-sm">{fixedPercentage.toFixed(0)}%</span>
                                 )}
-                            </MotionDiv>
+                            </motion.div>
                         </div>
                     ) : (
                         <div className="w-full relative flex h-6 rounded-full overflow-hidden bg-slate-900/50" aria-label="Gesamtbudgetverteilung: Flexibles Budget vs. Fixkosten">
@@ -318,7 +316,7 @@ export const BudgetSettings = () => {
                     </button>
                     <AnimatePresence>
                         {isDetailsExpanded && (
-                            <MotionDiv 
+                            <motion.div 
                                 variants={detailsAnimation} 
                                 initial="initial"
                                 animate="animate"
@@ -344,7 +342,7 @@ export const BudgetSettings = () => {
                                         />
                                     ))}
                                 </div>
-                            </MotionDiv>
+                            </motion.div>
                         )}
                     </AnimatePresence>
                 </div>
@@ -442,7 +440,7 @@ export const BudgetSettings = () => {
                         })}
                     </div>
                 </div>
-            </MotionDiv>
+            </motion.div>
             <AnimatePresence>
                 {configuringRecurring && (
                     <RecurringConfigModal

@@ -8,7 +8,7 @@ import { useUserSettings } from '@/shared/hooks/useUserSettings';
 import { useCategories } from '@/shared/hooks/useCategories';
 import { useCategoryPreferences } from '@/shared/hooks/useCategoryPreferences';
 import useLocalStorage from '@/shared/hooks/useLocalStorage';
-import type { User, Category, Group, RecurringTransaction, Transaction, Tag, UserSetting, TransactionGroup, Recipe } from '@/shared/types';
+import type { User, Category, Group, RecurringTransaction, Transaction, Tag, UserSetting, TransactionGroup, Recipe, WeeklyPlan } from '@/shared/types';
 import { FIXED_COSTS_GROUP_ID, DEFAULT_CATEGORY_ID } from '@/constants';
 import { isWithinInterval, parseISO, startOfMonth, endOfMonth } from 'date-fns';
 import type { Locale } from 'date-fns';
@@ -333,6 +333,8 @@ const ReadyAppProvider: React.FC<{
         return userSettingsState.getIsAiEnabled(uiState.currentUserId);
     }, [uiState.currentUserId, userSettingsState]);
 
+    const rawWeeklyPlans = useMemo(() => Object.values(uiState.weeklyMealPlans || {}), [uiState.weeklyMealPlans]);
+
     const syncState = useSync({
         rawCategories: categoryState.rawCategories,
         rawGroups: categoryState.rawGroups,
@@ -343,6 +345,7 @@ const ReadyAppProvider: React.FC<{
         rawUserSettings: userSettingsState.rawUserSettings,
         rawTransactionGroups: transactionDataState.rawTransactionGroups,
         rawRecipes: uiState.recipes,
+        rawWeeklyPlans: rawWeeklyPlans,
         setCategoriesAndGroups: categoryState.setCategoriesAndGroups,
         setTransactions: transactionDataState.setTransactions,
         setRecurringTransactions: transactionDataState.setRecurringTransactions,
@@ -351,6 +354,13 @@ const ReadyAppProvider: React.FC<{
         setUserSettings: userSettingsState.setUserSettings,
         setTransactionGroups: transactionDataState.setTransactionGroups,
         setRecipes: uiState.setRecipes,
+        setWeeklyPlans: (plans: WeeklyPlan[]) => {
+            const plansObject = plans.reduce((acc, plan) => {
+                acc[plan.weekKey] = plan;
+                return acc;
+            }, {} as Record<string, WeeklyPlan>);
+            uiState.setWeeklyMealPlans(plansObject);
+        },
         isInitialSetupDone: isInitialSetupDone,
         isDemoModeEnabled,
         setIsInitialSetupDone: setIsInitialSetupDone,
@@ -418,6 +428,7 @@ const ReadyAppProvider: React.FC<{
         usersState.rawUsers,
         userSettingsState.rawUserSettings,
         uiState.recipes,
+        rawWeeklyPlans,
     ]);
 
     const createPersistentWrapper = (action: (...args: any[]) => any) => {
