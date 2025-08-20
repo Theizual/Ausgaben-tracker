@@ -243,24 +243,6 @@ export const CategoryLibrarySettings: FC<{ onEditGroupDesign: (group: Group) => 
                 <h3 className="text-lg font-semibold text-white mb-1">Gruppen & Kategorien</h3>
                 <p className="text-sm text-slate-400 mb-6">Verwalten Sie hier Ihre Ausgabenstruktur. Sortieren Sie Gruppen und Kategorien per Drag & Drop.</p>
                 
-                <div className="mb-6 p-4 bg-slate-700/30 rounded-lg space-y-4 border border-slate-700/50">
-                    <h4 className="text-md font-semibold text-white">Schnelleingabe-Anzeige</h4>
-                    <div className="flex items-center justify-between pt-3 border-t border-slate-600/50">
-                        <div>
-                            <label htmlFor="fav-toggle" className="block text-sm font-medium text-slate-300">Favoriten anzeigen</label>
-                            <p className="text-xs text-slate-400 mt-1">Zeigt deine als Favorit markierten Kategorien oben an.</p>
-                        </div>
-                        <ToggleSwitch id="fav-toggle" enabled={quickAddShowFavorites} setEnabled={setQuickAddShowFavorites} />
-                    </div>
-                    <div className="flex items-center justify-between pt-3 border-t border-slate-600/50">
-                        <div>
-                            <label htmlFor="recent-toggle" className="block text-sm font-medium text-slate-300">Zuletzt verwendete anzeigen</label>
-                            <p className="text-xs text-slate-400 mt-1">Zeigt eine Liste deiner zuletzt genutzten Kategorien an.</p>
-                        </div>
-                        <ToggleSwitch id="recent-toggle" enabled={quickAddShowRecents} setEnabled={setQuickAddShowRecents} />
-                    </div>
-                </div>
-
                 <div className="flex justify-end mb-4">
                     <Button variant="secondary" size="sm" onClick={toggleAllGroups}>
                         <ArrowUpDown className="h-4 w-4 mr-2" />
@@ -294,6 +276,24 @@ export const CategoryLibrarySettings: FC<{ onEditGroupDesign: (group: Group) => 
                 
                 <Separator />
                 
+                <div className="mb-6 p-4 bg-slate-700/30 rounded-lg space-y-4 border border-slate-700/50">
+                    <h4 className="text-md font-semibold text-white">Schnelleingabe-Anzeige</h4>
+                    <div className="flex items-center justify-between pt-3 border-t border-slate-600/50">
+                        <div>
+                            <label htmlFor="fav-toggle" className="block text-sm font-medium text-slate-300">Favoriten anzeigen</label>
+                            <p className="text-xs text-slate-400 mt-1">Zeigt deine als Favorit markierten Kategorien oben an.</p>
+                        </div>
+                        <ToggleSwitch id="fav-toggle" enabled={quickAddShowFavorites} setEnabled={setQuickAddShowFavorites} />
+                    </div>
+                    <div className="flex items-center justify-between pt-3 border-t border-slate-600/50">
+                        <div>
+                            <label htmlFor="recent-toggle" className="block text-sm font-medium text-slate-300">Zuletzt verwendete anzeigen</label>
+                            <p className="text-xs text-slate-400 mt-1">Zeigt eine Liste deiner zuletzt genutzten Kategorien an.</p>
+                        </div>
+                        <ToggleSwitch id="recent-toggle" enabled={quickAddShowRecents} setEnabled={setQuickAddShowRecents} />
+                    </div>
+                </div>
+
                 <div>
                      <h4 className="text-md font-semibold text-white mb-3">Standard-Kategorien</h4>
                      <p className="text-sm text-slate-400 mb-4">Fügen Sie Kategorien aus der Standardbibliothek zu Ihren Gruppen hinzu oder laden Sie die komplette Konfiguration neu.</p>

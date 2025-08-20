@@ -1,5 +1,3 @@
-
-
 import React, { useState, useMemo, useEffect, FC, useRef } from 'react';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend, Sector } from 'recharts';
 import { useApp } from '@/contexts/AppContext';
@@ -13,21 +11,25 @@ interface CategoryPieChartProps {
 
 const MAX_PIE_SLICES = 5; // Top 5 + 1 for "Other"
 
-const CustomTooltip = ({ active, payload, transactions, totalSpent }: any) => {
+const CustomTooltip = ({ active, payload, transactions, totalSpent, categoryMap }: any) => {
     if (active && payload && payload.length) {
         const data = payload[0].payload;
-        const { id, name, value, otherCategoryIds } = data;
+        const { id, name, value, otherGroupIds } = data;
 
-        const topTransactions = useMemo(() => {
-            let relevantTransactions: Transaction[];
-            if (id === 'other') {
-                const otherIds = new Set(otherCategoryIds);
-                relevantTransactions = transactions.filter((t: Transaction) => otherIds.has(t.categoryId));
-            } else {
-                relevantTransactions = transactions.filter((t: Transaction) => t.categoryId === id);
-            }
-            return relevantTransactions.sort((a, b) => b.amount - a.amount).slice(0, 5);
-        }, [id, otherCategoryIds, transactions]);
+        let relevantTransactions: Transaction[];
+        if (id === 'other') {
+            const otherIds = new Set(otherGroupIds);
+            relevantTransactions = transactions.filter((t: Transaction) => {
+                const category = categoryMap.get(t.categoryId);
+                return category && otherIds.has(category.groupId);
+            });
+        } else {
+            relevantTransactions = transactions.filter((t: Transaction) => {
+                const category = categoryMap.get(t.categoryId);
+                return category && category.groupId === id;
+            });
+        }
+        const topTransactions = relevantTransactions.sort((a, b) => b.amount - a.amount).slice(0, 5);
         
         const percentage = totalSpent > 0 ? (value / totalSpent) * 100 : 0;
 
@@ -79,8 +81,7 @@ const renderActiveShape = (props: any) => {
 };
 
 export const CategoryPieChart: React.FC<CategoryPieChartProps> = ({ transactions }) => {
-  const { categoryMap } = useApp();
-  const getCategoryById = (id: string): Category | undefined => categoryMap.get(id);
+  const { categoryMap, groupMap } = useApp();
 
   const [isMobileView, setIsMobileView] = useState(false);
   const [activeIndex, setActiveIndex] = useState<number | undefined>(undefined);
@@ -116,35 +117,41 @@ export const CategoryPieChart: React.FC<CategoryPieChartProps> = ({ transactions
   }, []);
 
   const data = useMemo(() => {
-    if (!transactions.length) return [];
+    if (!transactions.length || !groupMap) return [];
     
-    const categoryTotals: { [key: string]: number } = {};
+    const groupTotals: { [key: string]: number } = {};
     transactions.forEach(t => {
-      categoryTotals[t.categoryId] = (categoryTotals[t.categoryId] || 0) + t.amount;
+      const category = categoryMap.get(t.categoryId);
+      if (category?.groupId) {
+        groupTotals[category.groupId] = (groupTotals[category.groupId] || 0) + t.amount;
+      }
     });
 
-    const sortedData = Object.entries(categoryTotals)
-      .map(([categoryId, total]) => ({
-        id: categoryId,
-        name: getCategoryById(categoryId)?.name || 'Unbekannt',
-        value: total || 0,
-        color: getCategoryById(categoryId)?.color || '#78716c',
-        icon: getCategoryById(categoryId)?.icon
-      }))
+    const sortedData = Object.entries(groupTotals)
+      .map(([groupId, total]) => {
+        const group = groupMap.get(groupId);
+        return {
+          id: groupId,
+          name: group?.name || 'Unbekannt',
+          value: total || 0,
+          color: group?.color || '#78716c',
+          icon: group?.icon || 'Package',
+        };
+      })
       .sort((a, b) => b.value - a.value);
 
     if (sortedData.length > MAX_PIE_SLICES) {
       const topData = sortedData.slice(0, MAX_PIE_SLICES);
       const otherSliceData = sortedData.slice(MAX_PIE_SLICES);
       const otherValue = otherSliceData.reduce((acc, curr) => acc + curr.value, 0);
-      const otherCategoryIds = otherSliceData.map(d => d.id);
+      const otherGroupIds = otherSliceData.map(d => d.id);
       return [
           ...topData,
-          { id: 'other', name: 'Sonstige', value: otherValue, color: '#64748b', icon: 'MoreHorizontal', otherCategoryIds },
+          { id: 'other', name: 'Sonstige', value: otherValue, color: '#64748b', icon: 'MoreHorizontal', otherGroupIds },
       ];
     }
     return sortedData;
-  }, [transactions, categoryMap]);
+  }, [transactions, categoryMap, groupMap]);
 
   const CustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, payload }: any) => {
     const RADIAN = Math.PI / 180;
@@ -181,7 +188,7 @@ export const CategoryPieChart: React.FC<CategoryPieChartProps> = ({ transactions
         <ResponsiveContainer width="100%" height="100%">
         <PieChart>
             <Tooltip
-                content={<CustomTooltip transactions={transactions} totalSpent={totalSpent} />}
+                content={<CustomTooltip transactions={transactions} totalSpent={totalSpent} categoryMap={categoryMap} />}
                 cursor={{ fill: 'rgba(255, 255, 255, 0.05)' }}
                 isAnimationActive={false}
             />
