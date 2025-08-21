@@ -46,9 +46,11 @@ const PeopleEditorPopover: FC<{
     return (
         <motion.div
             ref={popoverRef}
-            initial={{ opacity: 0, y: 5 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 5 }}
+            {...{
+                initial: { opacity: 0, y: 5 },
+                animate: { opacity: 1, y: 0 },
+                exit: { opacity: 0, y: 5 },
+            }}
             className="absolute z-20 top-full right-0 mt-2 w-64 bg-slate-900 border border-slate-700 rounded-lg shadow-xl p-4"
         >
             <div className="space-y-3">

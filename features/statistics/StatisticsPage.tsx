@@ -29,10 +29,12 @@ const placeholderAnimation = {
 
 const CalendarPlaceholder = () => (
     <motion.div
-        variants={placeholderAnimation}
-        initial="initial"
-        animate="animate"
-        exit="exit"
+        {...{
+            variants: placeholderAnimation,
+            initial: "initial",
+            animate: "animate",
+            exit: "exit",
+        }}
         className="bg-slate-800 rounded-2xl border border-slate-700 h-full flex flex-col items-center justify-center text-center p-6"
     >
         <Calendar className="h-12 w-12 text-slate-600 mb-4" />
@@ -194,10 +196,12 @@ const TagAnalysisView = () => {
                 {selectedTagIdsForAnalysis.length > 0 ? (
                     <motion.div
                         key={selectedTagIdsForAnalysis.join('-')}
-                        variants={pageContentAnimation}
-                        initial="initial"
-                        animate="animate"
-                        exit="exit"
+                        {...{
+                            variants: pageContentAnimation,
+                            initial: "initial",
+                            animate: "animate",
+                            exit: "exit",
+                        }}
                     >
                         <TagDetailView
                             tagIds={selectedTagIdsForAnalysis}
@@ -251,10 +255,12 @@ const AnalysisPage = () => {
             <AnimatePresence mode="wait">
                 <motion.div
                     key={analysisView}
-                    variants={pageContentAnimation}
-                    initial="initial"
-                    animate="animate"
-                    exit="exit"
+                    {...{
+                        variants: pageContentAnimation,
+                        initial: "initial",
+                        animate: "animate",
+                        exit: "exit",
+                    }}
                 >
                     {analysisView === 'monthly' ? <MonthlyAnalysisView /> : <TagAnalysisView />}
                 </motion.div>

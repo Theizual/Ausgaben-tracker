@@ -27,10 +27,12 @@ export const UserSettings = () => {
     return (
         <motion.div 
             key="users"
-            variants={settingsContentAnimation}
-            initial="initial"
-            animate="animate"
-            exit="exit"
+            {...{
+                variants: settingsContentAnimation,
+                initial: "initial",
+                animate: "animate",
+                exit: "exit",
+            }}
         >
             <h3 className="text-lg font-semibold text-white mb-1">Benutzer verwalten</h3>
             <p className="text-sm text-slate-400 mb-6">Legen Sie Benutzer an, um Ausgaben zuzuordnen. Der aktuell ausgewählte Benutzer wird neuen Transaktionen automatisch zugewiesen.</p>

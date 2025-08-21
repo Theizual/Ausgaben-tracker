@@ -140,10 +140,12 @@ export const GroupSettings: FC<{ onEditGroupDesign: (group: Group) => void }> = 
 
     return (
         <MotionDiv 
-            variants={settingsContentAnimation} 
-            initial="initial" 
-            animate="animate" 
-            exit="exit" 
+            {...{
+                variants: settingsContentAnimation,
+                initial: "initial",
+                animate: "animate",
+                exit: "exit",
+            }} 
             key="groups"
         >
             <h3 className="text-lg font-semibold text-white mb-1">Gruppen verwalten</h3>

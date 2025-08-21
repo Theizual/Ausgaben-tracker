@@ -24,7 +24,7 @@ export const Modal = ({
 }: { 
     isOpen: boolean, 
     onClose: () => void, 
-    title: string, 
+    title: React.ReactNode, 
     size?: keyof typeof modalSizeClasses, 
     footer?: React.ReactNode, 
     padding?: string,
@@ -79,7 +79,7 @@ export const Modal = ({
                 >
                     {title ? (
                         <header className="relative p-4 sm:p-6 border-b border-slate-700 flex-shrink-0">
-                            <h2 id="modal-title" className="text-lg font-bold text-white">{title}</h2>
+                            <div id="modal-title" className="text-lg font-bold text-white">{title}</div>
                             <button onClick={onClose} className="absolute top-3 right-3 p-2 rounded-full hover:bg-slate-700 transition-colors" aria-label="Dialog schließen">
                                 <X className="h-5 w-5" />
                             </button>

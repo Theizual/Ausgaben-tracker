@@ -1,10 +1,14 @@
 
+
 import React, { FC, useMemo } from 'react';
 import { MealDay } from '@/shared/types';
-import { ShieldCheck, RefreshCw, Beef, Fish, Carrot, Sprout, Salad, Undo2, UtensilsCrossed, X } from '@/shared/ui';
+import { ShieldCheck, RefreshCw, Beef, Fish, Carrot, Sprout, Salad, Undo2, UtensilsCrossed, X, Plus } from '@/shared/ui';
 import { format, parseISO } from 'date-fns';
 import { clsx } from 'clsx';
 import type { Recipe } from '@/shared/types';
+import { formatCurrency } from '@/shared/utils/dateUtils';
+import { useApp } from '@/contexts/AppContext';
+import { toast } from 'react-hot-toast';
 
 interface MealDayCardProps {
     mealDay: MealDay;
@@ -25,7 +29,7 @@ const iconPriority = ['Fleisch', 'Fisch', 'Vegan', 'Vegetarisch', 'Salat'];
 
 const SPECIAL_MEAL_INFO: Record<Exclude<MealDay['mealType'], 'recipe' | undefined>, { icon: FC<any>, title: string }> = {
     leftovers: { icon: Undo2, title: 'Resteverwertung' },
-    eating_out: { icon: UtensilsCrossed, title: 'Auswärts essen' },
+    eating_out: { icon: UtensilsCrossed, title: 'Auswärtsessen/Lieferdienst' },
     no_meal: { icon: X, title: 'Kein Essen geplant' },
 };
 
@@ -56,6 +60,19 @@ const BaseBadge: FC<{ base: Recipe['base'] }> = ({ base }) => {
 
 
 export const MealDayCard: FC<MealDayCardProps> = ({ mealDay, recipe, onOpenPicker, onOpenDetail, onToggleConfirm }) => {
+    const { addTransaction } = useApp();
+
+    const handleAddTransaction = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (mealDay.priceOverride && mealDay.priceOverride > 0 && mealDay.mealType === 'eating_out') {
+            addTransaction({
+                amount: mealDay.priceOverride,
+                description: mealDay.title || 'Auswärtsessen/Lieferdienst',
+                categoryId: 'cat_gastro'
+            });
+            toast.success("Transaktion hinzugefügt.");
+        }
+    };
 
     const toggleConfirm = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -105,6 +122,14 @@ export const MealDayCard: FC<MealDayCardProps> = ({ mealDay, recipe, onOpenPicke
                             <div className="text-center flex flex-col items-center justify-center gap-1">
                                 <Icon className="h-6 w-6 text-slate-400" />
                                 <p className="text-sm font-semibold text-slate-300 leading-tight">{mealDay.title}</p>
+                                {mealDay.mealType === 'eating_out' && mealDay.priceOverride && mealDay.priceOverride > 0 && (
+                                    <div className="flex items-center gap-1 mt-1">
+                                        <p className="text-xs font-bold text-white">{formatCurrency(mealDay.priceOverride)}</p>
+                                        <button onClick={handleAddTransaction} title="Als Transaktion erfassen" className="p-0.5 rounded-full bg-slate-600 hover:bg-rose-500">
+                                            <Plus className="h-3 w-3 text-white"/>
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                         );
                     })()

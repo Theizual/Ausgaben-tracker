@@ -1,4 +1,3 @@
-
 import React, { FC, useState, useMemo, useEffect } from 'react';
 import { Modal, Button, Search, CheckSquare, Undo2, UtensilsCrossed, X } from '@/shared/ui';
 import type { Recipe } from '@/shared/types';
@@ -42,7 +41,7 @@ export const RecipePickerModal: FC<RecipePickerModalProps> = ({ isOpen, onClose,
     
     const SPECIAL_MEALS = [
         { type: 'leftovers', label: 'Resteverwertung', icon: Undo2 },
-        { type: 'eating_out', label: 'Auswärts essen', icon: UtensilsCrossed },
+        { type: 'eating_out', label: 'Auswärtsessen/Lieferdienst', icon: UtensilsCrossed },
         { type: 'no_meal', label: 'Kein Essen', icon: X },
     ];
 
@@ -84,11 +83,19 @@ export const RecipePickerModal: FC<RecipePickerModalProps> = ({ isOpen, onClose,
     return (
         <Modal isOpen={isOpen} onClose={onClose} title="Gericht auswählen" footer={footer} size="lg">
             <div className="space-y-4">
-                <div className="grid grid-cols-3 gap-2">
+                <div className="flex justify-center gap-3">
                     {SPECIAL_MEALS.map(({ type, label, icon: Icon }) => (
-                        <Button key={type} variant="secondary" onClick={() => onSelectSpecial(type as any)}>
-                            <Icon className="h-4 w-4 mr-2" />
-                            {label}
+                        <Button
+                            key={type}
+                            variant="secondary"
+                            onClick={() => onSelectSpecial(type as any)}
+                            size="sm"
+                            className="h-auto min-h-[56px] flex-col py-2 w-28"
+                        >
+                            <Icon className="h-5 w-5 mb-1 flex-shrink-0" />
+                            <span className="text-center flex flex-col leading-tight">
+                                {label.split('/').map(part => <span key={part}>{part}</span>)}
+                            </span>
                         </Button>
                     ))}
                 </div>

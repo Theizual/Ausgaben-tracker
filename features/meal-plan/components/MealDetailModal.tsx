@@ -1,8 +1,7 @@
-
 import React, { FC, useState, useMemo, useEffect } from 'react';
 import { useApp } from '@/contexts/AppContext';
 import type { MealDay, WeeklyPlan, Recipe } from '@/shared/types';
-import { Modal, Button, RefreshCw, ChevronDown, Edit } from '@/shared/ui';
+import { Modal, Button, RefreshCw, ChevronDown, Edit, Search } from '@/shared/ui';
 import { toast } from 'react-hot-toast';
 import { formatCurrency } from '@/shared/utils/dateUtils';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -31,6 +30,17 @@ export const MealDetailModal: FC<MealDetailModalProps> = ({ isOpen, onClose, mea
     const [instructions, setInstructions] = useState('');
 
     const isSpecialMeal = mealDay?.mealType && mealDay.mealType !== 'recipe';
+    
+    useEffect(() => {
+        if (isOpen) {
+            document.body.classList.add('modal-open');
+        } else {
+            document.body.classList.remove('modal-open');
+        }
+        return () => {
+            document.body.classList.remove('modal-open');
+        };
+    }, [isOpen]);
     
     useEffect(() => {
         if (mealDay) {
@@ -108,80 +118,97 @@ export const MealDetailModal: FC<MealDetailModalProps> = ({ isOpen, onClose, mea
     
     const ingredientsList = ingredients.split('\n').filter(Boolean);
     const instructionsList = instructions.split('\n').filter(Boolean);
+    
+    const effectiveSide = mealDay.side || recipe?.sideSuggestion;
+
+    const modalTitle = (
+        <>
+            Anpassen: {mealDay.title || recipe?.name}
+            {effectiveSide && (
+                <p className="text-sm text-slate-400 mt-1 font-medium">
+                    + {effectiveSide}
+                </p>
+            )}
+        </>
+    );
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title={`Anpassen: ${mealDay.title || recipe?.name}`} footer={footer} size="2xl">
+        <Modal isOpen={isOpen} onClose={onClose} title={modalTitle} footer={footer} size="2xl">
             <div className="space-y-4 max-h-[70vh] overflow-y-auto custom-scrollbar -mr-4 pr-4">
-                <div className="flex flex-col sm:flex-row gap-4">
-                    <div className="flex-1 space-y-4">
-                        {!isSpecialMeal && (
-                             <div className="bg-slate-700/30 p-3 rounded-lg">
-                                <AnimatePresence mode="wait">
-                                {isEditingRecipe ? (
-                                    <motion.div key="edit" initial={{opacity: 0}} animate={{opacity: 1}} exit={{opacity: 0}}>
-                                        <div className="space-y-3">
-                                            <div>
-                                                <h4 className="font-semibold text-white text-sm mb-1">Zutaten</h4>
-                                                <textarea value={ingredients} onChange={e => setIngredients(e.target.value)} placeholder="Eine Zutat pro Zeile" className={TEXTAREA_CLASSES} />
-                                            </div>
-                                            <div>
-                                                 <h4 className="font-semibold text-white text-sm mb-1">Anleitung</h4>
-                                                <textarea value={instructions} onChange={e => setInstructions(e.target.value)} placeholder="Ein Schritt pro Zeile" className={TEXTAREA_CLASSES} />
-                                            </div>
-                                             <div className="flex justify-end gap-2 pt-2">
-                                                <Button variant="secondary" size="sm" onClick={handleCancelEdit}>Abbrechen</Button>
-                                                <Button size="sm" onClick={() => setIsEditingRecipe(false)}>Übernehmen</Button>
-                                            </div>
-                                        </div>
-                                    </motion.div>
-                                ) : (
-                                    <motion.div key="read" initial={{opacity: 0}} animate={{opacity: 1}} exit={{opacity: 0}}>
-                                        <div className="space-y-3">
-                                            <div>
-                                                <h3 className="font-semibold text-rose-300">Zutaten</h3>
-                                                {ingredientsList.length > 0 ? (
-                                                    <ul className="list-disc list-inside text-sm text-slate-300 space-y-1 mt-1">
-                                                        {ingredientsList.map((item, i) => <li key={i}>{item}</li>)}
-                                                    </ul>
-                                                ) : <p className="text-sm text-slate-500 italic mt-1">Keine Zutaten angegeben.</p>}
-                                            </div>
-                                            <div>
-                                                <h3 className="font-semibold text-rose-300">Anleitung</h3>
-                                                {instructionsList.length > 0 ? (
-                                                    <ol className="list-decimal list-inside text-sm text-slate-300 space-y-1 mt-1">
-                                                        {instructionsList.map((item, i) => <li key={i}>{item}</li>)}
-                                                    </ol>
-                                                ) : <p className="text-sm text-slate-500 italic mt-1">Keine Anleitung angegeben.</p>}
-                                            </div>
-                                            <div className="text-right pt-2">
-                                                <Button variant="secondary" size="sm" onClick={() => setIsEditingRecipe(true)}>
-                                                    <Edit className="h-4 w-4 mr-2" /> Bearbeiten
-                                                </Button>
-                                            </div>
-                                        </div>
-                                    </motion.div>
-                                )}
-                                </AnimatePresence>
-                            </div>
+                {!isSpecialMeal && (
+                     <div className="bg-slate-700/30 p-3 rounded-lg">
+                        <AnimatePresence mode="wait">
+                        {isEditingRecipe ? (
+                            <motion.div {...{key: "edit", initial: {opacity: 0}, animate: {opacity: 1}, exit: {opacity: 0}}}>
+                                <div className="grid md:grid-cols-2 gap-4">
+                                    <div>
+                                        <h4 className="font-semibold text-white text-sm mb-1">Zutaten</h4>
+                                        <textarea value={ingredients} onChange={e => setIngredients(e.target.value)} placeholder="Eine Zutat pro Zeile" className={TEXTAREA_CLASSES} />
+                                    </div>
+                                    <div>
+                                         <h4 className="font-semibold text-white text-sm mb-1">Anleitung</h4>
+                                        <textarea value={instructions} onChange={e => setInstructions(e.target.value)} placeholder="Ein Schritt pro Zeile" className={TEXTAREA_CLASSES} />
+                                    </div>
+                                     <div className="md:col-span-2 flex justify-end gap-2 pt-2">
+                                        <Button variant="secondary" size="sm" onClick={handleCancelEdit}>Abbrechen</Button>
+                                        <Button size="sm" onClick={() => setIsEditingRecipe(false)}>Übernehmen</Button>
+                                    </div>
+                                </div>
+                            </motion.div>
+                        ) : (
+                            <motion.div {...{key: "read", initial: {opacity: 0}, animate: {opacity: 1}, exit: {opacity: 0}}}>
+                                <div className="grid md:grid-cols-2 gap-4">
+                                    <div>
+                                        <h3 className="font-semibold text-rose-300">Zutaten</h3>
+                                        {ingredientsList.length > 0 ? (
+                                            <ul className="list-disc list-inside text-sm text-slate-300 space-y-1 mt-1">
+                                                {ingredientsList.map((item, i) => <li key={i}>{item}</li>)}
+                                            </ul>
+                                        ) : <p className="text-sm text-slate-500 italic mt-1">Keine Zutaten angegeben.</p>}
+                                    </div>
+                                    <div>
+                                        <h3 className="font-semibold text-rose-300">Anleitung</h3>
+                                        {instructionsList.length > 0 ? (
+                                            <ol className="list-decimal list-inside text-sm text-slate-300 space-y-1 mt-1">
+                                                {instructionsList.map((item, i) => <li key={i}>{item}</li>)}
+                                            </ol>
+                                        ) : <p className="text-sm text-slate-500 italic mt-1">Keine Anleitung angegeben.</p>}
+                                    </div>
+                                    <div className="md:col-span-2 text-right pt-2">
+                                        <Button variant="secondary" size="sm" onClick={() => setIsEditingRecipe(true)}>
+                                            <Edit className="h-4 w-4 mr-2" /> Bearbeiten
+                                        </Button>
+                                    </div>
+                                </div>
+                            </motion.div>
                         )}
-                       
+                        </AnimatePresence>
                     </div>
-                    <div className="w-full sm:w-64 flex-shrink-0 space-y-4">
-                         {!isSpecialMeal && recipe?.link && (
-                            <a href={recipe.link || `https://www.chefkoch.de/rs/s0/${encodeURIComponent(recipe.name)}/Rezepte.html`} target="_blank" rel="noopener noreferrer" className="block w-full text-center bg-orange-600/20 text-orange-400 font-semibold p-3 rounded-lg hover:bg-orange-600/40">
-                               Rezept suchen
+                )}
+               
+                <div className="grid md:grid-cols-2 gap-4 pt-2">
+                     <div className="bg-slate-800/50 p-3 rounded-lg space-y-3">
+                         <div>
+                            <label htmlFor="price-override" className="block text-xs text-slate-400 mb-1">Preis überschreiben</label>
+                            <input id="price-override" type="text" value={price} onChange={e => setPrice(e.target.value)} placeholder={formatCurrency(mealDay.estimatedPrice)} className={BASE_INPUT_CLASSES} />
+                        </div>
+                        <div>
+                            <label htmlFor="note" className="block text-xs text-slate-400 mb-1">Notiz</label>
+                            <textarea id="note" value={note} onChange={e => setNote(e.target.value)} rows={2} placeholder="z.B. doppelte Menge..." className={BASE_INPUT_CLASSES} />
+                        </div>
+                     </div>
+                     <div className="flex flex-col justify-start">
+                         {!isSpecialMeal && recipe && (
+                            <a 
+                                href={recipe.link || `https://www.chefkoch.de/rs/s0/${encodeURIComponent(recipe.name)}/Rezepte.html`} 
+                                target="_blank" 
+                                rel="noopener noreferrer" 
+                                className="flex items-center justify-center gap-2 w-full bg-slate-700/50 text-slate-300 font-semibold p-3 rounded-lg hover:bg-slate-700"
+                            >
+                                <Search className="h-4 w-4" />
+                               Rezept auf Chefkoch suchen
                             </a>
                          )}
-                         <div className="bg-slate-800/50 p-3 rounded-lg space-y-3">
-                             <div>
-                                <label htmlFor="price-override" className="block text-xs text-slate-400 mb-1">Preis überschreiben</label>
-                                <input id="price-override" type="text" value={price} onChange={e => setPrice(e.target.value)} placeholder={formatCurrency(mealDay.estimatedPrice)} className={BASE_INPUT_CLASSES} />
-                            </div>
-                            <div>
-                                <label htmlFor="note" className="block text-xs text-slate-400 mb-1">Notiz</label>
-                                <textarea id="note" value={note} onChange={e => setNote(e.target.value)} rows={2} placeholder="z.B. doppelte Menge..." className={BASE_INPUT_CLASSES} />
-                            </div>
-                         </div>
                     </div>
                 </div>
             </div>

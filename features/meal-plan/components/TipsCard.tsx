@@ -12,7 +12,19 @@ const tips = [
     "Große Mengen kochen (Meal Prep) spart Zeit und Geld. Reste können am nächsten Tag Mittagessen sein.",
     "Hülsenfrüchte wie Linsen oder Bohnen sind eine günstige und gesunde Proteinquelle.",
     "Vergleiche Preise und achte auf Angebote. Ein Einkaufszettel hilft, Impulskäufe zu vermeiden.",
-    "Resteverwertung ist King! Aus Gemüseresten lässt sich eine leckere Brühe kochen."
+    "Resteverwertung ist King! Aus Gemüseresten lässt sich eine leckere Brühe kochen.",
+    "Leitungswasser ist ein hervorragender und quasi kostenloser Durstlöscher. Verzichte auf teure Getränke.",
+    "Eigenmarken von Supermärkten sind oft genauso gut wie Markenprodukte, aber deutlich günstiger.",
+    "Achte auf den Grundpreis (Preis pro kg/Liter), um wirklich das günstigste Angebot zu finden.",
+    "Ganze Früchte und Gemüse sind günstiger als vorgeschnittene, verpackte Varianten.",
+    "Nutze Kundenkarten und Supermarkt-Apps, um von Rabatten und Sonderangeboten zu profitieren.",
+    "Selbstgemacht schmeckt oft am besten und ist günstiger: Brot, Dips oder Müsliriegel lassen sich einfach vorbereiten.",
+    "Kaffee für unterwegs? Brüh ihn zu Hause und nimm ihn im Thermobecher mit. Das spart auf Dauer viel Geld.",
+    "Ein gut genutzter Tiefkühler ist dein bester Freund: Friere Reste, Brot oder Großeinkäufe ein.",
+    "Ein kleiner Kräutergarten auf dem Fensterbrett versorgt dich mit frischen Aromen und ist günstiger als gekaufte Kräuter.",
+    "Plane einmal pro Woche ein 'Kühlschrank-Leerfeg-Essen', um Lebensmittel zu verwerten, die weg müssen.",
+    "Gehe niemals hungrig einkaufen. Ein voller Magen trifft bessere und günstigere Entscheidungen.",
+    "Die teuersten Produkte stehen oft auf Augenhöhe. Bücke dich oder strecke dich – die günstigeren Alternativen sind oft oben oder unten im Regal."
 ];
 
 export const TipsCard: FC<TipsCardProps> = ({ isVisible }) => {
@@ -41,9 +53,11 @@ export const TipsCard: FC<TipsCardProps> = ({ isVisible }) => {
         <AnimatePresence>
             {isVisible && (
                 <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 20 }}
+                    {...{
+                        initial: { opacity: 0, y: 20 },
+                        animate: { opacity: 1, y: 0 },
+                        exit: { opacity: 0, y: 20 },
+                    }}
                     className="bg-sky-900/50 p-6 rounded-2xl border border-sky-700/50 space-y-3"
                 >
                     <div className="flex items-center gap-3">

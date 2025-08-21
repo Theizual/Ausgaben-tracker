@@ -262,10 +262,12 @@ export const BudgetSettings = () => {
         <>
             <motion.div 
                 key="budget"
-                variants={settingsContentAnimation}
-                initial="initial"
-                animate="animate"
-                exit="exit"
+                {...{
+                    variants: settingsContentAnimation,
+                    initial: "initial",
+                    animate: "animate",
+                    exit: "exit",
+                }}
             >
                 <h3 className="text-lg font-semibold text-white mb-1">Budgetverwaltung</h3>
                 <p className="text-sm text-slate-400 mb-6">Verwalten Sie hier Ihr gesamtes monatliches Budget, aufgeteilt in flexible Ausgaben und Fixkosten.</p>
@@ -291,9 +293,11 @@ export const BudgetSettings = () => {
                             <motion.div
                                 className="h-full flex items-center justify-center"
                                 style={{ backgroundColor: flexBarColor }}
-                                variants={flexBarAnimation}
-                                initial="initial"
-                                animate="animate"
+                                {...{
+                                    variants: flexBarAnimation,
+                                    initial: "initial",
+                                    animate: "animate",
+                                }}
                                 title={`Flexible Budgets: ${flexPercentage.toFixed(0)}%`}
                             >
                                 {flexPercentage >= 10 && (
@@ -303,9 +307,11 @@ export const BudgetSettings = () => {
                             <motion.div
                                 className="h-full flex items-center justify-center"
                                 style={{ backgroundColor: fixedBarColor }}
-                                variants={fixedBarAnimation}
-                                initial="initial"
-                                animate="animate"
+                                {...{
+                                    variants: fixedBarAnimation,
+                                    initial: "initial",
+                                    animate: "animate",
+                                }}
                                 title={`Fixkosten: ${fixedPercentage.toFixed(0)}%`}
                             >
                                 {fixedPercentage >= 10 && (
@@ -333,10 +339,12 @@ export const BudgetSettings = () => {
                     <AnimatePresence>
                         {isDetailsExpanded && (
                             <motion.div 
-                                variants={detailsAnimation} 
-                                initial="initial"
-                                animate="animate"
-                                exit="exit"
+                                {...{
+                                    variants: detailsAnimation,
+                                    initial: "initial",
+                                    animate: "animate",
+                                    exit: "exit",
+                                }}
                                 className="overflow-hidden"
                             >
                                 <div className="p-3 border-t border-slate-600/50 space-y-3">

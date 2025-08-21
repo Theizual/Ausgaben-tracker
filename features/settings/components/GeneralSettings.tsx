@@ -19,10 +19,12 @@ export const GeneralSettings = () => {
     return (
         <motion.div 
             key="general"
-            variants={settingsContentAnimation}
-            initial="initial"
-            animate="animate"
-            exit="exit"
+            {...{
+                variants: settingsContentAnimation,
+                initial: "initial",
+                animate: "animate",
+                exit: "exit",
+            }}
         >
             <h3 className="text-lg font-semibold text-white mb-1">Allgemeine Einstellungen</h3>
             <p className="text-sm text-slate-400 mb-6">Verwalten Sie hier die Kerneinstellungen der Anwendung.</p>

@@ -62,10 +62,12 @@ export const GroupSettings = () => {
 
     return (
         <motion.div 
-            variants={settingsAnimationVariants}
-            initial="initial"
-            animate="animate"
-            exit="exit"
+            {...{
+                variants: settingsAnimationVariants,
+                initial: "initial",
+                animate: "animate",
+                exit: "exit",
+            }}
         >
             <h3 className="text-lg font-semibold text-white mb-1">Gruppen verwalten</h3>
             <p className="text-sm text-slate-400 mb-6">

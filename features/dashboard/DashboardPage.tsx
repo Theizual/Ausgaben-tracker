@@ -183,11 +183,13 @@ const DashboardPage = () => {
                 {/* Right Column */}
                 <div className="space-y-6">
                     <motion.div
-                        variants={pageContentAnimation}
-                        initial="initial"
-                        animate="animate"
-                        exit="exit"
-                        transition={{ delay: 0.1, duration: 0.3 }}
+                        {...{
+                            variants: pageContentAnimation,
+                            initial: "initial",
+                            animate: "animate",
+                            exit: "exit",
+                            transition: { delay: 0.1, duration: 0.3 },
+                        }}
                         className="bg-slate-800/50 p-6 rounded-2xl border border-slate-700/50"
                     >
                         <div className="flex justify-between items-center mb-4">
@@ -224,11 +226,13 @@ const DashboardPage = () => {
                     </motion.div>
                     <motion.div
                         className="bg-slate-800/50 p-6 rounded-2xl border border-slate-700/50 flex flex-col"
-                        variants={pageContentAnimation}
-                        initial="initial"
-                        animate="animate"
-                        exit="exit"
-                        transition={{ delay: 0.2, duration: 0.3 }}
+                        {...{
+                            variants: pageContentAnimation,
+                            initial: "initial",
+                            animate: "animate",
+                            exit: "exit",
+                            transition: { delay: 0.2, duration: 0.3 },
+                        }}
                     >
                         <div className="flex justify-between items-center mb-4">
                             <h3 className="font-bold text-white">Analyse flexibler Ausgaben</h3>
@@ -254,11 +258,13 @@ const DashboardPage = () => {
                     {hasAnyBudgetedCategories && (
                         <motion.div
                             className="bg-slate-800/50 p-6 rounded-2xl border border-slate-700/50"
-                            variants={pageContentAnimation}
-                            initial="initial"
-                            animate="animate"
-                            exit="exit"
-                            transition={{ delay: 0.3, duration: 0.3 }}
+                            {...{
+                                variants: pageContentAnimation,
+                                initial: "initial",
+                                animate: "animate",
+                                exit: "exit",
+                                transition: { delay: 0.3, duration: 0.3 },
+                            }}
                         >
                             <h4 className="text-sm font-semibold text-slate-300">Kategorienbudgets (Flexibel)</h4>
                             <div className="space-y-3 mt-4">
@@ -291,10 +297,12 @@ const DashboardPage = () => {
                                             <AnimatePresence>
                                                 {isGroupExpanded && (
                                                     <motion.div
-                                                        variants={collapsibleAnimation}
-                                                        initial="initial"
-                                                        animate="animate"
-                                                        exit="exit"
+                                                        {...{
+                                                            variants: collapsibleAnimation,
+                                                            initial: "initial",
+                                                            animate: "animate",
+                                                            exit: "exit",
+                                                        }}
                                                         className="overflow-hidden"
                                                     >
                                                         <div className="relative space-y-4 pt-3 ml-4 pl-4 border-l-2 border-slate-600/50">
@@ -326,10 +334,12 @@ const DashboardPage = () => {
                                                                         <AnimatePresence>
                                                                             {isExpanded && (
                                                                                 <motion.div
-                                                                                    variants={transactionDetailsAnimation}
-                                                                                    initial="initial"
-                                                                                    animate="animate"
-                                                                                    exit="exit"
+                                                                                    {...{
+                                                                                        variants: transactionDetailsAnimation,
+                                                                                        initial: "initial",
+                                                                                        animate: "animate",
+                                                                                        exit: "exit",
+                                                                                    }}
                                                                                     className="overflow-hidden"
                                                                                 >
                                                                                     <div className="ml-4 pl-4 border-l-2 border-slate-600/50 space-y-1">

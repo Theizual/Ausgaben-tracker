@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useApp } from '@/contexts/AppContext';
 import { getWeek, startOfWeek } from 'date-fns';
@@ -13,6 +12,7 @@ import { ShoppingListModal } from './components/ShoppingListModal';
 import { MealDetailModal } from './components/MealDetailModal';
 import { RecipePickerModal } from './components/RecipePickerModal';
 import { Loader2 } from '@/shared/ui';
+import { TipsCard } from './components/TipsCard';
 
 const MealPlanPage = () => {
     const { 
@@ -159,7 +159,7 @@ const MealPlanPage = () => {
 
         const titles = {
             leftovers: 'Resteverwertung',
-            eating_out: 'Auswärts essen',
+            eating_out: 'Auswärtsessen/Lieferdienst',
             no_meal: 'Kein Essen geplant',
         };
 
@@ -245,10 +245,14 @@ const MealPlanPage = () => {
 
     return (
         <>
-            <motion.div variants={pageAnimation} initial="initial" animate="animate" className="space-y-6">
-                <motion.h1 variants={itemAnimation} className="text-3xl font-bold text-white">Essensplanung</motion.h1>
+            <motion.div {...{
+                variants: pageAnimation,
+                initial: "initial",
+                animate: "animate",
+            }} className="space-y-6">
+                <motion.h1 {...{variants: itemAnimation}} className="text-3xl font-bold text-white">Essensplanung</motion.h1>
                 
-                <motion.div variants={itemAnimation}>
+                <motion.div {...{variants: itemAnimation}}>
                     <Toolbar 
                         currentWeek={currentMealPlanWeek}
                         setCurrentWeek={setCurrentMealPlanWeek}
@@ -259,14 +263,16 @@ const MealPlanPage = () => {
                     />
                 </motion.div>
 
-                <motion.div variants={itemAnimation}>
+                <motion.div {...{variants: itemAnimation}}>
                     <AnimatePresence mode="wait">
                         <motion.div
                              key={weekKey}
-                             initial={{ opacity: 0, x: -20 }}
-                             animate={{ opacity: 1, x: 0 }}
-                             exit={{ opacity: 0, x: 20 }}
-                             transition={{ duration: 0.3 }}
+                             {...{
+                                initial: { opacity: 0, x: -20 },
+                                animate: { opacity: 1, x: 0 },
+                                exit: { opacity: 0, x: 20 },
+                                transition: { duration: 0.3 },
+                            }}
                         >
                             <MealCalendar 
                                 plan={currentPlan} 
@@ -277,6 +283,10 @@ const MealPlanPage = () => {
                             />
                         </motion.div>
                     </AnimatePresence>
+                </motion.div>
+
+                <motion.div {...{variants: itemAnimation}}>
+                    <TipsCard isVisible={mealPlanPrefs?.tipsEnabled ?? true} />
                 </motion.div>
             </motion.div>
             <AnimatePresence>
