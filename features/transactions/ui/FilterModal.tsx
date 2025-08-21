@@ -1,12 +1,5 @@
-
-
-
-
-
-
 import React, { useState, useEffect, FC } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { useApp } from '@/contexts/AppContext';
 import { Modal, Search, Tag, ChevronDown } from '@/shared/ui';
 import { MultiCategoryPicker } from './MultiCategoryPicker';
 

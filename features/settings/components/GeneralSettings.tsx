@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { useApp } from '@/contexts/AppContext';
+import { useSyncContext, useUIContext, useUserContext } from '@/contexts/AppContext';
 import { FileText, Wallet, Info, ChevronRight, ToggleSwitch, Trash2, Button, DownloadCloud, Eye, Sparkles, FlaskConical } from '@/shared/ui';
 import { APP_VERSION } from '@/constants';
 import { settingsContentAnimation } from '@/shared/lib/animations';
@@ -10,11 +10,14 @@ const MANAGER_LIST_ITEM_CLASSES = "w-full text-left bg-slate-700/50 hover:bg-sla
 
 export const GeneralSettings = () => {
     const { 
-        isAutoSyncEnabled, setIsAutoSyncEnabled, openChangelog, resetAppData, loadFromSheet,
+        isAutoSyncEnabled, setIsAutoSyncEnabled, resetAppData, loadFromSheet,
+    } = useSyncContext();
+    const { openChangelog } = useUIContext();
+    const {
         isAiEnabled, setIsAiEnabled,
         showDemoData, setShowDemoData,
         currentUserId,
-    } = useApp();
+    } = useUserContext();
 
     return (
         <motion.div 

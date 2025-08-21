@@ -11,7 +11,6 @@ import { motion } from 'framer-motion';
 
 interface BudgetBurndownChartProps {
     transactions: Transaction[];
-    categoryMap: Map<string, Category>;
     currentMonth: Date;
 }
 

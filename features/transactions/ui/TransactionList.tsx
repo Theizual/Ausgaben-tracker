@@ -1,6 +1,6 @@
 import React, { FC, useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { useApp } from '@/contexts/AppContext';
+import { useDataContext, useUIContext, useTaxonomyContext } from '@/contexts/AppContext';
 import type { Transaction } from '@/shared/types';
 import { format, parseISO, isToday, isYesterday, startOfWeek, endOfWeek, getWeek, isValid, startOfDay, endOfDay } from 'date-fns';
 import { formatCurrency } from '@/shared/utils/dateUtils';
@@ -29,7 +29,9 @@ type GroupedTransactions = {
 }[];
 
 const TransactionGroupVisual: FC<{ transactions: Transaction[], onClick: (t: Transaction) => void }> = ({ transactions, onClick }) => {
-    const { transactionGroups, tagMap, categoryMap, groupMap } = useApp();
+    const { transactionGroups, tagMap } = useDataContext();
+    const { categoryMap, groupMap } = useTaxonomyContext();
+
     const groupId = transactions[0]?.transactionGroupId;
     const groupInfo = transactionGroups.find(g => g.id === groupId);
     const groupTotal = groupInfo?.targetAmount ?? transactions.reduce((sum, t) => sum + t.amount, 0);
@@ -90,15 +92,16 @@ const TransactionGroupVisual: FC<{ transactions: Transaction[], onClick: (t: Tra
 
 export const TransactionList: FC = () => {
     const { 
-        handleTransactionClick, 
         transactions, 
-        transactionFilters, 
         tagMap, 
+    } = useDataContext();
+    const {
+        handleTransactionClick, 
+        transactionFilters, 
         transactionActiveQuickFilter,
         deLocale,
-        categoryMap,
-        groupMap,
-    } = useApp();
+    } = useUIContext();
+    const { categoryMap, groupMap } = useTaxonomyContext();
 
     const filteredTransactions = useMemo(() => {
         return transactions.filter(t => {

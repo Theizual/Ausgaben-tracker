@@ -7,26 +7,13 @@ import { Hash, Wallet, BarChart2, StandardTransactionItem } from '@/shared/ui';
 import { StatCard } from './StatCard';
 import { TagAnalysisChart } from './TagAnalysisChart';
 
-type AppContextSubset = Omit<ReturnType<typeof useApp>,
-    'allAvailableTags' |
-    'selectedTagIdsForAnalysis' |
-    'handleSelectTagForAnalysis' |
-    'tagsPeriodType' |
-    'setTagsPeriodType' |
-    'tagsCurrentDate' |
-    'setTagsCurrentDate' |
-    'tagsCustomDateRange' |
-    'setTagsCustomDateRange'
->;
-
 export const TagDetailView: FC<{
     tagIds: string[],
     periodType: PeriodType,
     currentDate: Date,
     customDateRange: { start: string, end: string },
-    appContext: AppContextSubset
-}> = ({ tagIds, periodType, currentDate, customDateRange, appContext }) => {
-    const { transactions, tagMap, handleTransactionClick, deLocale } = appContext;
+}> = ({ tagIds, periodType, currentDate, customDateRange }) => {
+    const { transactions, tagMap, handleTransactionClick, deLocale } = useApp();
     const formattedTagNames = tagIds.map(id => `#${tagMap.get(id) || 'Unbekannt'}`).join(', ');
 
     const { filteredTransactions, interval } = useMemo(() => {

@@ -2,8 +2,8 @@ import React, { FC, useState, useMemo, useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
 import type { Transaction, Category, Group } from '@/shared/types';
-import { format, parseISO, isSameMonth } from 'date-fns';
-import { ChevronDown, getIconComponent, CheckCircle2, CalendarClock } from '@/shared/ui';
+import { format, parseISO, isSameMonth, isSameDay } from 'date-fns';
+import { ChevronDown, getIconComponent, CheckCircle2, CalendarClock, X, Button } from '@/shared/ui';
 import { formatCurrency } from '@/shared/utils/dateUtils';
 import { StandardTransactionItem } from '@/shared/ui';
 import { FIXED_COSTS_GROUP_ID } from '@/constants';
@@ -25,16 +25,45 @@ const hexToRgb = (hex?: string): string => {
     return `${r}, ${g}, ${b}`;
 };
 
-export const MonthlyCategoryBreakdown: FC<{ transactions: Transaction[], currentMonth: Date }> = ({ transactions, currentMonth }) => {
+export const MonthlyCategoryBreakdown: FC<{
+    transactions: Transaction[],
+    currentMonth: Date,
+    selectedDay: Date | null,
+    onClearSelectedDay: () => void,
+}> = ({ transactions, currentMonth, selectedDay, onClearSelectedDay }) => {
     const { categoryMap, handleTransactionClick, deLocale, groupMap, groups, recurringTransactions } = useApp();
     const [expandedSupergroups, setExpandedSupergroups] = useState<string[]>(['Variable Kosten', 'Fixkosten']);
     const [expandedGroups, setExpandedGroups] = useState<string[]>([]);
     const [expandedCategoryId, setExpandedCategoryId] = useState<string | null>(null);
     const defaultExpandedSet = useRef(false);
+    
+    const { transactionsForView, totalForView, title, isDayView } = useMemo(() => {
+        if (selectedDay) {
+            const dayTransactions = transactions.filter(t => {
+                try {
+                    return isSameDay(parseISO(t.date), selectedDay);
+                } catch {
+                    return false;
+                }
+            });
+            return {
+                transactionsForView: dayTransactions,
+                totalForView: dayTransactions.reduce((sum, t) => sum + t.amount, 0),
+                title: `Ausgaben am ${format(selectedDay, 'd. MMMM', { locale: deLocale })}`,
+                isDayView: true,
+            };
+        }
+        return {
+            transactionsForView: transactions,
+            totalForView: transactions.reduce((sum, t) => sum + t.amount, 0),
+            title: 'Monatsübersicht nach Kategorien',
+            isDayView: false,
+        };
+    }, [transactions, selectedDay, deLocale]);
 
     const { supergroupedData, spendingByCategory } = useMemo(() => {
         const spendingMap = new Map<string, number>();
-        transactions.forEach(t => {
+        transactionsForView.forEach(t => {
             if (t.categoryId) {
                 spendingMap.set(t.categoryId, (spendingMap.get(t.categoryId) || 0) + t.amount);
             }
@@ -42,7 +71,6 @@ export const MonthlyCategoryBreakdown: FC<{ transactions: Transaction[], current
 
         const groupDataMap = new Map<string, { totalSpent: number; totalBudget: number; categories: Category[]; group: Group }>();
         
-        // 1. Initialize map for each group
         groups.forEach(group => {
             groupDataMap.set(group.id, { 
                 totalSpent: 0, 
@@ -52,7 +80,6 @@ export const MonthlyCategoryBreakdown: FC<{ transactions: Transaction[], current
             });
         });
 
-        // 2. Populate groups with ALL their categories from the main categoryMap
         categoryMap.forEach(category => {
             if (groupDataMap.has(category.groupId)) {
                 const groupData = groupDataMap.get(category.groupId)!;
@@ -60,7 +87,6 @@ export const MonthlyCategoryBreakdown: FC<{ transactions: Transaction[], current
             }
         });
 
-        // 3. Calculate totals for each group and sort their categories by spending
         groupDataMap.forEach((data) => {
             data.totalSpent = data.categories.reduce((sum, cat) => sum + (spendingMap.get(cat.id) || 0), 0);
             data.totalBudget = data.categories.reduce((sum, cat) => sum + (cat.budget || 0), 0);
@@ -68,7 +94,7 @@ export const MonthlyCategoryBreakdown: FC<{ transactions: Transaction[], current
         });
 
         const allGroupData = Array.from(groupDataMap.values())
-            .filter(data => data.categories.length > 0)
+            .filter(data => data.categories.length > 0 && data.totalSpent > 0)
             .sort((a, b) => a.group.sortIndex - b.group.sortIndex);
 
         const fixedCostsData = allGroupData.filter(data => data.group.id === FIXED_COSTS_GROUP_ID);
@@ -94,7 +120,7 @@ export const MonthlyCategoryBreakdown: FC<{ transactions: Transaction[], current
         }
 
         return { supergroupedData: supergrouped, spendingByCategory: spendingMap };
-    }, [transactions, categoryMap, groups]);
+    }, [transactionsForView, categoryMap, groups]);
 
     useEffect(() => {
         if (!defaultExpandedSet.current && supergroupedData.length > 0 && supergroupedData[0].groups.length > 0) {
@@ -120,6 +146,26 @@ export const MonthlyCategoryBreakdown: FC<{ transactions: Transaction[], current
         exit: { opacity: 0, height: 0 },
     };
 
+    if (transactionsForView.length === 0 && isDayView) {
+        return (
+             <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 space-y-4">
+                <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
+                    <h3 className="text-lg font-bold text-white">{title}</h3>
+                    <div className="flex items-center gap-4">
+                        <span className="font-bold text-lg text-white">{formatCurrency(totalForView)}</span>
+                        <Button variant="secondary" size="sm" onClick={onClearSelectedDay}>
+                            <X className="h-4 w-4 mr-2" />
+                            Auswahl aufheben
+                        </Button>
+                    </div>
+                </div>
+                 <div className="text-center text-slate-500 py-10">
+                    Keine Ausgaben an diesem Tag erfasst.
+                </div>
+            </div>
+        );
+    }
+    
     if (transactions.length === 0) {
         return (
             <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 text-center">
@@ -132,7 +178,16 @@ export const MonthlyCategoryBreakdown: FC<{ transactions: Transaction[], current
     return (
         <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 space-y-4">
             <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
-                <h3 className="text-lg font-bold text-white">Monatsübersicht nach Kategorien</h3>
+                <h3 className="text-lg font-bold text-white">{title}</h3>
+                 {isDayView && (
+                    <div className="flex items-center gap-4">
+                        <span className="font-bold text-lg text-white">{formatCurrency(totalForView)}</span>
+                        <Button variant="secondary" size="sm" onClick={onClearSelectedDay}>
+                            <X className="h-4 w-4 mr-2" />
+                            Auswahl aufheben
+                        </Button>
+                    </div>
+                )}
             </div>
             {dataToRender.map(supergroup => (
                  <div key={supergroup.name} className="bg-slate-700/30 p-2.5 rounded-lg">
@@ -147,7 +202,7 @@ export const MonthlyCategoryBreakdown: FC<{ transactions: Transaction[], current
                          {expandedSupergroups.includes(supergroup.name) && (
                              <motion.div {...groupAnimationProps} className="overflow-hidden">
                                  <div className="mt-3 pt-3 border-t border-slate-600/50 space-y-2">
-                                     {supergroup.name === 'Fixkosten' ? (
+                                     {supergroup.name === 'Fixkosten' && !isDayView ? (
                                         <div className="space-y-1 pl-4">
                                             {supergroup.groups.flatMap(g => g.categories).map(category => {
                                                 const rec = recurringTransactions.find(rt => rt.categoryId === category.id && !rt.isDeleted);
@@ -196,13 +251,14 @@ export const MonthlyCategoryBreakdown: FC<{ transactions: Transaction[], current
                                                         </div>
                                                         <span className="font-semibold text-white text-sm">{formatCurrency(totalSpent)}</span>
                                                     </button>
-                                                    {totalBudget > 0 && <div className="relative mt-1.5 mx-1"><BudgetProgressBar percentage={totalSpent / totalBudget * 100} color={group.color} /></div>}
+                                                    {totalBudget > 0 && !isDayView && <div className="relative mt-1.5 mx-1"><BudgetProgressBar percentage={totalSpent / totalBudget * 100} color={group.color} /></div>}
                                                     <AnimatePresence>
                                                         {isExpanded && (
                                                             <motion.div {...transactionDetailsAnimation} className="overflow-hidden relative">
                                                                 <div className="ml-4 pl-4 border-l border-slate-600/50 space-y-1">
                                                                     {categories.map(category => {
                                                                         const spent = spendingByCategory.get(category.id) || 0;
+                                                                        if (spent === 0) return null;
                                                                         const isCatExpanded = expandedCategoryId === category.id;
                                                                         return (
                                                                             <div key={category.id}>
@@ -215,7 +271,7 @@ export const MonthlyCategoryBreakdown: FC<{ transactions: Transaction[], current
                                                                                     {isCatExpanded && (
                                                                                         <motion.div {...transactionDetailsAnimation}>
                                                                                             <div className="ml-4 pl-4 border-l border-slate-700/50 space-y-1">
-                                                                                                {transactions.filter(t => t.categoryId === category.id).map(t => (
+                                                                                                {transactionsForView.filter(t => t.categoryId === category.id).map(t => (
                                                                                                     <StandardTransactionItem key={t.id} transaction={t} onClick={() => handleTransactionClick(t)} density="compact" showSublineInList="date" />
                                                                                                 ))}
                                                                                             </div>

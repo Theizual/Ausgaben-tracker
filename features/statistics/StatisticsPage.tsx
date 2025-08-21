@@ -1,11 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { useApp } from '@/contexts/AppContext';
+import { useDataContext, useUIContext, useTaxonomyContext } from '@/contexts/AppContext';
 import { isSameMonth, isSameDay, parseISO, startOfMonth, endOfMonth } from 'date-fns';
 import type { Tag as TagType } from '@/shared/types';
 import { Calendar, Tag } from '@/shared/ui';
 import { CalendarView } from './ui/CalendarView';
-import { DayDetailPanel } from './ui/DayDetailPanel';
 import { MonthlySummary } from './ui/MonthlySummary';
 import { MonthlyCategoryBreakdown } from './ui/MonthlyCategoryBreakdown';
 import { BudgetBurndownChart } from './ui/BudgetBurndownChart';
@@ -20,38 +19,16 @@ const pageContentAnimation = {
     transition: { duration: 0.3 },
 };
 
-const placeholderAnimation = {
-    initial: { opacity: 0, scale: 0.95 },
-    animate: { opacity: 1, scale: 1 },
-    exit: { opacity: 0, scale: 0.95 },
-    transition: { duration: 0.3 },
-};
-
-const CalendarPlaceholder = () => (
-    <motion.div
-        {...{
-            variants: placeholderAnimation,
-            initial: "initial",
-            animate: "animate",
-            exit: "exit",
-        }}
-        className="bg-slate-800 rounded-2xl border border-slate-700 h-full flex flex-col items-center justify-center text-center p-6"
-    >
-        <Calendar className="h-12 w-12 text-slate-600 mb-4" />
-        <h3 className="text-lg font-semibold text-slate-300">Tagesdetails</h3>
-        <p className="text-slate-500">Wählen Sie einen Tag im Kalender aus, um eine Aufschlüsselung der Ausgaben anzuzeigen.</p>
-    </motion.div>
-);
-
 const MonthlyAnalysisView = () => {
+    const { transactions } = useDataContext();
     const { 
-        transactions,
         statisticsCurrentMonth,
         setStatisticsCurrentMonth,
         statisticsSelectedDay,
         setStatisticsSelectedDay,
-        categoryMap,
-    } = useApp();
+    } = useUIContext();
+    const { categoryMap } = useTaxonomyContext();
+    const breakdownRef = useRef<HTMLDivElement>(null);
 
     const monthlyTransactions = useMemo(() => {
         const start = startOfMonth(statisticsCurrentMonth);
@@ -68,26 +45,18 @@ const MonthlyAnalysisView = () => {
         });
     }, [transactions, statisticsCurrentMonth]);
 
-    const transactionsForSelectedDay = useMemo(() => {
-        if (!statisticsSelectedDay) return [];
-        return transactions.filter(t => {
-            if (!t.date || typeof t.date !== 'string') return false;
-            try {
-                const date = parseISO(t.date);
-                if (isNaN(date.getTime())) return false;
-                return isSameDay(date, statisticsSelectedDay);
-            } catch {
-                return false;
-            }
-        }).sort((a,b) => b.amount - a.amount);
-    }, [transactions, statisticsSelectedDay]);
-
     const handleMonthChange = (newMonth: Date) => {
         if (!isSameMonth(newMonth, statisticsCurrentMonth)) {
             setStatisticsCurrentMonth(newMonth);
             setStatisticsSelectedDay(null);
         }
     };
+    
+    useEffect(() => {
+        if (statisticsSelectedDay && breakdownRef.current) {
+            breakdownRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }, [statisticsSelectedDay]);
 
     return (
         <div className="space-y-6">
@@ -95,7 +64,7 @@ const MonthlyAnalysisView = () => {
                 transactions={monthlyTransactions}
                 currentMonth={statisticsCurrentMonth}
             />
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
                 <CalendarView
                     monthlyTransactions={monthlyTransactions}
                     currentMonth={statisticsCurrentMonth}
@@ -103,41 +72,26 @@ const MonthlyAnalysisView = () => {
                     onDayClick={(day) => setStatisticsSelectedDay(prev => prev && isSameDay(prev, day) ? null : day)}
                     selectedDay={statisticsSelectedDay}
                 />
-                 <div className="relative h-full">
-                    <AnimatePresence mode="wait">
-                        {statisticsSelectedDay ? (
-                            <DayDetailPanel 
-                                key={statisticsSelectedDay.toISOString()}
-                                isOpen={!!statisticsSelectedDay}
-                                date={statisticsSelectedDay}
-                                transactions={transactionsForSelectedDay}
-                                onClose={() => setStatisticsSelectedDay(null)}
-                            />
-                        ) : (
-                             <CalendarPlaceholder key="placeholder" />
-                        )}
-                    </AnimatePresence>
-                </div>
-            </div>
-            <div className="lg:col-span-2">
                  <BudgetBurndownChart 
-                    transactions={monthlyTransactions} 
-                    categoryMap={categoryMap}
+                    transactions={monthlyTransactions}
                     currentMonth={statisticsCurrentMonth}
                  />
             </div>
-            <MonthlyCategoryBreakdown
-                transactions={monthlyTransactions}
-                currentMonth={statisticsCurrentMonth}
-            />
+            <div ref={breakdownRef}>
+                <MonthlyCategoryBreakdown
+                    transactions={monthlyTransactions}
+                    currentMonth={statisticsCurrentMonth}
+                    selectedDay={statisticsSelectedDay}
+                    onClearSelectedDay={() => setStatisticsSelectedDay(null)}
+                />
+            </div>
         </div>
     );
 };
 
 const TagAnalysisView = () => {
-    const { 
-        allAvailableTags,
-        transactions,
+    const { allAvailableTags, transactions } = useDataContext();
+    const {
         selectedTagIdsForAnalysis,
         handleSelectTagForAnalysis,
         tagsPeriodType,
@@ -146,8 +100,7 @@ const TagAnalysisView = () => {
         setTagsCurrentDate,
         tagsCustomDateRange,
         setTagsCustomDateRange,
-        ...rest
-    } = useApp();
+    } = useUIContext();
 
     const recentlyUsedTags = useMemo(() => {
         const sortedTransactions = [...transactions].sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime());
@@ -208,7 +161,6 @@ const TagAnalysisView = () => {
                             periodType={tagsPeriodType}
                             currentDate={tagsCurrentDate}
                             customDateRange={tagsCustomDateRange}
-                            appContext={{ ...rest, transactions }}
                         />
                     </motion.div>
                 ) : (
@@ -224,7 +176,7 @@ const TagAnalysisView = () => {
 };
 
 const AnalysisPage = () => {
-    const { analysisView, setAnalysisView } = useApp();
+    const { analysisView, setAnalysisView } = useUIContext();
 
     const TABS = [
         { id: 'monthly', label: 'Monatsübersicht', icon: Calendar },

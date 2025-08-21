@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { useApp } from '@/contexts/AppContext';
+import { useDataContext, useUIContext, useTaxonomyContext } from '@/contexts/AppContext';
 import type { Transaction, ViewMode, Category } from '@/shared/types';
 import { format, parseISO, isWithinInterval, startOfMonth, endOfMonth, startOfWeek, endOfWeek, isSameDay } from 'date-fns';
 import { formatCurrency } from '@/shared/utils/dateUtils';
@@ -34,17 +34,21 @@ const hexToRgb = (hex?: string): string => {
 const DashboardPage = () => {
     const {
         transactions,
-        categories,
-        flexibleCategories,
         totalMonthlyBudget,
         totalSpentThisMonth,
+    } = useDataContext();
+    const {
         handleTransactionClick,
         dashboardViewMode,
         setDashboardViewMode,
         deLocale,
+    } = useUIContext();
+    const {
+        categories,
+        flexibleCategories,
         groupMap,
         groups,
-    } = useApp();
+    } = useTaxonomyContext();
 
     const [expandedBudgetId, setExpandedBudgetId] = useState<string | null>(null);
     const [expandedBudgetGroupIds, setExpandedBudgetGroupIds] = useLocalStorage<string[] | null>('dashboard-budget-groups-expanded', null);

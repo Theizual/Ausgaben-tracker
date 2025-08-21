@@ -68,13 +68,7 @@ const dataReducer = (state: DataState, action: Action): DataState => {
         }
         case 'UPDATE_TAG': {
             const updatedTag = action.payload;
-            const transactionsWithUpdatedTag = state.transactions.map(t => {
-                if(t.tagIds?.includes(updatedTag.id) && updatedTag.isDeleted){
-                     return { ...t, tagIds: t.tagIds.filter(id => id !== updatedTag.id), lastModified: new Date().toISOString(), version: (t.version || 0) + 1 };
-                }
-                return t;
-            })
-             return { ...state, tags: state.tags.map(t => t.id === updatedTag.id ? updatedTag : t).sort((a,b) => a.name.localeCompare(b.name, 'de-DE')), transactions: transactionsWithUpdatedTag };
+            return { ...state, tags: state.tags.map(t => t.id === updatedTag.id ? updatedTag : t).sort((a,b) => a.name.localeCompare(b.name, 'de-DE')) };
         }
         case 'PROCESS_RECURRING_UPDATES':
             return { ...state, transactions: sortTransactions([...state.transactions, ...action.payload.newTransactions]), recurring: state.recurring.map(orig => action.payload.updatedRecurring.find(upd => upd.id === orig.id) || orig) };
@@ -406,11 +400,53 @@ export const useTransactionData = ({ showConfirmation, closeTransactionDetail, c
     const handleDeleteTag = useCallback((tagId: string) => {
         const tag = rawState.tags.find(t => t.id === tagId);
         if (tag) {
-            const deletedTag: Tag = { ...tag, isDeleted: true, lastModified: new Date().toISOString(), version: (tag.version || 0) + 1 };
+            const now = new Date().toISOString();
+            const transactionsToUpdate = rawState.transactions.filter(t => t.tagIds?.includes(tagId));
+
+            if (transactionsToUpdate.length > 0) {
+                const updatedTransactions = transactionsToUpdate.map(t => ({
+                    ...t,
+                    tagIds: t.tagIds!.filter(id => id !== tagId),
+                    lastModified: now,
+                    version: (t.version || 0) + 1,
+                }));
+                dispatch({ type: 'UPDATE_MULTIPLE_TRANSACTIONS', payload: updatedTransactions });
+            }
+
+            const deletedTag: Tag = { ...tag, isDeleted: true, lastModified: now, version: (tag.version || 0) + 1 };
             dispatch({ type: 'UPDATE_TAG', payload: deletedTag });
-            toast.success(`Tag "${tag.name}" gelöscht`);
+            toast.success(`Tag "${tag.name}" gelöscht und von Transaktionen entfernt.`);
         }
-    }, [rawState.tags]);
+    }, [rawState.tags, rawState.transactions]);
+
+    const handleReassignAndDeleteTag = useCallback((sourceTagId: string, newTagNames: string[]) => {
+        const sourceTag = rawState.tags.find(t => t.id === sourceTagId);
+        if (!sourceTag) return;
+
+        const now = new Date().toISOString();
+        const targetTagIds = getOrCreateTagIds(newTagNames);
+
+        const transactionsToUpdate = rawState.transactions.filter(t => t.tagIds?.includes(sourceTagId));
+
+        if (transactionsToUpdate.length > 0) {
+            const updatedTransactions = transactionsToUpdate.map(t => {
+                const newTagIds = new Set(t.tagIds!.filter(id => id !== sourceTagId));
+                targetTagIds.forEach(id => newTagIds.add(id));
+                return {
+                    ...t,
+                    tagIds: Array.from(newTagIds),
+                    lastModified: now,
+                    version: (t.version || 0) + 1,
+                };
+            });
+            dispatch({ type: 'UPDATE_MULTIPLE_TRANSACTIONS', payload: updatedTransactions });
+        }
+
+        const deletedTag: Tag = { ...sourceTag, isDeleted: true, lastModified: now, version: (sourceTag.version || 0) + 1 };
+        dispatch({ type: 'UPDATE_TAG', payload: deletedTag });
+        toast.success(`Tag "${sourceTag.name}" gelöscht und Transaktionen neu zugeordnet.`);
+    }, [rawState.tags, rawState.transactions, getOrCreateTagIds]);
+
 
     useEffect(() => {
         const newTransactions: Transaction[] = [];
@@ -701,7 +737,7 @@ export const useTransactionData = ({ showConfirmation, closeTransactionDetail, c
         setRecurringTransactions: (data: RecurringTransaction[]) => dispatch({type: 'SET_RECURRING', payload: data}),
         setTransactionGroups: (data: TransactionGroup[]) => dispatch({type: 'SET_TRANSACTION_GROUPS', payload: data}),
         addTransaction, addMultipleTransactions, updateTransaction, deleteTransaction, deleteMultipleTransactions,
-        addRecurringTransaction, updateRecurringTransaction, deleteRecurringTransaction, handleUpdateTag, handleDeleteTag,
+        addRecurringTransaction, updateRecurringTransaction, deleteRecurringTransaction, handleUpdateTag, handleDeleteTag, handleReassignAndDeleteTag,
         reassignCategoryForTransactions,
         reassignUserForTransactions,
         createTransactionGroup,

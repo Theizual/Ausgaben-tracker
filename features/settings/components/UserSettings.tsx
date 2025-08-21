@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { useApp } from '@/contexts/AppContext';
+import { useUserContext } from '@/contexts/AppContext';
 import { Button, Plus, Trash2, UserAvatar } from '@/shared/ui';
 import { settingsContentAnimation } from '@/shared/lib/animations';
 
@@ -8,7 +8,7 @@ const BASE_INPUT_CLASSES = "w-full bg-slate-700 border border-slate-600 rounded-
 const TRANSPARENT_INPUT_CLASSES = "bg-transparent font-medium text-white w-full focus:outline-none focus:bg-slate-600/50 rounded px-2 py-1";
 
 export const UserSettings = () => {
-    const { users, addUser, updateUser, deleteUser } = useApp();
+    const { users, addUser, updateUser, deleteUser } = useUserContext();
     const [newUserName, setNewUserName] = useState('');
 
     const realUsers = users.filter(u => !u.isDemo);
@@ -22,7 +22,11 @@ export const UserSettings = () => {
         }
     }, [addUser, newUserName]);
 
-    const handleNameUpdate = useCallback((id: string, name: string) => updateUser(id, { name }), [updateUser]);
+    const handleNameUpdate = useCallback((id: string, name: string) => {
+        if (name.trim()) {
+            updateUser(id, { name: name.trim() });
+        }
+    }, [updateUser]);
 
     return (
         <motion.div 

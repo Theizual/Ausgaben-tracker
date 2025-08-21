@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { useApp } from '@/contexts/AppContext';
+import { useDataContext, useTaxonomyContext, useUIContext } from '@/contexts/AppContext';
 import type { Transaction } from '@/shared/types';
 import { formatCurrency } from '@/shared/utils/dateUtils';
 import { isWithinInterval, parseISO, startOfMonth, endOfMonth } from 'date-fns';
@@ -22,12 +22,12 @@ const ConfirmationModal = ({
     totalSpentBefore,
 }: ConfirmationModalProps) => {
     const { 
-        categoryMap, 
         totalMonthlyBudget, 
         totalSpentThisMonth,
         transactions: allTransactions,
-        handleTransactionClick
-    } = useApp();
+    } = useDataContext();
+    const { categoryMap } = useTaxonomyContext();
+    const { handleTransactionClick } = useUIContext();
 
     const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 

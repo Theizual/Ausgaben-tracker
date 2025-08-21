@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Toaster } from 'react-hot-toast';
-import { useApp } from '@/contexts/AppContext';
+import { useUIContext, useDataContext, useSyncContext, useUserContext } from '@/contexts/AppContext';
 import { DashboardPage } from '@/features/dashboard';
 import { AnalysisPage } from '@/features/statistics';
 import { TransactionsPage } from '@/features/transactions';
@@ -15,16 +15,16 @@ import { APP_VERSION } from '@/constants';
 import useLocalStorage from '@/shared/hooks/useLocalStorage';
 import { SyncPromptToast } from '@/features/sync-prompt/ui/SyncPromptToast';
 import { DeleteCategoryModal } from '@/features/settings/components/DeleteCategoryModal';
+import { DeleteTagModal } from '@/features/settings/components/DeleteTagModal';
 import type { CategoryFormData } from '@/features/settings/components/CategoryLibrarySettings';
 import { UserMergePromptModal } from '@/features/onboarding';
-import type { Transaction } from '@/shared/types';
+import type { Transaction, Tag } from '@/shared/types';
 import { pageContentAnimation } from '@/shared/lib/animations';
 import { ErrorBoundary } from '@/shared/ui';
 
 // Main App Component (now a clean layout/composition root)
 const App = () => {
     const {
-        // UI State & Handlers
         activeTab,
         setActiveTab,
         isSettingsOpen,
@@ -44,16 +44,14 @@ const App = () => {
         closeReassignModal,
         userMergeModalInfo,
         closeUserMergeModal,
-        // Sync State & Handlers
-        syncOperation,
-        lastSync,
-        transactions,
-        syncData,
-        // User State
-        users,
+        deleteTagModalInfo,
+        closeDeleteTagModal,
         deLocale,
-        showDemoData,
-    } = useApp();
+    } = useUIContext();
+    
+    const { transactions } = useDataContext();
+    const { syncOperation, lastSync, syncData } = useSyncContext();
+    const { users, showDemoData } = useUserContext();
 
     const [lastSeenVersion, setLastSeenVersion] = useLocalStorage('lastSeenVersion', '0.0.0');
 
@@ -187,6 +185,17 @@ const App = () => {
                             category={reassignModalInfo.category as CategoryFormData}
                             transactionCount={reassignModalInfo.txCount}
                             transactions={reassignModalInfo.transactions as Transaction[]}
+                        />
+                    )}
+                </AnimatePresence>
+
+                 <AnimatePresence>
+                    {deleteTagModalInfo && (
+                        <DeleteTagModal
+                            isOpen={!!deleteTagModalInfo}
+                            onClose={closeDeleteTagModal}
+                            tag={deleteTagModalInfo.tag}
+                            transactionCount={deleteTagModalInfo.txCount}
                         />
                     )}
                 </AnimatePresence>

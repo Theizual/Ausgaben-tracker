@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
-import { useApp } from '@/contexts/AppContext';
+import { useDataContext, useTaxonomyContext } from '@/contexts/AppContext';
 import type { Category, RecurringTransaction, Group } from '@/shared/types';
 import { format, parseISO } from 'date-fns';
 import { formatCurrency } from '@/shared/utils/dateUtils';
@@ -11,6 +11,7 @@ import { generateUUID } from '@/shared/utils/uuid';
 import { BudgetGroup } from './BudgetGroup';
 import { settingsContentAnimation } from '@/shared/lib/animations';
 import { RecurringConfigModal } from './RecurringConfigModal';
+import debounce from 'lodash.debounce';
 
 const BASE_INPUT_CLASSES = "w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-rose-500";
 
@@ -31,19 +32,21 @@ const hexToRgb = (hex?: string): string => {
 
 export const BudgetSettings = () => {
     const {
-        flexibleCategories,
-        upsertCategory,
-        upsertMultipleCategories,
-        groups,
         totalMonthlyBudget, // flex budget
         totalMonthlyFixedCosts,
-        fixedCategories,
         recurringTransactions,
         addRecurringTransaction,
         updateRecurringTransaction,
         deleteRecurringTransaction,
+    } = useDataContext();
+    const {
+        flexibleCategories,
+        upsertCategory,
+        upsertMultipleCategories,
+        groups,
+        fixedCategories,
         categories,
-    } = useApp();
+    } = useTaxonomyContext();
 
     // --- State for Flexible Budgets ---
     const [flexExpandedGroups, setFlexExpandedGroups] = useState<string[]>(() => {
@@ -120,16 +123,22 @@ export const BudgetSettings = () => {
         setLocalCategoryBudgets(newCatInputs);
     }, [flexibleCategories, groups, groupedBudgetData]); // Rerun when global state changes
 
-    // --- Handlers for Flexible Budgets ---
-    const handleLocalGroupBudgetChange = useCallback((groupId: string, value: string) => {
-        setLocalGroupBudgets(prev => ({ ...prev, [groupId]: value }));
-    }, []);
-    
-    const handleCommitGroupBudget = useCallback((groupId: string) => {
-        focusedInputRef.current = null;
-        const value = localGroupBudgets[groupId];
-        if (value === undefined) return;
+    // --- Debounced Logic ---
+    const commitIndividualBudget = useCallback((categoryId: string, value: string) => {
+        const category = flexibleCategories.find(c => c.id === categoryId);
+        if (!category) return;
+        const newBudgetNum = parseFloat(value.replace(/\./g, '').replace(',', '.'));
+        const newBudget = isNaN(newBudgetNum) || newBudgetNum < 0 ? 0 : newBudgetNum;
+        const newBudgetCents = Math.round(newBudget * 100);
+        const currentBudgetCents = Math.round((category.budget || 0) * 100);
+        if (newBudgetCents !== currentBudgetCents) {
+            upsertCategory({ id: categoryId, budget: newBudget });
+        }
+    }, [flexibleCategories, upsertCategory]);
 
+    const debouncedCommitIndividualBudget = useMemo(() => debounce(commitIndividualBudget, 750), [commitIndividualBudget]);
+
+    const commitGroupBudget = useCallback((groupId: string, value: string) => {
         const newTotal = parseFloat(value.replace(/\./g, '').replace(',', '.'));
         if (isNaN(newTotal) || newTotal < 0) return;
 
@@ -138,11 +147,9 @@ export const BudgetSettings = () => {
 
         const currentTotalInCents = groupCategories.reduce((sum, cat) => sum + Math.round((cat.budget || 0) * 100), 0);
         const newTotalInCents = Math.round(newTotal * 100);
-
         if (newTotalInCents === currentTotalInCents) return;
 
         let updatedCategoriesData: { id: string, budget: number }[] = [];
-
         if (newTotalInCents === 0) {
             updatedCategoriesData = groupCategories.map(cat => ({ id: cat.id, budget: 0 }));
         } else if (currentTotalInCents === 0) {
@@ -168,34 +175,41 @@ export const BudgetSettings = () => {
                 return { id: b.id, budget: (b.floor + centsToAdd) / 100 };
             });
         }
-
         if (updatedCategoriesData.length > 0) {
             upsertMultipleCategories(updatedCategoriesData);
         }
-    }, [localGroupBudgets, flexibleCategories, upsertMultipleCategories]);
+    }, [flexibleCategories, upsertMultipleCategories]);
+    
+    const debouncedCommitGroupBudget = useMemo(() => debounce(commitGroupBudget, 750), [commitGroupBudget]);
+    
+    // --- Handlers for Flexible Budgets ---
+    const handleLocalGroupBudgetChange = useCallback((groupId: string, value: string) => {
+        setLocalGroupBudgets(prev => ({ ...prev, [groupId]: value }));
+        debouncedCommitGroupBudget(groupId, value);
+    }, [debouncedCommitGroupBudget]);
+    
+    const handleCommitGroupBudget = useCallback((groupId: string) => {
+        focusedInputRef.current = null;
+        debouncedCommitGroupBudget.cancel();
+        const value = localGroupBudgets[groupId];
+        if (value !== undefined) {
+            commitGroupBudget(groupId, value);
+        }
+    }, [localGroupBudgets, debouncedCommitGroupBudget, commitGroupBudget]);
 
     const handleLocalIndividualBudgetChange = useCallback((categoryId: string, value: string) => {
         setLocalCategoryBudgets(prev => ({ ...prev, [categoryId]: value }));
-    }, []);
+        debouncedCommitIndividualBudget(categoryId, value);
+    }, [debouncedCommitIndividualBudget]);
 
     const handleCommitIndividualBudget = useCallback((categoryId: string) => {
         focusedInputRef.current = null;
+        debouncedCommitIndividualBudget.cancel();
         const value = localCategoryBudgets[categoryId];
-        if(value === undefined) return;
-
-        const category = flexibleCategories.find(c => c.id === categoryId);
-        if (!category) return;
-
-        const newBudgetNum = parseFloat(value.replace(/\./g, '').replace(',', '.'));
-        const newBudget = isNaN(newBudgetNum) || newBudgetNum < 0 ? 0 : newBudgetNum;
-
-        const newBudgetCents = Math.round(newBudget * 100);
-        const currentBudgetCents = Math.round((category.budget || 0) * 100);
-
-        if (newBudgetCents !== currentBudgetCents) {
-            upsertCategory({ id: categoryId, budget: newBudget });
+        if (value !== undefined) {
+            commitIndividualBudget(categoryId, value);
         }
-    }, [localCategoryBudgets, flexibleCategories, upsertCategory]);
+    }, [localCategoryBudgets, debouncedCommitIndividualBudget, commitIndividualBudget]);
 
     const toggleFlexGroup = useCallback((groupId: string) => {
         setFlexExpandedGroups(prev =>

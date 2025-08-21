@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { useApp } from '@/contexts/AppContext';
+import { useDataContext, useUIContext } from '@/contexts/AppContext';
 import type { QuickFilterId } from '@/shared/types';
 import { format, subDays, startOfMonth, endOfMonth } from 'date-fns';
 import { SlidersHorizontal } from '@/shared/ui';
@@ -10,14 +10,16 @@ import { FilterModal } from './ui/FilterModal';
 
 const TransactionsPage = () => {
     const { 
-        transactions, 
         tagMap,
+    } = useDataContext();
+    const {
         transactionFilters, 
         setTransactionFilters, 
         transactionActiveQuickFilter, 
         setTransactionActiveQuickFilter,
         deLocale,
-    } = useApp();
+    } = useUIContext();
+
     const [isFilterModalOpen, setFilterModalOpen] = useState(false);
 
     const handleQuickFilter = (filter: QuickFilterId) => {

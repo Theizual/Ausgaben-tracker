@@ -1,13 +1,14 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
-import { useApp } from '@/contexts/AppContext';
+import { useTaxonomyContext, useUserContext } from '@/contexts/AppContext';
 import type { SettingsTab, Group } from '@/shared/types';
-import { Settings, X, LayoutGrid, Target, SlidersHorizontal, Users, BookOpen } from '@/shared/ui';
+import { Settings, X, LayoutGrid, Target, SlidersHorizontal, Users, Tag } from '@/shared/ui';
 import { GeneralSettings } from './components/GeneralSettings';
 import { UserSettings } from './components/UserSettings';
 import { BudgetSettings } from './components/BudgetSettings';
 import { CategoryLibrarySettings } from './components/CategoryLibrarySettings';
+import { TagSettings } from './components/TagSettings';
 import { GroupDesignModal } from './components/GroupDesignModal';
 import { modalBackdropAnimation, modalContentAnimation } from '@/shared/lib/animations';
 
@@ -16,10 +17,12 @@ const TABS: { id: SettingsTab; label: string; icon: React.FC<any>; }[] = [
     { id: 'categories', label: 'Gruppen & Kategorien', icon: LayoutGrid },
     { id: 'budget', label: 'Budget', icon: Target }, 
     { id: 'users', label: 'Benutzer', icon: Users },
+    { id: 'tags', label: 'Tags', icon: Tag },
 ];
 
 const SettingsModal = ({ isOpen, onClose, initialTab }: { isOpen: boolean; onClose: () => void; initialTab?: SettingsTab; }) => {
-    const { updateGroup, updateGroupColor, currentUserId, renameGroup } = useApp();
+    const { updateGroup, renameGroup } = useTaxonomyContext();
+    const { updateGroupColor, currentUserId } = useUserContext();
     const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab || 'general');
     const [editingGroupDesign, setEditingGroupDesign] = useState<Group | null>(null);
     const navRef = useRef<HTMLElement>(null);
@@ -35,7 +38,7 @@ const SettingsModal = ({ isOpen, onClose, initialTab }: { isOpen: boolean; onClo
             if (navWidth) {
                 const isRow = getComputedStyle(nav).flexDirection === 'row';
                 // Threshold based on approximate width of all tabs with labels.
-                setIsNavCompact(isRow && navWidth < 450);
+                setIsNavCompact(isRow && navWidth < 520);
             }
         });
         
@@ -103,6 +106,7 @@ const SettingsModal = ({ isOpen, onClose, initialTab }: { isOpen: boolean; onClo
             case 'categories': return <CategoryLibrarySettings onEditGroupDesign={setEditingGroupDesign} />;
             case 'budget': return <BudgetSettings />;
             case 'users': return <UserSettings />;
+            case 'tags': return <TagSettings />;
             default: return null;
         }
     };
@@ -142,7 +146,7 @@ const SettingsModal = ({ isOpen, onClose, initialTab }: { isOpen: boolean; onClo
                                     return (
                                         <button 
                                             key={tab.id} 
-                                            onClick={() => setActiveTab(tab.id)} 
+                                            onClick={() => setActiveTab(tab.id as SettingsTab)} 
                                             className={`flex items-center justify-center md:justify-start gap-3 md:w-full text-left p-3 rounded-lg text-sm font-semibold transition-colors ${
                                                 isActive 
                                                 ? 'bg-rose-500/20 text-rose-300' 

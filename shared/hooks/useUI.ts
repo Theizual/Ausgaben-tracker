@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { format, subDays } from '@/shared/utils/dateUtils';
-import type { Transaction, ViewMode, PeriodType, QuickFilterId, SettingsTab, Category, User, MealPrefs, WeeklyPlan, ShoppingListState, Recipe } from '@/shared/types';
+import type { Transaction, ViewMode, PeriodType, QuickFilterId, SettingsTab, Category, User, MealPrefs, WeeklyPlan, ShoppingListState, Recipe, Tag } from '@/shared/types';
 import useLocalStorage from '@/shared/hooks/useLocalStorage';
 import type { CategoryFormData } from '@/features/settings/components/CategoryLibrarySettings';
 import { getSeedRecipes } from '@/features/meal-plan/data/recipes';
@@ -29,6 +29,7 @@ export const useUI = (props?: { isDemoModeEnabled: boolean }) => {
     const [transactionForDetailId, setTransactionForDetailId] = useState<string | null>(null);
     const [isChangelogOpen, setIsChangelogOpen] = useState(false);
     const [reassignModalInfo, setReassignModalInfo] = useState<{ category: Category | CategoryFormData, txCount: number, transactions: Transaction[] } | null>(null);
+    const [deleteTagModalInfo, setDeleteTagModalInfo] = useState<{ tag: Tag, txCount: number } | null>(null);
     const [userMergeModalInfo, setUserMergeModalInfo] = useState<{ remoteUsers: User[] } | null>(null);
     
     // Non-namespaced settings
@@ -97,6 +98,12 @@ export const useUI = (props?: { isDemoModeEnabled: boolean }) => {
         setReassignModalInfo({ category, txCount, transactions });
     }, []);
     const closeReassignModal = useCallback(() => setReassignModalInfo(null), []);
+
+    const openDeleteTagModal = useCallback((tag: Tag, txCount: number) => {
+        setDeleteTagModalInfo({ tag, txCount });
+    }, []);
+    const closeDeleteTagModal = useCallback(() => setDeleteTagModalInfo(null), []);
+
 
     const openUserMergeModal = useCallback((remoteUsers: User[]) => {
         setUserMergeModalInfo({ remoteUsers });
@@ -175,6 +182,11 @@ export const useUI = (props?: { isDemoModeEnabled: boolean }) => {
         reassignModalInfo,
         openReassignModal,
         closeReassignModal,
+
+        // Delete Tag Modal State
+        deleteTagModalInfo,
+        openDeleteTagModal,
+        closeDeleteTagModal,
 
         // User Merge Modal State
         userMergeModalInfo,

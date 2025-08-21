@@ -1,7 +1,7 @@
 import React, { useState, useMemo, FC, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
-import { useApp } from '@/contexts/AppContext';
+import { useDataContext, useUserContext, useTaxonomyContext, useUIContext } from '@/contexts/AppContext';
 import type { Transaction, Category, ViewMode, CategoryId, Tag, Group } from '@/shared/types';
 import { Plus, Coins, Button, Camera, Upload } from '@/shared/ui';
 import { CategoryButtons, TagInput, AvailableTags } from '@/shared/ui';
@@ -14,19 +14,23 @@ export const QuickAddForm: FC = () => {
     const { 
         addTransaction,
         addMultipleTransactions,
-        categories, 
         allAvailableTags, 
         transactions,
+        analyzeReceipt,
+    } = useDataContext();
+    const {
+        categories, 
+        groups,
+    } = useTaxonomyContext();
+    const {
         favoriteIds,
         recentCategoryIds,
         addRecent,
         quickAddShowFavorites,
         quickAddShowRecents,
-        groups,
-        openSettings,
         isAiEnabled,
-        analyzeReceipt,
-    } = useApp();
+    } = useUserContext();
+    const { openSettings } = useUIContext();
     
     const [amount, setAmount] = useState('');
     const [description, setDescription] = useState('');

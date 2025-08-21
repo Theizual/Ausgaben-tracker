@@ -379,5 +379,6 @@ export const useSync = (props: SyncProps) => {
         dismissSyncPrompt,
         syncData,
         loadFromSheet,
+        setIsInitialSetupDone,
     };
 };

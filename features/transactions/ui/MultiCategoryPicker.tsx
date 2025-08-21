@@ -1,10 +1,6 @@
-
-
-
-
 import React, { useState, useMemo, FC } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { useApp } from '@/contexts/AppContext';
+import { useTaxonomyContext } from '@/contexts/AppContext';
 import type { Category } from '@/shared/types';
 import { ChevronDown } from '@/shared/ui';
 
@@ -12,7 +8,7 @@ export const MultiCategoryPicker: FC<{
     selected: string[];
     onChange: (selected: string[]) => void;
 }> = ({ selected, onChange }) => {
-    const { categories } = useApp();
+    const { categories } = useTaxonomyContext();
     const [isOpen, setIsOpen] = useState(false);
     const wrapperRef = React.useRef<HTMLDivElement>(null);
 

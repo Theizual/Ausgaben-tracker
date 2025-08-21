@@ -1,9 +1,3 @@
-
-
-
-
-
-
 import React, { createContext, useContext, useEffect, useMemo, useRef, useCallback, useState} from 'react';
 import { toast } from 'react-hot-toast';
 import { useTransactionData } from '@/shared/hooks/useTransactionData';
@@ -15,7 +9,7 @@ import { useCategories } from '@/shared/hooks/useCategories';
 import { useCategoryPreferences } from '@/shared/hooks/useCategoryPreferences';
 import useLocalStorage from '@/shared/hooks/useLocalStorage';
 import type { User, Category, Group, RecurringTransaction, Transaction, Tag, UserSetting, TransactionGroup, Recipe, WeeklyPlan, ShoppingListState } from '@/shared/types';
-import { FIXED_COSTS_GROUP_ID, DEFAULT_CATEGORY_ID } from '@/constants';
+import { DEFAULT_CATEGORY_ID } from '@/constants';
 import { isWithinInterval, parseISO, startOfMonth, endOfMonth } from 'date-fns';
 import type { Locale } from 'date-fns';
 import { de } from 'date-fns/locale';
@@ -27,82 +21,64 @@ import { generateUUID } from '@/shared/utils/uuid';
 import { getMonthlyEquivalent } from '@/shared/utils/transactionUtils';
 
 // --- TYPE DEFINITIONS ---
+
 export interface AnalyzeReceiptResult {
     amount: number;
     description: string;
     categoryId: string | null;
 }
 
-// Combine the return types of all hooks to define the shape of the context
-type AppContextType = 
-    Omit<ReturnType<typeof useTransactionData>, 'reassignUserForTransactions' | 'addMultipleTransactions'> &
-    Omit<ReturnType<typeof useUI>, 'openSettings' | 'setRecipes'> &
-    Omit<ReturnType<typeof useUsers>, 'addUser' | 'isLoading' | 'updateUser' | 'deleteUser'> &
-    Omit<ReturnType<typeof useUserSettings>, 'updateGroupColor' | 'updateCategoryColorOverride' | 'updateVisibleGroups' | 'setIsAiEnabled' | 'setQuickAddShowFavorites' | 'setQuickAddShowRecents'> &
-    Omit<ReturnType<typeof useCategories>, 'upsertCategory' | 'upsertMultipleCategories' | 'deleteCategory' | 'addGroup' | 'renameGroup' | 'updateGroup' | 'deleteGroup' | 'reorderGroups' | 'reorderCategories'> &
-    ReturnType<typeof useCategoryPreferences> &
-    { currentUser: User | null } &
-    ReturnType<typeof useSync> &
-    { 
-        // Wrapped functions for global persistence
-        addUser: (name: string, color?: string) => User;
-        updateUser: (id: string, updates: Partial<Omit<User, 'id' | 'version' | 'lastModified'>>) => void;
-        deleteUser: (id: string, options?: { silent?: boolean }) => void;
-        upsertCategory: (categoryData: Partial<Category> & { id: string; }) => void;
-        upsertMultipleCategories: (categoriesData: (Partial<Category> & { id: string; })[]) => void;
-        deleteCategory: (id: string) => void;
-        addGroup: (groupName: string) => void;
-        renameGroup: (id: string, newName: string) => void;
-        updateGroup: (id: string, updates: Partial<Omit<Group, 'id'>>) => void;
-        deleteGroup: (id: string) => void;
-        reorderGroups: (orderedGroups: Group[]) => void;
-        reorderCategories: (orderedCategories: Category[]) => void;
-        updateGroupColor: (userId: string, groupName: string, color: string) => void;
-        updateCategoryColorOverride: (userId: string, categoryId: string, color: string | null) => void;
-        updateVisibleGroups: (userId: string, groups: string[]) => void;
-        openSettings: (tab?: 'general' | 'categories' | 'users' | 'budget' | undefined) => void;
-        addMultipleTransactions: (transactionsToCreate: Array<{amount: number, description: string}>, totalAmount: number, commonData: { categoryId: string, tags?: string[] }) => void;
-        createTransactionGroup: (transactionIds: string[], sourceTransactionId: string) => void;
-        updateGroupedTransaction: (options: { transactionId: string, newAmount?: number, resetCorrection?: boolean }) => void;
-        removeTransactionFromGroup: (transactionId: string) => void;
-        addTransactionsToGroup: (groupId: string, transactionIds: string[]) => void;
-        setIsAiEnabled: (enabled: boolean) => void;
-        analyzeReceipt: (base64Image: string) => Promise<AnalyzeReceiptResult | null>;
-        mergeTransactionWithTarget: (sourceTxId: string, targetTxId: string) => void;
-        updateGroupVerifiedStatus: (groupId: string, verified: boolean) => void;
-        addRecipe: (recipe: Recipe) => void;
-        updateRecipe: (recipe: Recipe) => void;
-        deleteRecipe: (recipeId: string) => void;
-        setQuickAddShowFavorites: (show: boolean) => void;
-        setQuickAddShowRecents: (show: boolean) => void;
+type UIContextType = Omit<ReturnType<typeof useUI>, 'setCurrentUserId' | 'openSettings'> & {
+    openSettings: (tab?: 'general' | 'categories' | 'users' | 'budget' | 'tags' | undefined) => void;
+    deLocale: Locale;
+    isGroupDnDEnabled: boolean;
+    setIsGroupDnDEnabled: React.Dispatch<React.SetStateAction<boolean>>;
+};
+type UserContextType = Omit<ReturnType<typeof useUsers>, 'setUsers' | 'isLoading'> & 
+    Omit<ReturnType<typeof useUserSettings>, 'setQuickAddShowFavorites' | 'setQuickAddShowRecents' | 'setIsAiEnabled'> & 
+    ReturnType<typeof useCategoryPreferences> & {
+    currentUser: User | null;
+    currentUserId: string | null;
+    setCurrentUserId: (id: string | null) => void;
+    isDemoModeEnabled: boolean;
+    showDemoData: boolean;
+    setShowDemoData: (value: boolean | ((prev: boolean) => boolean)) => void;
+    quickAddShowFavorites: boolean;
+    quickAddShowRecents: boolean;
+    isAiEnabled: boolean;
+    setQuickAddShowFavorites: (show: boolean) => void;
+    setQuickAddShowRecents: (show: boolean) => void;
+    setIsAiEnabled: (enabled: boolean) => void;
+};
+type TaxonomyContextType = Omit<ReturnType<typeof useCategories>, 'setCategoriesAndGroups'> & {
+    handleReassignAndDeleteCategory: (sourceCategoryId: string, targetCategoryId: string) => void;
+    visibleCategoryGroups: string[];
+};
+type DataContextType = Omit<ReturnType<typeof useTransactionData>, 'setTransactions' | 'setAllAvailableTags' | 'setRecurringTransactions' | 'setTransactionGroups'> & {
+    analyzeReceipt: (base64Image: string) => Promise<AnalyzeReceiptResult | null>;
+    addRecipe: (recipe: Recipe) => void;
+    updateRecipe: (recipe: Recipe) => void;
+    deleteRecipe: (recipeId: string) => void;
+    totalMonthlyBudget: number;
+    totalSpentThisMonth: number;
+    totalMonthlyFixedCosts: number;
+    handleReassignAndDeleteTag: (sourceTagId: string, newTagNames: string[]) => void;
+    recipeMap: Map<string, Recipe>;
+};
+type SyncContextType = Omit<ReturnType<typeof useSync>, 'isSyncing'> & {
+    resetAppData: () => void;
+};
+
+// --- CONTEXT CREATION ---
+const UIContext = createContext<UIContextType | null>(null);
+const UserContext = createContext<UserContextType | null>(null);
+const TaxonomyContext = createContext<TaxonomyContextType | null>(null);
+const DataContext = createContext<DataContextType | null>(null);
+const SyncContext = createContext<SyncContextType | null>(null);
 
 
-        reassignUserForTransactions: (sourceUserId: string, targetUserId: string, onlyNonDemo?: boolean) => void;
-        isDemoModeEnabled: boolean;
-        isInitialSetupDone: boolean;
-        setIsInitialSetupDone: React.Dispatch<React.SetStateAction<boolean>>;
-        totalMonthlyBudget: number; // Flexible budget
-        totalSpentThisMonth: number; // Flexible spending
-        totalMonthlyFixedCosts: number;
-        deLocale: Locale;
-        resetAppData: () => void;
-        visibleCategoryGroups: string[];
-        handleReassignAndDeleteCategory: (sourceCategoryId: string, targetCategoryId: string) => void;
-        quickAddShowFavorites: boolean;
-        quickAddShowRecents: boolean;
-        showDemoData: boolean;
-        setShowDemoData: (value: boolean | ((prev: boolean) => boolean)) => void;
-        isAiEnabled: boolean;
-        recipeMap: Map<string, Recipe>;
-        isGroupDnDEnabled: boolean;
-        setIsGroupDnDEnabled: (enabled: boolean) => void;
-        shoppingLists: Record<string, ShoppingListState>;
-        setShoppingLists: React.Dispatch<React.SetStateAction<Record<string, ShoppingListState>>>;
-    };
+// --- PROVIDERS ---
 
-const AppContext = createContext<AppContextType | null>(null);
-
-// This component holds the actual app state, and is only rendered when the core state is stable.
 const ReadyAppProvider: React.FC<{
     children: React.ReactNode;
     isDemoModeEnabled: boolean;
@@ -120,13 +96,9 @@ const ReadyAppProvider: React.FC<{
     usersState,
     appMode
 }) => {
-    // uiState and usersState are now stable and passed as props.
-    // The currentUserId is guaranteed to be valid here.
     const deLocale = de;
-
     const [isGroupDnDEnabled, setIsGroupDnDEnabled] = useLocalStorage<boolean>('settings-groupDnDEnabled', false);
 
-    // --- USER-SPECIFIC `showDemoData` STATE ---
     const [showDemoData, setShowDemoDataInternal] = useState(() => {
         if (!uiState.currentUserId) return false;
         const item = window.localStorage.getItem(`${uiState.currentUserId}_showDemoData`);
@@ -141,7 +113,6 @@ const ReadyAppProvider: React.FC<{
 
     const setShowDemoData = useCallback((valueOrFn: boolean | ((prev: boolean) => boolean)) => {
         if (!uiState.currentUserId) return;
-        
         setShowDemoDataInternal(prev => {
             const newValue = typeof valueOrFn === 'function' ? valueOrFn(prev) : valueOrFn;
             window.localStorage.setItem(`${uiState.currentUserId}_showDemoData`, JSON.stringify(newValue));
@@ -149,59 +120,22 @@ const ReadyAppProvider: React.FC<{
         });
     }, [uiState.currentUserId]);
 
-
     useEffect(() => {
         if (!isInitialSetupDone) {
             const hasRealUsers = usersState.users.some(u => !u.isDemo);
-            if(hasRealUsers) {
-                setIsInitialSetupDone(true);
-            }
+            if(hasRealUsers) setIsInitialSetupDone(true);
         }
     }, [usersState.users, isInitialSetupDone, setIsInitialSetupDone]);
 
+    // --- HOOKS INITIALIZATION (DEPENDENCY ORDER: User -> Taxonomy -> Data) ---
+
+    // 1. User-related hooks
     const userSettingsState = useUserSettings();
+    const categoryPreferencesState = useCategoryPreferences({ userId: uiState.currentUserId, isDemoModeEnabled });
+    const currentUser = useMemo(() => uiState.currentUserId ? usersState.users.find(u => u.id === uiState.currentUserId) || null : null, [usersState.users, uiState.currentUserId]);
 
-    useEffect(() => {
-        if (!uiState.currentUserId) return;
-        const migrationKey = `migrated_quickAdd_settings_v2_${uiState.currentUserId}`;
-        if (localStorage.getItem(migrationKey)) return;
-    
-        const oldSetting = userSettingsState.rawUserSettings.find(s => s.userId === uiState.currentUserId && (s.key as any) === 'quickAddHideGroups');
-        
-        if (oldSetting) {
-            const wasHidden = oldSetting.value === 'true';
-            
-            // Migrate: If groups were hidden, turn off both favorites and recents.
-            userSettingsState.setQuickAddShowFavorites(uiState.currentUserId, !wasHidden);
-            userSettingsState.setQuickAddShowRecents(uiState.currentUserId, !wasHidden);
-    
-            // Soft delete the old setting to prevent it from being synced back.
-            const now = new Date().toISOString();
-            const deletedSetting: UserSetting = { 
-                ...oldSetting, 
-                key: oldSetting.key as any, // Keep old key for deletion
-                isDeleted: true, 
-                lastModified: now, 
-                version: (oldSetting.version || 0) + 1 
-            };
-            
-            // Create a new settings array with the old setting marked as deleted.
-            const updatedSettings = [
-                ...userSettingsState.rawUserSettings.filter(s => (s.key as any) !== 'quickAddHideGroups' || s.userId !== uiState.currentUserId),
-                deletedSetting
-            ];
-            userSettingsState.setUserSettings(updatedSettings);
-    
-            localStorage.setItem(migrationKey, 'true');
-            toast.success('Anzeige-Einstellungen für die Schnelleingabe aktualisiert.');
-        }
-    }, [uiState.currentUserId, userSettingsState.rawUserSettings, userSettingsState.setQuickAddShowFavorites, userSettingsState.setQuickAddShowRecents, userSettingsState.setUserSettings]);
-    
-    
-    const hiddenCategoryIds = useMemo(() => 
-        uiState.currentUserId ? userSettingsState.getHiddenCategoryIds(uiState.currentUserId) : [],
-    [userSettingsState, uiState.currentUserId]);
-
+    // 2. Taxonomy-related hooks (depends on user settings)
+    const hiddenCategoryIds = useMemo(() => uiState.currentUserId ? userSettingsState.getHiddenCategoryIds(uiState.currentUserId) : [], [userSettingsState, uiState.currentUserId]);
     const categoryState = useCategories({
         currentUserId: uiState.currentUserId,
         isDemoModeEnabled: isDemoModeEnabled,
@@ -211,24 +145,36 @@ const ReadyAppProvider: React.FC<{
         clearHiddenCategories: () => uiState.currentUserId && userSettingsState.clearHiddenCategories(uiState.currentUserId),
     });
 
+    // 3. Data-related hooks (depends on taxonomy and user preferences)
+    const transactionDataState = useTransactionData({
+        showConfirmation: uiState.showConfirmation,
+        closeTransactionDetail: uiState.closeTransactionDetail,
+        currentUserId: uiState.currentUserId,
+        isDemoModeEnabled: isDemoModeEnabled,
+        addRecentCategory: categoryPreferencesState.addRecent,
+        showDemoData: showDemoData,
+        flexibleCategories: categoryState.flexibleCategories,
+    });
+
+    const recipeMap = useMemo(() => {
+        const map = new Map<string, Recipe>();
+        (uiState.recipes || []).filter(r => !r.isDeleted).forEach(r => map.set(r.id, r));
+        return map;
+    }, [uiState.recipes]);
+    
+    // --- DERIVED STATE & COMPOSITION ---
+
     const finalGroups = useMemo(() => {
         if (!uiState.currentUserId) return categoryState.groups;
         const customColors = userSettingsState.getGroupColorsForUser(uiState.currentUserId);
-        return categoryState.groups.map(group => ({
-            ...group,
-            color: customColors[group.name] || group.color,
-        }));
+        return categoryState.groups.map(group => ({ ...group, color: customColors[group.name] || group.color }));
     }, [categoryState.groups, userSettingsState, uiState.currentUserId]);
-
     const finalGroupMap = useMemo(() => new Map(finalGroups.map(g => [g.id, g])), [finalGroups]);
-    const finalGroupNames = useMemo(() => finalGroups.map(g => g.name), [finalGroups]);
-    
+
     const finalCategoryMap = useMemo(() => {
         const newMap = new Map<string, Category>();
         if (!uiState.currentUserId) return categoryState.categoryMap;
-        
         const customCategoryColors = userSettingsState.getCategoryColorOverrides(uiState.currentUserId);
-        
         categoryState.categoryMap.forEach((category, id) => {
             let finalColor = category.color;
             if (customCategoryColors[id]) {
@@ -245,104 +191,30 @@ const ReadyAppProvider: React.FC<{
         return newMap;
     }, [categoryState.categoryMap, userSettingsState, uiState.currentUserId, finalGroupMap, categoryState.groupMap]);
 
-
-    const categoryPreferencesState = useCategoryPreferences({
-        userId: uiState.currentUserId,
-        isDemoModeEnabled,
-    });
-    
-    const fixedCategoryIds = useMemo(() => new Set(categoryState.fixedCategories.map(c => c.id)), [categoryState.fixedCategories]);
-    
-    const totalMonthlyBudget = useMemo(() => categoryState.flexibleCategories.reduce((sum, cat) => sum + (cat.budget || 0), 0), [categoryState.flexibleCategories]);
-    
-    const transactionDataState = useTransactionData({
-        showConfirmation: uiState.showConfirmation,
-        closeTransactionDetail: uiState.closeTransactionDetail,
-        currentUserId: uiState.currentUserId,
-        isDemoModeEnabled: isDemoModeEnabled,
-        addRecentCategory: categoryPreferencesState.addRecent,
-        showDemoData: showDemoData,
-        flexibleCategories: categoryState.flexibleCategories,
-    });
-    
-    useEffect(() => {
-        const transactionsToReassign = transactionDataState.rawTransactions
-            .filter(tx => !tx.isDeleted && !categoryState.categoryMap.has(tx.categoryId) && tx.categoryId !== DEFAULT_CATEGORY_ID);
-    
-        if (transactionsToReassign.length > 0) {
-            console.warn(`[Orphan Cleanup] Found ${transactionsToReassign.length} transactions to reassign.`);
-            const now = new Date().toISOString();
-            
-            const updatedTransactions = transactionDataState.rawTransactions.map(t => {
-                if (!t.isDeleted && !categoryState.categoryMap.has(t.categoryId) && t.categoryId !== DEFAULT_CATEGORY_ID) {
-                    return {
-                        ...t,
-                        categoryId: DEFAULT_CATEGORY_ID,
-                        lastModified: now,
-                        version: (t.version || 0) + 1,
-                    };
-                }
-                return t;
-            });
-            
-            transactionDataState.setTransactions(updatedTransactions);
-            toast(`${transactionsToReassign.length} Transaktion(en) wurde(n) neu zugeordnet, da die ursprüngliche Kategorie gelöscht wurde.`, { duration: 5000 });
-        }
-    }, [transactionDataState.rawTransactions, categoryState.categoryMap, transactionDataState.setTransactions]);
-
-
     const enrichedTransactions = useMemo(() => {
-        return transactionDataState.transactions.map(tx => {
-            if (finalCategoryMap.has(tx.categoryId)) {
-                return tx;
-            }
-            console.warn(`Transaction ${tx.id} has orphan categoryId ${tx.categoryId}. Re-assigning to 'Sonstiges'.`);
-            return { ...tx, categoryId: DEFAULT_CATEGORY_ID };
-        });
+        return transactionDataState.transactions.map(tx => 
+            finalCategoryMap.has(tx.categoryId) ? tx : { ...tx, categoryId: DEFAULT_CATEGORY_ID }
+        );
     }, [transactionDataState.transactions, finalCategoryMap]);
 
+    const fixedCategoryIds = useMemo(() => new Set(categoryState.fixedCategories.map(c => c.id)), [categoryState.fixedCategories]);
+    const totalMonthlyBudget = useMemo(() => categoryState.flexibleCategories.reduce((sum, cat) => sum + (cat.budget || 0), 0), [categoryState.flexibleCategories]);
     const totalSpentThisMonth = useMemo(() => {
         const monthInterval = { start: startOfMonth(new Date()), end: endOfMonth(new Date()) };
         return enrichedTransactions
             .filter(t => !fixedCategoryIds.has(t.categoryId) && isWithinInterval(parseISO(t.date), monthInterval))
             .reduce((sum, t) => sum + t.amount, 0);
     }, [enrichedTransactions, fixedCategoryIds]);
-    
     const totalMonthlyFixedCosts = useMemo(() => {
         return transactionDataState.recurringTransactions
             .filter(rt => fixedCategoryIds.has(rt.categoryId))
             .reduce((sum, rt) => sum + getMonthlyEquivalent(rt), 0);
     }, [transactionDataState.recurringTransactions, fixedCategoryIds]);
 
-    const visibleCategoryGroups = useMemo(() => {
-        if (!uiState.currentUserId) return [];
-        
-        const setting = userSettingsState.rawUserSettings.find(s => s.userId === uiState.currentUserId && s.key === 'visibleGroups' && !s.isDeleted);
-        
-        if (setting) {
-            return userSettingsState.getVisibleGroupsForUser(uiState.currentUserId);
-        }
-        
-        return categoryState.groups.map(g => g.name);
-    }, [uiState.currentUserId, userSettingsState, categoryState.groups]);
-
-    const quickAddShowFavorites = useMemo(() => {
-        if (!uiState.currentUserId) return true;
-        return userSettingsState.getQuickAddShowFavorites(uiState.currentUserId);
-    }, [uiState.currentUserId, userSettingsState]);
-
-    const quickAddShowRecents = useMemo(() => {
-        if (!uiState.currentUserId) return true;
-        return userSettingsState.getQuickAddShowRecents(uiState.currentUserId);
-    }, [uiState.currentUserId, userSettingsState]);
-    
-    const isAiEnabled = useMemo(() => {
-        if (!uiState.currentUserId) return false;
-        return userSettingsState.getIsAiEnabled(uiState.currentUserId);
-    }, [uiState.currentUserId, userSettingsState]);
-
     const rawWeeklyPlans = useMemo(() => Object.values(uiState.weeklyMealPlans || {}), [uiState.weeklyMealPlans]);
     const rawShoppingLists = useMemo(() => Object.values(uiState.shoppingLists || {}), [uiState.shoppingLists]);
+
+    // --- SYNC & PERSISTENCE ---
 
     const syncState = useSync({
         rawCategories: categoryState.rawCategories,
@@ -364,20 +236,8 @@ const ReadyAppProvider: React.FC<{
         setUserSettings: userSettingsState.setUserSettings,
         setTransactionGroups: transactionDataState.setTransactionGroups,
         setRecipes: uiState.setRecipes,
-        setWeeklyPlans: (plans: WeeklyPlan[]) => {
-            const plansObject = plans.reduce((acc, plan) => {
-                acc[plan.weekKey] = plan;
-                return acc;
-            }, {} as Record<string, WeeklyPlan>);
-            uiState.setWeeklyMealPlans(plansObject);
-        },
-        setShoppingLists: (lists: ShoppingListState[]) => {
-            const listsObject = lists.reduce((acc, list) => {
-                acc[list.weekKey] = list;
-                return acc;
-            }, {} as Record<string, ShoppingListState>);
-            uiState.setShoppingLists(listsObject);
-        },
+        setWeeklyPlans: (plans: WeeklyPlan[]) => uiState.setWeeklyMealPlans(plans.reduce((acc, p) => ({...acc, [p.weekKey]: p}), {})),
+        setShoppingLists: (lists: ShoppingListState[]) => uiState.setShoppingLists(lists.reduce((acc, l) => ({...acc, [l.weekKey]: l}), {})),
         isInitialSetupDone,
         isDemoModeEnabled,
         setIsInitialSetupDone,
@@ -386,26 +246,13 @@ const ReadyAppProvider: React.FC<{
         openUserMergeModal: uiState.openUserMergeModal,
     });
     
-    const { syncStatus, syncError } = syncState;
     useEffect(() => {
-        if (syncStatus === 'syncing') {
-            toast.loading('Synchronisiere Daten...', { id: 'sync-toast' });
-        } else if (syncStatus === 'loading') {
-            toast.loading('Lade Daten vom Server...', { id: 'sync-toast' });
-        } else if (syncStatus === 'success') {
-            toast.success('Synchronisierung erfolgreich!', { id: 'sync-toast' });
-        } else if (syncStatus === 'error' && syncError) {
-            toast.error(`Fehler: ${syncError}`, { id: 'sync-toast' });
-        } else if (syncStatus === 'conflict') {
-            toast.error('Konflikt! Daten wurden zusammengeführt.', { id: 'sync-toast', duration: 5000 });
-        }
-    }, [syncStatus, syncError]);
-
-
-    const currentUser = useMemo(() => {
-        if (!uiState.currentUserId) return null;
-        return usersState.users.find(u => u.id === uiState.currentUserId) || null;
-    }, [usersState.users, uiState.currentUserId]);
+        if (syncState.syncStatus === 'syncing') toast.loading('Synchronisiere Daten...', { id: 'sync-toast' });
+        else if (syncState.syncStatus === 'loading') toast.loading('Lade Daten...', { id: 'sync-toast' });
+        else if (syncState.syncStatus === 'success') toast.success('Synchronisierung erfolgreich!', { id: 'sync-toast' });
+        else if (syncState.syncStatus === 'error' && syncState.syncError) toast.error(`Fehler: ${syncState.syncError}`, { id: 'sync-toast' });
+        else if (syncState.syncStatus === 'conflict') toast.error('Konflikt! Daten wurden zusammengeführt.', { id: 'sync-toast', duration: 5000 });
+    }, [syncState.syncStatus, syncState.syncError]);
 
     const syncStateRef = useRef(syncState);
     useEffect(() => { syncStateRef.current = syncState; });
@@ -413,54 +260,95 @@ const ReadyAppProvider: React.FC<{
     const debouncedSync = useMemo(() => debounce((options: { isAuto?: boolean } = {}) => {
         const { isAutoSyncEnabled, syncStatus: currentSyncStatus, syncData } = syncStateRef.current;
         if (options.isAuto) {
-            if (isAutoSyncEnabled && (currentSyncStatus === 'idle' || currentSyncStatus === 'error')) {
-                syncData({ isAuto: true });
-            }
+            if (isAutoSyncEnabled && (currentSyncStatus === 'idle' || currentSyncStatus === 'error')) syncData({ isAuto: true });
         } else {
-            if (currentSyncStatus !== 'syncing' && currentSyncStatus !== 'loading') {
-                syncData(options);
-            }
+            if (currentSyncStatus !== 'syncing' && currentSyncStatus !== 'loading') syncData(options);
         }
     }, 2000), []);
     
     const isInitialMount = useRef(true);
-    const isSyncingData = useRef(false);
-
-    useEffect(() => {
-        isSyncingData.current = syncStatus === 'syncing' || syncStatus === 'loading';
-    }, [syncStatus]);
-    
     useEffect(() => {
         if (isInitialMount.current) { isInitialMount.current = false; return; }
-        if (isSyncingData.current) return;
-        
+        if (syncState.syncStatus === 'syncing' || syncState.syncStatus === 'loading') return;
         debouncedSync({ isAuto: true });
     }, [
-        categoryState.rawCategories,
-        categoryState.rawGroups,
-        transactionDataState.rawTransactions, 
-        transactionDataState.rawRecurringTransactions, 
-        transactionDataState.rawAllAvailableTags,
-        transactionDataState.rawTransactionGroups,
-        usersState.rawUsers,
-        userSettingsState.rawUserSettings,
-        uiState.recipes,
-        rawWeeklyPlans,
-        rawShoppingLists,
-        debouncedSync
+        categoryState.rawCategories, categoryState.rawGroups, transactionDataState.rawTransactions, 
+        transactionDataState.rawRecurringTransactions, transactionDataState.rawAllAvailableTags, transactionDataState.rawTransactionGroups,
+        usersState.rawUsers, userSettingsState.rawUserSettings, uiState.recipes, rawWeeklyPlans, rawShoppingLists, debouncedSync, syncState.syncStatus
     ]);
 
-    const createPersistentWrapper = (action: (...args: any[]) => any) => {
-        return (...args: any[]) => {
-            const result = action(...args);
-            debouncedSync();
-            return result;
-        };
+    const createPersistentWrapper = (action: (...args: any[]) => any) => (...args: any[]) => {
+        const result = action(...args);
+        debouncedSync();
+        return result;
     };
     
-    const recipeMap = useMemo(() => new Map(uiState.recipes.filter(r => !r.isDeleted).map(r => [r.id, r])), [uiState.recipes]);
+    // --- COMPOSED ACTIONS ---
+    const handleReassignAndDeleteCategory = useCallback((sourceCategoryId: string, targetCategoryId: string) => {
+        const sourceCategoryName = categoryState.categoryMap.get(sourceCategoryId)?.name;
+        transactionDataState.reassignCategoryForTransactions(sourceCategoryId, targetCategoryId);
+        categoryState.deleteCategory(sourceCategoryId);
+        categoryPreferencesState.removeCategoryFromPreferences(sourceCategoryId);
+        if (sourceCategoryName) toast.success(`Kategorie "${sourceCategoryName}" gelöscht & Transaktionen neu zugeordnet.`);
+        uiState.closeReassignModal();
+    }, [transactionDataState, categoryState, categoryPreferencesState, uiState]);
+    
+    const analyzeReceipt = useCallback(async (base64Image: string): Promise<AnalyzeReceiptResult | null> => {
+        const toastId = toast.loading('Beleg wird analysiert...');
+        try {
+            const categories = categoryState.flexibleCategories.map(c => c.name);
+            const res = await apiPost('/api/ai/analyze-receipt', { base64Image, categories });
+            if ((res as any)?.error) throw new Error((res as any).error);
 
-    const persistentActions = useMemo(() => ({
+            const { amount, description, category } = res as { amount: number; description: string; category: string };
+            let categoryId: string | null = category ? (categoryState.flexibleCategories.find(c => c.name.toLowerCase() === category.toLowerCase())?.id || null) : null;
+            toast.success('Analyse erfolgreich!', { id: toastId });
+            return { amount: amount || 0, description: description || 'Unbekannter Beleg', categoryId };
+        } catch (error: any) {
+            toast.error(`Analyse fehlgeschlagen. ${error?.message ?? ''}`.trim(), { id: toastId });
+            return null;
+        }
+    }, [categoryState.flexibleCategories]);
+
+    const resetAppData = useCallback(() => {
+        const mode = isDemoModeEnabled ? 'Demo' : 'Produktiv';
+        if (window.confirm(`Möchten Sie wirklich alle Daten für den ${mode}-Modus unwiderruflich löschen?`)) {
+            const prefix = isDemoModeEnabled ? 'demo_' : '';
+            const keysToClear = ['transactions', 'allAvailableTags', 'recurringTransactions', 'transactionGroups', 'users', 'userSettings', 'app-current-user-id', 'transactionViewMode', 'lastSyncTimestamp', 'autoSyncEnabled', 'categories', 'groups', 'recipes', 'settings-groupDnDEnabled'];
+            usersState.users.forEach(user => { keysToClear.push(`${user.id}_favorite_categories`, `${user.id}_recent_categories`, `${user.id}_showDemoData`); });
+            keysToClear.forEach(key => window.localStorage.removeItem(`${prefix}${key}`));
+            window.localStorage.removeItem('settings-groupDnDEnabled');
+            if (!isDemoModeEnabled) window.localStorage.removeItem('initialSetupDone');
+            toast.success("Anwendungsdaten zurückgesetzt. App wird neu geladen.");
+            setTimeout(() => window.location.reload(), 1500);
+        }
+    }, [isDemoModeEnabled, usersState.users]);
+
+    // --- CONTEXT VALUE CREATION (MEMOIZED) ---
+    const uiValue = useMemo<UIContextType>(() => ({ ...uiState, isGroupDnDEnabled, setIsGroupDnDEnabled, deLocale }), [uiState, isGroupDnDEnabled, setIsGroupDnDEnabled, deLocale]);
+    
+    const userValue = useMemo<UserContextType>(() => ({
+        ...usersState, ...userSettingsState, ...categoryPreferencesState,
+        currentUser, currentUserId: uiState.currentUserId, setCurrentUserId: uiState.setCurrentUserId, isDemoModeEnabled, showDemoData, setShowDemoData,
+        addUser: createPersistentWrapper(usersState.addUser),
+        updateUser: createPersistentWrapper(usersState.updateUser),
+        deleteUser: createPersistentWrapper(usersState.deleteUser),
+        updateGroupColor: createPersistentWrapper(userSettingsState.updateGroupColor),
+        updateCategoryColorOverride: createPersistentWrapper(userSettingsState.updateCategoryColorOverride),
+        updateVisibleGroups: createPersistentWrapper(userSettingsState.updateVisibleGroups),
+        setQuickAddShowFavorites: (show) => uiState.currentUserId && createPersistentWrapper(userSettingsState.setQuickAddShowFavorites)(uiState.currentUserId, show),
+        setQuickAddShowRecents: (show) => uiState.currentUserId && createPersistentWrapper(userSettingsState.setQuickAddShowRecents)(uiState.currentUserId, show),
+        setIsAiEnabled: (enabled) => uiState.currentUserId && createPersistentWrapper(userSettingsState.setIsAiEnabled)(uiState.currentUserId, enabled),
+        quickAddShowFavorites: uiState.currentUserId ? userSettingsState.getQuickAddShowFavorites(uiState.currentUserId) : true,
+        quickAddShowRecents: uiState.currentUserId ? userSettingsState.getQuickAddShowRecents(uiState.currentUserId) : true,
+        isAiEnabled: uiState.currentUserId ? userSettingsState.getIsAiEnabled(uiState.currentUserId) : false,
+    }), [usersState, userSettingsState, categoryPreferencesState, currentUser, uiState.currentUserId, uiState.setCurrentUserId, isDemoModeEnabled, showDemoData, setShowDemoData, createPersistentWrapper]);
+    
+    const taxonomyValue = useMemo<TaxonomyContextType>(() => ({
+        ...categoryState,
+        groups: finalGroups,
+        groupMap: finalGroupMap,
+        categoryMap: finalCategoryMap,
         upsertCategory: createPersistentWrapper(categoryState.upsertCategory),
         upsertMultipleCategories: createPersistentWrapper(categoryState.upsertMultipleCategories),
         deleteCategory: createPersistentWrapper(categoryState.deleteCategory),
@@ -470,219 +358,57 @@ const ReadyAppProvider: React.FC<{
         deleteGroup: createPersistentWrapper(categoryState.deleteGroup),
         reorderGroups: createPersistentWrapper(categoryState.reorderGroups),
         reorderCategories: createPersistentWrapper(categoryState.reorderCategories),
-        
-        updateGroupColor: createPersistentWrapper(userSettingsState.updateGroupColor),
-        updateCategoryColorOverride: createPersistentWrapper(userSettingsState.updateCategoryColorOverride),
-        updateVisibleGroups: createPersistentWrapper(userSettingsState.updateVisibleGroups),
-        setQuickAddShowFavorites: createPersistentWrapper(userSettingsState.setQuickAddShowFavorites),
-        setQuickAddShowRecents: createPersistentWrapper(userSettingsState.setQuickAddShowRecents),
-        setIsAiEnabled: createPersistentWrapper(userSettingsState.setIsAiEnabled),
+        handleReassignAndDeleteCategory: createPersistentWrapper(handleReassignAndDeleteCategory),
+        visibleCategoryGroups: uiState.currentUserId ? userSettingsState.getVisibleGroupsForUser(uiState.currentUserId) : finalGroups.map(g => g.name),
+    }), [categoryState, finalGroups, finalGroupMap, finalCategoryMap, handleReassignAndDeleteCategory, uiState.currentUserId, userSettingsState, createPersistentWrapper]);
 
-        addUser: createPersistentWrapper(usersState.addUser),
-        updateUser: createPersistentWrapper(usersState.updateUser),
-        deleteUser: createPersistentWrapper(usersState.deleteUser),
-        
+    const dataValue = useMemo<DataContextType>(() => ({
+        ...transactionDataState,
+        transactions: enrichedTransactions,
+        totalMonthlyBudget, totalSpentThisMonth, totalMonthlyFixedCosts,
+        addTransaction: createPersistentWrapper(transactionDataState.addTransaction),
+        addMultipleTransactions: createPersistentWrapper(transactionDataState.addMultipleTransactions),
+        updateTransaction: createPersistentWrapper(transactionDataState.updateTransaction),
+        deleteTransaction: createPersistentWrapper(transactionDataState.deleteTransaction),
+        deleteMultipleTransactions: createPersistentWrapper(transactionDataState.deleteMultipleTransactions),
+        addRecurringTransaction: createPersistentWrapper(transactionDataState.addRecurringTransaction),
+        updateRecurringTransaction: createPersistentWrapper(transactionDataState.updateRecurringTransaction),
+        deleteRecurringTransaction: createPersistentWrapper(transactionDataState.deleteRecurringTransaction),
+        handleUpdateTag: createPersistentWrapper(transactionDataState.handleUpdateTag),
+        handleDeleteTag: createPersistentWrapper(transactionDataState.handleDeleteTag),
+        handleReassignAndDeleteTag: createPersistentWrapper(transactionDataState.handleReassignAndDeleteTag),
+        reassignCategoryForTransactions: createPersistentWrapper(transactionDataState.reassignCategoryForTransactions),
+        reassignUserForTransactions: createPersistentWrapper(transactionDataState.reassignUserForTransactions),
         createTransactionGroup: createPersistentWrapper(transactionDataState.createTransactionGroup),
         updateGroupedTransaction: createPersistentWrapper(transactionDataState.updateGroupedTransaction),
         removeTransactionFromGroup: createPersistentWrapper(transactionDataState.removeTransactionFromGroup),
-        addMultipleTransactions: createPersistentWrapper(transactionDataState.addMultipleTransactions),
         addTransactionsToGroup: createPersistentWrapper(transactionDataState.addTransactionsToGroup),
         mergeTransactionWithTarget: createPersistentWrapper(transactionDataState.mergeTransactionWithTarget),
         updateGroupVerifiedStatus: createPersistentWrapper(transactionDataState.updateGroupVerifiedStatus),
-        addRecurringTransaction: createPersistentWrapper(transactionDataState.addRecurringTransaction),
-        updateRecurringTransaction: createPersistentWrapper(transactionDataState.updateRecurringTransaction),
-        
+        analyzeReceipt,
         addRecipe: createPersistentWrapper((recipe: Recipe) => uiState.setRecipes(prev => [...prev, recipe])),
         updateRecipe: createPersistentWrapper((recipe: Recipe) => uiState.setRecipes(prev => prev.map(r => r.id === recipe.id ? recipe : r))),
-        deleteRecipe: createPersistentWrapper((recipeId: string) => {
-            const now = new Date().toISOString();
-            uiState.setRecipes(prev => prev.map(r => r.id === recipeId ? { ...r, isDeleted: true, lastModified: now, version: (r.version || 0) + 1 } : r));
-        }),
-
-    }), [categoryState, userSettingsState, usersState, transactionDataState, uiState.setRecipes, debouncedSync]);
-
-    const setQuickAddShowFavoritesForCurrentUser = useCallback((show: boolean) => {
-        if (uiState.currentUserId) {
-            persistentActions.setQuickAddShowFavorites(uiState.currentUserId, show);
-        }
-    }, [uiState.currentUserId, persistentActions]);
-    
-    const setQuickAddShowRecentsForCurrentUser = useCallback((show: boolean) => {
-        if (uiState.currentUserId) {
-            persistentActions.setQuickAddShowRecents(uiState.currentUserId, show);
-        }
-    }, [uiState.currentUserId, persistentActions]);
-
-    const setIsAiEnabledForCurrentUser = useCallback((enabled: boolean) => {
-        if (!uiState.currentUserId) return;
-        persistentActions.setIsAiEnabled(uiState.currentUserId, enabled);
-    }, [uiState.currentUserId, persistentActions]);
-
-    const resetAppData = useCallback(() => {
-        const mode = isDemoModeEnabled ? 'Demo' : 'Produktiv';
-        if (window.confirm(`Möchten Sie wirklich alle Daten für den ${mode}-Modus unwiderruflich löschen?`)) {
-            const prefix = isDemoModeEnabled ? 'demo_' : '';
-            const keysToClear = [
-                'transactions', 'allAvailableTags', 'recurringTransactions', 'transactionGroups',
-                'users', 'userSettings', 'app-current-user-id', 'transactionViewMode',
-                'lastSyncTimestamp', 'autoSyncEnabled', 'categories', 'groups', 'recipes',
-                'settings-groupDnDEnabled'
-            ];
-            
-            usersState.users.forEach(user => {
-                keysToClear.push(`${user.id}_favorite_categories`);
-                keysToClear.push(`${user.id}_recent_categories`);
-                keysToClear.push(`${user.id}_showDemoData`);
-            });
-
-            keysToClear.forEach(key => window.localStorage.removeItem(`${prefix}${key}`));
-            // Clear non-prefixed keys
-            window.localStorage.removeItem('settings-groupDnDEnabled');
-
-
-            if (!isDemoModeEnabled) {
-                window.localStorage.removeItem('initialSetupDone');
-            }
-            
-            toast.success("Anwendungsdaten zurückgesetzt. App wird neu geladen.");
-            setTimeout(() => window.location.reload(), 1500);
-        }
-    }, [isDemoModeEnabled, usersState.users]);
-
-    const handleReassignAndDeleteCategory = useCallback((sourceCategoryId: string, targetCategoryId: string) => {
-        const sourceCategoryName = categoryState.categoryMap.get(sourceCategoryId)?.name;
-        transactionDataState.reassignCategoryForTransactions(sourceCategoryId, targetCategoryId);
-        persistentActions.deleteCategory(sourceCategoryId);
-        categoryPreferencesState.removeCategoryFromPreferences(sourceCategoryId);
-        if (sourceCategoryName) {
-            toast.success(`Kategorie "${sourceCategoryName}" gelöscht und Transaktionen neu zugeordnet.`);
-        }
-        uiState.closeReassignModal();
-    }, [
-        transactionDataState.reassignCategoryForTransactions, 
-        persistentActions, 
-        categoryState.categoryMap,
-        categoryPreferencesState.removeCategoryFromPreferences, 
-        uiState.closeReassignModal
-    ]);
-    
-    useEffect(() => {
-        const recurringCatIds = new Set(transactionDataState.rawRecurringTransactions.map(rt => rt.categoryId));
-        const missingRecurrings: Omit<RecurringTransaction, 'id' | 'lastModified' | 'version'>[] = [];
-
-        categoryState.fixedCategories.forEach(cat => {
-            if (!recurringCatIds.has(cat.id)) {
-                missingRecurrings.push({
-                    amount: cat.budget || 0,
-                    description: cat.name,
-                    categoryId: cat.id,
-                    frequency: 'monthly',
-                    dayOfMonth: 1,
-                    startDate: new Date().toISOString(),
-                    active: true,
-                    notes: '',
-                });
-            }
-        });
-        
-        if (missingRecurrings.length > 0) {
-            const now = new Date().toISOString();
-            const newRecs = missingRecurrings.map(rec => ({
-                ...rec,
-                id: generateUUID('rec'),
-                lastModified: now,
-                version: 1,
-            } as RecurringTransaction));
-            transactionDataState.setRecurringTransactions([...transactionDataState.rawRecurringTransactions, ...newRecs]);
-        }
-    }, [categoryState.fixedCategories, transactionDataState.rawRecurringTransactions, transactionDataState.setRecurringTransactions]);
-
-    const analyzeReceipt = useCallback(async (base64Image: string): Promise<AnalyzeReceiptResult | null> => {
-        const toastId = toast.loading('Beleg wird analysiert...');
-        try {
-            const categories = categoryState.flexibleCategories.map(c => c.name);
-            const res = await apiPost('/api/ai/analyze-receipt', { base64Image, categories });
-            if ((res as any)?.error) throw new Error((res as any).error);
-
-            const { amount, description, category } = res as { amount: number; description: string; category: string };
-            let categoryId: string | null = null;
-            if (category) {
-                const lc = category.toLowerCase();
-                const found = categoryState.flexibleCategories.find(c => c.name.toLowerCase() === lc);
-                categoryId = found ? found.id : null;
-            }
-            toast.success('Analyse erfolgreich!', { id: toastId });
-            return { amount: amount || 0, description: description || 'Unbekannter Beleg', categoryId };
-        } catch (error: any) {
-            console.error('Fehler bei der Beleg-Analyse (Gemini):', error);
-            toast.error(`Analyse fehlgeschlagen. ${error?.message ?? ''}`.trim(), { id: toastId });
-            return null;
-        }
-    }, [categoryState.flexibleCategories]);
-
-
-    const { openSettings: _, setRecipes: __, ...restUiState } = uiState;
-    const { setQuickAddShowFavorites: ____, setQuickAddShowRecents: _____,...restUserSettingsState } = userSettingsState;
-    const { addUser: ______, updateUser: _______, deleteUser: ________, ...restUsersState } = usersState;
-    const { reassignUserForTransactions: _________, addMultipleTransactions: __________, ...restTxState } = transactionDataState;
-    const { upsertCategory: __1, upsertMultipleCategories: __2, deleteCategory: __3, addGroup: __4, renameGroup: __5, updateGroup: __6, deleteGroup: __7, reorderGroups: __8, reorderCategories: __9, ...restCategoryState} = categoryState;
-
-
-    const value: AppContextType = {
-        ...restUiState,
-        openSettings: uiState.openSettings,
-        ...restCategoryState,
-        groups: finalGroups,
-        groupMap: finalGroupMap,
-        groupNames: finalGroupNames,
-        categoryMap: finalCategoryMap,
-        ...categoryPreferencesState,
-        totalMonthlyBudget,
-        ...restTxState,
-        transactions: enrichedTransactions,
-        totalSpentThisMonth,
-        totalMonthlyFixedCosts,
-        ...restUsersState,
-        ...restUserSettingsState,
-        ...persistentActions,
-        currentUser,
-        deleteMultipleTransactions: transactionDataState.deleteMultipleTransactions,
-        selectTotalSpentForMonth: transactionDataState.selectTotalSpentForMonth,
-        ...syncState,
-        isDemoModeEnabled,
-        isInitialSetupDone,
-        setIsInitialSetupDone,
-        deLocale,
-        resetAppData,
-        visibleCategoryGroups,
-        handleReassignAndDeleteCategory,
-        reassignUserForTransactions: transactionDataState.reassignUserForTransactions,
-        quickAddShowFavorites,
-        setQuickAddShowFavorites: setQuickAddShowFavoritesForCurrentUser,
-        quickAddShowRecents,
-        setQuickAddShowRecents: setQuickAddShowRecentsForCurrentUser,
-        showDemoData,
-        setShowDemoData,
-        isAiEnabled,
-        setIsAiEnabled: setIsAiEnabledForCurrentUser,
-        analyzeReceipt,
+        deleteRecipe: createPersistentWrapper((recipeId: string) => uiState.setRecipes(prev => prev.map(r => r.id === recipeId ? { ...r, isDeleted: true, lastModified: new Date().toISOString(), version: (r.version || 0) + 1 } : r))),
         recipeMap,
-        isGroupDnDEnabled,
-        setIsGroupDnDEnabled,
-        shoppingLists: uiState.shoppingLists,
-        setShoppingLists: uiState.setShoppingLists,
-    };
+    }), [transactionDataState, enrichedTransactions, totalMonthlyBudget, totalSpentThisMonth, totalMonthlyFixedCosts, analyzeReceipt, createPersistentWrapper, uiState.setRecipes, recipeMap]);
+    
+    const syncValue = useMemo<SyncContextType>(() => ({ ...syncState, syncOperation: syncState.syncStatus === 'syncing' ? 'sync' : null, resetAppData }), [syncState, resetAppData]);
     
     return (
-        <AppContext.Provider value={value}>
-            {children}
-        </AppContext.Provider>
+        <UIContext.Provider value={uiValue}>
+            <UserContext.Provider value={userValue}>
+                <TaxonomyContext.Provider value={taxonomyValue}>
+                    <DataContext.Provider value={dataValue}>
+                        <SyncContext.Provider value={syncValue}>
+                            {children}
+                        </SyncContext.Provider>
+                    </DataContext.Provider>
+                </TaxonomyContext.Provider>
+            </UserContext.Provider>
+        </UIContext.Provider>
     );
 };
 
-// ... (rest of the file remains the same)
-
-// This component is a "Gatekeeper". It ensures the core user state is stable before rendering the rest of the app.
 const AppStateContainer: React.FC<{
     children: React.ReactNode;
     isDemoModeEnabled: boolean;
@@ -692,75 +418,37 @@ const AppStateContainer: React.FC<{
 }> = (props) => {
     const { children, appMode, ...rest } = props;
 
-    // These two hooks determine the core readiness of the app.
     const uiState = useUI({ isDemoModeEnabled: props.isDemoModeEnabled });
     const usersState = useUsers({ isDemoModeEnabled: props.isDemoModeEnabled });
     
     if (usersState.isLoading) {
-        // Display a loading screen while the user state stabilizes.
-        // This prevents downstream hooks from running with invalid state.
-        return (
-            <div className="fixed inset-0 bg-slate-900 flex items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin text-slate-500" />
-            </div>
-        );
+        return <div className="fixed inset-0 bg-slate-900 flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-slate-500" /></div>;
     }
     
-    // Once users are loaded, check if we need to show the initial setup screen.
     if (!props.isDemoModeEnabled && usersState.users.length === 0) {
-        // We need to provide a limited context for the setup screen to function.
-        const limitedContextValue = {
-            addUser: usersState.addUser,
-            setCurrentUserId: uiState.setCurrentUserId,
-            setIsInitialSetupDone: rest.setIsInitialSetupDone,
-            syncData: () => Promise.resolve(), // No-op sync initially
-        };
-        // This feels a bit like a hack. It's better to provide the full context.
-        // The ReadyAppProvider will initialize everything. 
-        // We can pass a flag to it or just render a different component here.
          return (
-             <ReadyAppProvider
-                {...rest}
-                appMode={appMode}
-                uiState={uiState}
-                usersState={usersState}
-            >
+             <ReadyAppProvider {...rest} appMode={appMode} uiState={uiState} usersState={usersState}>
                 <FirstUserSetup />
             </ReadyAppProvider>
         );
     }
 
-    // This effect ensures we have a valid user selected before proceeding.
     if (usersState.users.length > 0) {
         const currentUserIsValid = uiState.currentUserId && usersState.users.some(u => u.id === uiState.currentUserId);
         if (!currentUserIsValid) {
-            // If current user is not set or is invalid, set it to the first available user.
-            // This triggers a re-render.
             uiState.setCurrentUserId(usersState.users[0].id);
-            // Return loading screen for one frame to prevent rendering with invalid userId
-            return (
-                 <div className="fixed inset-0 bg-slate-900 flex items-center justify-center">
-                    <Loader2 className="h-8 w-8 animate-spin text-slate-500" />
-                </div>
-            );
+            return <div className="fixed inset-0 bg-slate-900 flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-slate-500" /></div>;
         }
     }
     
-    // Once ready, render the full provider with the now-stable state.
     const { isLoading: _isLoading, ...restUsersState } = usersState;
     return (
-        <ReadyAppProvider
-            {...rest}
-            appMode={appMode}
-            uiState={uiState}
-            usersState={restUsersState}
-        >
+        <ReadyAppProvider {...rest} appMode={appMode} uiState={uiState} usersState={restUsersState}>
             {children}
         </ReadyAppProvider>
     );
 };
 
-// The main provider now only manages the top-level mode switch.
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [appMode, setAppMode] = useState<'loading' | 'demo' | 'standard'>('loading');
     const [isInitialSetupDone, setIsInitialSetupDone] = useLocalStorage<boolean>('initialSetupDone', false);
@@ -768,30 +456,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     useEffect(() => {
         const determineInitialMode = async () => {
-            if (!isInitialSetupDone) {
-                setAppMode('demo');
-                setLocalAppMode('demo');
-                return;
-            }
-
-            setAppMode(localAppMode); // Optimistic start
-
+            if (!isInitialSetupDone) { setAppMode('demo'); setLocalAppMode('demo'); return; }
+            setAppMode(localAppMode);
             try {
                 const { userSettings }: { userSettings: UserSetting[] } = await apiGet('/api/sheets/read?ranges=UserSettings!A2:Z');
-                
-                const modeSetting = userSettings.find(s => s.userId === 'app_meta' && s.key === 'mode');
-                const remoteMode = modeSetting?.value === 'demo' ? 'demo' : 'standard';
-
+                const remoteMode = userSettings.find(s => s.userId === 'app_meta' && s.key === 'mode')?.value === 'demo' ? 'demo' : 'standard';
                 if (remoteMode !== localAppMode) {
                     toast(`App-Modus wurde synchronisiert: ${remoteMode === 'demo' ? 'Demo' : 'Standard'}.`);
-                    setAppMode(remoteMode);
-                    setLocalAppMode(remoteMode);
+                    setAppMode(remoteMode); setLocalAppMode(remoteMode);
                 }
-            } catch (error) {
-                console.error("Konnte den App-Modus nicht vom Server abrufen. Fahre mit lokalem Modus fort.", error);
-            }
+            } catch (error) { console.error("Could not fetch app mode from server.", error); }
         };
-
         determineInitialMode();
     }, [isInitialSetupDone, localAppMode, setLocalAppMode]);
 
@@ -806,27 +481,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         );
     }
 
-    const isDemoModeEnabled = appMode === 'demo';
-
     return (
-        <AppStateContainer
-            key={appMode}
-            isDemoModeEnabled={isDemoModeEnabled}
-            isInitialSetupDone={isInitialSetupDone}
-            setIsInitialSetupDone={setIsInitialSetupDone}
-            appMode={appMode}
-        >
+        <AppStateContainer key={appMode} isDemoModeEnabled={appMode === 'demo'} isInitialSetupDone={isInitialSetupDone} setIsInitialSetupDone={setIsInitialSetupDone} appMode={appMode}>
             {children}
         </AppStateContainer>
     );
 };
 
+// --- HOOKS ---
+const createUseContextHook = <T,>(context: React.Context<T | null>, name: string) => () => {
+    const ctx = useContext(context);
+    if (!ctx) throw new Error(`${name} must be used within an AppProvider`);
+    return ctx;
+};
 
-// Custom hook to easily consume the context in components
+export const useUIContext = createUseContextHook(UIContext, 'useUIContext');
+export const useUserContext = createUseContextHook(UserContext, 'useUserContext');
+export const useTaxonomyContext = createUseContextHook(TaxonomyContext, 'useTaxonomyContext');
+export const useDataContext = createUseContextHook(DataContext, 'useDataContext');
+export const useSyncContext = createUseContextHook(SyncContext, 'useSyncContext');
+
+// Add a convenience hook that combines all contexts
 export const useApp = () => {
-    const context = useContext(AppContext);
-    if (!context) {
-        throw new Error('useApp must be used within an AppProvider');
-    }
-    return context;
+    return {
+        ...useUIContext(),
+        ...useUserContext(),
+        ...useTaxonomyContext(),
+        ...useDataContext(),
+        ...useSyncContext(),
+    };
 };

@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, FC, useRef } from 'react';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend, Sector } from 'recharts';
-import { useApp } from '@/contexts/AppContext';
+import { useTaxonomyContext } from '@/contexts/AppContext';
 import type { Transaction, Category } from '@/shared/types';
 import { formatCurrency } from '@/shared/utils/dateUtils';
 import { iconMap } from '@/shared/ui';
@@ -81,7 +81,7 @@ const renderActiveShape = (props: any) => {
 };
 
 export const CategoryPieChart: React.FC<CategoryPieChartProps> = ({ transactions }) => {
-  const { categoryMap, groupMap } = useApp();
+  const { categoryMap, groupMap } = useTaxonomyContext();
 
   const [isMobileView, setIsMobileView] = useState(false);
   const [activeIndex, setActiveIndex] = useState<number | undefined>(undefined);

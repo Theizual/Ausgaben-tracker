@@ -1,19 +1,15 @@
-
 import React, { FC, useState, useEffect } from 'react';
 import type { Category } from '@/shared/types';
 import { Modal, CategoryButtons } from '@/shared/ui';
-import { useApp } from '@/contexts/AppContext';
+import { useTaxonomyContext, useUserContext } from '@/contexts/AppContext';
 
 export const MoreCategoriesModal: FC<{
     isOpen: boolean;
     onClose: () => void;
     onSelectCategory: (categoryId: string) => void;
 }> = ({ isOpen, onClose, onSelectCategory }) => {
-    const { 
-        categories, 
-        groups, 
-        favoriteIds, 
-    } = useApp();
+    const { categories, groups } = useTaxonomyContext();
+    const { favoriteIds } = useUserContext();
     const [expandedId, setExpandedId] = useState<string | null>(null);
 
     useEffect(() => {

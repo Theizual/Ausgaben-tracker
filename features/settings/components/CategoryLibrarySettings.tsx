@@ -1,7 +1,7 @@
 import React, { useState, useMemo, FC, useEffect, useRef } from 'react';
 import { AnimatePresence, motion, Reorder, useDragControls } from 'framer-motion';
 import { toast } from 'react-hot-toast';
-import { useApp } from '@/contexts/AppContext';
+import { useApp, useUIContext } from '@/contexts/AppContext';
 import type { Category, Group } from '@/shared/types';
 import { Button, Trash2, Plus, DownloadCloud, Star, getIconComponent, Info, GripVertical, ChevronDown, ArrowUpDown, Edit, Eye, EyeOff, ToggleSwitch } from '@/shared/ui';
 import { FIXED_COSTS_GROUP_ID, DEFAULT_GROUP_ID, DEFAULT_GROUP_NAME } from '@/constants';
@@ -9,7 +9,7 @@ import { CategoryEditModal } from './CategoryEditModal';
 import { parseISO } from 'date-fns';
 import { settingsContentAnimation, collapsibleAnimation } from '@/shared/lib/animations';
 import useLocalStorage from '@/shared/hooks/useLocalStorage';
-import { GroupDesignModal } from './GroupDesignModal';
+import { clsx } from 'clsx';
 
 export type CategoryFormData = {
     id: string;
@@ -40,7 +40,8 @@ const CategoryReorderItem: FC<{
     onEdit: (category: Partial<Category> & { groupId?: string }) => void;
     onToggleFavorite: (id: string) => void;
     isFavorite: boolean;
-}> = ({ category, onEdit, onToggleFavorite, isFavorite }) => {
+    isDnDEnabled: boolean;
+}> = ({ category, onEdit, onToggleFavorite, isFavorite, isDnDEnabled }) => {
     const { upsertCategory } = useApp();
     const dragControls = useDragControls();
     const Icon = getIconComponent(category.icon);
@@ -66,6 +67,7 @@ const CategoryReorderItem: FC<{
             value={category}
             dragListener={false}
             dragControls={dragControls}
+            drag={isDnDEnabled}
             className="relative pr-2"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -73,14 +75,16 @@ const CategoryReorderItem: FC<{
             onPointerDown={(e) => e.stopPropagation()}
         >
             <div className="flex items-center gap-2 bg-slate-800/50 p-1 rounded-lg group">
-                <div
-                    onPointerDown={(e) => dragControls.start(e) }
-                    className="p-2 cursor-grab active:cursor-grabbing text-slate-500 hover:text-white touch-none"
-                    aria-label={`Kategorie ${category.name} verschieben`}
-                >
-                    <GripVertical className="h-4 w-4" />
-                </div>
-                <div className="flex items-center gap-2 pl-1 pr-3 py-1 flex-1 rounded-md min-w-0">
+                {isDnDEnabled && (
+                    <div
+                        onPointerDown={(e) => dragControls.start(e) }
+                        className="p-2 cursor-grab active:cursor-grabbing text-slate-500 hover:text-white touch-none"
+                        aria-label={`Kategorie ${category.name} verschieben`}
+                    >
+                        <GripVertical className="h-4 w-4" />
+                    </div>
+                )}
+                <div className={clsx("flex items-center gap-2 pl-1 pr-3 py-1 flex-1 rounded-md min-w-0", !isDnDEnabled && "pl-3")}>
                     <div className="w-6 h-6 rounded-md flex items-center justify-center border-2 flex-shrink-0" style={{ borderColor: category.color }}>
                         <Icon className="h-4 w-4" style={{ color: category.color }} />
                     </div>
@@ -116,9 +120,10 @@ export const CategoryLibrarySettings: FC<{ onEditGroupDesign: (group: Group) => 
     const { 
         categories, groups, upsertCategory, addGroup, deleteGroup, reorderGroups, reorderCategories,
         loadStandardConfiguration, unassignedCategories, transactions, openReassignModal,
-        currentUserId, updateCategoryColorOverride, favoriteIds, toggleFavorite,
-        quickAddShowFavorites, setQuickAddShowFavorites, quickAddShowRecents, setQuickAddShowRecents,
+        currentUserId, updateCategoryColorOverride,
+        quickAddShowFavorites, setQuickAddShowFavorites, quickAddShowRecents, setQuickAddShowRecents
     } = useApp();
+    const { isGroupDnDEnabled, setIsGroupDnDEnabled } = useUIContext();
     
     const [orderedGroups, setOrderedGroups] = useState(groups);
     const [editingCategory, setEditingCategory] = useState<CategoryFormData | null>(null);
@@ -245,8 +250,12 @@ export const CategoryLibrarySettings: FC<{ onEditGroupDesign: (group: Group) => 
                 <h3 className="text-lg font-semibold text-white mb-1">Gruppen & Kategorien</h3>
                 <p className="text-sm text-slate-400 mb-6">Verwalten Sie hier Ihre Ausgabenstruktur. Sortieren Sie Gruppen und Kategorien per Drag & Drop.</p>
                 
-                <div className="flex justify-end mb-4">
-                    <Button variant="secondary" size="sm" onClick={toggleAllGroups}>
+                <div className="flex items-center justify-between gap-4 mb-4">
+                    <div className="flex items-center justify-between p-3 bg-slate-700/30 rounded-lg flex-grow">
+                        <label htmlFor="dnd-toggle" className="block text-sm font-medium text-slate-300">Verschieben aktivieren</label>
+                        <ToggleSwitch id="dnd-toggle" enabled={isGroupDnDEnabled} setEnabled={setIsGroupDnDEnabled} />
+                    </div>
+                    <Button variant="secondary" size="sm" onClick={toggleAllGroups} className="flex-shrink-0">
                         <ArrowUpDown className="h-4 w-4 mr-2" />
                         {allGroupsExpanded ? 'Alle einklappen' : 'Alle ausklappen'}
                     </Button>
@@ -265,6 +274,7 @@ export const CategoryLibrarySettings: FC<{ onEditGroupDesign: (group: Group) => 
                             onEditGroupDesign={onEditGroupDesign}
                             onDeleteGroup={handleDeleteGroup}
                             onEditCategory={handleOpenEditor}
+                            isDnDEnabled={isGroupDnDEnabled}
                         />
                     ))}
                 </Reorder.Group>
@@ -277,7 +287,7 @@ export const CategoryLibrarySettings: FC<{ onEditGroupDesign: (group: Group) => 
                 </div>
                 
                 <Separator />
-                
+
                 <div className="mb-6 p-4 bg-slate-700/30 rounded-lg space-y-4 border border-slate-700/50">
                     <h4 className="text-md font-semibold text-white">Schnelleingabe-Anzeige</h4>
                     <div className="flex items-center justify-between pt-3 border-t border-slate-600/50">
@@ -295,7 +305,7 @@ export const CategoryLibrarySettings: FC<{ onEditGroupDesign: (group: Group) => 
                         <ToggleSwitch id="recent-toggle" enabled={quickAddShowRecents} setEnabled={setQuickAddShowRecents} />
                     </div>
                 </div>
-
+                
                 <div>
                      <h4 className="text-md font-semibold text-white mb-3">Standard-Kategorien</h4>
                      <p className="text-sm text-slate-400 mb-4">Fügen Sie Kategorien aus der Standardbibliothek zu Ihren Gruppen hinzu oder laden Sie die komplette Konfiguration neu.</p>
@@ -342,9 +352,10 @@ interface GroupItemProps {
     onEditGroupDesign: (group: Group) => void;
     onDeleteGroup: (group: Group) => void;
     onEditCategory: (category: Partial<Category> & { groupId: string }) => void;
+    isDnDEnabled: boolean;
 }
 
-const GroupItem: FC<GroupItemProps> = ({ group, dragControls, categories, isExpanded, onToggleExpand, onEditGroupDesign, onDeleteGroup, onEditCategory }) => {
+const GroupItem: FC<GroupItemProps> = ({ group, dragControls, categories, isExpanded, onToggleExpand, onEditGroupDesign, onDeleteGroup, onEditCategory, isDnDEnabled }) => {
     const { reorderCategories, favoriteIds, toggleFavorite, updateGroup } = useApp();
     const [localCategories, setLocalCategories] = useState(categories);
     
@@ -367,14 +378,16 @@ const GroupItem: FC<GroupItemProps> = ({ group, dragControls, categories, isExpa
         >
             <div className="relative">
                 <div className="flex items-center gap-2">
-                    <div
-                        onPointerDown={(e) => dragControls.start(e)}
-                        className="p-2 -ml-2 text-slate-500 cursor-grab active:cursor-grabbing touch-none"
-                        aria-label={`Gruppe ${group.name} verschieben`}
-                    >
-                        <GripVertical className="h-5 w-5" />
-                    </div>
-                     <button onClick={onToggleExpand} className="p-2 rounded-full hover:bg-slate-700/50" aria-expanded={isExpanded} aria-label={isExpanded ? "Gruppe einklappen" : "Gruppe ausklappen"}>
+                    {isDnDEnabled && (
+                        <div
+                            onPointerDown={(e) => dragControls.start(e)}
+                            className="p-2 -ml-2 text-slate-500 cursor-grab active:cursor-grabbing touch-none"
+                            aria-label={`Gruppe ${group.name} verschieben`}
+                        >
+                            <GripVertical className="h-5 w-5" />
+                        </div>
+                    )}
+                     <button onClick={onToggleExpand} className={clsx("p-2 rounded-full hover:bg-slate-700/50", !isDnDEnabled && "-ml-2")} aria-expanded={isExpanded} aria-label={isExpanded ? "Gruppe einklappen" : "Gruppe ausklappen"}>
                         <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                     </button>
                     <div className="flex-grow min-w-0 flex items-center gap-2">
@@ -411,7 +424,7 @@ const GroupItem: FC<GroupItemProps> = ({ group, dragControls, categories, isExpa
                         >
                             <div className="pl-10 mt-3 pt-3 border-t border-slate-700/50">
                                 <Reorder.Group axis="y" values={localCategories} onReorder={handleReorderCategories} className="space-y-1">
-                                    {localCategories.map(cat => ( <CategoryReorderItem key={cat.id} category={cat} onEdit={onEditCategory} onToggleFavorite={toggleFavorite} isFavorite={favoriteIds.includes(cat.id)} /> ))}
+                                    {localCategories.map(cat => ( <CategoryReorderItem key={cat.id} category={cat} onEdit={onEditCategory} onToggleFavorite={toggleFavorite} isFavorite={favoriteIds.includes(cat.id)} isDnDEnabled={isDnDEnabled} /> ))}
                                 </Reorder.Group>
                                 <button onClick={() => onEditCategory({ groupId: group.id })} className="mt-2 w-full flex items-center justify-center gap-2 text-sm text-slate-400 hover:text-white p-2 rounded-lg hover:bg-slate-700/50 transition-colors"><Plus className="h-4 w-4" /> Neue Kategorie</button>
                             </div>
@@ -428,7 +441,7 @@ interface GroupReorderWrapperProps extends Omit<GroupItemProps, 'dragControls'> 
     onDragEnd: () => void;
 }
 
-const GroupReorderWrapper: FC<GroupReorderWrapperProps> = ({ group, onDragStart, onDragEnd, ...rest }) => {
+const GroupReorderWrapper: FC<GroupReorderWrapperProps> = ({ group, onDragStart, onDragEnd, isDnDEnabled, ...rest }) => {
     const dragControls = useDragControls();
     return (
         <Reorder.Item
@@ -439,10 +452,13 @@ const GroupReorderWrapper: FC<GroupReorderWrapperProps> = ({ group, onDragStart,
             onDragStart={onDragStart}
             onDragEnd={onDragEnd}
             onDragCancel={onDragEnd}
+            drag={isDnDEnabled}
+            className={!isDnDEnabled ? "cursor-auto" : ""}
         >
             <GroupItem
                 group={group}
                 dragControls={dragControls}
+                isDnDEnabled={isDnDEnabled}
                 {...rest}
             />
         </Reorder.Item>
