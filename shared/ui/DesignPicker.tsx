@@ -80,7 +80,7 @@ const IconPickerGrid: FC<{ onSelect: (iconName: string) => void; }> = ({ onSelec
                 </nav>
             )}
             <div ref={gridRef} className="flex-grow overflow-y-auto custom-scrollbar -mr-3 pr-2 pt-3">
-                <div className="grid grid-cols-5 sm:grid-cols-6 lg:grid-cols-8 gap-1">
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(4.5rem,1fr))] gap-1">
                     {paginatedIcons.length === 0 ? (
                          <p className="col-span-full text-center text-slate-500 py-8">Keine Icons gefunden.</p>
                     ) : (
@@ -168,7 +168,7 @@ export const DesignPicker: FC<DesignPickerProps> = ({ value, onChange }) => {
                     </div>
                 </div>
             </div>
-            <div className="flex-grow flex flex-col min-h-[40vh] md:min-h-0">
+            <div className="flex-grow flex flex-col min-h-[40vh] md:min-h-0 min-w-0">
                  <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400 mb-2 flex-shrink-0">Icon wählen</h3>
                 <div className="flex-grow min-h-0 p-3 bg-slate-800/50 rounded-lg">
                      <IconPickerGrid onSelect={handleIconChange} />
