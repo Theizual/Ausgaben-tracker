@@ -27,7 +27,6 @@ const MonthlyAnalysisView = () => {
         statisticsSelectedDay,
         setStatisticsSelectedDay,
     } = useUIContext();
-    const { categoryMap } = useTaxonomyContext();
     const breakdownRef = useRef<HTMLDivElement>(null);
 
     const monthlyTransactions = useMemo(() => {
@@ -54,7 +53,10 @@ const MonthlyAnalysisView = () => {
     
     useEffect(() => {
         if (statisticsSelectedDay && breakdownRef.current) {
-            breakdownRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            // A small delay allows the element to render before scrolling, improving reliability.
+            setTimeout(() => {
+                breakdownRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 100);
         }
     }, [statisticsSelectedDay]);
 
@@ -77,14 +79,35 @@ const MonthlyAnalysisView = () => {
                     currentMonth={statisticsCurrentMonth}
                  />
             </div>
+            
+            {/* This container will hold the conditionally rendered daily breakdown */}
             <div ref={breakdownRef}>
-                <MonthlyCategoryBreakdown
-                    transactions={monthlyTransactions}
-                    currentMonth={statisticsCurrentMonth}
-                    selectedDay={statisticsSelectedDay}
-                    onClearSelectedDay={() => setStatisticsSelectedDay(null)}
-                />
+                <AnimatePresence>
+                    {statisticsSelectedDay && (
+                        <motion.div
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -10 }}
+                            transition={{ duration: 0.3 }}
+                        >
+                            <MonthlyCategoryBreakdown
+                                transactions={monthlyTransactions}
+                                currentMonth={statisticsCurrentMonth}
+                                selectedDay={statisticsSelectedDay}
+                                onClearSelectedDay={() => setStatisticsSelectedDay(null)}
+                            />
+                        </motion.div>
+                    )}
+                </AnimatePresence>
             </div>
+            
+            {/* The monthly breakdown is now always below the (potential) daily one */}
+            <MonthlyCategoryBreakdown
+                transactions={monthlyTransactions}
+                currentMonth={statisticsCurrentMonth}
+                selectedDay={null}
+                onClearSelectedDay={() => {}}
+            />
         </div>
     );
 };

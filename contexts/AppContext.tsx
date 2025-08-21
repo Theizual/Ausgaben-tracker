@@ -64,6 +64,8 @@ type DataContextType = Omit<ReturnType<typeof useTransactionData>, 'setTransacti
     totalMonthlyFixedCosts: number;
     handleReassignAndDeleteTag: (sourceTagId: string, newTagNames: string[]) => void;
     recipeMap: Map<string, Recipe>;
+    addTransactionToGroup: (groupId: string, newTxData: { description: string; amount: number }) => void;
+    updateGroupTargetAmount: (groupId: string, newTargetAmount: number) => void;
 };
 type SyncContextType = Omit<ReturnType<typeof useSync>, 'isSyncing'> & {
     resetAppData: () => void;
@@ -385,6 +387,8 @@ const ReadyAppProvider: React.FC<{
         addTransactionsToGroup: createPersistentWrapper(transactionDataState.addTransactionsToGroup),
         mergeTransactionWithTarget: createPersistentWrapper(transactionDataState.mergeTransactionWithTarget),
         updateGroupVerifiedStatus: createPersistentWrapper(transactionDataState.updateGroupVerifiedStatus),
+        updateGroupTargetAmount: createPersistentWrapper(transactionDataState.updateGroupTargetAmount),
+        addTransactionToGroup: createPersistentWrapper(transactionDataState.addTransactionToGroup),
         analyzeReceipt,
         addRecipe: createPersistentWrapper((recipe: Recipe) => uiState.setRecipes(prev => [...prev, recipe])),
         updateRecipe: createPersistentWrapper((recipe: Recipe) => uiState.setRecipes(prev => prev.map(r => r.id === recipe.id ? recipe : r))),

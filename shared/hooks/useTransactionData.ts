@@ -729,6 +729,74 @@ export const useTransactionData = ({ showConfirmation, closeTransactionDetail, c
         }
     }, [rawState.transactions]);
 
+    const updateGroupTargetAmount = useCallback((groupId: string, newTargetAmount: number) => {
+        const now = new Date().toISOString();
+        const group = rawState.transactionGroups.find(g => g.id === groupId);
+        if (!group) return;
+
+        const updatedGroup: TransactionGroup = { ...group, targetAmount: newTargetAmount, lastModified: now, version: (group.version || 0) + 1 };
+        dispatch({ type: 'UPSERT_TRANSACTION_GROUP', payload: updatedGroup });
+
+        const allGroupTxs = rawState.transactions.filter(t => t.transactionGroupId === groupId && !t.isDeleted);
+        const correctedTxs = allGroupTxs.filter(t => t.isCorrected);
+        const uncorrectedTxs = allGroupTxs.filter(t => !t.isCorrected);
+
+        const amountCorrected = correctedTxs.reduce((sum, t) => sum + t.amount, 0);
+        const amountToDistribute = newTargetAmount - amountCorrected;
+        const baseAmountToDistribute = uncorrectedTxs.reduce((sum, t) => sum + (t.groupBaseAmount || t.amount), 0);
+
+        const rebalancedTxs = uncorrectedTxs.map(t => {
+            const ratio = baseAmountToDistribute > 0 ? (t.groupBaseAmount || t.amount) / baseAmountToDistribute : 1 / uncorrectedTxs.length;
+            const newTxAmount = amountToDistribute * ratio;
+            return { ...t, amount: newTxAmount, lastModified: now, version: (t.version || 0) + 1 };
+        });
+
+        if (rebalancedTxs.length > 0) {
+            dispatch({ type: 'UPDATE_MULTIPLE_TRANSACTIONS', payload: rebalancedTxs });
+        }
+        toast.success("Gruppensumme aktualisiert und Beträge neu verteilt.");
+    }, [rawState.transactions, rawState.transactionGroups]);
+
+    const addTransactionToGroup = useCallback((groupId: string, newTxData: { description: string, amount: number }) => {
+        const now = new Date().toISOString();
+        const group = rawState.transactionGroups.find(g => g.id === groupId);
+        const existingGroupTxs = rawState.transactions.filter(t => t.transactionGroupId === groupId && !t.isDeleted);
+
+        if (!group || existingGroupTxs.length === 0) {
+            toast.error("Fehler: Gruppe nicht gefunden oder leer.");
+            return;
+        }
+
+        const newTransaction: Transaction = {
+            id: generateUUID('tx'),
+            amount: newTxData.amount,
+            description: newTxData.description,
+            categoryId: existingGroupTxs[0].categoryId,
+            date: existingGroupTxs[0].date,
+            createdAt: now,
+            lastModified: now,
+            version: 1,
+            createdBy: currentUserId || undefined,
+            transactionGroupId: groupId,
+            groupBaseAmount: newTxData.amount,
+            isCorrected: false,
+        };
+
+        const newTargetAmount = group.targetAmount + newTransaction.amount;
+        const updatedGroup: TransactionGroup = { ...group, targetAmount: newTargetAmount, lastModified: now, version: (group.version || 0) + 1 };
+        
+        dispatch({ type: 'ADD_TRANSACTION', payload: newTransaction });
+        dispatch({ type: 'UPSERT_TRANSACTION_GROUP', payload: updatedGroup });
+
+        // A simple rebalance by calling updateGroupTargetAmount on the new total.
+        // This requires a small delay to let the state update with the new transaction.
+        setTimeout(() => {
+            updateGroupTargetAmount(groupId, newTargetAmount);
+            toast.success(`"${newTxData.description}" zur Gruppe hinzugefügt.`);
+        }, 50);
+
+    }, [rawState.transactions, rawState.transactionGroups, currentUserId, updateGroupTargetAmount]);
+
     return {
         transactions, recurringTransactions, allAvailableTags, tagMap, selectTotalSpentForMonth, totalSpentThisMonth, transactionGroups,
         rawTransactions: rawState.transactions, rawRecurringTransactions: rawState.recurring, rawAllAvailableTags: rawState.tags, rawTransactionGroups: rawState.transactionGroups,
@@ -746,5 +814,7 @@ export const useTransactionData = ({ showConfirmation, closeTransactionDetail, c
         addTransactionsToGroup,
         mergeTransactionWithTarget,
         updateGroupVerifiedStatus,
+        updateGroupTargetAmount,
+        addTransactionToGroup,
     };
 };

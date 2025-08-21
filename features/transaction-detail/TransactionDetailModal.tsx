@@ -8,7 +8,7 @@ import { formatCurrency } from '@/shared/utils/dateUtils';
 import { iconMap, X, Edit, Trash2, Plus, FlaskConical, Link, getIconComponent, RefreshCcw, Button, PlusCircle, Info, ShieldCheck, ToggleSwitch } from '@/shared/ui';
 import { PickerModals } from './ui/PickerModals';
 import { TagPill } from '@/shared/ui';
-import { modalBackdropAnimation, modalContentAnimation } from '@/shared/lib/animations';
+import { modalBackdropAnimation, modalContentAnimation, collapsibleAnimation } from '@/shared/lib/animations';
 import { MergePickerModal } from './ui/MergePickerModal';
 import { CorrectedBadge } from './ui/CorrectedBadge';
 
@@ -36,7 +36,9 @@ const TransactionDetailModal = ({
         updateGroupedTransaction,
         removeTransactionFromGroup,
         mergeTransactionWithTarget,
-        updateGroupVerifiedStatus
+        updateGroupVerifiedStatus,
+        updateGroupTargetAmount,
+        addTransactionToGroup
     } = useApp();
 
     const [formState, setFormState] = useState(transaction);
@@ -55,6 +57,12 @@ const TransactionDetailModal = ({
     const [isEditingTags, setIsEditingTags] = useState(false);
     const [isPickingIcon, setIsPickingIcon] = useState(false);
     const [isMerging, setIsMerging] = useState(false);
+
+    // Group editing states
+    const [isAddingToGroup, setIsAddingToGroup] = useState(false);
+    const [newGroupTx, setNewGroupTx] = useState({ description: '', amount: '' });
+    const [isEditingTargetAmount, setIsEditingTargetAmount] = useState(false);
+    const [targetAmountValue, setTargetAmountValue] = useState('');
     
     const category = categoryMap.get(formState.categoryId);
     const Icon = getIconComponent(formState.iconOverride || category?.icon);
@@ -96,6 +104,8 @@ const TransactionDetailModal = ({
             setIsEditingTags(false);
             setIsPickingIcon(false);
             setIsMerging(false);
+            setIsAddingToGroup(false);
+            setIsEditingTargetAmount(false);
         }
     }, [isOpen, transaction]);
 
@@ -115,6 +125,8 @@ const TransactionDetailModal = ({
                 else if (isEditingAmount) setIsEditingAmount(false);
                 else if (isEditingDescription) setIsEditingDescription(false);
                 else if (isEditingNotes) setIsEditingNotes(false);
+                else if (isAddingToGroup) setIsAddingToGroup(false);
+                else if (isEditingTargetAmount) setIsEditingTargetAmount(false);
                 else onClose();
             }
         };
@@ -124,7 +136,7 @@ const TransactionDetailModal = ({
             document.body.classList.remove('modal-open');
             window.removeEventListener('keydown', handleKeyDown);
         };
-    }, [isOpen, onClose, isEditingAmount, isPickingCategory, isEditingDate, isEditingDescription, isEditingNotes, isPickingUser, isEditingTags, isPickingIcon, isMerging]);
+    }, [isOpen, onClose, isEditingAmount, isPickingCategory, isEditingDate, isEditingDescription, isEditingNotes, isPickingUser, isEditingTags, isPickingIcon, isMerging, isAddingToGroup, isEditingTargetAmount]);
     
     const handleDelete = useCallback(() => {
         if (window.confirm(`Möchten Sie die Ausgabe "${transaction.description}" wirklich löschen?`)) {
@@ -256,6 +268,32 @@ const TransactionDetailModal = ({
     const handleRemoveFromGroup = (txId: string) => {
         if(window.confirm("Möchten Sie diese Transaktion wirklich aus der Gruppe entfernen? Die Beträge der verbleibenden Einträge werden angepasst.")) {
             removeTransactionFromGroup(txId);
+        }
+    };
+
+    const handleTargetAmountUpdate = () => {
+        if (!group) return;
+        const newAmount = parseFloat(targetAmountValue.replace(',', '.'));
+        if (isNaN(newAmount) || newAmount < 0) {
+            toast.error("Ungültiger Betrag.");
+        } else if (newAmount !== group.targetAmount) {
+            updateGroupTargetAmount(group.id, newAmount);
+        }
+        setIsEditingTargetAmount(false);
+    };
+
+    const handleAddTxToGroup = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!group) return;
+        const amount = parseFloat(newGroupTx.amount.replace(',', '.'));
+        const description = newGroupTx.description.trim();
+
+        if (description && !isNaN(amount) && amount > 0) {
+            addTransactionToGroup(group.id, { description, amount });
+            setNewGroupTx({ description: '', amount: '' });
+            setIsAddingToGroup(false);
+        } else {
+            toast.error("Bitte Beschreibung und gültigen Betrag eingeben.");
         }
     };
 
@@ -432,14 +470,38 @@ const TransactionDetailModal = ({
                                                     <h3 className="text-sm font-semibold text-white flex items-center gap-2"><Link className="h-4 w-4 text-slate-400"/>Transaktionsgruppe</h3>
                                                     <div className="flex items-center gap-2">
                                                         <div className="text-xs text-right">
-                                                            <p className="text-slate-400">Soll: <span className="font-bold text-white">{formatCurrency(group.targetAmount)}</span></p>
+                                                            {isEditingTargetAmount ? (
+                                                                <motion.div {...inputAnimation}>
+                                                                    <input type="text" inputMode="decimal" value={targetAmountValue} onChange={e => setTargetAmountValue(e.target.value)} onBlur={handleTargetAmountUpdate} onKeyDown={e => e.key === 'Enter' && handleTargetAmountUpdate()} className="w-24 bg-slate-700 border border-slate-600 rounded-md py-1 text-right text-xs text-white focus:ring-1 focus:ring-rose-500" autoFocus/>
+                                                                </motion.div>
+                                                            ) : (
+                                                                <button onClick={() => !allInGroupVerified && (setTargetAmountValue(String(group.targetAmount).replace('.',',')), setIsEditingTargetAmount(true))} disabled={allInGroupVerified} className="disabled:cursor-not-allowed rounded-md p-0.5 -m-0.5">
+                                                                    <p className="text-slate-400">Soll: <span className="font-bold text-white">{formatCurrency(group.targetAmount)}</span></p>
+                                                                </button>
+                                                            )}
                                                             <p className={currentGroupTotal.toFixed(2) !== group.targetAmount.toFixed(2) ? 'text-red-400' : 'text-slate-400'}>Ist: <span className="font-bold text-white">{formatCurrency(currentGroupTotal)}</span></p>
                                                         </div>
-                                                        <div title="Gruppe als geprüft markieren">
-                                                            <ToggleSwitch id="group-verify-toggle" enabled={allInGroupVerified} setEnabled={(v) => updateGroupVerifiedStatus(group.id, v)} />
+                                                        <div className="flex items-center gap-2">
+                                                            <div title="Gruppe als geprüft markieren">
+                                                                <ToggleSwitch id="group-verify-toggle" enabled={allInGroupVerified} setEnabled={(v) => updateGroupVerifiedStatus(group.id, v)} />
+                                                            </div>
+                                                            <Button variant="ghost" size="icon-xs" onClick={() => setIsAddingToGroup(p => !p)} title="Neue Transaktion zur Gruppe hinzufügen" disabled={allInGroupVerified}><PlusCircle className="h-4 w-4"/></Button>
                                                         </div>
                                                     </div>
                                                 </div>
+                                                <AnimatePresence>
+                                                    {isAddingToGroup && (
+                                                        <motion.form {...collapsibleAnimation} onSubmit={handleAddTxToGroup} className="overflow-hidden">
+                                                            <div className="p-2 mb-2 bg-slate-700/50 rounded-lg space-y-2">
+                                                                <input type="text" value={newGroupTx.description} onChange={e => setNewGroupTx(p => ({...p, description: e.target.value}))} placeholder="Beschreibung" className="w-full bg-slate-800/50 border border-slate-600 rounded px-2 py-1 text-sm"/>
+                                                                <div className="flex gap-2">
+                                                                    <input type="text" inputMode="decimal" value={newGroupTx.amount} onChange={e => setNewGroupTx(p => ({...p, amount: e.target.value}))} placeholder="Betrag" className="w-full bg-slate-800/50 border border-slate-600 rounded px-2 py-1 text-sm"/>
+                                                                    <Button type="submit" size="sm">OK</Button>
+                                                                </div>
+                                                            </div>
+                                                        </motion.form>
+                                                    )}
+                                                </AnimatePresence>
                                                 <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
                                                     {groupedTransactions.map(t => {
                                                         const cat = categoryMap.get(t.categoryId);
