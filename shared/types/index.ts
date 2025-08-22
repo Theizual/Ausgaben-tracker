@@ -37,3 +37,167 @@ export interface Tag {
 export interface Category {
   id:string;
   name: string;
+  color: string;
+  icon: string;
+  budget?: number;
+  groupId: string;
+  sortIndex: number;
+  lastModified: string; // ISO string
+  isDeleted?: boolean;
+  version: number;
+  conflicted?: boolean;
+}
+
+export interface Transaction {
+  id:string;
+  amount: number;
+  description: string;
+  categoryId: string;
+  date: string; // ISO string format
+  createdAt: string; // ISO string
+  tagIds?: string[];
+  recurringId?: string;
+  lastModified: string; // ISO string
+  isDeleted?: boolean;
+  version: number;
+  conflicted?: boolean;
+  createdBy?: string;
+  isDemo?: boolean;
+  transactionGroupId?: string;
+  iconOverride?: string;
+  isCorrected?: boolean;
+  groupBaseAmount?: number;
+  notes?: string;
+  isVerified?: boolean;
+}
+
+export interface TransactionGroup {
+  id: string;
+  targetAmount: number;
+  createdAt: string; // ISO string
+  lastModified: string; // ISO string
+  isDeleted?: boolean;
+  version: number;
+  conflicted?: boolean;
+}
+
+export interface RecurringTransaction {
+  id: string;
+  amount: number;
+  description: string;
+  categoryId: string;
+  frequency: 'monthly' | 'bimonthly' | 'quarterly' | 'semiannually' | 'yearly';
+  dayOfMonth?: number;
+  startDate: string; // ISO string
+  endDate?: string;
+  active?: boolean;
+  lastProcessedDate?: string; // ISO string
+  lastModified: string; // ISO string
+  isDeleted?: boolean;
+  version: number;
+  conflicted?: boolean;
+  notes?: string;
+}
+
+export interface UserSetting {
+  userId: string | 'app_meta';
+  key: 'groupColors' | 'visibleGroups' | 'mode' | 'quickAddShowFavorites' | 'quickAddShowRecents' | 'categoryColorOverrides' | 'hiddenCategories' | 'aiFeaturesEnabled' | 'mealPlanEnabled';
+  value: string; // Comma-separated list for visibleGroups, JSON string for groupColors/categoryColorOverrides/hiddenCategories
+  lastModified: string;
+  version: number;
+  isDeleted?: boolean;
+  conflicted?: boolean;
+}
+
+export interface Ingredient {
+  name: string;
+  category: string;
+}
+
+export interface Recipe {
+  id: string;
+  name: string;
+  ingredients: Ingredient[];
+  instructions: string;
+  price?: number;
+  link?: string;
+  tags: string[];
+  base: 'nudeln' | 'reis' | 'kartoffeln' | 'mix';
+  sideSuggestion?: string;
+  isPremium?: boolean;
+  lastModified: string;
+  isDeleted?: boolean;
+  userId?: string;
+  version: number;
+}
+
+export interface MealPrefs {
+  base: 'nudeln' | 'reis' | 'kartoffeln' | 'mix';
+  sides: string[];
+  meatRate: 'none' | '1-2' | '3-5' | 'daily';
+  diet: {
+    vegetarian?: boolean;
+    glutenFree?: boolean;
+    lactoseFree?: boolean;
+  };
+  people: {
+    adults: number;
+    kids: number;
+  };
+  tipsEnabled: boolean;
+  excludeTags: string[];
+  favoriteRecipeIds: string[];
+}
+
+export interface MealDay {
+  day: string;
+  dateISO: string;
+  recipeId?: string;
+  mealType?: 'recipe' | 'leftovers' | 'eating_out' | 'no_meal';
+  servings: {
+    adults: number;
+    kids: number;
+  };
+  estimatedPrice: number;
+  isConfirmed?: boolean;
+  // Day-specific overrides
+  title?: string;
+  side?: string;
+  link?: string;
+  priceOverride?: number;
+  note?: string;
+  ingredients?: Ingredient[];
+  instructions?: string;
+}
+
+export interface WeeklyPlan {
+  weekKey: string;
+  days: MealDay[];
+  totalEstimate: number;
+  totalOverride: number;
+  lastModified: string;
+  version: number;
+  isDeleted?: boolean;
+}
+
+export interface CustomShoppingListItem {
+    id: string;
+    name: string;
+    category: string;
+    checked: boolean;
+}
+export interface ShoppingListState {
+    weekKey: string;
+    checkedItems: string[]; // names of items from recipes
+    customItems: CustomShoppingListItem[];
+    lastModified: string;
+    version: number;
+    isDeleted?: boolean;
+}
+
+export type ViewMode = 'woche' | 'monat';
+export type TransactionViewMode = 'list' | 'grid';
+export type PeriodType = 'last3Months' | 'month' | 'year' | 'custom';
+export type QuickFilterId = 'current' | 'month' | 'all';
+export type CategoryId = string;
+export type SettingsTab = 'general' | 'categories' | 'users' | 'budget' | 'tags';

@@ -185,6 +185,25 @@ export const useUserSettings = () => {
         dispatch({ type: 'UPDATE_SETTING', payload: newSetting });
     }, [rawUserSettings]);
 
+    const getIsMealPlanEnabled = useCallback((userId: string): boolean => {
+        const setting = liveUserSettings.find(s => s.userId === userId && s.key === 'mealPlanEnabled');
+        return setting?.value !== 'false'; // Default to true
+    }, [liveUserSettings]);
+
+    const setIsMealPlanEnabled = useCallback((userId: string, enabled: boolean) => {
+        const now = new Date().toISOString();
+        const existingSetting = rawUserSettings.find(s => s.userId === userId && s.key === 'mealPlanEnabled');
+        const newSetting: UserSetting = {
+            userId,
+            key: 'mealPlanEnabled',
+            value: String(enabled),
+            lastModified: now,
+            version: (existingSetting?.version || 0) + 1,
+            isDeleted: false,
+        };
+        dispatch({ type: 'UPDATE_SETTING', payload: newSetting });
+    }, [rawUserSettings]);
+
     const getCategoryColorOverrides = useCallback((userId: string): Record<string, string> => {
         const setting = liveUserSettings.find(s => s.userId === userId && s.key === 'categoryColorOverrides');
         if (setting && setting.value) {
@@ -293,6 +312,8 @@ export const useUserSettings = () => {
         setQuickAddShowRecents,
         getIsAiEnabled,
         setIsAiEnabled,
+        getIsMealPlanEnabled,
+        setIsMealPlanEnabled,
         getCategoryColorOverrides,
         updateCategoryColorOverride,
         getHiddenCategoryIds,

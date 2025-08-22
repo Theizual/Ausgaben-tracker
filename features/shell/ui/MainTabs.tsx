@@ -1,18 +1,26 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { LayoutGrid, Repeat, BarChart2, ChefHat } from '@/shared/ui';
+import { useUserContext } from '@/contexts/AppContext';
 
 // Responsive MainTabs Component
 export const MainTabs: React.FC<{ 
     activeTab: string; 
     setActiveTab: (tab: 'dashboard' | 'transactions' | 'analysis' | 'meal-plan') => void;
 }> = ({ activeTab, setActiveTab }) => {
-    const tabs = [
-        { id: 'dashboard', label: 'Übersicht', icon: LayoutGrid },
-        { id: 'transactions', label: 'Transaktionen', icon: Repeat },
-        { id: 'analysis', label: 'Analyse', icon: BarChart2 },
-        { id: 'meal-plan', label: 'Essensplanung', icon: ChefHat },
-    ];
+    const { isMealPlanEnabled } = useUserContext();
+
+    const tabs = useMemo(() => {
+        const baseTabs = [
+            { id: 'dashboard', label: 'Übersicht', icon: LayoutGrid },
+            { id: 'transactions', label: 'Transaktionen', icon: Repeat },
+            { id: 'analysis', label: 'Analyse', icon: BarChart2 },
+        ];
+        if (isMealPlanEnabled) {
+            baseTabs.push({ id: 'meal-plan', label: 'Essensplanung', icon: ChefHat });
+        }
+        return baseTabs;
+    }, [isMealPlanEnabled]);
     
     return (
         <nav>

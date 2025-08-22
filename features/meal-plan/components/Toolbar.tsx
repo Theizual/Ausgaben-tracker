@@ -1,6 +1,6 @@
-import React, { FC, useState, useRef, useEffect } from 'react';
+import React, { FC, useState, useRef, useEffect, useMemo } from 'react';
 import { Button, ChevronLeft, ChevronRight, RefreshCw, Plus, Undo2, Users, Edit, Minus } from '@/shared/ui';
-import { format, addDays, getWeek, startOfWeek } from 'date-fns';
+import { format, addDays, getWeek, startOfWeek, isBefore, parseISO } from 'date-fns';
 import { useApp } from '@/contexts/AppContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MealPrefs } from '@/shared/types';
@@ -87,8 +87,30 @@ interface ToolbarProps {
 }
 
 export const Toolbar: FC<ToolbarProps> = ({ currentWeek, setCurrentWeek, onReroll, onAddRecipe, hasUndo, onUndo }) => {
-    const { deLocale, mealPlanPrefs, setMealPlanPrefs } = useApp();
+    const { deLocale, mealPlanPrefs, setMealPlanPrefs, weeklyMealPlans } = useApp();
     const [isPeopleEditorOpen, setIsPeopleEditorOpen] = useState(false);
+
+    const earliestPlanDate = useMemo(() => {
+        if (!weeklyMealPlans || Object.keys(weeklyMealPlans).length === 0) {
+            return startOfWeek(new Date(), { weekStartsOn: 1 });
+        }
+        let earliest: Date | null = null;
+        for (const plan of Object.values(weeklyMealPlans)) {
+            if (plan.days?.[0]?.dateISO) {
+                const planDate = startOfWeek(parseISO(plan.days[0].dateISO), { weekStartsOn: 1 });
+                if (!earliest || isBefore(planDate, earliest)) {
+                    earliest = planDate;
+                }
+            }
+        }
+        return earliest || startOfWeek(new Date(), { weekStartsOn: 1 });
+    }, [weeklyMealPlans]);
+
+    const isBackDisabled = useMemo(() => {
+        const limitDate = addDays(earliestPlanDate, -7);
+        const prevWeek = addDays(startOfWeek(currentWeek, { weekStartsOn: 1 }), -7);
+        return isBefore(prevWeek, limitDate);
+    }, [currentWeek, earliestPlanDate]);
 
     const start = startOfWeek(currentWeek, { weekStartsOn: 1 });
     const end = addDays(start, 6);
@@ -99,7 +121,7 @@ export const Toolbar: FC<ToolbarProps> = ({ currentWeek, setCurrentWeek, onRerol
     return (
         <div className="flex flex-col sm:flex-row gap-2 justify-between items-center bg-slate-800/50 p-2 rounded-2xl border border-slate-700/50">
             <div className="flex items-center gap-1">
-                <Button variant="ghost" size="icon-sm" onClick={() => setCurrentWeek(addDays(currentWeek, -7))}>
+                <Button variant="ghost" size="icon-sm" onClick={() => setCurrentWeek(addDays(currentWeek, -7))} disabled={isBackDisabled}>
                     <ChevronLeft className="h-5 w-5" />
                 </Button>
                 <div className="text-center">

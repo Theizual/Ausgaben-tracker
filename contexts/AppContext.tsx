@@ -35,7 +35,7 @@ type UIContextType = Omit<ReturnType<typeof useUI>, 'setCurrentUserId' | 'openSe
     setIsGroupDnDEnabled: React.Dispatch<React.SetStateAction<boolean>>;
 };
 type UserContextType = Omit<ReturnType<typeof useUsers>, 'setUsers' | 'isLoading'> & 
-    Omit<ReturnType<typeof useUserSettings>, 'setQuickAddShowFavorites' | 'setQuickAddShowRecents' | 'setIsAiEnabled'> & 
+    Omit<ReturnType<typeof useUserSettings>, 'setQuickAddShowFavorites' | 'setQuickAddShowRecents' | 'setIsAiEnabled' | 'setIsMealPlanEnabled'> & 
     ReturnType<typeof useCategoryPreferences> & {
     currentUser: User | null;
     currentUserId: string | null;
@@ -46,9 +46,11 @@ type UserContextType = Omit<ReturnType<typeof useUsers>, 'setUsers' | 'isLoading
     quickAddShowFavorites: boolean;
     quickAddShowRecents: boolean;
     isAiEnabled: boolean;
+    isMealPlanEnabled: boolean;
     setQuickAddShowFavorites: (show: boolean) => void;
     setQuickAddShowRecents: (show: boolean) => void;
     setIsAiEnabled: (enabled: boolean) => void;
+    setIsMealPlanEnabled: (enabled: boolean) => void;
 };
 type TaxonomyContextType = Omit<ReturnType<typeof useCategories>, 'setCategoriesAndGroups'> & {
     handleReassignAndDeleteCategory: (sourceCategoryId: string, targetCategoryId: string) => void;
@@ -279,11 +281,11 @@ const ReadyAppProvider: React.FC<{
         usersState.rawUsers, userSettingsState.rawUserSettings, uiState.recipes, rawWeeklyPlans, rawShoppingLists, debouncedSync, syncState.syncStatus
     ]);
 
-    const createPersistentWrapper = (action: (...args: any[]) => any) => (...args: any[]) => {
+    const createPersistentWrapper = useCallback((action: (...args: any[]) => any) => (...args: any[]) => {
         const result = action(...args);
         debouncedSync();
         return result;
-    };
+    }, [debouncedSync]);
     
     // --- COMPOSED ACTIONS ---
     const handleReassignAndDeleteCategory = useCallback((sourceCategoryId: string, targetCategoryId: string) => {
@@ -341,9 +343,11 @@ const ReadyAppProvider: React.FC<{
         setQuickAddShowFavorites: (show) => uiState.currentUserId && createPersistentWrapper(userSettingsState.setQuickAddShowFavorites)(uiState.currentUserId, show),
         setQuickAddShowRecents: (show) => uiState.currentUserId && createPersistentWrapper(userSettingsState.setQuickAddShowRecents)(uiState.currentUserId, show),
         setIsAiEnabled: (enabled) => uiState.currentUserId && createPersistentWrapper(userSettingsState.setIsAiEnabled)(uiState.currentUserId, enabled),
+        setIsMealPlanEnabled: (enabled) => uiState.currentUserId && createPersistentWrapper(userSettingsState.setIsMealPlanEnabled)(uiState.currentUserId, enabled),
         quickAddShowFavorites: uiState.currentUserId ? userSettingsState.getQuickAddShowFavorites(uiState.currentUserId) : true,
         quickAddShowRecents: uiState.currentUserId ? userSettingsState.getQuickAddShowRecents(uiState.currentUserId) : true,
         isAiEnabled: uiState.currentUserId ? userSettingsState.getIsAiEnabled(uiState.currentUserId) : false,
+        isMealPlanEnabled: uiState.currentUserId ? userSettingsState.getIsMealPlanEnabled(uiState.currentUserId) : true,
     }), [usersState, userSettingsState, categoryPreferencesState, currentUser, uiState.currentUserId, uiState.setCurrentUserId, isDemoModeEnabled, showDemoData, setShowDemoData, createPersistentWrapper]);
     
     const taxonomyValue = useMemo<TaxonomyContextType>(() => ({

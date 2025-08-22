@@ -1,11 +1,11 @@
 import React, { useMemo, FC, useState, useEffect, useRef } from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Legend, ReferenceLine, ReferenceDot } from 'recharts';
 import { clsx } from 'clsx';
 import type { Transaction, Category } from '@/shared/types';
-import { eachDayOfInterval, format, parseISO, startOfMonth, endOfMonth, isAfter, getDate, getDaysInMonth, isSameDay } from 'date-fns';
+import { eachDayOfInterval, format, parseISO, startOfMonth, endOfMonth, isAfter, getDate, getDaysInMonth, isSameDay, addDays } from 'date-fns';
 import { formatCurrency } from '@/shared/utils/dateUtils';
 import { TrendingDown } from '@/shared/ui';
-import { FIXED_COSTS_GROUP_ID, CHART_COLOR_PALETTE } from '@/constants';
+import { FIXED_COSTS_GROUP_ID, CHART_COLOR_PALETTE, COLOR_DANGER } from '@/constants';
 import { useApp } from '@/contexts/AppContext';
 import { motion } from 'framer-motion';
 
@@ -28,56 +28,6 @@ interface ItemInfoWithTrend extends ItemInfo {
     isTrendNegative: boolean;
 }
 
-const CustomTooltip = ({ active, payload, label, deLocale, locked }: any) => {
-    if (active && payload && payload.length) {
-        const date = new Date(label);
-        const formattedDate = format(date, 'd. MMMM', { locale: deLocale });
-
-        const dataKeys = [...new Set(payload.map((p: any) => p.dataKey.replace('_trend', '')))];
-
-        const entries = dataKeys
-            .map(key => {
-                const actualPayload = payload.find((p: any) => p.dataKey === key);
-                const trendPayload = payload.find((p: any) => p.dataKey === `${key}_trend`);
-                const valueToShow = actualPayload?.value ?? trendPayload?.value;
-
-                if (valueToShow === null || valueToShow === undefined) return null;
-
-                return {
-                    name: actualPayload?.name || trendPayload?.name,
-                    value: valueToShow,
-                    color: actualPayload?.stroke || trendPayload?.stroke,
-                    isTrend: !actualPayload?.value && !!trendPayload?.value,
-                };
-            })
-            .filter((e): e is NonNullable<typeof e> => e !== null)
-            .sort((a, b) => b.value - a.value);
-
-        if (entries.length === 0) return null;
-
-        return (
-            <div className="bg-slate-700 p-3 rounded-lg border border-slate-600 shadow-xl min-w-[280px]">
-                <p className="font-bold text-white mb-2 flex justify-between items-center">{formattedDate} {locked && <span className="text-xs font-mono bg-slate-600 px-1.5 py-0.5 rounded">LOCKED</span>}</p>
-                <div className="space-y-1.5">
-                    {entries.map((p: any) => (
-                        <div key={p.name} className="flex justify-between items-center text-sm gap-4">
-                            <div className="flex items-center gap-2 truncate">
-                                <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: p.color }} />
-                                <span className="text-slate-300 truncate" style={{ color: p.color }}>{p.name}</span>
-                            </div>
-                            <span className="font-mono text-white font-semibold flex-shrink-0">
-                                {p.isTrend && <span className="text-slate-400 mr-1 text-xs">(Prognose)</span>}
-                                {formatCurrency(p.value)}
-                            </span>
-                        </div>
-                    ))}
-                </div>
-            </div>
-        );
-    }
-    return null;
-};
-
 const DEFAULT_HEIGHT = 350;
 
 export const BudgetBurndownChart: FC<BudgetBurndownChartProps> = ({ transactions, currentMonth }) => {
@@ -85,8 +35,6 @@ export const BudgetBurndownChart: FC<BudgetBurndownChartProps> = ({ transactions
     const [inactiveLegendItems, setInactiveLegendItems] = useState<string[]>([]);
     const [hoveredLegendItem, setHoveredLegendItem] = useState<string | null>(null);
     const dataRef = useRef<{ data: any[], items: ItemInfoWithTrend[] }>({ data: [], items: [] });
-    const [lockedTooltipPayload, setLockedTooltipPayload] = useState<any[] | null>(null);
-    const [lockedCoordinate, setLockedCoordinate] = useState<{x: number, y: number} | null>(null);
     
     const allItems = useMemo(() => {
         const allPotentialItems = groups
@@ -189,11 +137,6 @@ export const BudgetBurndownChart: FC<BudgetBurndownChartProps> = ({ transactions
         dataRef.current = { data: chartData, items: itemsWithTrend };
         return { data: chartData, activeItems: itemsWithTrend, endangeredGroups };
     }, [allItems, currentMonth, transactions]);
-
-    useEffect(() => {
-        setLockedTooltipPayload(null);
-        setLockedCoordinate(null);
-    }, [currentMonth]);
     
     useEffect(() => {
         const handleEscape = (e: KeyboardEvent) => {
@@ -201,8 +144,6 @@ export const BudgetBurndownChart: FC<BudgetBurndownChartProps> = ({ transactions
                 if (setStatisticsSelectedDay) {
                     setStatisticsSelectedDay(null);
                 }
-                setLockedTooltipPayload(null);
-                setLockedCoordinate(null);
             }
         };
         window.addEventListener('keydown', handleEscape);
@@ -215,19 +156,13 @@ export const BudgetBurndownChart: FC<BudgetBurndownChartProps> = ({ transactions
             if (setStatisticsSelectedDay) {
                 setStatisticsSelectedDay(prev => {
                     if (prev && isSameDay(prev, clickedDate)) {
-                        setLockedTooltipPayload(null);
-                        setLockedCoordinate(null);
                         return null;
                     }
-                    setLockedTooltipPayload(e.activePayload);
-                    setLockedCoordinate(e.chartX && e.chartY ? { x: e.chartX, y: e.chartY } : null);
                     return clickedDate;
                 });
             }
         } else if (setStatisticsSelectedDay) {
             setStatisticsSelectedDay(null);
-            setLockedTooltipPayload(null);
-            setLockedCoordinate(null);
         }
     };
     
@@ -266,7 +201,6 @@ export const BudgetBurndownChart: FC<BudgetBurndownChartProps> = ({ transactions
                         <CartesianGrid strokeDasharray="3 3" stroke="#475569" strokeOpacity={0.3} />
                         <XAxis dataKey="date" type="number" scale="time" domain={['dataMin', 'dataMax']} tickFormatter={(d) => format(new Date(d), 'd. MMM', { locale: deLocale })} stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} dy={10} />
                         <YAxis domain={[0, 'auto']} tickFormatter={(v) => formatCurrency(v)} stroke="#94a3b8" fontSize={12} width={80} axisLine={false} tickLine={false} />
-                        <Tooltip content={<CustomTooltip deLocale={deLocale} locked={!!lockedTooltipPayload} />} cursor={{ stroke: '#f43f5e', strokeWidth: 1, strokeDasharray: '3 3' }} active={!lockedTooltipPayload} />
                         <Legend wrapperStyle={{paddingTop: '20px'}} onClick={handleLegendClick} onMouseEnter={handleLegendHover} onMouseLeave={handleLegendLeave} formatter={(value) => { const item = activeItems.find(i => i.name === value); const isInactive = inactiveLegendItems.includes(value); const isDimmed = hoveredLegendItem && hoveredLegendItem !== value; return ( <span className={clsx('flex items-center gap-1.5 text-sm cursor-pointer transition-opacity', { 'text-slate-300': !isInactive, 'text-slate-500 line-through': isInactive, 'opacity-50': isDimmed, })}> {value} {item?.isTrendNegative && !isInactive && <span title="Prognose: Budget wird überschritten"><TrendingDown className="h-4 w-4 text-red-500"/></span>} </span> ); }}/>
                         
                         {statisticsSelectedDay && (<ReferenceLine x={statisticsSelectedDay.getTime()} stroke="#f43f5e" strokeWidth={2} />)}
@@ -277,19 +211,40 @@ export const BudgetBurndownChart: FC<BudgetBurndownChartProps> = ({ transactions
                                 <Line type="monotone" dataKey={`${item.name}_trend`} stroke={item.color} strokeWidth={1.5} strokeDasharray="5 5" dot={false} legendType="none" activeDot={false} hide={inactiveLegendItems.includes(item.name)} strokeOpacity={hoveredLegendItem && hoveredLegendItem !== item.name ? 0.3 : 1} />
                             </React.Fragment>
                         ))}
+
+                        {endangeredGroups.map(item => {
+                            if (inactiveLegendItems.includes(item.name) || item.averageDailySpend <= 0) {
+                                return null;
+                            }
+
+                            const zeroCrossingDay = item.budget / item.averageDailySpend;
+                            const totalDaysInMonth = getDaysInMonth(currentMonth);
+
+                            if (zeroCrossingDay > totalDaysInMonth) {
+                                return null;
+                            }
+
+                            if (data.length < 2) return null;
+                            const startTs = data[0].date;
+                            const endTs = data[data.length - 1].date;
+                            const totalDuration = endTs - startTs;
+                            const avgIntervalDuration = totalDuration / (totalDaysInMonth - 1);
+                            const zeroCrossingTs = startTs + (zeroCrossingDay - 1) * avgIntervalDuration;
+
+                            return (
+                                <ReferenceDot
+                                    key={`dot-${item.name}`}
+                                    x={zeroCrossingTs}
+                                    y={0}
+                                    r={5}
+                                    fill={COLOR_DANGER}
+                                    stroke="#1e293b"
+                                    strokeWidth={2}
+                                />
+                            );
+                        })}
                     </LineChart>
                 </ResponsiveContainer>
-                {lockedTooltipPayload && lockedCoordinate && (
-                    <div style={{ position: 'absolute', top: lockedCoordinate.y, left: lockedCoordinate.x, transform: 'translate(10px, -50%)', pointerEvents: 'none', zIndex: 1000 }}>
-                        <CustomTooltip
-                            active={true}
-                            payload={lockedTooltipPayload}
-                            label={lockedTooltipPayload[0]?.payload.date}
-                            deLocale={deLocale}
-                            locked={true}
-                        />
-                    </div>
-                )}
             </div>
             {endangeredGroups.length > 0 && (
                 <div className="mt-6 pt-4 border-t border-slate-700">

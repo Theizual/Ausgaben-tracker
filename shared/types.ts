@@ -103,7 +103,7 @@ export interface RecurringTransaction {
 
 export interface UserSetting {
   userId: string | 'app_meta';
-  key: 'groupColors' | 'visibleGroups' | 'mode' | 'quickAddShowFavorites' | 'quickAddShowRecents' | 'categoryColorOverrides' | 'hiddenCategories' | 'aiFeaturesEnabled';
+  key: 'groupColors' | 'visibleGroups' | 'mode' | 'quickAddShowFavorites' | 'quickAddShowRecents' | 'categoryColorOverrides' | 'hiddenCategories' | 'aiFeaturesEnabled' | 'mealPlanEnabled';
   value: string; // Comma-separated list for visibleGroups, JSON string for groupColors/categoryColorOverrides/hiddenCategories
   lastModified: string;
   version: number;

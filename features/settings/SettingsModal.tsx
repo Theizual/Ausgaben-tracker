@@ -15,9 +15,9 @@ import { modalBackdropAnimation, modalContentAnimation } from '@/shared/lib/anim
 const TABS: { id: SettingsTab; label: string; icon: React.FC<any>; }[] = [
     { id: 'general', label: 'Allgemein', icon: SlidersHorizontal }, 
     { id: 'categories', label: 'Gruppen & Kategorien', icon: LayoutGrid },
+    { id: 'tags', label: 'Tags', icon: Tag },
     { id: 'budget', label: 'Budget', icon: Target }, 
     { id: 'users', label: 'Benutzer', icon: Users },
-    { id: 'tags', label: 'Tags', icon: Tag },
 ];
 
 const SettingsModal = ({ isOpen, onClose, initialTab }: { isOpen: boolean; onClose: () => void; initialTab?: SettingsTab; }) => {

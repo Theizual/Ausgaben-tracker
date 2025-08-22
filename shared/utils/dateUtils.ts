@@ -1,4 +1,4 @@
-import { format, parseISO, subDays, isValid, isWithinInterval, addMonths, addDays, differenceInDays, startOfDay } from 'date-fns';
+import { format, parseISO, subDays, isValid, isWithinInterval, addMonths, addDays, differenceInDays, startOfDay, isBefore } from 'date-fns';
 import { de } from 'date-fns/locale';
 import type { Locale } from 'date-fns';
 
@@ -33,4 +33,5 @@ export {
     addDays,
     differenceInDays,
     startOfDay,
+    isBefore,
 };

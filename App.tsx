@@ -51,7 +51,7 @@ const App = () => {
     
     const { transactions } = useDataContext();
     const { syncOperation, lastSync, syncData } = useSyncContext();
-    const { users, showDemoData } = useUserContext();
+    const { users, showDemoData, isMealPlanEnabled } = useUserContext();
 
     const [lastSeenVersion, setLastSeenVersion] = useLocalStorage('lastSeenVersion', '0.0.0');
 
@@ -72,6 +72,13 @@ const App = () => {
         window.scrollTo(0, 0);
     }, [activeTab]);
 
+    // Redirect if meal plan is disabled
+    useEffect(() => {
+        if (!isMealPlanEnabled && activeTab === 'meal-plan') {
+            setActiveTab('dashboard');
+        }
+    }, [isMealPlanEnabled, activeTab, setActiveTab]);
+
     const handleCloseChangelog = () => {
         closeChangelog();
         setLastSeenVersion(APP_VERSION);
@@ -83,7 +90,7 @@ const App = () => {
             case 'dashboard': return <DashboardPage />;
             case 'transactions': return <TransactionsPage />;
             case 'analysis': return <AnalysisPage />;
-            case 'meal-plan': return <MealPlanPage />;
+            case 'meal-plan': return isMealPlanEnabled ? <MealPlanPage /> : null;
             default: return null;
         }
     };
