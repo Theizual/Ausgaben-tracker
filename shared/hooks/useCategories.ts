@@ -42,7 +42,15 @@ const categoriesReducer = (state: CategoriesState, action: Action): CategoriesSt
             categoryUpdates.forEach((update, id) => {
                 const existing = categoriesMap.get(id);
                 if (existing) {
-                    categoriesMap.set(id, { ...existing, ...update, lastModified: now, version: (existing.version || 0) + 1 });
+                    categoriesMap.set(id, {
+                        ...existing,
+                        ...update,
+                        // An upsert should make a category active unless isDeleted is explicitly passed.
+                        // This fixes re-adding a deleted category and respects explicit deletions.
+                        isDeleted: 'isDeleted' in update ? !!update.isDeleted : false,
+                        lastModified: now,
+                        version: (existing.version || 0) + 1
+                    });
                 } else {
                     const baseCategory = getBaseCategories().find(c => c.id === id);
                     const newCategory: Category = {
@@ -181,7 +189,7 @@ export const useCategories = ({ currentUserId, isDemoModeEnabled, hiddenCategory
     }, []);
 
     const upsertCategory = useCallback((categoryData: Partial<Category> & { id: string }) => {
-        if (isStandardCategory(categoryData.id) && currentUserId) {
+        if (isStandardCategory(categoryData.id) && currentUserId && !categoryData.isDeleted) {
             unhideCategory(categoryData.id);
         }
         upsertMultipleCategories([categoryData]);
