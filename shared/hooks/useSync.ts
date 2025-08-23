@@ -124,7 +124,7 @@ export const useSync = (props: SyncProps) => {
     const [syncStatus, setSyncStatus] = useState<SyncStatus>('idle');
     const [syncError, setSyncError] = useState<string | null>(null);
     const [lastSync, setLastSync] = useLocalStorage<string | null>(`${prefix}lastSyncTimestamp`, null);
-    const [isAutoSyncEnabled, setIsAutoSyncEnabled] = useLocalStorage<boolean>(`${prefix}autoSyncEnabled`, true);
+    const [isAutoSyncEnabled, setIsAutoSyncEnabled] = useLocalStorage<boolean>(`${prefix}autoSyncEnabled`, false);
     const [isSyncRecommended, setIsSyncRecommended] = useState(false);
     const [syncPromptDismissedUntil, setSyncPromptDismissedUntil] = useLocalStorage<number | null>(`${prefix}syncPromptDismissedUntil`, null);
     

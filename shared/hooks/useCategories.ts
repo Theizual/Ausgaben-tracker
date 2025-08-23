@@ -177,8 +177,7 @@ export const useCategories = ({ currentUserId, isDemoModeEnabled, hiddenCategory
     }, []);
     
     const upsertMultipleCategories = useCallback((categoriesData: (Partial<Category> & { id: string })[]) => {
-        const payload = categoriesData.map(c => ({ ...c, isDeleted: false }));
-        dispatch({ type: 'UPSERT_MULTIPLE_CATEGORIES', payload });
+        dispatch({ type: 'UPSERT_MULTIPLE_CATEGORIES', payload: categoriesData });
     }, []);
 
     const upsertCategory = useCallback((categoryData: Partial<Category> & { id: string }) => {
