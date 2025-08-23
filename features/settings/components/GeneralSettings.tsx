@@ -17,14 +17,13 @@ export const GeneralSettings = () => {
     return (
         <motion.div 
             key="general"
-            {...{
-                variants: settingsContentAnimation,
-                initial: "initial",
-                animate: "animate",
-                exit: "exit",
-            }}
+            variants={settingsContentAnimation}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            className="flex flex-col h-full"
         >
-            <div>
+            <div className="flex-grow">
                 <h3 className="text-lg font-semibold text-white mb-1">Allgemeine Einstellungen</h3>
                 <p className="text-sm text-slate-400 mb-6">Verwalten Sie hier die Kerneinstellungen der Anwendung.</p>
                 
@@ -108,7 +107,7 @@ export const GeneralSettings = () => {
             </div>
 
             {/* App Info Footer */}
-            <div className="mt-8 pt-4 border-t border-slate-700 flex justify-between items-center text-sm">
+            <div className="mt-8 pt-4 border-t border-slate-700 flex justify-between items-center text-sm flex-shrink-0">
                 <div className="flex items-center gap-2 text-slate-400">
                     <Info className="h-4 w-4" />
                     <span>App-Version</span>

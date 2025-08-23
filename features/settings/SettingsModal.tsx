@@ -38,145 +38,115 @@ const SettingsModal = ({ isOpen, onClose, initialTab }: { isOpen: boolean; onClo
             if (navWidth) {
                 const isRow = getComputedStyle(nav).flexDirection === 'row';
                 // Threshold based on approximate width of all tabs with labels.
-                setIsNavCompact(isRow && navWidth < 520);
+                setIsNavCompact(isRow && navWidth < 550);
             }
         });
-        
         observer.observe(nav);
         return () => observer.disconnect();
     }, [isOpen]);
 
     useEffect(() => {
-        if (isOpen) {
-            setActiveTab(initialTab || 'general');
+        if (isOpen && initialTab) {
+            setActiveTab(initialTab);
         }
     }, [isOpen, initialTab]);
 
-    const handleEscape = useCallback(() => {
-        if (editingGroupDesign) setEditingGroupDesign(null);
-        else onClose();
-    }, [editingGroupDesign, onClose]);
-    
-    useEffect(() => {
-        if (!isOpen) return;
-        const handleKeyDown = (event: KeyboardEvent) => {
-            if (event.key === 'Escape') handleEscape();
-        };
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [isOpen, handleEscape]);
-
-    // Verhindert das Scrollen des Hintergrunds, wenn das Modal geöffnet ist
-    useEffect(() => {
-        if (isOpen) {
-            document.body.classList.add('modal-open');
-        } else {
-            document.body.classList.remove('modal-open');
-        }
-        return () => {
-            document.body.classList.remove('modal-open');
-        };
-    }, [isOpen]);
-
-    const handleSaveGroupDesign = (design: { name: string; color: string; icon: string }, changeColorForAll: boolean) => {
+    const handleSaveGroupDesign = useCallback((design: { name: string; color: string; icon: string }, changeColorForAll: boolean) => {
         if (!editingGroupDesign) return;
-        const { id, name: originalName } = editingGroupDesign;
 
-        if (design.name !== originalName) {
-            renameGroup(id, design.name);
+        const { name, color, icon } = design;
+        const oldGroup = editingGroupDesign;
+
+        if (name !== oldGroup.name) {
+            renameGroup(oldGroup.id, name);
         }
 
         if (changeColorForAll) {
-            updateGroup(id, { color: design.color, icon: design.icon });
-        } else {
+            // Update the global group color
+            if (color !== oldGroup.color) {
+                updateGroup(oldGroup.id, { color });
+            }
+             // Reset user override if it exists, to ensure global color is shown
             if (currentUserId) {
-                updateGroupColor(currentUserId, design.name, design.color);
+                updateGroupColor(currentUserId, name, ''); // Pass empty string or similar to signify reset
             }
-            if (editingGroupDesign.icon !== design.icon) {
-                updateGroup(id, { icon: design.icon });
-            }
+        } else if (currentUserId) {
+            // Update user-specific color override
+            updateGroupColor(currentUserId, name, color);
         }
+        
+        if (icon !== oldGroup.icon) {
+            updateGroup(oldGroup.id, { icon });
+        }
+        
+        toast.success(`Gruppe "${name}" aktualisiert.`);
         setEditingGroupDesign(null);
-        toast.success("Gruppen-Design aktualisiert.");
-    };
+
+    }, [editingGroupDesign, renameGroup, updateGroup, updateGroupColor, currentUserId]);
+
 
     const renderContent = () => {
         switch (activeTab) {
             case 'general': return <GeneralSettings />;
             case 'categories': return <CategoryLibrarySettings onEditGroupDesign={setEditingGroupDesign} />;
+            case 'tags': return <TagSettings />;
             case 'budget': return <BudgetSettings />;
             case 'users': return <UserSettings />;
-            case 'tags': return <TagSettings />;
             default: return null;
         }
     };
 
-    if (!isOpen) return null;
+    if (!isOpen) return <AnimatePresence />;
 
     return (
         <>
-            <motion.div 
-                className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50 p-4" 
-                onClick={onClose} 
-                {...modalBackdropAnimation}
-            >
-                <motion.div 
-                    {...modalContentAnimation}
-                    className="bg-slate-800/80 backdrop-blur-md rounded-xl w-full max-w-4xl shadow-2xl border border-slate-700 flex flex-col h-[90vh] md:h-[85vh]" 
-                    onClick={e => e.stopPropagation()}
-                >
-                    <header className="flex flex-shrink-0 items-center justify-between gap-4 p-3 md:p-4 border-b border-slate-700">
-                        <h2 className="text-lg font-bold text-white">Einstellungen</h2>
-                        <button
-                            onClick={onClose}
-                            className="grid h-10 w-10 place-items-center rounded-full text-slate-400 transition-colors hover:bg-slate-700 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/50"
-                            aria-label="Einstellungen schließen"
+            <AnimatePresence>
+                {isOpen && (
+                    <motion.div
+                        className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-40 p-4"
+                        {...modalBackdropAnimation}
+                        onClick={onClose}
+                    >
+                        <motion.div
+                            className="bg-slate-800 rounded-2xl w-full max-w-5xl h-full max-h-[90vh] shadow-2xl border border-slate-700 flex flex-col md:flex-row overflow-hidden"
+                            onClick={e => e.stopPropagation()}
+                            {...modalContentAnimation}
                         >
-                            <X className="h-5 w-5" />
-                        </button>
-                    </header>
-
-                    <div className="flex flex-col md:flex-row flex-1 min-h-0">
-                        {/* Spalte 1: Navigation */}
-                        <aside className="w-full md:w-56 flex-shrink-0 border-b md:border-b-0 md:border-r border-slate-700">
-                            <nav ref={navRef} className="flex flex-row md:flex-col p-2 md:p-4 md:space-y-1 justify-around md:justify-start">
-                                {TABS.map(tab => {
-                                    const isActive = activeTab === tab.id;
-                                    const showLabel = isActive || !isNavCompact;
-                                    return (
-                                        <button 
-                                            key={tab.id} 
-                                            onClick={() => setActiveTab(tab.id as SettingsTab)} 
-                                            className={`flex items-center justify-center md:justify-start gap-3 md:w-full text-left p-3 rounded-lg text-sm font-semibold transition-colors ${
-                                                isActive 
-                                                ? 'bg-rose-500/20 text-rose-300' 
-                                                : 'text-slate-400 hover:bg-slate-700/50 hover:text-white'
+                            <aside className="flex-shrink-0 bg-slate-900/50 md:w-56 border-b md:border-b-0 md:border-r border-slate-700">
+                                <header className="p-4 border-b border-slate-700 hidden md:flex items-center gap-2">
+                                    <Settings className="h-5 w-5 text-slate-400" />
+                                    <h2 className="text-lg font-bold text-white">Einstellungen</h2>
+                                </header>
+                                <nav ref={navRef} className="p-2 flex flex-row md:flex-col md:space-y-1 overflow-x-auto md:overflow-x-visible">
+                                    {TABS.map(tab => (
+                                        <button
+                                            key={tab.id}
+                                            onClick={() => setActiveTab(tab.id)}
+                                            className={`relative w-full text-left flex items-center gap-3 p-3 rounded-lg font-semibold text-sm transition-colors whitespace-nowrap ${
+                                                activeTab === tab.id ? 'bg-slate-700 text-white' : 'text-slate-400 hover:bg-slate-700/50 hover:text-white'
                                             }`}
-                                            title={tab.label}
-                                            aria-label={tab.label}
-                                            aria-selected={isActive}
                                         >
-                                            <tab.icon className="h-5 w-5 flex-shrink-0"/>
-                                            <span className={showLabel ? 'inline' : 'hidden'}>{tab.label}</span>
+                                            <tab.icon className="h-5 w-5 flex-shrink-0" />
+                                            {!isNavCompact && tab.label}
                                         </button>
-                                    );
-                                })}
-                            </nav>
-                        </aside>
-
-                        {/* Spalte 2: Inhalt */}
-                        <main className="flex-1 p-6 overflow-y-auto custom-scrollbar">
-                            <AnimatePresence mode="wait">
-                                {renderContent()}
-                            </AnimatePresence>
-                        </main>
-                    </div>
-                </motion.div>
-            </motion.div>
-
+                                    ))}
+                                </nav>
+                            </aside>
+                            <main className="flex-grow p-6 overflow-y-auto custom-scrollbar relative">
+                                <button onClick={onClose} className="absolute top-4 right-4 p-2 rounded-full hover:bg-slate-700 transition-colors md:hidden z-10" aria-label="Einstellungen schließen">
+                                    <X className="h-5 w-5" />
+                                </button>
+                                <AnimatePresence mode="wait">
+                                    {renderContent()}
+                                </AnimatePresence>
+                            </main>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
             <AnimatePresence>
                 {editingGroupDesign && (
-                    <GroupDesignModal 
+                    <GroupDesignModal
                         group={editingGroupDesign}
                         onClose={() => setEditingGroupDesign(null)}
                         onSave={handleSaveGroupDesign}

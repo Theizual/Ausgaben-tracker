@@ -281,11 +281,11 @@ const ReadyAppProvider: React.FC<{
         usersState.rawUsers, userSettingsState.rawUserSettings, uiState.recipes, rawWeeklyPlans, rawShoppingLists, debouncedSync, syncState.syncStatus
     ]);
 
-    const createPersistentWrapper = useCallback((action: (...args: any[]) => any) => (...args: any[]) => {
+    const createPersistentWrapper = (action: (...args: any[]) => any) => (...args: any[]) => {
         const result = action(...args);
         debouncedSync();
         return result;
-    }, [debouncedSync]);
+    };
     
     // --- COMPOSED ACTIONS ---
     const handleReassignAndDeleteCategory = useCallback((sourceCategoryId: string, targetCategoryId: string) => {

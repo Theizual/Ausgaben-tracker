@@ -172,12 +172,10 @@ const TagAnalysisView = () => {
                 {selectedTagIdsForAnalysis.length > 0 ? (
                     <motion.div
                         key={selectedTagIdsForAnalysis.join('-')}
-                        {...{
-                            variants: pageContentAnimation,
-                            initial: "initial",
-                            animate: "animate",
-                            exit: "exit",
-                        }}
+                        variants={pageContentAnimation}
+                        initial="initial"
+                        animate="animate"
+                        exit="exit"
                     >
                         <TagDetailView
                             tagIds={selectedTagIdsForAnalysis}
@@ -230,12 +228,10 @@ const AnalysisPage = () => {
             <AnimatePresence mode="wait">
                 <motion.div
                     key={analysisView}
-                    {...{
-                        variants: pageContentAnimation,
-                        initial: "initial",
-                        animate: "animate",
-                        exit: "exit",
-                    }}
+                    variants={pageContentAnimation}
+                    initial="initial"
+                    animate="animate"
+                    exit="exit"
                 >
                     {analysisView === 'monthly' ? <MonthlyAnalysisView /> : <TagAnalysisView />}
                 </motion.div>

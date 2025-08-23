@@ -1,5 +1,3 @@
-
-
 import React, { FC, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LayoutGrid, List } from '@/shared/ui';

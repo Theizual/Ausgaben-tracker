@@ -240,12 +240,7 @@ export const CategoryLibrarySettings: FC<{ onEditGroupDesign: (group: Group) => 
         <>
             <motion.div 
                 key="categories"
-                {...{
-                    variants: settingsContentAnimation,
-                    initial: "initial",
-                    animate: "animate",
-                    exit: "exit",
-                }}
+                {...settingsContentAnimation}
             >
                 <h3 className="text-lg font-semibold text-white mb-1">Gruppen & Kategorien</h3>
                 <p className="text-sm text-slate-400 mb-6">Verwalten Sie hier Ihre Ausgabenstruktur. Sortieren Sie Gruppen und Kategorien per Drag & Drop.</p>
@@ -414,12 +409,7 @@ const GroupItem: FC<GroupItemProps> = ({ group, dragControls, categories, isExpa
                 <AnimatePresence>
                     {isExpanded && (
                         <motion.div 
-                            {...{
-                                variants: collapsibleAnimation,
-                                initial: "initial",
-                                animate: "animate",
-                                exit: "exit",
-                            }}
+                            {...collapsibleAnimation}
                             className="overflow-hidden"
                         >
                             <div className="pl-10 mt-3 pt-3 border-t border-slate-700/50">

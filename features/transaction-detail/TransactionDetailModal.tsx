@@ -333,12 +333,10 @@ const TransactionDetailModal = ({
                                             <motion.div
                                                 key={formState.id}
                                                 className="w-full"
-                                                {...{
-                                                    initial: { opacity: 0 },
-                                                    animate: { opacity: 1 },
-                                                    exit: { opacity: 0 },
-                                                    transition: { duration: 0.2 },
-                                                }}
+                                                initial={{ opacity: 0 }}
+                                                animate={{ opacity: 1 }}
+                                                exit={{ opacity: 0 }}
+                                                transition={{ duration: 0.2 }}
                                             >
                                                 <div className="relative mb-4 w-16 h-16 mx-auto">
                                                     <motion.button 

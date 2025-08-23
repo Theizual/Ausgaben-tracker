@@ -1,6 +1,3 @@
-
-
-
 import React, { useEffect, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { X, Gift, Loader2 } from '@/shared/ui';

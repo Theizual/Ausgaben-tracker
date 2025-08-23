@@ -260,7 +260,7 @@ export const useTransactionData = ({ showConfirmation, closeTransactionDetail, c
         addRecentCategory(newTransaction.categoryId);
     }, [getOrCreateTagIds, showConfirmation, currentUserId, selectTotalSpentForMonth, addRecentCategory]);
 
-    const addMultipleTransactions = useCallback((transactionsToCreate: Array<{amount: number, description: string}>, totalAmount: number, commonData: { categoryId: string, tags?: string[] }) => {
+    const addMultipleTransactions = useCallback((transactionsToCreate: Array<{amount: number, description: string, categoryId?: string}>, totalAmount: number, commonData: { categoryId: string, tags?: string[] }) => {
         const totalSpentBefore = selectTotalSpentForMonth(new Date());
         const now = new Date().toISOString();
         const tagIds = getOrCreateTagIds(commonData.tags);
@@ -276,13 +276,14 @@ export const useTransactionData = ({ showConfirmation, closeTransactionDetail, c
         dispatch({ type: 'UPSERT_TRANSACTION_GROUP', payload: newGroup });
     
         const newTransactions: Transaction[] = transactionsToCreate.map(t => ({ 
-            ...t, 
+            amount: t.amount,
+            description: t.description,
             id: generateUUID('tx'), 
             date: now, 
             createdAt: now, 
             lastModified: now, 
             version: 1, 
-            categoryId: commonData.categoryId, 
+            categoryId: t.categoryId || commonData.categoryId, 
             tagIds, 
             createdBy: currentUserId || undefined, 
             transactionGroupId: newGroupId,

@@ -28,5 +28,5 @@
     "index.tsx",
     "vite.config.ts"
   ],
-  "exclude": ["node_modules", "dist", "shared/types.ts"]
+  "exclude": ["node_modules", "dist"]
 }
